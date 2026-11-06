@@ -6,6 +6,8 @@ Add anything here, rough or not. Put your name and the date next to each entry.
 
 - (empty)
 
+Note: the scene-setting section in the README is the working narrative. Add mechanics ideas here and link them back to it.
+
 ## Characters
 
 - See `characters.md`.
