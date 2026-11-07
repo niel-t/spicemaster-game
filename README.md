@@ -1,22 +1,34 @@
 # Spicemaster Game
 
-A gory, top-down action game in the style of Hotline Miami, built as a shared project between two collaborators.
+First-person simulator-type game; think: thief simulator, drug-dealer simulator, or retro-rewind. The game style is 90s-style.  
 
 ## Project status
 
-Early planning. The game engine and platform target are still open (see `docs/decisions.md`).
+Early planning. The game engine and platform target are still open (see `docs/decisions.md`). Perhaps Unity. 
 
 ## Scene setting
 
-**Premise.** Eddy Jr. receives a key to the shed of his father, Eddy. Inside is a collection of old machines that the father has sold to shoarma vendors over the years. The father also knows secret recipes for shoarma and chicken spices, which butchers and shoarma shops across the Netherlands use. Eddy Jr. takes the van, a blue Volkswagen T5, and goes out into the world to grow the business and take over the spice trade.
+**Premise.** Eddy Jr. receives a key to his father Eddy's small warehouse. Inside is a collection of old machines that his father has sold to shawarma vendors over the years. The very first task is to clear the warehouse and free up space. Eddy Jr. can sell those old machines for money using an old 90s PC, then use it to buy his first batch of supplies and tools to start mixing. 
 
-**Goal.** Expand the business until Eddy Jr. controls the spice trade in the Netherlands.
+The father also knows secret recipes for shawarma and chicken spices, which butchers and shawarma shops across fictional Kaasland use. Eddy Jr. takes the van, a blue Volkswagen T5, and heads out to grow the business and take over the spice trade. All this helps you get started.
+
+Throughout the game, Eddy Jr. can expand the warehouse, buy more mixers to mix spices, and eventually hire "Naknikim," stupid idiots who help mix spices or run the back of house. 
+
+Spices can eventually get more complex with more ingredients, and you can sell them for more money. The GOAT is always the ultimate shawarma spice. 
+
+Acquiring the ingredients is also part of the game; you have to get them from different vendors, and weigh price vs. quality vs. quantity. You do all of this from your 90s PC. 
+
+Meanwhile, you can send off different shipments (to you, whether you deliver yourself or send them via courier).
+
+Another part of the game is beating up customers that don't pay, 
+
+**Goal.** Expand the business and become the ultimate spice kingpin in Kaasland. 
 
 ### Phase 1: Early game (repair and trade)
 
-- Repair shoarma grills for customers.
-- Buy broken equipment from customers, repair it to a minimum standard, and resell it at the market for a profit.
-- Build enough money to start investing in the factory and recipes.
+- sell the old rusty equipment, clear the warehouse, and set up shop
+- buy spices and ingredients to start building up stock
+- gain enough money to start investing in the factory and recipes.
 
 ### Phase 2: Mid to late game (delivery and management)
 
@@ -28,7 +40,7 @@ Early planning. The game engine and platform target are still open (see `docs/de
 
 - **Factory and RPG (management module):** expand the factory, unlock and add recipes, set prices, plan and run production batches, and manage stock and cash.
 - **Delivery module:** a separate driving mode in the blue T5. Drive around, deliver orders on time, and handle what happens on the road.
-- **Customers:** each customer has a personality and a payment record. Some pay late, some complain, some pressure you. The player decides how to respond: negotiate a payment plan, send a reminder, call in a debt collector, or drop the account. Each choice has consequences for money and reputation.
+- **Customers:** each customer has a personality and a payment record. Some pay late, some complain, some pressure you. The player decides how to respond: negotiate a payment plan, send a reminder, call in a debt collector, or drop the account. Each choice has financial and reputational consequences.
 - **Equipment trade (early game):** the repair and resale loop described above.
 
 ### Open questions
