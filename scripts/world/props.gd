@@ -3,7 +3,7 @@ class_name Props
 ## at floor level and whose front faces -Z.
 
 static func _steel() -> StandardMaterial3D:
-	return Tex.flat(Color(0.62, 0.63, 0.64), 0.45, 0.6)
+	return Tex.mat("steel", Color.WHITE, 1.5)
 
 
 static func _rusty() -> StandardMaterial3D:
@@ -107,33 +107,134 @@ static func red_shelf() -> Node3D:
 	return n
 
 
-## The Oofmobiel: Eddy's blue van.
+## Car side profile in (Z, Y): front of the car is -Z.
+static func _car_body(n: Node3D, color: Color, profile: PackedVector2Array, half_w: float, windows: Array) -> void:
+	var paint := Tex.flat(color, 0.35, 0.4).duplicate()
+	paint.cull_mode = BaseMaterial3D.CULL_DISABLED
+	n.add_child(Build.prism(profile, half_w, paint))
+	var glass := Tex.glass(Color(0.08, 0.1, 0.13))
+	for w in windows:
+		# w = PackedVector2Array window outline in (Z, Y), drawn on both sides.
+		for side in [-1.0, 1.0]:
+			var mi := Build.prism(w, 0.005, glass)
+			mi.position.x = (half_w + 0.006) * side
+			n.add_child(mi)
+
+
+static func _wheels(n: Node3D, half_w: float, zs: Array, r := 0.32) -> void:
+	var tyre := Tex.flat(Color(0.05, 0.05, 0.05), 0.9)
+	var hub := Tex.flat(Color(0.6, 0.6, 0.62), 0.4, 0.7)
+	for side in [-1.0, 1.0]:
+		for z in zs:
+			var w := Build.cylinder(n, r, 0.22, Vector3((half_w - 0.08) * side, r, z), tyre, -1.0, 12)
+			w.rotation.z = PI / 2
+			var h := Build.cylinder(n, r * 0.55, 0.23, Vector3((half_w - 0.08) * side, r, z), hub, -1.0, 8)
+			h.rotation.z = PI / 2
+
+
+static func _lights(n: Node3D, half_w: float, front_z: float, back_z: float, y: float) -> void:
+	for side in [-1.0, 1.0]:
+		Build.box(n, Vector3(0.3, 0.12, 0.04), Vector3((half_w - 0.25) * side, y, front_z - 0.01), Tex.flat(Color(1, 0.96, 0.85), 0.3, 0.0, 1.2))
+		Build.box(n, Vector3(0.3, 0.12, 0.04), Vector3((half_w - 0.25) * side, y, back_z + 0.01), Tex.flat(Color(0.8, 0.05, 0.05), 0.3, 0.0, 0.8))
+
+
+## Four-door 90s saloon.
+static func sedan(color: Color) -> Node3D:
+	var n := _root("Sedan")
+	var hw := 0.86
+	var body := PackedVector2Array([
+		Vector2(-2.3, 0.28), Vector2(-2.35, 0.62), Vector2(-2.2, 0.78), Vector2(-1.0, 0.86),
+		Vector2(-0.55, 1.32), Vector2(0.75, 1.34), Vector2(1.3, 0.92), Vector2(2.2, 0.86),
+		Vector2(2.3, 0.62), Vector2(2.25, 0.28),
+	])
+	var windows := [
+		PackedVector2Array([Vector2(-0.95, 0.9), Vector2(-0.52, 1.27), Vector2(0.08, 1.28), Vector2(0.08, 0.9)]),
+		PackedVector2Array([Vector2(0.16, 0.9), Vector2(0.16, 1.28), Vector2(0.72, 1.29), Vector2(1.2, 0.92)]),
+	]
+	_car_body(n, color, body, hw, windows)
+	var wind := Build.prism(PackedVector2Array([Vector2(-1.0, 0.88), Vector2(-0.56, 1.3), Vector2(-0.5, 1.3), Vector2(-0.94, 0.88)]), hw - 0.06, Tex.glass(Color(0.08, 0.1, 0.13)))
+	n.add_child(wind)
+	_wheels(n, hw, [-1.45, 1.4])
+	_lights(n, hw, -2.35, 2.3, 0.68)
+	Build.box(n, Vector3(hw * 2 + 0.04, 0.12, 0.08), Vector3(0, 0.38, -2.33), Tex.flat(Color(0.15, 0.15, 0.15)))
+	Build.box(n, Vector3(hw * 2 + 0.04, 0.12, 0.08), Vector3(0, 0.38, 2.28), Tex.flat(Color(0.15, 0.15, 0.15)))
+	return n
+
+
+## Small hatchback.
+static func hatchback(color: Color) -> Node3D:
+	var n := _root("Hatchback")
+	var hw := 0.8
+	var body := PackedVector2Array([
+		Vector2(-1.85, 0.28), Vector2(-1.9, 0.62), Vector2(-1.75, 0.76), Vector2(-0.8, 0.84),
+		Vector2(-0.35, 1.32), Vector2(1.5, 1.32), Vector2(1.75, 0.95), Vector2(1.8, 0.28),
+	])
+	var windows := [
+		PackedVector2Array([Vector2(-0.75, 0.88), Vector2(-0.33, 1.26), Vector2(0.45, 1.26), Vector2(0.45, 0.88)]),
+		PackedVector2Array([Vector2(0.53, 0.88), Vector2(0.53, 1.26), Vector2(1.45, 1.26), Vector2(1.66, 0.96), Vector2(1.66, 0.88)]),
+	]
+	_car_body(n, color, body, hw, windows)
+	_wheels(n, hw, [-1.15, 1.2], 0.3)
+	_lights(n, hw, -1.9, 1.8, 0.68)
+	return n
+
+
+## The Oofmobiel: Eddy's blue van (a boxy panel van).
 static func oofmobiel() -> Node3D:
 	var n := _root("Oofmobiel")
-	var blue := Tex.flat(Color(0.12, 0.28, 0.62), 0.4, 0.3)
-	var glass := Tex.flat(Color(0.1, 0.14, 0.18), 0.1, 0.3)
-	var tyre := Tex.flat(Color(0.06, 0.06, 0.06), 0.9)
-	Build.box(n, Vector3(1.9, 1.5, 4.9), Vector3(0, 1.25, 0.1), blue)
-	Build.box(n, Vector3(1.88, 0.7, 0.9), Vector3(0, 0.85, -2.65), blue)
-	Build.box(n, Vector3(1.8, 0.6, 0.05), Vector3(0, 1.55, -2.31), glass)
-	for side in [-1, 1]:
-		Build.box(n, Vector3(0.02, 0.5, 0.8), Vector3(0.96 * side, 1.6, -1.6), glass)
-		Build.box(n, Vector3(0.02, 0.45, 2.6), Vector3(0.96 * side, 1.62, 0.9), glass)
-		for z in [-2.0, 1.7]:
-			var w := Build.cylinder(n, 0.38, 0.28, Vector3(0.86 * side, 0.38, z), tyre, -1.0, 12)
-			w.rotation.z = PI / 2
-	Build.box(n, Vector3(1.6, 0.12, 0.06), Vector3(0, 0.55, -3.1), Tex.flat(Color(0.7, 0.7, 0.7), 0.4, 0.7))
-	Build.box(n, Vector3(0.35, 0.12, 0.03), Vector3(-0.6, 0.9, -3.11), Tex.flat(Color(1, 0.95, 0.8), 0.3, 0.0, 1.5))
-	Build.box(n, Vector3(0.35, 0.12, 0.03), Vector3(0.6, 0.9, -3.11), Tex.flat(Color(1, 0.95, 0.8), 0.3, 0.0, 1.5))
+	var hw := 0.95
+	var body := PackedVector2Array([
+		Vector2(-2.55, 0.3), Vector2(-2.6, 0.75), Vector2(-2.45, 1.0), Vector2(-1.75, 1.15),
+		Vector2(-1.25, 1.95), Vector2(2.4, 1.98), Vector2(2.45, 0.3),
+	])
+	var windows := [
+		PackedVector2Array([Vector2(-1.7, 1.2), Vector2(-1.28, 1.88), Vector2(-0.6, 1.88), Vector2(-0.6, 1.2)]),
+	]
+	_car_body(n, Color(0.13, 0.3, 0.62), body, hw, windows)
+	var wind := Build.prism(PackedVector2Array([Vector2(-1.76, 1.17), Vector2(-1.27, 1.93), Vector2(-1.2, 1.93), Vector2(-1.69, 1.17)]), hw - 0.06, Tex.glass(Color(0.08, 0.1, 0.13)))
+	n.add_child(wind)
+	_wheels(n, hw, [-1.75, 1.6], 0.36)
+	_lights(n, hw, -2.6, 2.45, 0.8)
+	# Side lettering on the panel.
+	for side in [-1.0, 1.0]:
+		var l := Label3D.new()
+		l.text = "EDDY & ZN\nSPECERIJEN"
+		l.font_size = 48
+		l.pixel_size = 0.005
+		l.modulate = Color(1.0, 0.85, 0.3)
+		l.outline_size = 6
+		l.position = Vector3((hw + 0.02) * side, 1.35, 0.9)
+		l.rotation.y = PI / 2 * side
+		n.add_child(l)
 	return n
 
 
 static func street_lamp() -> Node3D:
 	var n := _root("StreetLamp")
-	var pole := Tex.flat(Color(0.25, 0.27, 0.27), 0.6, 0.5)
-	Build.cylinder(n, 0.07, 5.5, Vector3(0, 2.75, 0), pole, -1.0, 6)
-	Build.box(n, Vector3(0.12, 0.08, 1.4), Vector3(0, 5.45, -0.65), pole)
-	Build.box(n, Vector3(0.3, 0.12, 0.5), Vector3(0, 5.38, -1.3), Tex.flat(Color(1, 0.9, 0.7), 0.4, 0.0, 0.8))
+	var pole := Tex.flat(Color(0.2, 0.22, 0.22), 0.5, 0.6)
+	Build.cylinder(n, 0.1, 0.5, Vector3(0, 0.25, 0), pole, 0.07, 8)
+	Build.cylinder(n, 0.06, 6.0, Vector3(0, 3.0, 0), pole, 0.045, 8)
+	var arm := Build.cylinder(n, 0.035, 1.4, Vector3(0, 5.9, -0.6), pole, -1.0, 6)
+	arm.rotation.x = PI / 2 - 0.15
+	Build.box(n, Vector3(0.28, 0.12, 0.6), Vector3(0, 5.95, -1.3), pole)
+	Build.box(n, Vector3(0.22, 0.03, 0.5), Vector3(0, 5.88, -1.3), Tex.flat(Color(1, 0.88, 0.62), 0.4, 0.0, 1.0))
+	return n
+
+
+static func bollard() -> Node3D:
+	var n := _root("Bollard")
+	Build.cylinder(n, 0.07, 0.9, Vector3(0, 0.45, 0), Tex.flat(Color(0.35, 0.12, 0.1), 0.6, 0.3), 0.06, 8)
+	Build.cylinder(n, 0.075, 0.06, Vector3(0, 0.75, 0), Tex.flat(Color(0.85, 0.85, 0.8)), -1.0, 8)
+	return n
+
+
+static func bike_rack() -> Node3D:
+	var n := _root("BikeRack")
+	var m := Tex.flat(Color(0.5, 0.52, 0.52), 0.4, 0.7)
+	for i in 4:
+		var hoop := Build.cylinder(n, 0.02, 0.8, Vector3(i * 0.6, 0.4, 0), m, -1.0, 6)
+		hoop.rotation.x = 0.0
+		Build.box(n, Vector3(0.04, 0.04, 0.6), Vector3(i * 0.6, 0.8, 0), m)
 	return n
 
 
