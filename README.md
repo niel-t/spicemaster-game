@@ -76,12 +76,13 @@ The money is **Wilders**.
 |---|---|---|
 | Move | WASD | Left stick |
 | Sprint | Shift | L3 |
-| Orbit camera | Mouse (click to capture, Esc to release) or Q / E | Right stick |
+| Interact / talk / continue | E | A |
+| Turn camera | Mouse (click to capture, Esc to release) or Left / Right arrow | Right stick |
 
 ### Project layout
 ```
 project.godot        Engine settings and input map
-scenes/              Scenes (.tscn); main.tscn is the entry point
+scenes/              Scenes (.tscn); stage1.tscn (street + warehouse) is the entry point
 scripts/             GDScript, grouped by feature (player/, camera/, …)
 assets/              Drop-in art and audio; see assets/README.md
 tests/               Headless smoke test run by CI

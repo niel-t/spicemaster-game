@@ -1,0 +1,42 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/stage1_builder.gd" id="1_stage"]
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="2_player"]
+[ext_resource type="Script" path="res://scripts/camera/camera_rig.gd" id="3_camera"]
+[ext_resource type="Script" path="res://scripts/characters/character_model.gd" id="4_model"]
+
+[sub_resource type="CapsuleShape3D" id="eddy_shape"]
+radius = 0.35
+height = 1.8
+
+[node name="Stage1" type="Node3D"]
+script = ExtResource("1_stage")
+
+[node name="Player" type="CharacterBody3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.05, 7.2)
+script = ExtResource("2_player")
+camera_rig_path = NodePath("../CameraRig")
+model_path = NodePath("EddyJr")
+
+[node name="EddyJr" type="Node3D" parent="Player"]
+script = ExtResource("4_model")
+skin = Color(0.9, 0.7, 0.58, 1)
+shirt = Color(0.6, 0.72, 0.9, 1)
+pants = Color(0.16, 0.2, 0.3, 1)
+hair_color = Color(0.1, 0.07, 0.05, 1)
+hair = 0
+glasses = true
+open_collar = true
+width = 1.15
+
+[node name="Collision" type="CollisionShape3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("eddy_shape")
+
+[node name="CameraRig" type="Node3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 7.2)
+script = ExtResource("3_camera")
+target_path = NodePath("../Player")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+fov = 60.0
