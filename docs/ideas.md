@@ -3,8 +3,7 @@
 This is a sandbox for mechanics, story beats and features. Nothing here is approved.
 Don't build an idea into the core loop until it moves to [`decisions.md`](decisions.md).
 
-Ported from the Drive copy (`02_Transcripts/Game Ideas and Brainstorming`). That copy was
-cut off partway through the factory section, so later ideas may be missing.
+Ported from the Drive copy (`02_Transcripts/Game Ideas and Brainstorming`).
 
 ---
 
@@ -54,8 +53,8 @@ cut off partway through the factory section, so later ideas may be missing.
   extra salt. Better short-term margins, but perceptive customers may notice.
 - **Eddy Sr.'s notebook:** Family recipes unlock gradually. Cryptic notes in the shed need
   experimentation or reputation milestones before he trusts Eddy Jr. with the next one.
-- **Automated packaging vs hand-scooping:** Progress from hand-scooping into buckets to
-  industrial sealing machines. *(Drive copy cut off here.)*
+- **Automated packaging vs hand-scooping:** Progress from hand-scooping into plastic buckets
+  in the shed to buying industrial sealing machines and hiring workers.
 
 ## From the meeting
 - Opening: sell the old shawarma machines through a 90s PC to fund the first supplies.

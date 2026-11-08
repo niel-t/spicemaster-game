@@ -19,8 +19,8 @@ Entry format: ID, status, context, decision, and (when relevant) what it superse
     the subculture of shoarma shops, local butchers and wholesale food trading.
   - Eddy Jr.'s signature vehicle is a **blue Volkswagen T5**.
 - **Note:** Ported from the Drive copy of this log (`02_Transcripts/Design and Architecture
-  Decisions`). The Drive copy was cut off after the T5 line, so the rest of DEC-001 still
-  needs adding here. The original said "Netherlands"; it was renamed to Kaasland on 2026-11-08.
+  Decisions`), which holds only this entry and ends at the T5 line. The original said
+  "Netherlands"; it was renamed to Kaasland on 2026-11-08.
 
 ## [DEC-002] Engine, source control and CI
 - **Status:** Approved (2026-11-08)
