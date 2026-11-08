@@ -7,7 +7,7 @@ with the **same path and name**: Godot re-imports it and every scene using it up
 |---|---|---|
 | `characters/` | Eddy Jr., Eddy Sr., customers, Naknikim | `.glb` (glTF binary) with embedded rig and animations |
 | `environment/` | Shed/warehouse, streets, buildings | `.glb` |
-| `props/` | Grills, spice tubs, mixing table, the 90s PC, the T5 | `.glb` |
+| `props/` | Spice tubs, mixing table, the Windows 95-style PC, the Oofmobiel | `.glb` |
 | `audio/music/` | Music tracks | `.ogg` |
 | `audio/sfx/` | Sound effects | `.ogg` or `.wav` (short sounds) |
 | `ui/` | Icons, fonts, HUD art | `.png`, `.ttf`/`.otf` |

@@ -15,12 +15,12 @@ Entry format: ID, status, context, decision, and (when relevant) what it superse
 - **Decision:**
   - The player controls **Eddy Jr.**, who takes over a modest shed and secret spice
     recipes from his father, **Eddy Sr.**
-  - The setting is **Kaasland**: a fictional stand-in for the Netherlands, built around
-    the subculture of shoarma shops, local butchers and wholesale food trading.
-  - Eddy Jr.'s signature vehicle is a **blue Volkswagen T5**.
+  - The setting is **Kaasland**, built around the subculture of shoarma shops, local
+    butchers and wholesale food trading. Always Kaasland; never a real country.
+  - The currency is the **Wilder**.
+  - Eddy Jr.'s signature vehicle is a blue van called the **Oofmobiel**.
 - **Note:** Ported from the Drive copy of this log (`02_Transcripts/Design and Architecture
-  Decisions`), which holds only this entry and ends at the T5 line. The original said
-  "Netherlands"; it was renamed to Kaasland on 2026-11-08.
+  Decisions`). Setting, currency and van names were updated on 2026-11-08.
 
 ## [DEC-002] Engine, source control and CI
 - **Status:** Approved (2026-11-08)
@@ -71,4 +71,4 @@ Entry format: ID, status, context, decision, and (when relevant) what it superse
   and deal with customers. Buying always weighs **cost vs quantity vs quality**.
 - **Still open:** the hands-on mixing interaction, how recipes and quality are scored,
   Naknikim look/behaviour (Drive `01_References/01_Characters/05_Naknikim` is still empty),
-  and whether selling ever goes beyond the computer (e.g. T5 deliveries).
+  and whether selling ever goes beyond the computer (e.g. Oofmobiel deliveries).

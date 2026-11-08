@@ -15,21 +15,14 @@ Ported from the Drive copy (`02_Transcripts/Game Ideas and Brainstorming`).
 - How do customers place orders, and how does the player fulfil them?
 - What makes one blend different from another in gameplay terms?
 - Costs and unlock conditions for equipment, recipes and expansion?
-- Does the first scope stay inside the warehouse, or include T5 delivery/driving?
+- Does the first scope stay inside the warehouse, or include Oofmobiel delivery/driving?
 - How do price, quality, quantity and ingredient complexity affect profit?
 - What routine tasks can hired helpers (the Naknikim) take over?
 - What missions add variety, and does fictional violence fit the tone?
 
-## Early game: grill repair & flipping
-- **"Cosmetic fix" vs "actual fix":** Polish the steel and bypass a faulty thermostat with
-  a paperclip. It sells at full price, but costs reputation when it catches fire at the
-  customer's shop two weeks later.
-- **Scrap yard scavenging:** Drive the T5 to scrap yards to pull heating elements and motors
-  from junked appliances and save on repair parts.
-- **Repo mechanic:** If a customer won't pay, Eddy Jr. unbolts their shoarma grill, throws it
-  in the T5 and sells it to their competitor down the street.
-
 ## Customer encounters & dialogue
+- **Repo mechanic:** If a customer won't pay, Eddy Jr. unbolts their shoarma grill, throws it
+  in the Oofmobiel and sells it to their competitor down the street.
 - **The "fake complaint" bluff:** Customers claim the last batch was "all salt, no flavour"
   to dodge their tab. Eddy Jr. can inspect their kitchen and prove they diluted it with
   cheap flour.
@@ -38,10 +31,10 @@ Ported from the Drive copy (`02_Transcripts/Game Ideas and Brainstorming`).
 - **Loyal butcher perks:** High trust with traditional butchers unlocks rare ingredients or
   referrals to high-volume restaurants.
 
-## Blue VW T5 (delivery module)
+## The Oofmobiel (delivery module)
 - **Van upgrades:**
-  - *Heavy-duty leaf springs:* Stop the rear bumper dragging with 800 kg of spice tubs and
-    three cast-iron grills aboard.
+  - *Heavy-duty leaf springs:* Stop the rear bumper dragging with 800 kg of spice tubs
+    aboard.
   - *Tinted windows & hidden compartments:* Hide cash and stock from rival traders and the
     tax inspectors.
   - *Chip tuning:* Faster highway runs between Kaasland's cities.
