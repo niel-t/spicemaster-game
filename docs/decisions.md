@@ -44,3 +44,31 @@ Entry format: ID, status, context, decision, and (when relevant) what it superse
     expressions can carry the humour. Still aim for a strong fun-to-effort ratio, not
     current-gen fidelity.
 - **Open:** a polygon/texture budget for characters needs agreeing before final art starts.
+
+## [DEC-004] Plot & core loop
+- **Status:** Approved (2026-11-08, Raz)
+- **Context:** The first meeting floated the loop without settling it. This is the pitch
+  the game is built around.
+- **Genre:** a hands-on business simulator in the vein of *Drug Dealer Simulator*, played
+  from the high third-person camera in DEC-003 rather than first-person.
+- **Opening:**
+  1. Eddy Sr. hands Eddy Jr. the keys and tells him to take over his warehouse.
+  2. The warehouse is full of old machinery. Eddy Jr. sells it on **the old computer** to
+     raise his first money.
+  3. That money buys his first supplies (spices) and a **mixing table**.
+  4. He mixes his first products and sells them, through the computer, to the existing
+     customers Eddy Sr. already has.
+- **Core loop:** buy supplies on the computer → mix at the table → sell to customers on
+  the computer → reinvest. Business builds up slowly.
+- **Progression:**
+  - Over time, more demanding customers appear who want **more complicated spice mixtures**,
+    which need new supplies bought on the computer.
+  - The long-running goal is ever more complex blends.
+  - Eddy Jr. can **hire Naknikim**: bumbling helpers who take over mundane tasks. Over
+    time, whole jobs such as mixing can be handed to them.
+- **The computer:** an old **Windows 95-style PC** in the warehouse is the player's window
+  to the outside world. It's where they go online to sell the old machinery, buy supplies
+  and deal with customers. Buying always weighs **cost vs quantity vs quality**.
+- **Still open:** the hands-on mixing interaction, how recipes and quality are scored,
+  Naknikim look/behaviour (Drive `01_References/01_Characters/05_Naknikim` is still empty),
+  and whether selling ever goes beyond the computer (e.g. T5 deliveries).

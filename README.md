@@ -1,9 +1,10 @@
 # Spice Master Eddy
 
-A humorous business sim set in **Kaasland**. Eddy Jr. inherits his father's run-down shed,
-secret spice recipes and a list of very demanding customers: shoarma shops and butchers who
-want things done the old way. Buy supplies, mix blends, sell, reinvest, and work toward
-the ultimate shawarma spice blend.
+A humorous spice-factory simulator set in **Kaasland**. Eddy Sr. hands Eddy Jr. the keys to
+his warehouse, which is full of old machinery. Sell the junk on the old Windows 95 PC, buy
+your first spices and a mixing table, and sell blends to Dad's old customers. Then take on
+fussier clients who want ever more complicated mixtures, and hire the Naknikim to do the
+boring work. Think *Drug Dealer Simulator*, but spices, seen over the shoulder.
 
 Built in **Godot 4.4** with a high third-person camera. Design canon is in
 [`docs/decisions.md`](docs/decisions.md); unapproved ideas are in [`docs/ideas.md`](docs/ideas.md).
