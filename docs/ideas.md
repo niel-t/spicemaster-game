@@ -37,10 +37,15 @@ Ported from the Drive copy (`02_Transcripts/Game Ideas and Brainstorming`).
   - *Tinted windows & hidden compartments:* Hide cash and stock from rival traders and the
     tax inspectors.
   - *Chip tuning:* Faster highway runs between Kaasland's cities.
+- **Route planning:** Balance cargo weight, fuel costs and time-sensitive deliveries to
+  keep shops stocked before the Friday night rush.
 - **Parking fines in city centres:** Park on the pavement with hazards on; argue too long
   inside and come back to a wheel clamp.
 
 ## Factory & recipe management
+- **Client-tier pricing:** Set different prices for butchers, wholesalers and shoarma
+  shops; balance quality against margin.
+- **Wider recipe range:** shoarma, chicken, kebab and butcher seasonings.
 - **The "filler" dilemma:** Cut expensive spices (cardamom, nutmeg) with rusk crumbs or
   extra salt. Better short-term margins, but perceptive customers may notice.
 - **Eddy Sr.'s notebook:** Family recipes unlock gradually. Cryptic notes in the shed need
