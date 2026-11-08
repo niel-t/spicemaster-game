@@ -15,7 +15,6 @@ Ported from the Drive copy (`02_Transcripts/Game Ideas and Brainstorming`).
 - How do customers place orders, and how does the player fulfil them?
 - What makes one blend different from another in gameplay terms?
 - Costs and unlock conditions for equipment, recipes and expansion?
-- Does the first scope stay inside the warehouse, or include Oofmobiel delivery/driving?
 - How do price, quality, quantity and ingredient complexity affect profit?
 - What routine tasks can hired helpers (the Naknikim) take over?
 - What missions add variety, and does fictional violence fit the tone?

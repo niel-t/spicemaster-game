@@ -69,6 +69,9 @@ Entry format: ID, status, context, decision, and (when relevant) what it superse
 - **The computer:** an old **Windows 95-style PC** in the warehouse is the player's window
   to the outside world. It's where they go online to sell the old machinery, buy supplies
   and deal with customers. Buying always weighs **cost vs quantity vs quality**.
+- **Delivery:** the game is about selling spices. Outside the warehouse there's a **3D town**
+  (like Neon Vice's overworld) that Eddy Jr. drives around in the **Oofmobiel** to deliver
+  spice orders to customers.
 - **Still open:** the hands-on mixing interaction, how recipes and quality are scored,
   Naknikim look/behaviour (Drive `01_References/01_Characters/05_Naknikim` is still empty),
-  and whether selling ever goes beyond the computer (e.g. Oofmobiel deliveries).
+  and how orders split between the PC and in-person delivery.
