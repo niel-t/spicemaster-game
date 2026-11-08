@@ -1,0 +1,124 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/camera/camera_rig.gd" id="2_camera"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.42, 0.58, 0.78, 1)
+sky_horizon_color = Color(0.72, 0.78, 0.84, 1)
+ground_horizon_color = Color(0.72, 0.78, 0.84, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+tonemap_mode = 2
+ssao_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="floor_mat"]
+albedo_color = Color(0.78, 0.62, 0.45, 1)
+
+[sub_resource type="BoxMesh" id="floor_mesh"]
+material = SubResource("floor_mat")
+size = Vector3(40, 1, 40)
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+size = Vector3(40, 1, 40)
+
+[sub_resource type="StandardMaterial3D" id="eddy_mat"]
+albedo_color = Color(0.2, 0.32, 0.62, 1)
+
+[sub_resource type="CapsuleMesh" id="eddy_mesh"]
+material = SubResource("eddy_mat")
+radius = 0.35
+height = 1.8
+
+[sub_resource type="CapsuleShape3D" id="eddy_shape"]
+radius = 0.35
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="crate_mat"]
+albedo_color = Color(0.62, 0.45, 0.25, 1)
+
+[sub_resource type="BoxMesh" id="crate_mesh"]
+material = SubResource("crate_mat")
+
+[sub_resource type="BoxShape3D" id="crate_shape"]
+
+[node name="Main" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, 0, -0.5, -0.383022, 0.642788, -0.663414, 0.321394, 0.766044, 0.556670, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Greybox" type="Node3D" parent="."]
+
+[node name="Floor" type="StaticBody3D" parent="Greybox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Greybox/Floor"]
+mesh = SubResource("floor_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Greybox/Floor"]
+shape = SubResource("floor_shape")
+
+[node name="Crate1" type="StaticBody3D" parent="Greybox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.5, -4)
+
+[node name="Mesh" type="MeshInstance3D" parent="Greybox/Crate1"]
+mesh = SubResource("crate_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Greybox/Crate1"]
+shape = SubResource("crate_shape")
+
+[node name="Crate2" type="StaticBody3D" parent="Greybox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 1.5, -4)
+
+[node name="Mesh" type="MeshInstance3D" parent="Greybox/Crate2"]
+mesh = SubResource("crate_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Greybox/Crate2"]
+shape = SubResource("crate_shape")
+
+[node name="Crate3" type="StaticBody3D" parent="Greybox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.5, -6)
+
+[node name="Mesh" type="MeshInstance3D" parent="Greybox/Crate3"]
+mesh = SubResource("crate_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Greybox/Crate3"]
+shape = SubResource("crate_shape")
+
+[node name="Crate4" type="StaticBody3D" parent="Greybox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, 2)
+
+[node name="Mesh" type="MeshInstance3D" parent="Greybox/Crate4"]
+mesh = SubResource("crate_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Greybox/Crate4"]
+shape = SubResource("crate_shape")
+
+[node name="Player" type="CharacterBody3D" parent="."]
+script = ExtResource("1_player")
+camera_rig_path = NodePath("../CameraRig")
+
+[node name="Mesh" type="MeshInstance3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("eddy_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("eddy_shape")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("2_camera")
+target_path = NodePath("../Player")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+fov = 60.0

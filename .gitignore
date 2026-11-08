@@ -1,0 +1,24 @@
+# Godot 4 editor cache and imported data (regenerated on open)
+.godot/
+
+# CI-downloaded engine binary
+.ci-godot/
+
+# Export output
+build/
+exports/
+*.pck
+*.exe
+*.x86_64
+*.apk
+
+# Godot-specific
+export_credentials.cfg
+*.translation
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.tmp
+.vscode/
+.idea/

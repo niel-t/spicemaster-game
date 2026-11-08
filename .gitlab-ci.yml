@@ -1,0 +1,39 @@
+# Runs on merge requests and on the default branch, never twice for the same push.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+variables:
+  # Keep in step with config/features in project.godot and the version in README.md.
+  GODOT_VERSION: "4.4-stable"
+
+stages: [test]
+
+default:
+  image: ubuntu:24.04
+  interruptible: true
+
+godot-smoke:
+  stage: test
+  cache:
+    key: "godot-$GODOT_VERSION"
+    paths: [.ci-godot/]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl unzip >/dev/null
+    - mkdir -p .ci-godot && touch .ci-godot/.gdignore
+    - |
+      if [ ! -x ".ci-godot/godot" ]; then
+        curl -sSL -o .ci-godot/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+        unzip -q -o .ci-godot/godot.zip -d .ci-godot
+        mv ".ci-godot/Godot_v${GODOT_VERSION}_linux.x86_64" .ci-godot/godot
+        rm .ci-godot/godot.zip
+      fi
+    - .ci-godot/godot --version
+  script:
+    # Import resources first so scenes load the same way they do in the editor.
+    # Godot 4.4 prints harmless progress_dialog errors here in headless mode.
+    - .ci-godot/godot --headless --path . --import
+    - .ci-godot/godot --headless --path . --fixed-fps 60 --script res://tests/smoke_test.gd
