@@ -18,6 +18,9 @@
 - Commit `.import` and `.uid` files next to their assets/scripts; never commit `.godot/`.
 - Assets go in `assets/<category>/` per `assets/README.md`. Replacing a placeholder
   means keeping the same path and file name, so scenes pick it up automatically.
+- Design source of truth: the Game Bible Google Doc
+  (https://docs.google.com/document/d/1MFpUvK-7x49nk2YuP-ZFu8lr-0FsB7nzGicFOrbk8m0/edit).
+  Build only what it marks Approved; Draft and Idea items need sign-off first.
 - Don't build ideas from `docs/ideas.md` into the core loop until they're in
   `docs/decisions.md`. Setting name is **Kaasland**; protagonist **Eddy Jr.**, father
   **Eddy Sr.**

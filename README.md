@@ -6,8 +6,10 @@ A humorous spice-factory simulator set in **Kaasland**, in the vein of *Drug Dea
 Simulator* but seen over the shoulder. Mix spices, sell them, deliver them across town in the
 **Oofmobiel**, and grow Eddy Sr.'s modest operation into a full-scale factory.
 
-Built in **Godot 4.4**. Design canon is in [`docs/decisions.md`](docs/decisions.md);
-unapproved ideas are in [`docs/ideas.md`](docs/ideas.md).
+Built in **Godot 4.4**. The design source of truth is the
+[Spice Master Eddy: Game Bible](https://docs.google.com/document/d/1MFpUvK-7x49nk2YuP-ZFu8lr-0FsB7nzGicFOrbk8m0/edit)
+Google Doc (premise, characters, acts, gameplay, ideas). If anything in this repo disagrees
+with it, the Game Bible wins.
 
 **Status:** early scaffold. The main scene is a greybox with a placeholder Eddy Jr. and
 the follow camera, so the team has something to build on.
