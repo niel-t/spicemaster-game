@@ -1,9 +1,13 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/stage1_builder.gd" id="1_stage"]
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="2_player"]
 [ext_resource type="Script" path="res://scripts/camera/camera_rig.gd" id="3_camera"]
 [ext_resource type="Script" path="res://scripts/characters/character_model.gd" id="4_model"]
+[ext_resource type="Texture2D" path="res://assets/characters/eddy_jr_head.jpg" id="5_jr_head"]
+[ext_resource type="Texture2D" path="res://assets/characters/jr_shirt.jpg" id="6_jr_shirt"]
+[ext_resource type="Texture2D" path="res://assets/characters/jr_sleeve.jpg" id="7_jr_sleeve"]
+[ext_resource type="Texture2D" path="res://assets/characters/jr_jeans.jpg" id="8_jr_jeans"]
 
 [sub_resource type="CapsuleShape3D" id="eddy_shape"]
 radius = 0.35
@@ -13,21 +17,22 @@ height = 1.8
 script = ExtResource("1_stage")
 
 [node name="Player" type="CharacterBody3D" parent="."]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.05, 7.2)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.2, 7.2)
 script = ExtResource("2_player")
 camera_rig_path = NodePath("../CameraRig")
 model_path = NodePath("EddyJr")
 
 [node name="EddyJr" type="Node3D" parent="Player"]
 script = ExtResource("4_model")
-skin = Color(0.9, 0.7, 0.58, 1)
-shirt = Color(0.6, 0.72, 0.9, 1)
-pants = Color(0.16, 0.2, 0.3, 1)
-hair_color = Color(0.1, 0.07, 0.05, 1)
-hair = 0
-glasses = true
-open_collar = true
-width = 1.15
+head_texture = ExtResource("5_jr_head")
+torso_texture = ExtResource("6_jr_shirt")
+sleeve_texture = ExtResource("7_jr_sleeve")
+legs_texture = ExtResource("8_jr_jeans")
+skin = Color(0.8, 0.56, 0.46, 1)
+shoes = Color(0.12, 0.1, 0.09, 1)
+width = 1.12
+belly = 0.04
+hair_volume = 1.15
 
 [node name="Collision" type="CollisionShape3D" parent="Player"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

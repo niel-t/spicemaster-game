@@ -15,6 +15,8 @@ var _failures: PackedStringArray = []
 
 
 func _initialize() -> void:
+	# Watchdog: if a script fails to load the test would otherwise hang CI.
+	create_timer(120.0).timeout.connect(func(): _finish("timed out after 120 s"))
 	_run()
 
 
@@ -63,7 +65,7 @@ func _run() -> void:
 	_check(not stage.pc_interactable.enabled, "PC should be locked before the warehouse is cleared")
 
 	# 2. Walk inside: the roof hides so the camera can see in.
-	player.global_position = Vector3(0, 0.1, 22.0)
+	player.global_position = Vector3(0, 0.4, 22.0)
 	await _frames(20)
 	_check(stage.player_inside, "player not detected inside the warehouse")
 	_check(stage.is_roof_hidden(), "roof still visible with the player inside")
@@ -92,7 +94,7 @@ func _run() -> void:
 	_check(not game.ui_locked, "UI still locked after closing the PC")
 
 	# 5. Walk back out: roof comes back.
-	player.global_position = Vector3(0, 0.1, 6.0)
+	player.global_position = Vector3(0, 0.4, 6.0)
 	await _frames(20)
 	_check(not stage.is_roof_hidden(), "roof did not come back outside")
 	_finish("")
