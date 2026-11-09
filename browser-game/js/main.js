@@ -387,7 +387,9 @@ function spanWidths(len, k0) {
 { let x = -64; spanWidths(30, 0).forEach((w, i) => { house(x + w / 2, -11, w, 9, 9 + (i % 4), 0, i + 20); x += w; }); }
 stackTower(-34, -26.5, -11);
 const WH_X0_GAP = -11.2;
-let nx = -26.5, hi = 3;
+// Shoarma Schmatzel: loyal to Eddy Sr., right next to the Hotel Kaasland stack
+const JS = { x0: -26.5, x1: -16.5, z0: -15.5, z1: -6.5, h: 4.8, doorX0: -21.6, doorX1: -20.2 };
+let nx = JS.x1, hi = 3;
 for (const w of spanWidths(WH_X0_GAP - nx, hi)) { house(nx + w / 2, -11, w, 9, 9 + (hi % 3) * 1.3, 0, hi); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++; }
 // east of the warehouse: Eddy's private parking (x 1..9.5), then the houses, with The Russian's pawnshop in between
 const LOT = { x0: 1.15, x1: 9.5 };
@@ -714,8 +716,11 @@ function shirtTex(kind) {
       g.strokeStyle = '#ece6d4'; g.lineWidth = 3; g.beginPath(); g.moveTo(104, 0); g.quadraticCurveTo(128, 38, 152, 0); g.stroke();
     } else if (kind && kind[0] === '#') { // plain tee for passers-by: crew neck, maybe stripes; 'p' = police uniform
       g.fillStyle = kind.slice(0, 7); g.fillRect(0, 0, W, H);
-      if (kind.includes('s')) for (let y = 14; y < H; y += 18) { g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(0, y, W, 7); }
-      if (kind.includes('p')) {
+      const fl = kind.slice(7);
+      if (fl.includes('s')) for (let y = 14; y < H; y += 18) { g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(0, y, W, 7); }
+      if (fl.includes('c')) { g.fillStyle = '#ffd23a'; g.fillRect(0, 62, W, 12); g.fillStyle = '#ffffff'; g.font = '900 16px Arial'; g.textAlign = 'center'; g.fillText('CONTROLE', 0, 40); g.fillText('CONTROLE', W, 40); g.fillStyle = '#ffd23a'; g.fillRect(104, 26, 14, 10); }
+      if (fl.includes('a')) { g.fillStyle = '#f2efe6'; g.fillRect(96, 30, 64, H - 30); g.strokeStyle = '#d8d2c4'; g.lineWidth = 3; g.beginPath(); g.moveTo(100, 30); g.lineTo(84, 0); g.moveTo(156, 30); g.lineTo(172, 0); g.stroke(); g.fillStyle = '#c8402e'; g.font = '900 11px Arial'; g.textAlign = 'center'; g.fillText('SCHMATZEL', 128, 60); }
+      if (fl.includes('p')) {
         g.fillStyle = '#d8b040'; g.beginPath(); g.moveTo(104, 30); g.lineTo(112, 26); g.lineTo(120, 30); g.lineTo(118, 42); g.lineTo(112, 46); g.lineTo(106, 42); g.fill();
         g.fillStyle = '#ffffff'; g.fillRect(126, 0, 4, H); g.font = '900 20px Arial'; g.textAlign = 'center'; g.fillText('POLITIE', 0, 50); g.fillText('POLITIE', W, 50);
         g.fillStyle = '#111'; g.fillRect(0, H - 14, W, 10);
@@ -785,9 +790,16 @@ function makePerson(o) {
     for (let i = 0; i < 30; i++) { const a = Math.random() * Math.PI * 2, el = 0.25 + Math.random() * 0.75; const p = new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el)); if (p.z > 0.5 && p.y < 0.5) continue; add(new THREE.SphereGeometry(0.05, 8, 6), hairM, p.x * 0.14, 0.2 + p.y * 0.13, p.z * 0.14 - 0.01, head); }
     for (let i = 0; i < 26; i++) { const a = -0.15 * Math.PI + Math.random() * 1.3 * Math.PI; const yy = -0.06 + Math.random() * 0.1; add(new THREE.SphereGeometry(0.038, 8, 6), beardM, Math.cos(a) * 0.115, 0.08 + yy, Math.sin(a) * 0.105 + 0.045, head); }
   } else if (o.head) { // passer-by: volume hair, optional long hair / bun
-    if (o.police) { // Dutch police cap: navy crown, black peak, gold badge
-      const cap = add(new THREE.CylinderGeometry(0.165, 0.15, 0.1, 18), std(0x1a2440, 0.6), 0, 0.31, -0.01, head); cap.scale.z = 1.05;
-      add(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 18), std(0x1a2440, 0.6), 0, 0.37, -0.01, head);
+    if (o.ballcap) { // baseball cap (Geroof)
+      const dome = add(new THREE.SphereGeometry(0.158, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), std(o.ballcap, 0.7), 0, 0.24, -0.005, head); dome.scale.set(1, 0.75, 1.05);
+      const vis = add(new THREE.CylinderGeometry(0.13, 0.13, 0.015, 16, 1, false, -Math.PI / 2, Math.PI), std(o.ballcap, 0.6), 0, 0.245, 0.09, head); vis.scale.z = 1.25;
+    }
+    if (o.head.beard3d) { const bm = std(parseInt(o.head.beard3d.slice(1), 16), 0.9); for (let i = 0; i < 24; i++) { const a = -0.15 * Math.PI + Math.random() * 1.3 * Math.PI; add(new THREE.SphereGeometry(0.036, 8, 6), bm, Math.cos(a) * 0.112, 0.06 + Math.random() * 0.09, Math.sin(a) * 0.1 + 0.045, head); } }
+    if (o.chain) { const ch = add(new THREE.TorusGeometry(0.1, 0.012, 6, 18), std(0xe8c040, 0.2), 0, 1.66, 0.05); ch.rotation.x = Math.PI / 2 - 0.35; ch.scale.y = 1.2; }
+    if (o.police || o.capColor) { // peaked cap: police navy, or the ticket inspectors' colour
+      const cc = o.capColor || 0x1a2440;
+      const cap = add(new THREE.CylinderGeometry(0.165, 0.15, 0.1, 18), std(cc, 0.6), 0, 0.31, -0.01, head); cap.scale.z = 1.05;
+      add(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 18), std(cc, 0.6), 0, 0.37, -0.01, head);
       const pk = add(new THREE.CylinderGeometry(0.12, 0.12, 0.015, 14, 1, false, -Math.PI / 2, Math.PI), std(0x111111, 0.3), 0, 0.27, 0.07, head); pk.scale.z = 1.2;
       add(new THREE.BoxGeometry(0.05, 0.05, 0.01), std(0xd8b040, 0.3), 0, 0.33, 0.155, head);
     }
@@ -1008,7 +1020,8 @@ let mixSolid = null;
 // ------------------------------------------------------------------ UI
 const $ = (id) => document.getElementById(id);
 const ui = { money: $('money'), income: $('income'), obj: $('objective'), prompt: $('prompt'), toast: $('toast') };
-const state = { step: 'title', money: 0, shown: 0, listed: new Set(), sold: new Set(), table: false, naknik: 0, income: 0, mapSeen: false, inDialogue: false, inPC: false, kit: [], metRussian: false };
+const state = { step: 'title', money: 0, shown: 0, listed: new Set(), sold: new Set(), table: false, naknik: 0, income: 0, mapSeen: false, inDialogue: false, inPC: false, kit: [], metRussian: false,
+  raids: 0, loan: { amount: 1000, out: false, at: 0 }, metGeroof: false, metSchmatzel: false, armed: false };
 function setObjective(t) { ui.obj.innerHTML = t; }
 let toastT = 0;
 function toast(big, small = '', t = 2.6) { ui.toast.innerHTML = big + (small ? `<small>${small}</small>` : ''); ui.toast.style.display = 'block'; toastT = t; }
@@ -1033,7 +1046,7 @@ function beep(freq, dur, type = 'square', vol = 0.05) {
 }
 
 // dialogue
-const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null };
+const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Geroof': './assets/face_geroof.jpg', 'Schmatzel': null };
 let dlgQueue = [], dlgDone = null;
 function dialogue(lines, done) { dlgQueue = lines.slice(); dlgDone = done; state.inDialogue = true; nextLine(); }
 function nextLine() {
@@ -1221,7 +1234,17 @@ const SHOP = [
 ];
 const RU_SAY = ['Everything is quality. Everything is cash.', 'No receipts, no questions, no refunds.', 'Your father bought his first knife here. He still owes me for the sharpening.', 'Dolphins are smartest animal. After me.'];
 function openShop() { $('shop').style.display = 'block'; state.inPC = true; renderShop(); beep(660, 0.06, 'triangle'); }
-function closeShop() { $('shop').style.display = 'none'; state.inPC = false; updateObjective(); }
+function closeShop() {
+  $('shop').style.display = 'none'; state.inPC = false;
+  if (state.step === 'russian' && state.kit.includes('maboota')) { state.step = 'free'; toast('END OF CHAPTER 0', 'You\'re armed. Next: take Spekbuurt from the Lampas.', 4); }
+  updateObjective();
+}
+function kitText() { const names = state.kit.filter((k, i, a) => a.indexOf(k) === i).map((k) => k === 'maboota' ? 'Maboota' : SHOP.find((x) => x.id === k).name); $('kit').textContent = names.length ? 'Kit: ' + names.join(', ') : ''; }
+function giveMaboota() {
+  if (state.kit.includes('maboota')) return;
+  state.kit.unshift('maboota'); kitText(); equip(true);
+  toast('MABOOTA ACQUIRED', 'Your first weapon. Press 1 to equip / holster, F or click to swing.', 4);
+}
 $('shopclose').onclick = closeShop;
 function renderShop(msg) {
   const L = $('shoplist'); L.innerHTML = '';
@@ -1238,13 +1261,9 @@ function renderShop(msg) {
 function buyItem(it, btn) {
   if (it.locked || state.money < it.price) return;
   addMoney(-it.price, btn); state.kit.push(it.id);
-  const names = state.kit.filter((k, i, a) => a.indexOf(k) === i).map((k) => SHOP.find((x) => x.id === k).name);
-  $('kit').textContent = 'Kit: ' + names.join(', ');
+  kitText();
   renderShop('"Good choice. ' + (it.id === 'bat' ? 'Classic.' : 'Very good choice.') + '" · The Russian');
-  if (state.step === 'russian' && ['makarov', 'bat', 'shotgun'].includes(it.id)) {
-    state.step = 'free'; updateObjective();
-    setTimeout(() => { closeShop(); toast('END OF CHAPTER 0', 'You\'re armed. Next: take Spekbuurt from the Lampas.', 4); }, 900);
-  }
+
 }
 function talkRussian() {
   if (!['russian', 'free'].includes(state.step)) { dialogue([['The Russian', 'Pandjeshuis is closed for you, my friend. Come back when Eddy sends you.']]); return; }
@@ -1254,8 +1273,10 @@ function talkRussian() {
       ['The Russian', 'Ahh! Eddy\'s boy! Look at you, same shirt energy as your father. Your father and I, we go back. Before the Lampas. Before dolphins on shirts were cool.'],
       ['Eddy Jr.', 'Pa says you can help me. The Lampas run Spekbuurt.'],
       ['The Russian', 'Lampas boys do not negotiate with spice. They negotiate with this.'],
-      ['The Russian', 'Welcome to Pandjeshuis Spasibo. Everything is quality, everything is cash. Pick, pay, go make your father proud.'],
-    ], openShop);
+      ['The Russian', 'But first, a gift. For Eddy\'s boy. This is Maboota. Is not a gun. Is better: never runs out of bullets.'],
+      ['Eddy Jr.', '...It\'s a stick.'],
+      ['The Russian', 'Is a very persuasive stick. Welcome to Pandjeshuis Spasibo. Everything is quality, everything is cash. Pick, pay, go make your father proud.'],
+    ], () => { giveMaboota(); openShop(); });
   } else openShop();
 }
 function talkDad() {
@@ -1320,11 +1341,15 @@ addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
     if (state.inDialogue) { nextLine(); return; }
+    if (choiceOpen) return;
     if (!state.inPC && current) current.act();
   }
+  if (e.code === 'Escape' && choiceOpen) { closeChoice(-1); return; }
   if (e.code === 'Escape' && state.inPC) { if ($('shop').style.display === 'block') closeShop(); else closePC(); }
   if (e.code === 'KeyN') { const on = music.toggle(); toast(on ? 'MUSIC ON' : 'MUSIC OFF', '', 1); }
-  if (e.code === 'KeyM' && !state.inDialogue) state.inPC ? closePC() : openPC('map', 'pc');
+  if (e.code === 'KeyM' && !state.inDialogue && !choiceOpen) state.inPC ? closePC() : openPC('map', 'pc');
+  if ((e.code === 'Digit1' || e.code === 'Numpad1') && !state.inPC && !state.inDialogue) { if (state.kit.includes('maboota')) equip(!state.armed); else toast('NO WEAPON', 'You have nothing to hold yet.', 1.4); }
+  if (e.code === 'KeyF' && !state.inPC && !state.inDialogue) swing();
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 let zoom = 1;
@@ -1339,10 +1364,11 @@ canvas.addEventListener('pointerdown', (e) => {
     if (it.enabled && !it.enabled()) continue;
     if (ray.intersectObject(it.obj, true).length) {
       const d = it.pos().distanceTo(player.position);
-      if (d <= it.r + 0.6 || it.far) it.act(); else toast('TOO FAR', 'Walk over there first.', 1.4);
+      if (d <= it.r + 0.6 || it.far) it.act(); else if (state.armed) swing(); else toast('TOO FAR', 'Walk over there first.', 1.4);
       return;
     }
   }
+  if (state.armed) swing();
 });
 $('title').addEventListener('click', startGame);
 function startGame() {
@@ -1511,6 +1537,335 @@ for (let i = 0; i < 16; i++) {
 const LINES_POLICE = ['Alles in orde hier, meneer?', 'No loitering near the canal.', 'We are watching the Lampas boys. And you.', 'Nice van. Is it registered?'];
 const LINES_NPC = ['Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say the old Eddy had a secret recipe.'];
 walkers.forEach((w, i) => addInteract({ obj: w, pos: () => w.position, r: 1.4, label: () => 'Say hi', act: () => { w.userData.walk.wait = 2.5; w.rotation.y = Math.atan2(player.position.x - w.position.x, player.position.z - w.position.z); const P_ = w.userData.walk.police, L_ = P_ ? LINES_POLICE : LINES_NPC; toast('"' + L_[(i + Math.floor(performance.now() / 5000)) % L_.length] + '"', P_ ? 'Politie' : 'Passer-by', 2.4); } }));
+// ================================================================== SHOARMA SCHMATZEL
+// A small choice menu in the dialogue box (used by Geroof)
+let choiceOpen = false, choiceCb = null;
+function choice(who, line, options, cb) {
+  state.inPC = true; choiceOpen = true; choiceCb = cb;
+  $('dlgwho').textContent = who; $('dlgline').innerHTML = line + '<div id="choices" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>';
+  const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f;
+  options.forEach((o, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + o; b.style.cssText = 'font:700 15px Arial;padding:7px 14px;border-radius:6px;border:2px solid #ffd36b;background:#2a1a3a;color:#fff;cursor:pointer'; b.onclick = (ev) => { ev.stopPropagation(); closeChoice(i); }; $('choices').appendChild(b); });
+  $('dialogue').style.display = 'block';
+}
+function closeChoice(i) { if (!choiceOpen) return; choiceOpen = false; state.inPC = false; $('dialogue').style.display = 'none'; const cb = choiceCb; choiceCb = null; if (cb) cb(i); }
+addEventListener('keydown', (e) => { if (!choiceOpen) return; const n = { Digit1: 0, Numpad1: 0, Digit2: 1, Numpad2: 1 }[e.code]; if (n !== undefined) { e.stopImmediatePropagation(); closeChoice(n); } }, true);
+
+// seated pose for diners and card players (not driven by animate())
+function sit(p, y = 0.47) { const u = p.userData; u.legs.forEach((l) => { l.rotation.x = -1.45; }); u.body.position.y = y - 0.9; u.seated = true; }
+const joint = new THREE.Group(); scene.add(joint);
+const jointRoof = new THREE.Group(); joint.add(jointRoof);
+const jointFront = new THREE.Group(); joint.add(jointFront);
+const jointLights = [];
+let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
+{
+  const W0 = JS.x0, W1 = JS.x1, Z0 = JS.z0, Z1 = JS.z1, H = JS.h, cx = (W0 + W1) / 2, cz = (Z0 + Z1) / 2;
+  const outer = clapMat(0x1f9e6e), tiles = canvasTex(64, 64, (g, w, h) => { g.fillStyle = '#f2f2ea'; g.fillRect(0, 0, w, h); g.strokeStyle = '#c8c8be'; g.lineWidth = 2; for (let i = 0; i <= 64; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, h); g.moveTo(0, i); g.lineTo(w, i); g.stroke(); } });
+  tiles.wrapS = tiles.wrapT = THREE.RepeatWrapping; tiles.repeat.set(6, 2);
+  const inner = lam({ map: tiles });
+  const floorT = canvasTex(64, 64, (g, w, h) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? '#2a2a30' : '#e8e2d0'; g.fillRect(x * 8, y * 8, 8, 8); } });
+  floorT.wrapS = floorT.wrapT = THREE.RepeatWrapping; floorT.repeat.set(5, 4.5);
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(W1 - W0, Z1 - Z0), lam({ map: floorT })); fl.rotation.x = -Math.PI / 2; fl.position.set(cx, 0.03, cz); fl.receiveShadow = true; joint.add(fl);
+  box(W1 - W0, H, 0.3, inner, cx, H / 2, Z0, joint); solid(W0, W1, Z0 - 0.2, Z0 + 0.15);
+  for (const x of [W0, W1]) { box(0.3, H, Z1 - Z0, inner, x, H / 2, cz, joint); solid(x - 0.15, x + 0.15, Z0, Z1); }
+  const front = (x0, x1) => { box(x1 - x0, H - 0.7, 0.3, outer, (x0 + x1) / 2, 0.7 + (H - 0.7) / 2, Z1, jointFront); box(x1 - x0, 0.7, 0.3, outer, (x0 + x1) / 2, 0.35, Z1, joint); solid(x0, x1, Z1 - 0.15, Z1 + 0.15); };
+  front(W0, JS.doorX0); front(JS.doorX1, W1);
+  box(JS.doorX1 - JS.doorX0, H - 2.4, 0.3, outer, (JS.doorX0 + JS.doorX1) / 2, 2.4 + (H - 2.4) / 2, Z1, jointFront);
+  // big shop windows with gold lettering, neon frames
+  for (const [x, w] of [[W0 + 2.6, 4.2], [W1 - 1.9, 2.6]]) { box(w, 1.8, 0.06, winMat, x, 1.6, Z1 + 0.17, jointFront, false); neonRect(jointFront, x, 1.6, w + 0.1, 1.9, Z1 + 0.24, 0xffe14a); }
+  const ws = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.5), lam({ map: signTex([{ t: 'DÖNER · SHOARMA · FALAFEL', size: 34 }], 'rgba(0,0,0,0)', '#ffd36b', 512, 72), transparent: true })); ws.position.set(W0 + 2.6, 1.15, Z1 + 0.22); jointFront.add(ws);
+  const hinge = new THREE.Group(); hinge.position.set(JS.doorX0, 0, Z1 + 0.05); joint.add(hinge);
+  box(JS.doorX1 - JS.doorX0, 2.35, 0.08, lam({ color: 0xc8402e }), (JS.doorX1 - JS.doorX0) / 2, 1.18, 0, hinge);
+  box(0.9, 1.2, 0.09, winMat, (JS.doorX1 - JS.doorX0) / 2, 1.5, 0.01, hinge, false);
+  jDoor = hinge; jDoorSolid = solid(JS.doorX0, JS.doorX1, Z1 - 0.15, Z1 + 0.15);
+  // façade: big neon sign, awning, blade sign, menu board on the pavement
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.1), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SHOARMA SCHMATZEL', size: 50 }, { t: 'SINDS 1971 · OOK VOOR EDDY', size: 22, color: '#ffffff' }], '#1a0a24', '#ff7a1a', 512, 128) }));
+  sg.position.set(cx, 3.35, Z1 + 0.2); jointFront.add(sg);
+  neonRect(jointFront, cx, 3.35, 7.75, 1.25, Z1 + 0.24, 0xff3fa4);
+  const awnT = canvasTex(64, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ffffff' : '#c8402e'; c.fillRect(i * 8, 0, 8, 64); } });
+  const awn = box(W1 - W0 - 0.6, 0.12, 1.3, lam({ map: awnT }), cx, 2.7, Z1 + 0.75, jointFront); awn.rotation.x = 0.28;
+  bladeSign(jointFront, W0 + 0.4, 3.0, Z1, 'DÖNER', 0xffe14a);
+  const bord = new THREE.Group(); bord.position.set(JS.doorX1 + 1.1, 0, Z1 + 1.1); bord.rotation.y = -0.3; scene.add(bord);
+  const bt = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.0), lam({ map: signTex([{ t: 'VANDAAG', size: 26 }, { t: 'SHOARMA', size: 30, color: '#ffffff' }, { t: 'BROODJE W 4', size: 22, color: '#ffd36b' }], '#202018', '#ff7a1a', 256, 256) })); bt.position.y = 0.7; bt.rotation.x = -0.15; bord.add(bt);
+  solid(JS.doorX1 + 0.8, JS.doorX1 + 1.4, Z1 + 0.8, Z1 + 1.4);
+  // roof (hidden while inside)
+  box(W1 - W0 + 0.4, 0.3, Z1 - Z0 + 0.4, lam({ map: tex('roof_rust.jpg', 3, 3), color: 0x6a6a6a }), cx, H + 0.15, cz, jointRoof);
+  box(W1 - W0 + 0.4, 0.6, 0.3, outer, cx, H + 0.6, Z1 + 0.1, jointFront);
+  cyl(0.3, 0.3, 1.2, lam({ color: 0x9aa0a4 }), W1 - 1.2, H + 0.6, Z0 + 1.2, jointRoof);
+  // ---- inside: counter + döner spit on the right, the card table on the left, two tables for diners by the window
+  const steel = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.8 });
+  const CZc = -13.0;
+  box(4.6, 1.05, 0.8, lam({ color: 0xc8402e }), W1 - 2.6, 0.53, CZc, joint); box(4.8, 0.08, 0.95, steel, W1 - 2.6, 1.09, CZc, joint);
+  box(0.8, 1.05, 2.3, lam({ color: 0xc8402e }), W1 - 4.9, 0.53, CZc - 0.75, joint);
+  solid(W1 - 5.3, W1, CZc - 0.45, CZc + 0.45); solid(W1 - 5.3, W1 - 4.5, Z0, CZc);
+  // sneeze glass + salads
+  box(3.4, 0.4, 0.04, new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.35, roughness: 0.05 }), W1 - 2.9, 1.35, CZc + 0.35, joint, false);
+  for (let i = 0; i < 6; i++) box(0.45, 0.06, 0.32, lam({ color: [0xd84a2a, 0x4f9a30, 0xf2e8c8, 0xe8b020, 0x7a2a5a, 0xf2f2ea][i] }), W1 - 4.3 + i * 0.55, 1.15, CZc, joint, false);
+  // döner spit: a turning cone of meat in front of a glowing grill
+  box(0.9, 1.6, 0.4, steel, W1 - 0.9, 1.9, Z0 + 0.5, joint); box(0.7, 1.3, 0.05, lam({ color: 0xff7a1a, emissive: 0xc84010 }), W1 - 0.9, 1.9, Z0 + 0.72, joint, false);
+  doner = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.1, 14), lam({ color: 0x9a5a2a, map: canvasTex(64, 64, (g) => { g.fillStyle = '#9a5a2a'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 90; i++) { g.fillStyle = ['#c8783a', '#6a3a1a', '#e8a050'][i % 3]; g.fillRect(Math.random() * 64, Math.random() * 64, 6, 2); } }) }));
+  doner.position.set(W1 - 0.9, 1.85, Z0 + 1.15); joint.add(doner); cyl(0.02, 0.02, 1.6, steel, W1 - 0.9, 1.85, Z0 + 1.15, joint);
+  // menu board with neon
+  const menu = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'BROODJE SHOARMA  W 4', size: 26 }, { t: 'SCHOTEL KAASLAND  W 9', size: 26, color: '#ffffff' }, { t: 'KAPSALON EDDY  W 7', size: 26, color: '#ffd36b' }], '#1a0a24', '#3ff0ff', 512, 192) }));
+  menu.position.set(W1 - 3.0, 3.2, Z0 + 0.17); joint.add(menu); neonRect(joint, W1 - 3.0, 3.2, 3.3, 1.3, Z0 + 0.2, 0xff3fa4);
+  // framed photo of young Schmatzel and Eddy Sr.
+  const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), lam({ map: canvasTex(128, 96, (g) => { g.fillStyle = '#d8c8a0'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#8a6a4a'; g.fillRect(6, 6, 116, 84); g.fillStyle = '#f2d8b8'; for (const x of [40, 88]) { g.beginPath(); g.arc(x, 40, 13, 0, 7); g.fill(); g.fillRect(x - 15, 55, 30, 30); } g.fillStyle = '#1a1a1a'; g.font = '700 10px Arial'; g.fillText('EDDY & SCHMATZEL 1966', 6, 92); }) }));
+  ph.position.set(W0 + 0.17, 2.4, cz); ph.rotation.y = Math.PI / 2; joint.add(ph);
+  // card table (round, green felt) on the left
+  const CT = { x: W0 + 2.6, z: -12.0 };
+  cyl(1.05, 1.05, 0.06, lam({ color: 0x1f6a3a }), CT.x, 0.76, CT.z, joint, 28); cyl(1.1, 1.1, 0.05, lam({ color: 0x6a3a1a }), CT.x, 0.72, CT.z, joint, 28); cyl(0.08, 0.12, 0.72, mat.dark, CT.x, 0.36, CT.z, joint);
+  for (let i = 0; i < 9; i++) { const c = box(0.12, 0.005, 0.17, lam({ color: 0xffffff }), CT.x + Math.cos(i) * 0.45, 0.8, CT.z + Math.sin(i * 1.7) * 0.4, joint, false); c.rotation.y = i; }
+  for (let i = 0; i < 12; i++) cyl(0.05, 0.05, 0.03 + (i % 4) * 0.03, lam({ color: [0xc8102e, 0x1a1a1a, 0xffd23a][i % 3] }), CT.x + Math.cos(i * 0.52) * 0.7, 0.8 + (i % 4) * 0.015, CT.z + Math.sin(i * 0.52) * 0.7, joint, 10);
+  solid(CT.x - 1.6, CT.x + 1.6, CT.z - 1.6, CT.z + 1.6);
+  joint.userData.CT = CT;
+  // diner tables by the window
+  for (const [tx, tz] of [[W1 - 1.5, -8.1], [W1 - 1.5, -10.3], [W0 + 1.3, -7.9]]) { box(1.0, 0.05, 0.7, lam({ color: 0xf2efe6 }), tx, 0.76, tz, joint); cyl(0.05, 0.05, 0.74, mat.dark, tx, 0.37, tz, joint); solid(tx - 0.55, tx + 0.55, tz - 0.4, tz + 0.4); }
+  // lights (only while you're inside): warm fluorescent tubes + a pink neon strip
+  for (const x of [cx - 2.5, cx + 2.5]) { box(2.0, 0.08, 0.2, lam({ color: 0xffffff, emissive: 0xfff6d8 }), x, H - 0.3, cz, jointRoof, false); const l = new THREE.PointLight(0xfff0d8, 0, 12, 1.4); l.position.set(x, H - 0.6, cz); joint.add(l); jointLights.push([l, 2.6]); }
+  const pl = new THREE.PointLight(0xff3fa4, 0, 6, 1.6); pl.position.set(W1 - 3, 3, Z0 + 1); joint.add(pl); jointLights.push([pl, 1.2]);
+}
+const isInJoint = (p) => p.x > JS.x0 && p.x < JS.x1 && p.z > JS.z0 && p.z < JS.z1 - 0.1;
+function openJointDoor() { jDoorTarget = 1; jDoorSolid.off = true; beep(1480, 0.1, 'sine', 0.03); setTimeout(() => beep(1180, 0.15, 'sine', 0.03), 110); }
+// Schmatzel behind the counter
+const schmatzel = makePerson({ head: { skin: 0xe0a882, hair: '#c8c4bc', brow: '#8a8478', hairLine: 70, sideLine: 112, backLine: 150, mouth: 'laugh', squint: true, iris: '#3a2a1a' }, front: '#3a6aa0a', shirt: 0x3a6aa0, pants: 0x3a3a3a, shoes: 0x1a1a1a, belly: 1, skin: 0xe0a882, scale: 0.95, rolled: true });
+schmatzel.position.set(JS.x1 - 2.6, 0, -14.1); 
+{ const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.22, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 })); m.position.set(0, 2.35, 0); schmatzel.userData.body.add(m); const t = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), m.material); t.scale.set(1, 0.55, 1); t.position.set(0, 2.5, 0); schmatzel.userData.body.add(t); }
+{ const mo = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.03), new THREE.MeshStandardMaterial({ color: 0xd8d4cc })); mo.position.set(0, 0.105, 0.15); schmatzel.userData.head.add(mo); }
+// Geroof and the card players (Soprano types)
+const CTp = joint.userData.CT;
+const geroof = makePerson({ head: { skin: 0xd29a74, hair: '#151515', brow: '#1a1a1a', hairLine: 92, sideLine: 120, backLine: 150, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3632', beard3d: '#3a3632' }, ballcap: 0x141414, front: '#1a1a1e', shirt: 0x1a1a1e, pants: 0x2a2a30, shoes: 0x111111, belly: 0.5, skin: 0xd29a74 });
+const SOPRANOS = [
+  { head: { skin: 0xe8b890, hair: '#151515', brow: '#111', hairLine: 78, sideLine: 110, backLine: 140, mouth: 'smile', iris: '#3a2a1a' }, front: '#2a2a2e', shirt: 0x2a2a2e, belly: 1.2, chain: true },
+  { head: { skin: 0xdca07a, hair: '#2a2a2a', brow: '#222', hairLine: 60, sideLine: 100, backLine: 150, mouth: 'laugh', iris: '#3a2a1a', glasses: true }, front: '#f2efe6', shirt: 0xf2efe6, belly: 1.4, chain: true },
+  { head: { skin: 0xf0c4a2, hair: '#3a2a1a', brow: '#2a1a10', hairLine: 84, sideLine: 116, backLine: 150, mouth: 'smile', iris: '#4a6a8a' }, front: '#4a1a2as', shirt: 0x4a1a2a, belly: 0.8 },
+  { head: { skin: 0xc8885e, hair: '#8a8a8a', brow: '#6a6a6a', hairLine: 74, sideLine: 112, backLine: 150, mouth: 'smile', iris: '#2a2a2a', squint: true }, front: '#1a2a4a', shirt: 0x1a2a4a, belly: 1.1, chain: true },
+];
+const cardPlayers = [geroof, ...SOPRANOS.map((o) => makePerson({ ...o, pants: 0x1a1a1e, shoes: 0x111111, skin: o.head.skin, scale: 1.02 }))];
+cardPlayers.forEach((p, i) => {
+  const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
+  p.position.set(CTp.x + Math.cos(a) * 1.45, 0, CTp.z + Math.sin(a) * 1.45);
+  p.rotation.y = Math.atan2(CTp.x - p.position.x, CTp.z - p.position.z);
+  sit(p); const u = p.userData; u.arms.forEach((ar) => { ar.rotation.x = -1.1; }); u.cardPhase = i * 1.3;
+  // chair
+  const ch = new THREE.Group(); ch.position.copy(p.position); ch.rotation.y = p.rotation.y; joint.add(ch);
+  box(0.45, 0.06, 0.45, lam({ color: 0x6a3a1a }), 0, 0.45, -0.05, ch); box(0.45, 0.5, 0.06, lam({ color: 0x6a3a1a }), 0, 0.72, -0.28, ch);
+});
+// diners eating shoarma
+const diners = [];
+[[JS.x1 - 1.5, -8.75, 0], [JS.x1 - 1.5, -9.65, Math.PI], [JS.x1 - 1.5, -10.95, 0], [JS.x0 + 1.3, -8.55, 0]].forEach(([x, z, r], i) => {
+  const p = passerBy(400 + i); p.position.set(x, 0, z); p.rotation.y = r; sit(p);
+  const pita = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.16, 4, 8), lam({ color: 0xe8c890 })); pita.rotation.z = Math.PI / 2; pita.position.set(0, -0.68, 0.06); p.userData.arms[1].add(pita);
+  p.userData.eatPh = i * 2; diners.push(p);
+});
+// quest marker: floating yellow prism over Geroof
+const prism = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), new THREE.MeshBasicMaterial({ color: 0xffe14a }));
+prism.scale.set(0.8, 1.4, 0.8); scene.add(prism);
+const prismGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), new THREE.MeshBasicMaterial({ map: canvasTex(64, 64, (g) => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,230,80,.9)'); r.addColorStop(1, 'rgba(255,230,80,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); }), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+scene.add(prismGlow);
+const loanDue = () => state.loan.out && state.raids >= state.loan.at + 2;
+const geroofHasAsk = () => !state.loan.out || loanDue();
+function talkSchmatzel() {
+  if (!state.metSchmatzel) {
+    state.metSchmatzel = true;
+    dialogue([
+      ['Schmatzel', 'Eddy? Little Eddy?! Look at you! Last time you were here you could not see over the counter!'],
+      ['Schmatzel', 'Your father and I, we grew up two streets from here. He sold me my first kilo of spice in 1971. On credit! Nobody gives credit anymore.'],
+      ['Eddy Jr.', 'He says hi. From Costa del Kaas.'],
+      ['Schmatzel', 'Of course he does. Sit, sit! A broodje shoarma, on the house. With Eddy & Zn spice, like the old days. Nobody else in this street gets it.'],
+    ], () => { toast('BROODJE SHOARMA', 'On the house. Lekker.', 2.4); beep(660, 0.08, 'triangle'); setTimeout(() => beep(880, 0.12, 'triangle'), 90); });
+  } else {
+    const L = ['Another shoarma? You are too skinny, jongen. Here.', 'The Lampas sent a man last week. Wanted me to buy their spice. I gave him a kapsalon to go and showed him the door.', 'Geroof? He has been sitting at that table since 1983. Somehow he never loses.', 'When you find De Gouden Mix, you come here first. Promise me.'];
+    dialogue([['Schmatzel', L[Math.floor(Math.random() * L.length)]]], () => toast('BROODJE SHOARMA', 'On the house.', 1.6));
+  }
+}
+function talkGeroof() {
+  const L = state.loan;
+  if (L.out && !loanDue()) { dialogue([['Geroof', ['Patience, my friend. The cards need time to warm up.', 'You will get it back. Geroof always pays. Ask anyone at this table.', 'Shh, shh. I am on a streak.'][Math.floor(Math.random() * 3)]]]); return; }
+  if (L.out && loanDue()) {
+    const back = L.amount * 2;
+    dialogue([
+      ['Geroof', 'Eddy! Come, come. Like I promised.'],
+      ['Geroof', 'W ' + back + '. Count it. Go on, count it. Geroof always wins.'],
+    ], () => { addMoney(back); L.out = false; L.amount *= 2; toast('GEROOF PAID YOU BACK', '+W ' + back + '. He somehow always wins.', 3); });
+    return;
+  }
+  const ask = () => choice('Geroof', `Listen. I need W ${L.amount}. Just a small loan. I give it back, double. Geroof always pays.`, [`Lend W ${L.amount}`, 'Not now'], (i) => {
+    if (i !== 0) { dialogue([['Geroof', 'Your loss, my friend. The cards are hot today.']]); return; }
+    if (state.money < L.amount) { dialogue([['Geroof', `W ${L.amount}, Eddy. Not less. Come back when your pockets are fatter.`]]); return; }
+    addMoney(-L.amount); L.out = true; L.at = state.raids;
+    dialogue([['Geroof', 'You are a good boy. Like your father. Now let me play.']], () => toast('LOAN TO GEROOF', 'W ' + L.amount + ' gone into the card game.', 2.4));
+  });
+  if (!state.metGeroof) {
+    state.metGeroof = true;
+    dialogue([
+      ['Geroof', 'Eddy & Zn! The son! Sit, sit. No, not there, that is Tony\'s chair. He gets upset.'],
+      ['Geroof', 'Your father, he always believed in me. Even in 1984. Especially in 1984.'],
+    ], ask);
+  } else ask();
+}
+addInteract({ obj: jDoor, pos: () => new THREE.Vector3((JS.doorX0 + JS.doorX1) / 2, 0, JS.z1 + 0.4), r: 1.6, enabled: () => jDoorTarget === 0, label: () => 'Open the door · Shoarma Schmatzel', act: openJointDoor });
+addInteract({ obj: schmatzel, pos: () => schmatzel.position, r: 2.6, enabled: () => isInJoint(player.position), label: () => 'Talk to Schmatzel', act: talkSchmatzel });
+addInteract({ obj: geroof, pos: () => geroof.position, r: 1.9, enabled: () => isInJoint(player.position), label: () => geroofHasAsk() ? 'Talk to Geroof  (!)' : 'Talk to Geroof', act: talkGeroof });
+cardPlayers.slice(1).forEach((p, i) => addInteract({ obj: p, pos: () => p.position, r: 1.7, enabled: () => isInJoint(player.position), label: () => 'Talk', act: () => dialogue([['Card player', ['Fuhgeddaboudit.', 'You in or you out? We play for real Wilders here.', 'Geroof, it\'s your deal. AGAIN.', 'Hey. Respect the table.'][i]]]) }));
+function updateJoint(dt) {
+  jDoorOpen += (jDoorTarget - jDoorOpen) * Math.min(1, dt * 3); jDoor.rotation.y = jDoorOpen * 1.7;
+  const inJ = isInJoint(player.position);
+  jointRoof.visible = !inJ; jointFront.visible = !inJ;
+  for (const [l, k] of jointLights) l.intensity += ((inJ ? k : 0) - l.intensity) * Math.min(1, dt * 4);
+  doner.rotation.y += dt * 0.8;
+  const t = performance.now() * 0.001;
+  cardPlayers.forEach((p) => { const u = p.userData; u.cardPhase += dt; u.arms[0].rotation.x = -1.1 + Math.sin(u.cardPhase * 1.7) * 0.15; u.arms[1].rotation.x = -1.0 + (Math.sin(u.cardPhase * 0.6) > 0.85 ? -0.5 : 0); u.head.rotation.y = Math.sin(u.cardPhase * 0.4) * 0.3; });
+  diners.forEach((p) => { const u = p.userData; u.eatPh += dt; const k = (Math.sin(u.eatPh * 1.2) + 1) / 2; u.arms[1].rotation.x = -0.6 - k * 1.5; u.arms[0].rotation.x = -0.5; });
+  { const toP = Math.atan2(player.position.x - schmatzel.position.x, player.position.z - schmatzel.position.z); schmatzel.rotation.y += Math.atan2(Math.sin(toP - schmatzel.rotation.y), Math.cos(toP - schmatzel.rotation.y)) * Math.min(1, dt * 3); animate(schmatzel, 0, dt); }
+  const show = geroofHasAsk();
+  prism.visible = prismGlow.visible = show;
+  if (show) { prism.position.set(geroof.position.x, 2.7 + Math.sin(t * 2.5) * 0.08, geroof.position.z); prism.rotation.y += dt * 2; prismGlow.position.copy(prism.position); prismGlow.lookAt(camera.position); }
+  return inJ;
+}
+
+// ================================================================== MABOOTA (melee)
+const maboota = new THREE.Group();
+{ const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.62, 10), new THREE.MeshStandardMaterial({ color: 0x141418, roughness: 0.4 })); b.position.y = -0.31; maboota.add(b);
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.037, 0.14, 10), new THREE.MeshStandardMaterial({ color: 0x6a1a1a, roughness: 0.9 })); grip.position.y = 0.02; maboota.add(grip);
+  const side = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 8), b.material); side.rotation.z = Math.PI / 2; side.position.set(0.07, -0.05, 0); maboota.add(side); }
+maboota.position.set(0, -0.68, 0.06); maboota.rotation.x = -1.2; maboota.visible = false;
+player.userData.arms[0].add(maboota);
+let swingT = 0, swingHit = false;
+function equip(on) { state.armed = on; maboota.visible = on; $('weapon').style.display = state.kit.includes('maboota') ? 'block' : 'none'; $('weapon').className = 'hud' + (on ? ' on' : ''); if (on) beep(300, 0.06, 'square', 0.03); }
+function swing() {
+  if (!state.armed || swingT > 0 || knock.t > 0) return;
+  swingT = 0.38; swingHit = false; beep(180, 0.08, 'sawtooth', 0.02);
+}
+function personBubble(p, text, col) { if (!p.userData.bubble) { p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0); } say(p.userData.bubble, text, col); }
+const OUCH = ['AU!', 'Hé! Doe normaal!', 'AAAH!', 'Waarom?!', 'Ik bel de politie!', 'Mijn bril!'];
+function knockDown(p, dirX, dirZ, line) {
+  const u = p.userData; u.down = 3.2; u.downDir = Math.atan2(dirX, dirZ);
+  personBubble(p, line || OUCH[Math.floor(Math.random() * OUCH.length)], '#ff7a1a');
+  beep(90, 0.18, 'square', 0.06); setTimeout(() => beep(60, 0.2, 'sawtooth', 0.05), 50);
+}
+function doHit() {
+  const f = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+  const targets = [...walkers, ...officers.map((o) => o.p)];
+  let any = false;
+  for (const p of targets) {
+    if (p.userData.down > 0 || !p.visible) continue;
+    const d = p.position.clone().sub(player.position); d.y = 0; const L = d.length();
+    if (L < 1.6 && d.normalize().dot(f) > 0.25) {
+      any = true;
+      const off = officers.find((o) => o.p === p);
+      if (off) { knockDown(p, f.x, f.z, ['Mijn bonnenboekje!', 'Au! Ik schrijf je op!', 'Dit is geen geldig vervoersbewijs!'][Math.floor(Math.random() * 3)]); hitOfficer(off); }
+      else { knockDown(p, f.x, f.z); for (const w of walkers) if (w.userData.walk.police && w.position.distanceTo(player.position) < 10) personBubble(w, 'Hé! POLITIE! Doe normaal!', '#3a6aff'); }
+    }
+  }
+  if (any) { /* screen thump */ camPos.y += 0.25; }
+}
+function updateMelee(dt) {
+  if (swingT > 0) {
+    swingT -= dt; const k = 1 - swingT / 0.38; const a = player.userData.arms[0];
+    a.rotation.x = k < 0.35 ? -0.6 - k / 0.35 * 2.2 : -2.8 + (k - 0.35) / 0.65 * 3.6; a.rotation.z = -0.3;
+    if (k > 0.5 && !swingHit) { swingHit = true; doHit(); }
+    if (swingT <= 0) a.rotation.z = -0.07;
+  } else if (state.armed) { const a = player.userData.arms[0]; a.rotation.x = Math.min(a.rotation.x, -0.25); }
+  // people who got knocked over lie down, then get back up
+  for (const p of [...walkers, ...officers.map((o) => o.p)]) {
+    const u = p.userData; if (!(u.down > 0)) continue;
+    u.down -= dt; const lying = u.down > 0.6 ? 1 : Math.max(0, u.down / 0.6);
+    u.body.rotation.x = -1.5 * lying; u.body.position.y = 0.12 * lying;
+    if (u.down <= 0) { u.body.rotation.x = 0; u.body.position.y = 0; }
+  }
+}
+
+// ================================================================== TICKET INSPECTORS (rare, drop a few Wilders)
+const officers = [];
+let officerT = 35;
+function spawnOfficer() {
+  const side = Math.random() < 0.5 ? 'N' : 'S', from = Math.random() < 0.5 ? -1 : 1;
+  const p = makePerson({ head: { skin: SKINS[Math.floor(Math.random() * SKINS.length)], hair: '#2a2a2a', brow: '#222', hairLine: 88, sideLine: 116, backLine: 150, mouth: 'smile', iris: '#3a3a3a' }, capColor: 0x6a1a2a, front: '#4a2a4ac', shirt: 0x4a2a4a, pants: 0x2a2a30, shoes: 0x111111, belly: 0.6, skin: 0xe0b090 });
+  p.position.set(player.position.x + from * 28, 0, LANES[side][0]);
+  const o = { p, dir: -from, side, state: 'patrol', said: false, v: 1.2 };
+  officers.push(o); return o;
+}
+function hitOfficer(o) {
+  if (o.state === 'flee') return;
+  const n = 10 + Math.floor(Math.random() * 26);
+  setTimeout(() => { addMoney(n); toast('+W ' + n, 'The ticket inspector\'s petty cash.', 2); for (let i = 0; i < 3; i++) setTimeout(() => beep(1300 + i * 200, 0.07, 'square', 0.03), i * 70); coins(o.p.position); }, 500);
+  o.state = 'flee';
+}
+const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd23a, metalness: 0.9, roughness: 0.25, emissive: 0x402a00 });
+const flying = [];
+function coins(at) { for (let i = 0; i < 6; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.02, 12), coinMat); c.position.set(at.x, 1.0, at.z); c.userData = { vx: (Math.random() - 0.5) * 3, vy: 4 + Math.random() * 2, vz: (Math.random() - 0.5) * 3, life: 1.3 }; scene.add(c); flying.push(c); } }
+function updateOfficers(dt) {
+  officerT -= dt;
+  if (officerT < 0 && officers.length === 0 && state.step !== 'title') { spawnOfficer(); officerT = 60 + Math.random() * 60; }
+  for (let i = officers.length - 1; i >= 0; i--) {
+    const o = officers[i], p = o.p, u = p.userData;
+    if (u.down > 0) continue;
+    const dx = player.position.x - p.position.x;
+    if (o.state === 'patrol') {
+      if (!o.said && Math.abs(dx) < 4 && Math.abs(player.position.z - p.position.z) < 4) { o.said = true; personBubble(p, 'Vervoersbewijs, alstublieft!', '#ffd23a'); }
+      p.position.x += o.dir * o.v * dt; p.rotation.y = o.dir > 0 ? Math.PI / 2 : -Math.PI / 2; animate(p, o.v, dt);
+    } else { // flee
+      const d = p.position.x > player.position.x ? 1 : -1; p.position.x += d * 4.5 * dt; p.rotation.y = d > 0 ? Math.PI / 2 : -Math.PI / 2; animate(p, 4.5, dt);
+    }
+    if (Math.abs(p.position.x - player.position.x) > 40) { scene.remove(p); officers.splice(i, 1); }
+    const bu = u.bubble && u.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; }
+  }
+  for (let i = flying.length - 1; i >= 0; i--) { const c = flying[i], d = c.userData; d.life -= dt; d.vy -= 14 * dt; c.position.x += d.vx * dt; c.position.y = Math.max(0.03, c.position.y + d.vy * dt); c.position.z += d.vz * dt; c.rotation.x += dt * 10; if (d.life <= 0) { scene.remove(c); flying.splice(i, 1); } }
+}
+
+// ================================================================== SEAGULLS (they poop on people)
+const gulls = [], poops = [];
+function makeGull() {
+  const g = new THREE.Group(), white = lam({ color: 0xf6f6f2 }), grey = lam({ color: 0xb8bcc4, side: THREE.DoubleSide });
+  const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.35, 4, 8), white); b.rotation.z = Math.PI / 2; g.add(b);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), white); h.position.set(0.3, 0.06, 0); g.add(h);
+  const bk = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.14, 6), lam({ color: 0xf2c43a })); bk.rotation.z = -Math.PI / 2; bk.position.set(0.44, 0.05, 0); g.add(bk);
+  const wings = [];
+  for (const s of [1, -1]) { const w = new THREE.Group(); w.position.set(0.02, 0.06, s * 0.08); g.add(w); const m = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.7), grey); m.rotation.x = -Math.PI / 2; m.position.z = s * 0.35; w.add(m); const tip = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), lam({ color: 0x1a1a1a, side: THREE.DoubleSide })); tip.rotation.x = -Math.PI / 2; tip.position.set(-0.08, 0.001, s * 0.62); w.add(tip); wings.push([w, s]); }
+  g.scale.setScalar(1.1); scene.add(g);
+  return { g, wings, a: Math.random() * 6, r: 9 + Math.random() * 5, h: 6.5 + Math.random() * 1.5, state: 'circle', t: 8 + Math.random() * 14, target: null, flap: Math.random() * 6 };
+}
+for (let i = 0; i < 3; i++) gulls.push(makeGull());
+function squawk() { beep(1400, 0.08, 'sawtooth', 0.025); setTimeout(() => beep(1100, 0.12, 'sawtooth', 0.025), 90); setTimeout(() => beep(1300, 0.1, 'sawtooth', 0.02), 230); }
+const splatMat = lam({ color: 0xf6f6ee });
+function updateGulls(dt) {
+  const P = player.position;
+  for (const G of gulls) {
+    G.flap += dt * (G.state === 'circle' ? 6 : 10);
+    for (const [w, s] of G.wings) w.rotation.x = s * Math.sin(G.flap) * 0.6;
+    let tx, ty, tz;
+    if (G.state === 'circle') {
+      G.a += dt * 0.35; tx = P.x + Math.cos(G.a) * G.r; tz = P.z + 2 + Math.sin(G.a) * G.r * 0.6; ty = G.h; G.t -= dt;
+      if (G.t < 0) {
+        const pool = walkers.filter((w) => w.position.distanceTo(P) < 14 && !(w.userData.down > 0));
+        G.target = Math.random() < 0.2 || !pool.length ? player : pool[Math.floor(Math.random() * pool.length)];
+        G.state = 'dive'; squawk();
+      }
+    } else if (G.state === 'dive') {
+      const T = G.target.position; const lead = G.target === player ? 0 : G.target.userData.walk.dir * G.target.userData.walk.v * 0.9;
+      tx = T.x + lead; tz = T.z; ty = 3.8;
+      if (Math.hypot(G.g.position.x - tx, G.g.position.z - tz) < 0.6 && G.g.position.y < 4.4) {
+        const pp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), splatMat); pp.position.copy(G.g.position); pp.userData = { vy: 0, target: G.target }; scene.add(pp); poops.push(pp);
+        G.state = 'leave'; G.t = 3; squawk();
+      }
+    } else { tx = G.g.position.x + 8; tz = G.g.position.z - 6; ty = G.h + 1; G.t -= dt; if (G.t < 0) { G.state = 'circle'; G.t = 15 + Math.random() * 20; } }
+    const d = new THREE.Vector3(tx - G.g.position.x, ty - G.g.position.y, tz - G.g.position.z), L = d.length();
+    const sp = G.state === 'dive' ? 9 : 6;
+    if (L > 0.05) { G.g.position.addScaledVector(d.normalize(), Math.min(L, sp * dt)); G.g.rotation.y = Math.atan2(-d.z, d.x); }
+  }
+  for (let i = poops.length - 1; i >= 0; i--) {
+    const pp = poops[i], u = pp.userData;
+    if (u.ground !== undefined) { u.ground -= dt; if (u.ground < 0) { scene.remove(pp); poops.splice(i, 1); } continue; }
+    u.vy -= 16 * dt; pp.position.y += u.vy * dt;
+    const T = u.target, top = T === player ? 1.95 : 1.95 * (T.userData.body.scale.x || 1);
+    if (pp.position.y < top && Math.hypot(pp.position.x - T.position.x, pp.position.z - T.position.z) < 0.7) {
+      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), splatMat); sp.scale.set(1.3, 0.35, 1.1); sp.position.set(0, 0.36, 0); T.userData.head.add(sp); setTimeout(() => sp.parent && sp.parent.remove(sp), 20000);
+      if (T === player) toast('SPLAT!', 'A seagull got you. Lucky, they say.', 2.2); else { personBubble(T, ['GADVERDAMME!', 'Bah! Een meeuw!', 'Niet weer!', 'Mijn nieuwe jas!'][Math.floor(Math.random() * 4)], '#f6f6ee'); T.userData.walk.wait = 1.6; }
+      beep(220, 0.05, 'sine', 0.05); scene.remove(pp); poops.splice(i, 1); continue;
+    }
+    if (pp.position.y <= 0.03) { pp.position.y = 0.03; pp.scale.set(2.2, 0.25, 2.2); u.ground = 12; }
+  }
+}
+
 // ---- the canal: houseboats moored on the far side, a tour boat, a sloep, and ducks
 const boats = [];
 function houseboat(x, color, roofKind) {
@@ -1555,15 +1910,15 @@ const sloep = new THREE.Group(); sloep.position.set(-12, -1.1, CZ - 0.2); scene.
   sloep.userData = { dir: -1, v: 2.2 }; sloep.rotation.y = Math.PI;
 }
 const ducks = [];
-for (let i = 0; i < 9; i++) {
-  const d = new THREE.Group(), male = i % 2 === 0, scale = i % 4 === 3 ? 0.55 : 1;
-  const bodyM = lam({ color: male ? 0x8a8478 : 0x7a5a3a });
+for (let i = 0; i < 18; i++) {
+  const d = new THREE.Group(), male = i % 3 === 0, farm = i % 5 === 2, scale = (i % 4 === 3 ? 0.6 : 1) * 1.35;
+  const bodyM = lam({ color: farm ? 0xfaf8f0 : male ? 0x8a8478 : 0x7a5a3a });
   const b0 = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), bodyM); b0.scale.set(1.5, 0.75, 0.95); b0.position.y = 0.08; d.add(b0);
   const tail = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.22, 6), bodyM); tail.rotation.z = Math.PI / 2 + 0.5; tail.position.set(-0.38, 0.14, 0); d.add(tail);
-  const hd = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), lam({ color: male ? 0x1f7a3a : 0x6a4a2a })); hd.position.set(0.28, 0.32, 0); d.add(hd);
-  if (male) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.025, 4, 10), lam({ color: 0xffffff })); ring.rotation.x = Math.PI / 2; ring.position.set(0.25, 0.2, 0); d.add(ring); }
+  const hd = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), lam({ color: farm ? 0xfaf8f0 : male ? 0x1f7a3a : 0x6a4a2a })); hd.position.set(0.28, 0.32, 0); d.add(hd);
+  if (male && !farm) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.025, 4, 10), lam({ color: 0xffffff })); ring.rotation.x = Math.PI / 2; ring.position.set(0.25, 0.2, 0); d.add(ring); }
   const bk = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.1), lam({ color: 0xf2a020 })); bk.position.set(0.43, 0.3, 0); d.add(bk);
-  d.scale.setScalar(scale); d.position.set(-40 + i * 9 + (i % 3), -1.08, CZ - 2.6 + (i % 3) * 0.35); d.rotation.y = Math.random() * 6;
+  d.scale.setScalar(scale); d.position.set(-50 + i * 6 + (i % 3), -1.08, CZ - 2.8 + (i % 4) * 0.5); d.rotation.y = Math.random() * 6;
   d.userData = { heading: d.rotation.y, t: Math.random() * 5, baby: scale < 1 };
   scene.add(d); ducks.push(d);
 }
@@ -1629,6 +1984,8 @@ function updateStreet(dt) {
   for (const w of walkers) {
     const u = w.userData.walk, cp = u.comp;
     let moving = false;
+    const bu = w.userData.bubble && w.userData.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) w.userData.bubble.visible = false; }
+    if (w.userData.down > 0) continue;
     if (u.wait > 0) u.wait -= dt;
     else {
       const lane = LANES[u.side][u.dir > 0 ? 0 : 1], reach = 1.0 + (cp ? cp.ahead : 0);
@@ -1696,6 +2053,7 @@ function tick() {
   }
   collide(player.position, 0.38);
   animate(player, speed, dt);
+  updateMelee(dt);
   // dad faces the player when close
   const toP = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z);
   if (player.position.distanceTo(dad.position) < 6) { let dr = toP - dad.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); dad.rotation.y += dr * Math.min(1, dt * 4); }
@@ -1707,7 +2065,8 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  updateStreet(dt); updateCanal(dt);
+  updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt);
+  const inJ = updateJoint(dt);
   // naknikim walk to the table, then stir
   for (const n of naknikim) {
     const u = n.userData;
@@ -1756,9 +2115,10 @@ function tick() {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) ui.toast.style.display = 'none'; }
   // camera: Neon Vice-style high top-down, eased
   const off = new THREE.Vector3(0, 12.5 * zoom, 6 * zoom);
-  if (inside || inShop) off.set(0, 14 * zoom, 4.5 * zoom);
-  camPos.lerp((inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone()).add(off), Math.min(1, dt * 4));
-  const lookAt = inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
+  if (inside || inShop || inJ) off.set(0, 14 * zoom, 4.5 * zoom);
+  const jc = new THREE.Vector3(((JS.x0 + JS.x1) / 2) * 0.4 + player.position.x * 0.6, 0, -11.5 * 0.5 + player.position.z * 0.5);
+  camPos.lerp((inJ ? jc.clone() : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone()).add(off), Math.min(1, dt * 4));
+  const lookAt = inJ ? jc.clone().setY(0.8) : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
   camLook.lerp(lookAt, Math.min(1, dt * 6));
   camera.position.copy(camPos); camera.lookAt(camLook);
   sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position);
@@ -1780,5 +2140,5 @@ function tick() {
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
 updateObjective();
-window.__sme = { knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+window.__sme = { geroof, schmatzel, talkGeroof, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
