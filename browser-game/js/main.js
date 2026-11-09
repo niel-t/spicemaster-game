@@ -548,6 +548,7 @@ function car(x, z, color, rot = 0, isSolid = true, model = -1) {
   g.userData.half = half; g.userData.model = M.n;
   return g;
 }
+const parkedN = []; // x of cars parked along the north pavement (ticket inspectors work these)
 const CAR_COLS = [0xb8b2a2, 0x6a1e22, 0x2a4a6a, 0xcfcfc8, 0x2d2d2d, 0x8a8f3a, 0xe0d8c0, 0x3a5a7a, 0x9a2a2a, 0x556b5a];
 // parked cars in the bays (none in front of the warehouse, the lot, or on the zebra)
 {
@@ -559,6 +560,7 @@ const CAR_COLS = [0xb8b2a2, 0x6a1e22, 0x2a4a6a, 0xcfcfc8, 0x2d2d2d, 0x8a8f3a, 0x
     if (z < RC && x > PS.doorX0 - 3.5 && x < PS.doorX1 + 2.5) continue;
     if ((k * 7) % 5 === 0) continue;
     car(x + 2.8, z, CAR_COLS[(k * 3) % CAR_COLS.length], (k % 2) * Math.PI, true);
+    if (z < RC) parkedN.push(x + 2.8);
   }
 }
 // bike racks on the pavement (it's Kaasland after all)
@@ -1744,7 +1746,7 @@ function knockDown(p, dirX, dirZ, line) {
 }
 function doHit() {
   const f = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
-  const targets = [...walkers, ...officers.map((o) => o.p)];
+  const targets = officers.map((o) => o.p); // civilians are off-limits
   let any = false;
   for (const p of targets) {
     if (p.userData.down > 0 || !p.visible) continue;
@@ -1753,7 +1755,6 @@ function doHit() {
       any = true;
       const off = officers.find((o) => o.p === p);
       if (off) { knockDown(p, f.x, f.z, ['Mijn bonnenboekje!', 'Au! Ik schrijf je op!', 'Dit is geen geldig vervoersbewijs!'][Math.floor(Math.random() * 3)]); hitOfficer(off); }
-      else { knockDown(p, f.x, f.z); for (const w of walkers) if (w.userData.walk.police && w.position.distanceTo(player.position) < 10) personBubble(w, 'Hé! POLITIE! Doe normaal!', '#3a6aff'); }
     }
   }
   if (any) { /* screen thump */ camPos.y += 0.25; }
@@ -1777,17 +1778,24 @@ function updateMelee(dt) {
 // ================================================================== TICKET INSPECTORS (rare, drop a few Wilders)
 const officers = [];
 let officerT = 35;
+const TICKET_Z = RC - 5.55; // on the pavement, right behind the parked cars
 function spawnOfficer() {
-  const side = Math.random() < 0.5 ? 'N' : 'S', from = Math.random() < 0.5 ? -1 : 1;
+  const from = Math.random() < 0.5 ? -1 : 1;
   const p = makePerson({ head: { skin: SKINS[Math.floor(Math.random() * SKINS.length)], hair: '#2a2a2a', brow: '#222', hairLine: 88, sideLine: 116, backLine: 150, mouth: 'smile', iris: '#3a3a3a' }, capColor: 0x6a1a2a, front: '#4a2a4ac', shirt: 0x4a2a4a, pants: 0x2a2a30, shoes: 0x111111, belly: 0.6, skin: 0xe0b090 });
-  p.position.set(player.position.x + from * 28, 0, LANES[side][0]);
-  const o = { p, dir: -from, side, state: 'patrol', said: false, v: 1.2 };
+  p.position.set(player.position.x + from * 22, 0, LANES.N[0]);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.03), lam({ color: 0xffd23a })); pad.position.set(0, -0.62, 0.08); p.userData.arms[1].add(pad);
+  const o = { p, state: 'walk', said: false, v: 1.3, car: null, t: 0, done: new Set() };
   officers.push(o); return o;
+}
+function nextCar(o) {
+  let best = null, bd = 1e9;
+  for (const cx of parkedN) { if (o.done.has(cx)) continue; const d = Math.abs(cx - o.p.position.x) + Math.abs(cx - player.position.x) * 0.3; if (d < bd) { bd = d; best = cx; } }
+  o.car = best; o.state = best === null ? 'leave' : 'walk';
 }
 function hitOfficer(o) {
   if (o.state === 'flee') return;
   const n = 10 + Math.floor(Math.random() * 26);
-  setTimeout(() => { addMoney(n); toast('+W ' + n, 'The ticket inspector\'s petty cash.', 2); for (let i = 0; i < 3; i++) setTimeout(() => beep(1300 + i * 200, 0.07, 'square', 0.03), i * 70); coins(o.p.position); }, 500);
+  addMoney(n); toast('+W ' + n, 'The ticket inspector\'s petty cash.', 2); coins(o.p.position);
   o.state = 'flee';
 }
 const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd23a, metalness: 0.9, roughness: 0.25, emissive: 0x402a00 });
@@ -1799,12 +1807,20 @@ function updateOfficers(dt) {
   for (let i = officers.length - 1; i >= 0; i--) {
     const o = officers[i], p = o.p, u = p.userData;
     if (u.down > 0) continue;
-    const dx = player.position.x - p.position.x;
-    if (o.state === 'patrol') {
-      if (!o.said && Math.abs(dx) < 4 && Math.abs(player.position.z - p.position.z) < 4) { o.said = true; personBubble(p, 'Vervoersbewijs, alstublieft!', '#ffd23a'); }
-      p.position.x += o.dir * o.v * dt; p.rotation.y = o.dir > 0 ? Math.PI / 2 : -Math.PI / 2; animate(p, o.v, dt);
-    } else { // flee
-      const d = p.position.x > player.position.x ? 1 : -1; p.position.x += d * 4.5 * dt; p.rotation.y = d > 0 ? Math.PI / 2 : -Math.PI / 2; animate(p, 4.5, dt);
+    if (o.state === 'walk' && o.car === null) nextCar(o);
+    if (o.state === 'walk') { // along the pavement to the spot behind the car, then step up to the kerb
+      const tx = o.car + (Math.abs(o.car - p.position.x) > 0.4 ? 0 : 0), tz = Math.abs(o.car - p.position.x) > 0.3 ? LANES.N[0] : TICKET_Z;
+      const d = new THREE.Vector3(tx - p.position.x, 0, tz - p.position.z), L = d.length();
+      if (L < 0.08) { o.state = 'ticket'; o.t = 7 + Math.random() * 5; }
+      else { d.normalize(); p.position.addScaledVector(d, Math.min(L, o.v * dt)); p.rotation.y = Math.atan2(d.x, d.z); animate(p, o.v, dt); }
+    } else if (o.state === 'ticket') { // back to the pavement, facing the car, scribbling
+      p.rotation.y += Math.atan2(Math.sin(0 - p.rotation.y), Math.cos(0 - p.rotation.y)) * Math.min(1, dt * 6);
+      animate(p, 0, dt); const u2 = p.userData; u2.arms[1].rotation.x = -1.2 + Math.sin(performance.now() * 0.02) * 0.08; u2.arms[0].rotation.x = -0.9;
+      if (!o.said && player.position.distanceTo(p.position) < 6) { o.said = true; personBubble(p, ['Foutparkeerder!', 'Bon. En nog een bon.', 'Vervoersbewijs? Nee? Ook een bon.'][Math.floor(Math.random() * 3)], '#ffd23a'); }
+      o.t -= dt; if (o.t < 0) { o.done.add(o.car); o.said = false; nextCar(o); }
+    } else { // flee or leave: run away from the player
+      const d = p.position.x > player.position.x ? 1 : -1, sp = o.state === 'flee' ? 4.5 : 1.3;
+      p.position.x += d * sp * dt; p.position.z += (LANES.N[1] - p.position.z) * Math.min(1, dt * 2); p.rotation.y = d > 0 ? Math.PI / 2 : -Math.PI / 2; animate(p, sp, dt);
     }
     if (Math.abs(p.position.x - player.position.x) > 40) { scene.remove(p); officers.splice(i, 1); }
     const bu = u.bubble && u.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; }
@@ -1822,9 +1838,9 @@ function makeGull() {
   const wings = [];
   for (const s of [1, -1]) { const w = new THREE.Group(); w.position.set(0.02, 0.06, s * 0.08); g.add(w); const m = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.7), grey); m.rotation.x = -Math.PI / 2; m.position.z = s * 0.35; w.add(m); const tip = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), lam({ color: 0x1a1a1a, side: THREE.DoubleSide })); tip.rotation.x = -Math.PI / 2; tip.position.set(-0.08, 0.001, s * 0.62); w.add(tip); wings.push([w, s]); }
   g.scale.setScalar(1.1); scene.add(g);
-  return { g, wings, a: Math.random() * 6, r: 9 + Math.random() * 5, h: 6.5 + Math.random() * 1.5, state: 'circle', t: 8 + Math.random() * 14, target: null, flap: Math.random() * 6 };
+  return { g, wings, a: Math.random() * 6, r: 9 + Math.random() * 5, h: 6.5 + Math.random() * 1.5, state: 'circle', t: 40 + Math.random() * 40, target: null, flap: Math.random() * 6 };
 }
-for (let i = 0; i < 3; i++) gulls.push(makeGull());
+for (let i = 0; i < 2; i++) gulls.push(makeGull());
 function squawk() { beep(1400, 0.08, 'sawtooth', 0.025); setTimeout(() => beep(1100, 0.12, 'sawtooth', 0.025), 90); setTimeout(() => beep(1300, 0.1, 'sawtooth', 0.02), 230); }
 const splatMat = lam({ color: 0xf6f6ee });
 function updateGulls(dt) {
@@ -1837,7 +1853,8 @@ function updateGulls(dt) {
       G.a += dt * 0.35; tx = P.x + Math.cos(G.a) * G.r; tz = P.z + 2 + Math.sin(G.a) * G.r * 0.6; ty = G.h; G.t -= dt;
       if (G.t < 0) {
         const pool = walkers.filter((w) => w.position.distanceTo(P) < 14 && !(w.userData.down > 0));
-        G.target = Math.random() < 0.2 || !pool.length ? player : pool[Math.floor(Math.random() * pool.length)];
+        if (!pool.length) { G.t = 20; continue; }
+        G.target = Math.random() < 0.1 ? player : pool[Math.floor(Math.random() * pool.length)];
         G.state = 'dive'; squawk();
       }
     } else if (G.state === 'dive') {
@@ -1847,7 +1864,7 @@ function updateGulls(dt) {
         const pp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), splatMat); pp.position.copy(G.g.position); pp.userData = { vy: 0, target: G.target }; scene.add(pp); poops.push(pp);
         G.state = 'leave'; G.t = 3; squawk();
       }
-    } else { tx = G.g.position.x + 8; tz = G.g.position.z - 6; ty = G.h + 1; G.t -= dt; if (G.t < 0) { G.state = 'circle'; G.t = 15 + Math.random() * 20; } }
+    } else { tx = G.g.position.x + 8; tz = G.g.position.z - 6; ty = G.h + 1; G.t -= dt; if (G.t < 0) { G.state = 'circle'; G.t = 60 + Math.random() * 60; } }
     const d = new THREE.Vector3(tx - G.g.position.x, ty - G.g.position.y, tz - G.g.position.z), L = d.length();
     const sp = G.state === 'dive' ? 9 : 6;
     if (L > 0.05) { G.g.position.addScaledVector(d.normalize(), Math.min(L, sp * dt)); G.g.rotation.y = Math.atan2(-d.z, d.x); }
