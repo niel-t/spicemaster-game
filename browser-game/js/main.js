@@ -1598,12 +1598,12 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
   // ---- inside: counter + döner spit on the right, the card table on the left, two tables for diners by the window
   const steel = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.8 });
   const CZc = -13.0;
-  box(4.6, 1.05, 0.8, lam({ color: 0xc8402e }), W1 - 2.6, 0.53, CZc, joint); box(4.8, 0.08, 0.95, steel, W1 - 2.6, 1.09, CZc, joint);
-  box(0.8, 1.05, 2.3, lam({ color: 0xc8402e }), W1 - 4.9, 0.53, CZc - 0.75, joint);
-  solid(W1 - 5.3, W1, CZc - 0.45, CZc + 0.45); solid(W1 - 5.3, W1 - 4.5, Z0, CZc);
+  box(4.0, 1.05, 0.8, lam({ color: 0xc8402e }), W1 - 2.3, 0.53, CZc, joint); box(4.2, 0.08, 0.95, steel, W1 - 2.3, 1.09, CZc, joint);
+  box(0.8, 1.05, 2.3, lam({ color: 0xc8402e }), W1 - 4.3, 0.53, CZc - 0.75, joint);
+  solid(W1 - 4.7, W1, CZc - 0.45, CZc + 0.45); solid(W1 - 4.7, W1 - 3.9, Z0, CZc);
   // sneeze glass + salads
-  box(3.4, 0.4, 0.04, new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.35, roughness: 0.05 }), W1 - 2.9, 1.35, CZc + 0.35, joint, false);
-  for (let i = 0; i < 6; i++) box(0.45, 0.06, 0.32, lam({ color: [0xd84a2a, 0x4f9a30, 0xf2e8c8, 0xe8b020, 0x7a2a5a, 0xf2f2ea][i] }), W1 - 4.3 + i * 0.55, 1.15, CZc, joint, false);
+  box(3.0, 0.4, 0.04, new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.35, roughness: 0.05 }), W1 - 2.4, 1.35, CZc + 0.35, joint, false);
+  for (let i = 0; i < 6; i++) box(0.45, 0.06, 0.32, lam({ color: [0xd84a2a, 0x4f9a30, 0xf2e8c8, 0xe8b020, 0x7a2a5a, 0xf2f2ea][i] }), W1 - 3.75 + i * 0.5, 1.15, CZc, joint, false);
   // döner spit: a turning cone of meat in front of a glowing grill
   box(0.9, 1.6, 0.4, steel, W1 - 0.9, 1.9, Z0 + 0.5, joint); box(0.7, 1.3, 0.05, lam({ color: 0xff7a1a, emissive: 0xc84010 }), W1 - 0.9, 1.9, Z0 + 0.72, joint, false);
   doner = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.1, 14), lam({ color: 0x9a5a2a, map: canvasTex(64, 64, (g) => { g.fillStyle = '#9a5a2a'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 90; i++) { g.fillStyle = ['#c8783a', '#6a3a1a', '#e8a050'][i % 3]; g.fillRect(Math.random() * 64, Math.random() * 64, 6, 2); } }) }));
@@ -1615,11 +1615,11 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
   const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), lam({ map: canvasTex(128, 96, (g) => { g.fillStyle = '#d8c8a0'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#8a6a4a'; g.fillRect(6, 6, 116, 84); g.fillStyle = '#f2d8b8'; for (const x of [40, 88]) { g.beginPath(); g.arc(x, 40, 13, 0, 7); g.fill(); g.fillRect(x - 15, 55, 30, 30); } g.fillStyle = '#1a1a1a'; g.font = '700 10px Arial'; g.fillText('EDDY & SCHMATZEL 1966', 6, 92); }) }));
   ph.position.set(W0 + 0.17, 2.4, cz); ph.rotation.y = Math.PI / 2; joint.add(ph);
   // card table (round, green felt) on the left
-  const CT = { x: W0 + 2.6, z: -12.0 };
+  const CT = { x: W0 + 2.25, z: -12.0 };
   cyl(1.05, 1.05, 0.06, lam({ color: 0x1f6a3a }), CT.x, 0.76, CT.z, joint, 28); cyl(1.1, 1.1, 0.05, lam({ color: 0x6a3a1a }), CT.x, 0.72, CT.z, joint, 28); cyl(0.08, 0.12, 0.72, mat.dark, CT.x, 0.36, CT.z, joint);
   for (let i = 0; i < 9; i++) { const c = box(0.12, 0.005, 0.17, lam({ color: 0xffffff }), CT.x + Math.cos(i) * 0.45, 0.8, CT.z + Math.sin(i * 1.7) * 0.4, joint, false); c.rotation.y = i; }
   for (let i = 0; i < 12; i++) cyl(0.05, 0.05, 0.03 + (i % 4) * 0.03, lam({ color: [0xc8102e, 0x1a1a1a, 0xffd23a][i % 3] }), CT.x + Math.cos(i * 0.52) * 0.7, 0.8 + (i % 4) * 0.015, CT.z + Math.sin(i * 0.52) * 0.7, joint, 10);
-  solid(CT.x - 1.6, CT.x + 1.6, CT.z - 1.6, CT.z + 1.6);
+  solid(CT.x - 1.55, CT.x + 1.55, CT.z - 1.55, CT.z + 1.55);
   joint.userData.CT = CT;
   // diner tables by the window
   for (const [tx, tz] of [[W1 - 1.5, -8.1], [W1 - 1.5, -10.3], [W0 + 1.3, -7.9]]) { box(1.0, 0.05, 0.7, lam({ color: 0xf2efe6 }), tx, 0.76, tz, joint); cyl(0.05, 0.05, 0.74, mat.dark, tx, 0.37, tz, joint); solid(tx - 0.55, tx + 0.55, tz - 0.4, tz + 0.4); }
