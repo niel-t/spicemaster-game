@@ -332,8 +332,8 @@ function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
   const floors = Math.floor((h - 1) / 2.8);
   for (let f = 0; f < floors; f++) {
     const y = 3.4 + f * 2.8;
-    for (let k = 0; k < 2; k++) {
-      const wx = (k - 0.5) * w * 0.48;
+    for (let k = 0; k < (w < 4.8 ? 1 : 2); k++) {
+      const wx = w < 4.8 ? -w * 0.12 : (k - 0.5) * w * 0.48;
       box(1.2, 1.7, 0.06, frameMat, wx, y, F + 0.02, g, false);
       box(0.95, 1.45, 0.07, winMat, wx, y, F + 0.04, g, false);
       box(0.06, 1.45, 0.09, frameMat, wx, y, F + 0.05, g, false); box(0.95, 0.06, 0.09, frameMat, wx, y + 0.25, F + 0.05, g, false);
@@ -377,19 +377,24 @@ function stackTower(x0, x1, z) {
   solid(x0, x1, z - 4.5, z + 4.5);
 }
 // north side: houses west and east of the warehouse (fronts face south, +z)
+// split a span into house widths of 4.5-7.5 m that fill it exactly (no sliver houses)
+function spanWidths(len, k0) {
+  const ws = []; let left = len, k = k0;
+  while (left > 0.01) { let w = 5 + (k % 3); if (left - w < 4.5) w = left <= 7.5 ? left : left / 2; ws.push(w); left -= w; k++; }
+  return ws;
+}
 // fill the far west, past the play area (so no empty plots), then the Hotel Kaasland stack
-for (let x = -64, i = 0; x < -34 - 0.01; i++) { const w = Math.min(5 + (i % 3), -34 - x); house(x + w / 2, -11, w, 9, 9 + (i % 4), 0, i + 20); x += w; }
+{ let x = -64; spanWidths(30, 0).forEach((w, i) => { house(x + w / 2, -11, w, 9, 9 + (i % 4), 0, i + 20); x += w; }); }
 stackTower(-34, -26.5, -11);
+const WH_X0_GAP = -11.2;
 let nx = -26.5, hi = 3;
-while (nx < -11.5 - 4) { const w = 5 + (hi % 3); house(nx + w / 2, -11, w, 9, 9 + (hi % 3) * 1.3, 0, hi); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++; }
+for (const w of spanWidths(WH_X0_GAP - nx, hi)) { house(nx + w / 2, -11, w, 9, 9 + (hi % 3) * 1.3, 0, hi); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++; }
 // east of the warehouse: Eddy's private parking (x 1..9.5), then the houses, with The Russian's pawnshop in between
 const LOT = { x0: 1.15, x1: 9.5 };
 const PS = { x0: 20, x1: 28, z0: -15.5, z1: -6.5, h: 4.8, doorX0: 23.2, doorX1: 24.6 };
 nx = LOT.x1;
-while (nx < 64) {
-  if (nx >= PS.x0 - 0.01 && nx < PS.x1) { nx = PS.x1; continue; }
-  let w = 5 + (hi % 3);
-  if (nx < PS.x0 && nx + w > PS.x0) w = PS.x0 - nx;
+for (const [a, b] of [[LOT.x1, PS.x0], [PS.x1, 64]]) for (const w of spanWidths(b - a, hi)) {
+  if (nx < a) nx = a;
   house(nx + w / 2, -11, w, 9, 9 + (hi % 4) * 1.1, 0, hi, hi === 7 ? 'BITTERBAL & ZO' : null, hi === 9 ? { gable: 'point', color: 0x23a07a, clock: true, neon: null } : {}); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++;
 }
 // back row behind the street (only the roofs show) so nothing looks empty from the camera
