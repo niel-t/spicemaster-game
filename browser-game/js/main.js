@@ -1162,7 +1162,7 @@ function bindMap() {
       fin: `<b>${n}</b>: where the secret of De Gouden Mix waits. Someday.`,
     }[k];
     info.innerHTML = t;
-    const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); };
+    const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); }; // travelling elsewhere must call clearPlayerSplats()
   });
 }
 function sellItem(id, btn) {
@@ -1748,7 +1748,7 @@ function knockDown(p, dirX, dirZ, line) {
 }
 function doHit() {
   const f = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
-  const targets = officers.map((o) => o.p); // civilians are off-limits
+  const targets = [...walkers.filter((w) => !w.userData.walk.police && !w.userData.walk.flee), ...officers.map((o) => o.p)];
   let any = false;
   for (const p of targets) {
     if (p.userData.down > 0 || !p.visible) continue;
@@ -1757,6 +1757,7 @@ function doHit() {
       any = true;
       const off = officers.find((o) => o.p === p);
       if (off) { knockDown(p, f.x, f.z, ['Mijn bonnenboekje!', 'Au! Ik schrijf je op!', 'Dit is geen geldig vervoersbewijs!'][Math.floor(Math.random() * 3)]); hitOfficer(off); }
+      else { knockDown(p, f.x, f.z); for (const w of walkers) if (w.userData.walk.police && w.position.distanceTo(player.position) < 10) personBubble(w, 'Hé! POLITIE! Doe normaal!', '#3a6aff'); }
     }
   }
   if (any) { /* screen thump */ camPos.y += 0.25; }
@@ -1773,7 +1774,10 @@ function updateMelee(dt) {
     const u = p.userData; if (!(u.down > 0)) continue;
     u.down -= dt; const lying = u.down > 0.6 ? 1 : Math.max(0, u.down / 0.6);
     u.body.rotation.x = -1.5 * lying; u.body.position.y = 0.12 * lying;
-    if (u.down <= 0) { u.body.rotation.x = 0; u.body.position.y = 0; }
+    if (u.down <= 0) {
+      u.body.rotation.x = 0; u.body.position.y = 0;
+      if (u.walk) { u.walk.flee = true; u.walk.dir = Math.sign(p.position.x - player.position.x) || 1; personBubble(p, ['Ik bel de politie!', 'Gek! Gestoorde gek!', 'Mijn moeder hoort hiervan!', 'Dit pik ik niet!', 'Ik ga naar De Telegraaf!'][Math.floor(Math.random() * 5)], '#ff3fa4'); }
+    }
   }
 }
 
@@ -1845,6 +1849,9 @@ function makeGull() {
 for (let i = 0; i < 2; i++) gulls.push(makeGull());
 function squawk() { beep(1400, 0.08, 'sawtooth', 0.025); setTimeout(() => beep(1100, 0.12, 'sawtooth', 0.025), 90); setTimeout(() => beep(1300, 0.1, 'sawtooth', 0.02), 230); }
 const splatMat = lam({ color: 0xf6f6ee });
+// poop on Eddy's head stays until he changes location (travel); call clearPlayerSplats() on every location change
+const playerSplats = [];
+function clearPlayerSplats() { for (const sp of playerSplats) sp.parent && sp.parent.remove(sp); playerSplats.length = 0; }
 function updateGulls(dt) {
   const P = player.position;
   for (const G of gulls) {
@@ -1877,7 +1884,7 @@ function updateGulls(dt) {
     u.vy -= 16 * dt; pp.position.y += u.vy * dt;
     const T = u.target, top = T === player ? 1.95 : 1.95 * (T.userData.body.scale.x || 1);
     if (pp.position.y < top && Math.hypot(pp.position.x - T.position.x, pp.position.z - T.position.z) < 0.7) {
-      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), splatMat); sp.scale.set(1.3, 0.35, 1.1); sp.position.set(0, 0.36, 0); T.userData.head.add(sp); setTimeout(() => sp.parent && sp.parent.remove(sp), 20000);
+      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), splatMat); sp.scale.set(1.3, 0.35, 1.1); sp.position.set(0, 0.36, 0); T.userData.head.add(sp); if (T === player) playerSplats.push(sp); else setTimeout(() => sp.parent && sp.parent.remove(sp), 20000);
       if (T === player) toast('SPLAT!', 'A seagull got you. Lucky, they say.', 2.2); else { personBubble(T, ['GADVERDAMME!', 'Bah! Een meeuw!', 'Niet weer!', 'Mijn nieuwe jas!'][Math.floor(Math.random() * 4)], '#f6f6ee'); T.userData.walk.wait = 1.6; }
       beep(220, 0.05, 'sine', 0.05); scene.remove(pp); poops.splice(i, 1); continue;
     }
@@ -2005,6 +2012,12 @@ function updateStreet(dt) {
     let moving = false;
     const bu = w.userData.bubble && w.userData.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) w.userData.bubble.visible = false; }
     if (w.userData.down > 0) continue;
+    if (u.flee) { // running off the map; comes back later as an ordinary passer-by
+      w.position.x += u.dir * 4.6 * dt; w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2; animate(w, 4.6, dt);
+      if (Math.abs(w.position.x) > 48) { u.flee = false; w.position.x = -Math.sign(w.position.x) * 44; u.wait = 20 + Math.random() * 30; }
+      if (cp) { cp.obj.position.x += (w.position.x + u.dir * cp.ahead - cp.obj.position.x) * Math.min(1, dt * 6); cp.obj.rotation.y = cp.type === 'kid' ? w.rotation.y : (u.dir > 0 ? 0 : Math.PI); if (cp.type === 'kid') animate(cp.obj, 4.6, dt); if (cp.type === 'dog' && cp.line) { const a = cp.line.geometry.attributes.position, hand = w.userData.arms[0].localToWorld(new THREE.Vector3(0, -0.66, 0.03)); a.setXYZ(0, hand.x, hand.y, hand.z); a.setXYZ(1, cp.obj.position.x, 0.45 * cp.obj.scale.x, cp.obj.position.z); a.needsUpdate = true; } }
+      continue;
+    }
     if (u.wait > 0) u.wait -= dt;
     else {
       const lane = LANES[u.side][u.dir > 0 ? 0 : 1], reach = 1.0 + (cp ? cp.ahead : 0);
@@ -2159,5 +2172,5 @@ function tick() {
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
 updateObjective();
-window.__sme = { geroof, schmatzel, talkGeroof, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+window.__sme = { clearPlayerSplats, playerSplats, geroof, schmatzel, talkGeroof, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
