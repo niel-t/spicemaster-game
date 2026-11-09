@@ -106,7 +106,8 @@ function signTex(lines, bg = '#1a1a1a', fg = '#ffd36b', w = 512, h = 128) {
     g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, h - 12);
     g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
     lines.forEach((l, i) => {
-      g.font = `900 ${l.size || 46}px Arial Black, Impact, sans-serif`;
+      let fs = l.size || 46; g.font = `900 ${fs}px Arial Black, Impact, sans-serif`;
+      while (g.measureText(l.t).width > w - 36 && fs > 10) { fs -= 2; g.font = `900 ${fs}px Arial Black, Impact, sans-serif`; } // shrink to fit, never crop
       g.fillStyle = l.color || fg;
       g.fillText(l.t, w / 2, h * (lines.length === 1 ? 0.52 : (i + 0.75) / (lines.length + 0.5)));
     });
@@ -1580,11 +1581,12 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
   box(0.9, 1.2, 0.09, winMat, (JS.doorX1 - JS.doorX0) / 2, 1.5, 0.01, hinge, false);
   jDoor = hinge; jDoorSolid = solid(JS.doorX0, JS.doorX1, Z1 - 0.15, Z1 + 0.15);
   // façade: big neon sign, awning, blade sign, menu board on the pavement
-  const sg = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.1), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SHOARMA SCHMATZEL', size: 50 }, { t: 'SINDS 1971 · OOK VOOR EDDY', size: 22, color: '#ffffff' }], '#1a0a24', '#ff7a1a', 512, 128) }));
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.1), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SHOARMA SCHMATZEL', size: 96 }, { t: 'SINDS 1971 · OOK VOOR EDDY', size: 40, color: '#ffffff' }], '#1a0a24', '#ff7a1a', 1024, 150) }));
   sg.position.set(cx, 3.35, Z1 + 0.2); jointFront.add(sg);
   neonRect(jointFront, cx, 3.35, 7.75, 1.25, Z1 + 0.24, 0xff3fa4);
   const awnT = canvasTex(64, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ffffff' : '#c8402e'; c.fillRect(i * 8, 0, 8, 64); } });
-  const awn = box(W1 - W0 - 0.6, 0.12, 1.3, lam({ map: awnT }), cx, 2.7, Z1 + 0.75, jointFront); awn.rotation.x = 0.28;
+  // awnings only over the two windows, so the door stays visible
+  for (const [x, w] of [[W0 + 2.6, 4.4], [W1 - 1.9, 2.8]]) { const awn = box(w, 0.12, 1.1, lam({ map: awnT }), x, 2.65, Z1 + 0.65, jointFront); awn.rotation.x = 0.28; }
   bladeSign(jointFront, W0 + 0.4, 3.0, Z1, 'DÖNER', 0xffe14a);
   const bord = new THREE.Group(); bord.position.set(JS.doorX1 + 1.1, 0, Z1 + 1.1); bord.rotation.y = -0.3; scene.add(bord);
   const bt = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.0), lam({ map: signTex([{ t: 'VANDAAG', size: 26 }, { t: 'SHOARMA', size: 30, color: '#ffffff' }, { t: 'BROODJE W 4', size: 22, color: '#ffd36b' }], '#202018', '#ff7a1a', 256, 256) })); bt.position.y = 0.7; bt.rotation.x = -0.15; bord.add(bt);
