@@ -2,6 +2,8 @@
 // Neon Vice-style top-down browser game: three.js, PS2-style low-poly people with photo faces.
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
+import { initMission } from './mission.js';
+let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
 
 // ------------------------------------------------------------------ renderer / scene
@@ -34,7 +36,7 @@ addEventListener('resize', () => {
   const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(t).texture; scene.environmentIntensity = 0.55;
 }
-scene.add(new THREE.HemisphereLight(0xffe0f0, 0x6a5a80, 1.25));
+const hemi = new THREE.HemisphereLight(0xffe0f0, 0x6a5a80, 1.25); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffd8a8, 2.9);
 sun.position.set(-18, 30, 14);
 sun.castShadow = true;
@@ -116,6 +118,7 @@ function signTex(lines, bg = '#1a1a1a', fg = '#ffd36b', w = 512, h = 128) {
 
 // ------------------------------------------------------------------ collision
 const solids = []; // {minx,maxx,minz,maxz}
+const BOUNDS = { cur: null }; // walkable area override (missions)
 function solid(x0, x1, z0, z1) { const s = { minx: Math.min(x0, x1), maxx: Math.max(x0, x1), minz: Math.min(z0, z1), maxz: Math.max(z0, z1) }; solids.push(s); return s; }
 function collide(p, r) {
   for (const s of solids) {
@@ -131,8 +134,9 @@ function collide(p, r) {
       }
     }
   }
-  p.x = Math.max(-33, Math.min(33, p.x));
-  p.z = Math.max(-27.5, Math.min(10.6 + RC, p.z));
+  const B = BOUNDS.cur || { x0: -33, x1: 33, z0: -27.5, z1: 10.6 + RC };
+  p.x = Math.max(B.x0, Math.min(B.x1, p.x));
+  p.z = Math.max(B.z0, Math.min(B.z1, p.z));
 }
 
 // ------------------------------------------------------------------ world: ground, street, canal
@@ -1068,6 +1072,7 @@ const bids = {};
 function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math.random() * BUYERS.length)], amount: Math.round(d.price * (0.9 + Math.random() * 0.25) / 5) * 5 }; return bids[d.id]; }
 const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 30;
 let pcTab = 'sell', pcMode = 'pc';
+const LOOT_PRICE = 150;
 const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 function openPC(tab = 'sell', mode = 'pc') {
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
@@ -1093,10 +1098,12 @@ function renderPC() {
       for (const d of rows) { const b = bidFor(d); h += `<tr><td>${d.name}</td><td>${fmt(d.price)}</td><td class="bid">${fmt(b.amount)}<br><small>${b.who}</small></td><td><button class="b95" data-sell="${d.id}">Sell</button></td></tr>`; }
       h += '</table>';
     }
+    if (state.loot) h += `<table class="list" style="margin-top:8px"><tr><th>Listing</th><th>Asking</th><th>Best bid</th><th></th></tr><tr><td>Lampas spice, crate (×${state.loot})<br><small>"slightly borrowed"</small></td><td>${fmt(LOOT_PRICE)}</td><td class="bid">${fmt(LOOT_PRICE)}<br><small>Kees from Spekbuurt</small></td><td><button class="b95" id="sellLoot">Sell all</button></td></tr></table>`;
     const unl = junkDefs.length - state.listed.size;
     if (unl > 0 && state.step !== 'talk') h += `<p>${unl} more item(s) in the warehouse aren't listed yet.</p>`;
     body.innerHTML = h;
     body.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => sellItem(b.dataset.sell, b));
+    const sl = $('sellLoot'); if (sl) sl.onclick = () => { addMoney(state.loot * LOOT_PRICE, sl); toast('SOLD', `${state.loot} crate(s) of Lampas spice. Kees doesn't ask questions.`, 2); state.loot = 0; renderPC(); };
   } else if (pcTab === 'hire') {
     title.textContent = 'Naknik Uitzendbureau · "They get it done. Mostly."';
     body.innerHTML = `<div class="well"><b>Naknikim</b>: hard workers, soft heads. They mix, restock and deliver so you don't have to.<br><br>
@@ -1132,8 +1139,8 @@ const PINS = [
 let MAPL = null;
 fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; }).catch(() => {});
 function mapHTML(van) {
-  const col = { own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
-  const kindOf = (n, r) => n === 'De Natte Worst' ? 'own' : ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r];
+  const col = { m1: '#ff3fa4', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
+  const kindOf = (n, r) => n === 'De Natte Worst' || (n === 'Spekbuurt' && state.spekbuurt) ? 'own' : n === 'Spekbuurt' ? 'm1' : ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r];
   let h = `<div class="mapwrap"><img src="./assets/kaasland_map.jpg" alt="Map of Kaasland">`;
   if (MAPL) {
     const [W, H] = MAPL.size;
@@ -1154,7 +1161,8 @@ function bindMap() {
   document.querySelectorAll('[data-pin]').forEach((p) => p.onclick = () => {
     const n = p.dataset.pin, k = p.dataset.k, info = $('pininfo'); beep(600, 0.04);
     const t = {
-      own: `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
+      own: n === 'Spekbuurt' ? `<b>Spekbuurt</b>: yours now. Snackpaleis Spekbuurt is empty; set up shop here later. ${pcMode === 'van' ? '<button class="b95" id="goM">Drive</button>' : ''}` : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
+      m1: `<b>Spekbuurt</b>: Lampas turf. Snackpaleis Spekbuurt sells their watered-down spice, and the back of house is full of Lampas. <b>Mission 1.</b> ${pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? '<button class="b95" id="goM">Drive · start mission</button>' : '<i>Get a weapon from The Russian first.</i>'}`,
       next: `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
       a1: `<b>${n}</b>: Lampas territory. Their watered-down spice, your customers. <i>Locked.</i>`,
       a2: `<b>${n}</b>: Noshgey Kariot territory. Organic, artisanal, wildly overpriced. <i>Locked.</i>`,
@@ -1163,6 +1171,7 @@ function bindMap() {
     }[k];
     info.innerHTML = t;
     const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); }; // travelling elsewhere must call clearPlayerSplats()
+    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); mission.enter(); };
   });
 }
 function sellItem(id, btn) {
@@ -1228,11 +1237,12 @@ addInteract({ obj: desk, pos: () => new THREE.Vector3(-8.8, 0, -16.6), r: 1.8, e
 addInteract({ obj: oof, pos: () => oof.position, r: 4.2, label: () => 'Oofmobiel · get in', act: () => openPC('map', 'van'), far: true });
 
 const SHOP = [
-  { id: 'makarov', name: 'Makarov PM', desc: '9mm pistol, 8 rounds. Reliable. Like Lada, but works.', price: 350 },
+  { id: 'makarov', name: 'Makarov PM', desc: '9mm pistol, 8 rounds. Reliable. Like Lada, but works. (Slot 2)', price: 350 },
   { id: 'bat', name: 'Honkbalknuppel', desc: 'Baseball bat. Quiet. Very persuasive.', price: 90 },
   { id: 'ammo', name: '9mm ammo (50)', desc: 'For the Makarov. Bullets are not included, my friend. Never.', price: 40, multi: true },
   { id: 'vest', name: 'Kevlar vest', desc: 'Stops one bullet. Maybe two. Do not test.', price: 500 },
-  { id: 'shotgun', name: 'Sawn-off shotgun', desc: 'Two barrels, one opinion.', price: 1400 },
+  { id: 'shotgun', name: 'Sawn-off shotgun', desc: 'Two barrels, one opinion. Comes with 12 shells. (Slot 2)', price: 1400 },
+  { id: 'shells', name: 'Shotgun shells (12)', desc: 'For the sawn-off. Twelve opinions.', price: 60, multi: true },
   { id: 'goldak', name: 'Golden AK-47', desc: '"For you? Later. When you are big boss."', price: 0, locked: true },
 ];
 const RU_SAY = ['Everything is quality. Everything is cash.', 'No receipts, no questions, no refunds.', 'Your father bought his first knife here. He still owes me for the sharpening.', 'Dolphins are smartest animal. After me.'];
@@ -1264,7 +1274,7 @@ function renderShop(msg) {
 function buyItem(it, btn) {
   if (it.locked || state.money < it.price) return;
   addMoney(-it.price, btn); state.kit.push(it.id);
-  kitText();
+  kitText(); mission.onBuy(it.id);
   renderShop('"Good choice. ' + (it.id === 'bat' ? 'Classic.' : 'Very good choice.') + '" · The Russian');
 
 }
@@ -1331,7 +1341,7 @@ function updateObjective() {
     map: 'Check the <b>map of Kaasland</b> on the PC or in the Oofmobiel.',
     dad2: 'Talk to <b>Eddy Sr.</b> one last time.',
     russian: 'Visit <b>The Russian</b>: go inside <b>Pandjeshuis Spasibo</b>, east end of the street.',
-    free: 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span>',
+    free: state.spekbuurt ? `<b style="color:#6ed36e">Spekbuurt is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">More of Kaasland in the next build.</span>` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
   }[state.step];
   if (state.step === 'hire' && state.table && state.naknik > 0) state.step = 'dad2';
   setObjective(t || '');
@@ -1746,19 +1756,22 @@ function knockDown(p, dirX, dirZ, line) {
   personBubble(p, line || OUCH[Math.floor(Math.random() * OUCH.length)], '#ff7a1a');
   beep(90, 0.18, 'square', 0.06); setTimeout(() => beep(60, 0.2, 'sawtooth', 0.05), 50);
 }
+// one person on the street gets hit (Maboota, bat or a bullet): they fall, get up complaining and run off
+function streetTargets() { return [...walkers.filter((w) => !w.userData.walk.police && !w.userData.walk.flee), ...officers.map((o) => o.p)].filter((p) => p.visible && !(p.userData.down > 0)); }
+function hitStreetPerson(p, f) {
+  const off = officers.find((o) => o.p === p);
+  if (off) { knockDown(p, f.x, f.z, ['Mijn bonnenboekje!', 'Au! Ik schrijf je op!', 'Dit is geen geldig vervoersbewijs!'][Math.floor(Math.random() * 3)]); hitOfficer(off); }
+  else { knockDown(p, f.x, f.z); for (const w of walkers) if (w.userData.walk.police && w.position.distanceTo(player.position) < 10) personBubble(w, 'Hé! POLITIE! Doe normaal!', '#3a6aff'); }
+}
 function doHit() {
   const f = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+  if (mission && mission.active) { mission.melee(f); return; }
   const targets = [...walkers.filter((w) => !w.userData.walk.police && !w.userData.walk.flee), ...officers.map((o) => o.p)];
   let any = false;
   for (const p of targets) {
     if (p.userData.down > 0 || !p.visible) continue;
     const d = p.position.clone().sub(player.position); d.y = 0; const L = d.length();
-    if (L < 1.6 && d.normalize().dot(f) > 0.25) {
-      any = true;
-      const off = officers.find((o) => o.p === p);
-      if (off) { knockDown(p, f.x, f.z, ['Mijn bonnenboekje!', 'Au! Ik schrijf je op!', 'Dit is geen geldig vervoersbewijs!'][Math.floor(Math.random() * 3)]); hitOfficer(off); }
-      else { knockDown(p, f.x, f.z); for (const w of walkers) if (w.userData.walk.police && w.position.distanceTo(player.position) < 10) personBubble(w, 'Hé! POLITIE! Doe normaal!', '#3a6aff'); }
-    }
+    if (L < 1.6 && d.normalize().dot(f) > 0.25) { any = true; hitStreetPerson(p, f); }
   }
   if (any) { /* screen thump */ camPos.y += 0.25; }
 }
@@ -2058,10 +2071,12 @@ const occl = new THREE.Raycaster();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let incomeT = 0;
 function tick() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  let dt = Math.min(clock.getDelta(), 0.05);
+  if (mission && mission.active) dt = mission.hitstop(dt); // Neon Vice hitstop on kills
   // movement (screen-relative: camera looks north)
   let mx = 0, mz = 0;
-  if (!state.inDialogue && !state.inPC && state.step !== 'title') {
+  const mOn = mission && mission.active;
+  if (!state.inDialogue && !state.inPC && state.step !== 'title' && !(mOn && mission.frozen())) {
     if (keys.KeyW || keys.ArrowUp) mz -= 1; if (keys.KeyS || keys.ArrowDown) mz += 1;
     if (keys.KeyA || keys.ArrowLeft) mx -= 1; if (keys.KeyD || keys.ArrowRight) mx += 1;
   }
@@ -2079,7 +2094,7 @@ function tick() {
   }
   if (len) {
     player.position.x += mx / len * speed * dt; player.position.z += mz / len * speed * dt;
-    const target = Math.atan2(mx, mz);
+    const target = mission && mission.aiming() ? player.rotation.y : Math.atan2(mx, mz);
     let dr = target - player.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
     player.rotation.y += dr * Math.min(1, dt * 14);
   }
@@ -2097,8 +2112,8 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt);
-  const inJ = updateJoint(dt);
+  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); mission.street(dt); } else mission.update(dt);
+  const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then stir
   for (const n of naknikim) {
     const u = n.userData;
@@ -2151,7 +2166,8 @@ function tick() {
   const jc = new THREE.Vector3(((JS.x0 + JS.x1) / 2) * 0.4 + player.position.x * 0.6, 0, -11.5 * 0.5 + player.position.z * 0.5);
   camPos.lerp((inJ ? jc.clone() : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone()).add(off), Math.min(1, dt * 4));
   const lookAt = inJ ? jc.clone().setY(0.8) : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
-  camLook.lerp(lookAt, Math.min(1, dt * 6));
+  if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
+  else camLook.lerp(lookAt, Math.min(1, dt * 6));
   camera.position.copy(camPos); camera.lookAt(camLook);
   sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position);
   water.material.color.setHSL(0.5, 0.55, 0.2 + Math.sin(performance.now() * 0.001) * 0.01);
@@ -2172,5 +2188,8 @@ function tick() {
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
 updateObjective();
-window.__sme = { clearPlayerSplats, playerSplats, geroof, schmatzel, talkGeroof, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
+  neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
+  makeVan: () => oof.clone(true), streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
+window.__sme = { mission, BOUNDS,  clearPlayerSplats, playerSplats, geroof, schmatzel, talkGeroof, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
