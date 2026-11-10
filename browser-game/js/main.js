@@ -2076,7 +2076,7 @@ function tick() {
   // movement (screen-relative: camera looks north)
   let mx = 0, mz = 0;
   const mOn = mission && mission.active;
-  if (!state.inDialogue && !state.inPC && state.step !== 'title' && !(mOn && mission.frozen())) {
+  if (!state.inDialogue && !state.inPC && state.step !== 'title' && !(mOn && mission.frozen()) && !mission.invOpen()) {
     if (keys.KeyW || keys.ArrowUp) mz -= 1; if (keys.KeyS || keys.ArrowDown) mz += 1;
     if (keys.KeyA || keys.ArrowLeft) mx -= 1; if (keys.KeyD || keys.ArrowRight) mx += 1;
   }
@@ -2190,6 +2190,6 @@ camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(pl
 updateObjective();
 mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
-  makeVan: () => oof.clone(true), streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
+  makeVan: () => oof.clone(true), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 window.__sme = { mission, BOUNDS,  clearPlayerSplats, playerSplats, geroof, schmatzel, talkGeroof, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
