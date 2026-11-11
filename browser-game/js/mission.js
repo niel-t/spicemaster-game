@@ -16,7 +16,7 @@ export function initMission(ctx) {
     setBounds, updateObjective, setArea } = ctx;
   const OX = 300, Z0 = -26; // grid cell (x, z) covers world [OX + x, OX + x + 1] × [Z0 + z, Z0 + z + 1]
   const L = (x, z, y = 0) => new THREE.Vector3(OX + x, y, Z0 + z);
-  const root = new THREE.Group(); scene.add(root);
+  const root = new THREE.Group(); root.visible = false; scene.add(root); // only drawn while the mission is on
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   // ================================================================== THE MAP
@@ -419,6 +419,7 @@ export function initMission(ctx) {
     const laser = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 1), laserM.clone()); laser.visible = false; root.add(laser);
     p.userData.foe = { id: i, spawn: [x, z, rot, w], room, boss: !!boss, hand, laser, skin, shirt, pers: ['rush', 'careful', 'normal'][i % 3], mass: boss ? 2.6 : 1 + (i % 3) * 0.15 };
     p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0);
+    p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
   });
   function setFoeWeapon(e, id) { const f = e.userData.foe; f.weapon = id; f.hand.clear(); if (id) f.hand.add(weaponMesh(id)); }
@@ -557,7 +558,7 @@ export function initMission(ctx) {
     if (M.active && P.held && !P.held.own) add(P.held.id, WD[P.held.id].name, `Taken off a Lampas.${isGun(P.held.id) ? ' Ammo: ' + P.held.ammo + '.' : ''} Stays here when you leave.`, 'Picked up', 1, P.slot === 2);
     if (state.loot) add('loot', 'Lampas spice crate', 'Stolen from the Lampas warehouse. Sell it on Kaasplaats (PC) for W 150 each.', 'Loot', state.loot);
     if (state.metSchmatzel) add('shoarma', 'Shoarma broodje', 'Schmatzel\'s, on the house. Your father\'s favourite.', 'From Schmatzel', 1);
-    invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Geroof owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: Maboota (always). Slot 2: guns and the bat, on missions only.</span><span>[I] / [Esc] close</span></div></div>`;
+    invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Nabil owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: Maboota (always). Slot 2: guns and the bat, on missions only.</span><span>[I] / [Esc] close</span></div></div>`;
     invEl.style.display = 'flex'; invOpen = true;
   }
   function closeInv() { invEl.style.display = 'none'; invOpen = false; }
@@ -598,7 +599,7 @@ export function initMission(ctx) {
     if (M.active) return;
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
-      M.active = true; clearPlayerSplats();
+      M.active = true; root.visible = true; clearPlayerSplats();
       saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity;
       scene.background.set(0x1a0e2a); scene.fog.color.set(0x1a0e2a); scene.fog.near = 30; scene.fog.far = 70; hemi.intensity = 0.55; sun.intensity = 0.9;
       lights.forEach(([l, k]) => { l.intensity = k; });
@@ -614,7 +615,7 @@ export function initMission(ctx) {
   function exit() {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
-      saveOwnAmmo(); M.active = false; clearPlayerSplats();
+      saveOwnAmmo(); M.active = false; root.visible = false; clearPlayerSplats();
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);

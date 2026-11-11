@@ -797,7 +797,20 @@ function makePerson(o) {
     for (let i = 0; i < 30; i++) { const a = Math.random() * Math.PI * 2, el = 0.25 + Math.random() * 0.75; const p = new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el)); if (p.z > 0.5 && p.y < 0.5) continue; add(new THREE.SphereGeometry(0.05, 8, 6), hairM, p.x * 0.14, 0.2 + p.y * 0.13, p.z * 0.14 - 0.01, head); }
     for (let i = 0; i < 26; i++) { const a = -0.15 * Math.PI + Math.random() * 1.3 * Math.PI; const yy = -0.06 + Math.random() * 0.1; add(new THREE.SphereGeometry(0.038, 8, 6), beardM, Math.cos(a) * 0.115, 0.08 + yy, Math.sin(a) * 0.105 + 0.045, head); }
   } else if (o.head) { // passer-by: volume hair, optional long hair / bun
-    if (o.ballcap) { // baseball cap (Geroof)
+    if (o.feltHat) { // Nabil's green felt hat: wide brim, rope band, a feather
+      const fm = std(o.feltHat, 0.95);
+      add(new THREE.CylinderGeometry(0.215, 0.205, 0.022, 22), fm, 0, 0.255, 0.005, head).rotation.x = -0.12;
+      const cr = add(new THREE.CylinderGeometry(0.125, 0.152, 0.12, 20), fm, 0, 0.325, -0.005, head); cr.scale.z = 1.08;
+      add(new THREE.SphereGeometry(0.126, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), fm, 0, 0.383, -0.005, head).scale.set(1, 0.35, 1.08);
+      const band = add(new THREE.TorusGeometry(0.147, 0.013, 6, 24), std(0x2f6a3a, 0.9), 0, 0.282, -0.005, head); band.rotation.x = Math.PI / 2;
+      const fe = add(new THREE.SphereGeometry(0.05, 10, 6), std(0xb8a898, 1), 0.11, 0.38, -0.05, head); fe.scale.set(0.35, 1.9, 0.6); fe.rotation.set(-0.5, 0, -0.55);
+    }
+    if (o.cigarette) { // cigarette in the corner of the mouth, with a glowing tip
+      const cg = new THREE.Group(); cg.position.set(0.03, 0.085, 0.15); cg.rotation.set(1.15, 0.25, 0); head.add(cg);
+      add(new THREE.CylinderGeometry(0.008, 0.008, 0.075, 8), std(0xf4f0e8, 0.8), 0, 0.035, 0, cg);
+      add(new THREE.CylinderGeometry(0.0085, 0.0085, 0.012, 8), new THREE.MeshBasicMaterial({ color: 0xff6a20 }), 0, 0.077, 0, cg);
+    }
+    if (o.ballcap) { // baseball cap
       const dome = add(new THREE.SphereGeometry(0.158, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), std(o.ballcap, 0.7), 0, 0.24, -0.005, head); dome.scale.set(1, 0.75, 1.05);
       const vis = add(new THREE.CylinderGeometry(0.13, 0.13, 0.015, 16, 1, false, -Math.PI / 2, Math.PI), std(o.ballcap, 0.6), 0, 0.245, 0.09, head); vis.scale.z = 1.25;
     }
@@ -1028,7 +1041,7 @@ let mixSolid = null;
 const $ = (id) => document.getElementById(id);
 const ui = { money: $('money'), income: $('income'), obj: $('objective'), prompt: $('prompt'), toast: $('toast') };
 const state = { step: 'title', money: 0, shown: 0, listed: new Set(), sold: new Set(), table: false, naknik: 0, income: 0, mapSeen: false, inDialogue: false, inPC: false, kit: [], metRussian: false,
-  raids: 0, loan: { amount: 1000, out: false, at: 0 }, metGeroof: false, metSchmatzel: false, armed: false };
+  raids: 0, loan: { amount: 1000, out: false, at: 0 }, metNabil: false, metSchmatzel: false, armed: false };
 function setObjective(t) { ui.obj.innerHTML = t; }
 let toastT = 0;
 function toast(big, small = '', t = 2.6) { ui.toast.innerHTML = big + (small ? `<small>${small}</small>` : ''); ui.toast.style.display = 'block'; toastT = t; }
@@ -1053,7 +1066,7 @@ function beep(freq, dur, type = 'square', vol = 0.05) {
 }
 
 // dialogue
-const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Geroof': './assets/face_geroof.jpg', 'Schmatzel': null };
+const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null };
 let dlgQueue = [], dlgDone = null;
 function dialogue(lines, done) { dlgQueue = lines.slice(); dlgDone = done; state.inDialogue = true; nextLine(); }
 function nextLine() {
@@ -1438,7 +1451,7 @@ function makeBike(color, kind = 0) {
   const b = new THREE.Group(), fm = lam({ color }), seats = [];
   const wheel = (x, r = 0.34, z = 0) => { const w = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 6, 16), mat.black); w.position.set(x, r + 0.02, z); w.userData.r = r; b.add(w); for (let k = 0; k < 3; k++) { const sp = box(r * 1.9, 0.015, 0.015, mat.dark, 0, 0, 0, w, false); sp.rotation.z = k * Math.PI / 3; } return w; };
   const tube = (x0, y0, x1, y1, z = 0) => { const m = box(Math.hypot(x1 - x0, y1 - y0), 0.045, 0.045, fm, (x0 + x1) / 2, (y0 + y1) / 2, z, b, false); m.rotation.z = Math.atan2(y1 - y0, x1 - x0); };
-  const seat = (x, y) => { box(0.26, 0.05, 0.14, mat.black, x, y, 0, b, false); seats.push([x, y]); };
+  const seat = (x, y, pose) => { box(0.26, 0.05, 0.14, mat.black, x, y, 0, b, false); seats.push([x, y, pose]); };
   const bars = (x, y) => { box(0.05, 0.05, 0.55, mat.black, x, y, 0, b, false); };
   if (kind === 1) { // tricycle: big front wheel, two small rear wheels, a basket
     wheel(0.6, 0.42); wheel(-0.55, 0.28, 0.38); wheel(-0.55, 0.28, -0.38);
@@ -1463,13 +1476,38 @@ function makeBike(color, kind = 0) {
     seat(-0.3, 0.92); bars(0.3, 1.05); tube(0.3, 0.5, 0.3, 1.05);
     box(0.85, 0.5, 0.7, lam({ color: 0x8a5a2a }), 0.78, 0.68, 0, b);
     const ch = cyl(0.3, 0.3, 0.22, lam({ color: 0xf2c43a }), 0.78, 1.03, 0, b, 18); ch.rotation.z = 0.3;
+  } else if (kind === 5) { // mini bike: tiny wheels, rider squatting over it like a frog
+    wheel(-0.32, 0.15); wheel(0.34, 0.15);
+    tube(-0.32, 0.17, 0.0, 0.2); tube(0.0, 0.2, 0.3, 0.42); tube(0.34, 0.17, 0.28, 0.95); tube(-0.32, 0.17, -0.1, 0.5); tube(0.0, 0.2, -0.1, 0.5);
+    seat(-0.12, 0.54, 'squat'); bars(0.28, 0.98);
+  } else if (kind === 6) { // penny-farthing: huge front wheel, tiny rear wheel, rider way up top
+    wheel(0.15, 0.78); wheel(-0.95, 0.19);
+    tube(-0.95, 0.21, -0.55, 1.15); tube(-0.55, 1.15, 0.05, 1.6); tube(0.15, 0.8, 0.12, 1.62);
+    seat(0.0, 1.66); bars(0.18, 1.78); tube(0.12, 1.62, 0.18, 1.78);
+  } else if (kind === 7) { // double-decker: one rider on a tall frame, a second on a little bike tucked underneath
+    wheel(-0.95, 0.36); wheel(0.95, 0.36);
+    tube(-0.95, 0.38, -0.1, 2.35); tube(0.95, 0.38, 0.35, 2.4); tube(-0.95, 0.38, 0.95, 0.38); tube(-0.1, 2.35, 0.35, 2.4); tube(-0.5, 1.35, 0.6, 1.4);
+    seat(-0.12, 2.42); bars(0.4, 2.52);
+    wheel(-0.25, 0.13); wheel(0.3, 0.13); tube(-0.25, 0.15, 0.3, 0.15); tube(-0.1, 0.15, -0.12, 0.52); tube(0.3, 0.15, 0.25, 0.8);
+    seat(-0.12, 0.56, 'squat'); bars(0.25, 0.82);
+  } else if (kind === 8) { // extra-tall bike: a long fork and a seat up at first-floor windows
+    wheel(-0.95, 0.38); wheel(0.95, 0.38);
+    tube(-0.95, 0.4, -0.45, 0.9); tube(-0.45, 0.9, -0.2, 2.25); tube(-0.45, 0.9, 0.62, 0.95); tube(0.95, 0.4, 0.6, 2.35); tube(-0.2, 2.25, 0.6, 2.35); tube(-0.2, 2.25, -0.95, 0.4);
+    seat(-0.25, 2.3); bars(0.62, 2.45);
+  } else if (kind === 9) { // stacked four: one frame, four riders at three heights
+    wheel(-0.85); wheel(0.85);
+    tube(-0.85, 0.36, 0.85, 0.36); tube(-0.3, 0.36, -0.3, 2.75); tube(0.3, 0.36, 0.3, 2.75); tube(-0.3, 2.0, 0.85, 2.05); tube(-0.85, 1.75, 0.3, 1.75); tube(-0.3, 2.75, 0.3, 2.75); tube(0.85, 0.36, 0.85, 2.05); tube(-0.85, 0.36, -0.85, 1.75);
+    seat(0.0, 0.9); bars(0.5, 1.0);
+    seat(-0.75, 1.82); bars(-0.32, 1.95);
+    seat(0.55, 2.12); bars(0.95, 2.25);
+    seat(-0.05, 2.82); bars(0.35, 2.95);
   } else {
     wheel(-0.52); wheel(0.52);
     tube(-0.52, 0.36, -0.1, 0.36); tube(-0.1, 0.36, 0.42, 0.82); tube(-0.18, 0.86, 0.42, 0.82); tube(-0.1, 0.36, -0.18, 0.86); tube(0.52, 0.36, 0.42, 0.82); tube(-0.52, 0.36, -0.18, 0.86);
     seat(-0.2, 0.92); bars(0.42, 1.0); tube(0.42, 0.82, 0.42, 1.0);
     box(0.28, 0.06, 0.32, lam({ color: 0x3a2a1a }), -0.5, 0.7, 0, b);
   }
-  b.userData.seats = seats; b.userData.len = kind === 2 ? 2.2 : kind === 4 ? 1.6 : 0.95;
+  b.userData.seats = seats; b.userData.len = kind === 2 ? 2.2 : kind === 4 ? 1.6 : kind === 6 || kind === 7 || kind === 8 ? 1.3 : kind === 9 ? 1.2 : 0.95;
   scene.add(b); return b;
 }
 const SKINS = [0xf0c8a8, 0xe0a882, 0xc8885e, 0x9a6440, 0x6a4028, 0xf4d2bc];
@@ -1517,20 +1555,22 @@ function makeDog(seed) {
 }
 const leashMat = new THREE.LineBasicMaterial({ color: 0xff3fa4 });
 const cyclists = [];
-const BIKE_KINDS = [0, 2, 1, 0, 4, 3, 0, 1];
+const BIKE_KINDS = [0, 2, 1, 0, 4, 3, 0, 1, 5, 6, 7, 8, 9, 6, 5, 7];
 BIKE_KINDS.forEach((kind, i) => {
   const dir = i % 2 ? -1 : 1, z = RC + (dir > 0 ? 5.85 : 6.95);
-  const bike = makeBike([0x1a1a1a, 0xff5fa2, 0x2fb8a8, 0x7a1a1a, 0xffd23a, 0x8a5ae0, 0xd8d0c0, 0x2a4a7a][i], kind);
-  const riders = bike.userData.seats.map(([sx, sy], k) => {
+  const bike = makeBike([0x1a1a1a, 0xff5fa2, 0x2fb8a8, 0x7a1a1a, 0xffd23a, 0x8a5ae0, 0xd8d0c0, 0x2a4a7a][i % 8], kind);
+  const riders = bike.userData.seats.map(([sx, sy, pose], k) => {
     const r = passerBy(100 + i * 5 + k); scene.remove(r); bike.add(r);
     r.position.set(sx - 0.02, sy - 0.9, 0); r.rotation.y = Math.PI / 2;
     r.userData.arms[0].rotation.x = r.userData.arms[1].rotation.x = -1.0;
+    r.userData.squat = pose === 'squat'; // mini bikes: knees up by the ears
+    if (r.userData.squat) { r.position.y = sy - 0.62; r.scale.y = 0.94; }
     return r;
   });
-  bike.position.set(-60 + i * 16, 0, z); bike.rotation.y = dir > 0 ? 0 : Math.PI;
+  bike.position.set(-64 + i * 8.3, 0, z); bike.rotation.y = dir > 0 ? 0 : Math.PI;
   const len = bike.userData.len;
-  bike.userData = { dir, v: 4, vmax: kind === 2 ? 3.2 : kind === 1 ? 2.8 : 4 + (i % 3) * 0.6, riders, phase: i, len, kind, bubble: bubble(), shoutT: 0 };
-  bike.add(bike.userData.bubble); bike.userData.bubble.position.set(0, kind === 3 ? 3.6 : 2.7, 0);
+  bike.userData = { dir, v: 4, vmax: kind === 2 ? 3.2 : kind === 1 ? 2.8 : kind === 5 ? 2.6 : kind === 9 ? 2.4 : kind >= 6 ? 3.2 : 4 + (i % 3) * 0.6, riders, phase: i, len, kind, bubble: bubble(), shoutT: 0 };
+  bike.add(bike.userData.bubble); bike.userData.bubble.position.set(0, { 3: 3.6, 6: 3.4, 7: 4.1, 8: 4.1, 9: 4.5 }[kind] || 2.7, 0);
   cyclists.push(bike);
 });
 const walkers = [];
@@ -1551,7 +1591,7 @@ const LINES_POLICE = ['Alles in orde hier, meneer?', 'No loitering near the cana
 const LINES_NPC = ['Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say the old Eddy had a secret recipe.'];
 walkers.forEach((w, i) => addInteract({ obj: w, pos: () => w.position, r: 1.4, label: () => 'Say hi', act: () => { w.userData.walk.wait = 2.5; w.rotation.y = Math.atan2(player.position.x - w.position.x, player.position.z - w.position.z); const P_ = w.userData.walk.police, L_ = P_ ? LINES_POLICE : LINES_NPC; toast('"' + L_[(i + Math.floor(performance.now() / 5000)) % L_.length] + '"', P_ ? 'Politie' : 'Passer-by', 2.4); } }));
 // ================================================================== SHOARMA SCHMATZEL
-// A small choice menu in the dialogue box (used by Geroof)
+// A small choice menu in the dialogue box (used by Nabil)
 let choiceOpen = false, choiceCb = null;
 function choice(who, line, options, cb) {
   state.inPC = true; choiceOpen = true; choiceCb = cb;
@@ -1644,16 +1684,16 @@ const schmatzel = makePerson({ head: { skin: 0xe0a882, hair: '#c8c4bc', brow: '#
 schmatzel.position.set(JS.x1 - 2.6, 0, -14.1); 
 { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.22, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 })); m.position.set(0, 2.35, 0); schmatzel.userData.body.add(m); const t = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), m.material); t.scale.set(1, 0.55, 1); t.position.set(0, 2.5, 0); schmatzel.userData.body.add(t); }
 { const mo = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.03), new THREE.MeshStandardMaterial({ color: 0xd8d4cc })); mo.position.set(0, 0.105, 0.15); schmatzel.userData.head.add(mo); }
-// Geroof and the card players (Soprano types)
+// Nabil and the card players (Soprano types)
 const CTp = joint.userData.CT;
-const geroof = makePerson({ head: { skin: 0xd29a74, hair: '#151515', brow: '#1a1a1a', hairLine: 92, sideLine: 120, backLine: 150, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3632', beard3d: '#3a3632' }, ballcap: 0x141414, front: '#1a1a1e', shirt: 0x1a1a1e, pants: 0x2a2a30, shoes: 0x111111, belly: 0.5, skin: 0xd29a74 });
+const nabil = makePerson({ head: { skin: 0xc89070, hair: '#1a1410', brow: '#14100c', hairLine: 92, sideLine: 120, backLine: 150, mouth: 'laugh', iris: '#4a2e1a', beard: '#241c16', beard3d: '#241c16' }, feltHat: 0x3e4e36, cigarette: true, front: '#6a3e24', shirt: 0x6a3e24, pants: 0x2a2a30, shoes: 0x111111, belly: 0.5, skin: 0xc89070 });
 const SOPRANOS = [
   { head: { skin: 0xe8b890, hair: '#151515', brow: '#111', hairLine: 78, sideLine: 110, backLine: 140, mouth: 'smile', iris: '#3a2a1a' }, front: '#2a2a2e', shirt: 0x2a2a2e, belly: 1.2, chain: true },
   { head: { skin: 0xdca07a, hair: '#2a2a2a', brow: '#222', hairLine: 60, sideLine: 100, backLine: 150, mouth: 'laugh', iris: '#3a2a1a', glasses: true }, front: '#f2efe6', shirt: 0xf2efe6, belly: 1.4, chain: true },
   { head: { skin: 0xf0c4a2, hair: '#3a2a1a', brow: '#2a1a10', hairLine: 84, sideLine: 116, backLine: 150, mouth: 'smile', iris: '#4a6a8a' }, front: '#4a1a2as', shirt: 0x4a1a2a, belly: 0.8 },
   { head: { skin: 0xc8885e, hair: '#8a8a8a', brow: '#6a6a6a', hairLine: 74, sideLine: 112, backLine: 150, mouth: 'smile', iris: '#2a2a2a', squint: true }, front: '#1a2a4a', shirt: 0x1a2a4a, belly: 1.1, chain: true },
 ];
-const cardPlayers = [geroof, ...SOPRANOS.map((o) => makePerson({ ...o, pants: 0x1a1a1e, shoes: 0x111111, skin: o.head.skin, scale: 1.02 }))];
+const cardPlayers = [nabil, ...SOPRANOS.map((o) => makePerson({ ...o, pants: 0x1a1a1e, shoes: 0x111111, skin: o.head.skin, scale: 1.02 }))];
 cardPlayers.forEach((p, i) => {
   const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
   p.position.set(CTp.x + Math.cos(a) * 1.45, 0, CTp.z + Math.sin(a) * 1.45);
@@ -1670,13 +1710,13 @@ const diners = [];
   const pita = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.16, 4, 8), lam({ color: 0xe8c890 })); pita.rotation.z = Math.PI / 2; pita.position.set(0, -0.68, 0.06); p.userData.arms[1].add(pita);
   p.userData.eatPh = i * 2; diners.push(p);
 });
-// quest marker: floating yellow prism over Geroof
+// quest marker: floating yellow prism over Nabil
 const prism = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), new THREE.MeshBasicMaterial({ color: 0xffe14a }));
 prism.scale.set(0.8, 1.4, 0.8); scene.add(prism);
 const prismGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), new THREE.MeshBasicMaterial({ map: canvasTex(64, 64, (g) => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,230,80,.9)'); r.addColorStop(1, 'rgba(255,230,80,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); }), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
 scene.add(prismGlow);
 const loanDue = () => state.loan.out && state.raids >= state.loan.at + 2;
-const geroofHasAsk = () => !state.loan.out || loanDue();
+const nabilHasAsk = () => !state.loan.out || loanDue();
 function talkSchmatzel() {
   if (!state.metSchmatzel) {
     state.metSchmatzel = true;
@@ -1687,39 +1727,39 @@ function talkSchmatzel() {
       ['Schmatzel', 'Of course he does. Sit, sit! A broodje shoarma, on the house. With Eddy & Zn spice, like the old days. Nobody else in this street gets it.'],
     ], () => { toast('BROODJE SHOARMA', 'On the house. Lekker.', 2.4); beep(660, 0.08, 'triangle'); setTimeout(() => beep(880, 0.12, 'triangle'), 90); });
   } else {
-    const L = ['Another shoarma? You are too skinny, jongen. Here.', 'The Lampas sent a man last week. Wanted me to buy their spice. I gave him a kapsalon to go and showed him the door.', 'Geroof? He has been sitting at that table since 1983. Somehow he never loses.', 'When you find De Gouden Mix, you come here first. Promise me.'];
+    const L = ['Another shoarma? You are too skinny, jongen. Here.', 'The Lampas sent a man last week. Wanted me to buy their spice. I gave him a kapsalon to go and showed him the door.', 'Nabil? He has been sitting at that table since 1983. Somehow he never loses.', 'When you find De Gouden Mix, you come here first. Promise me.'];
     dialogue([['Schmatzel', L[Math.floor(Math.random() * L.length)]]], () => toast('BROODJE SHOARMA', 'On the house.', 1.6));
   }
 }
-function talkGeroof() {
+function talkNabil() {
   const L = state.loan;
-  if (L.out && !loanDue()) { dialogue([['Geroof', ['Patience, my friend. The cards need time to warm up.', 'You will get it back. Geroof always pays. Ask anyone at this table.', 'Shh, shh. I am on a streak.'][Math.floor(Math.random() * 3)]]]); return; }
+  if (L.out && !loanDue()) { dialogue([['Nabil', ['Patience, my friend. The cards need time to warm up.', 'You will get it back. Nabil always pays. Ask anyone at this table.', 'Shh, shh. I am on a streak.'][Math.floor(Math.random() * 3)]]]); return; }
   if (L.out && loanDue()) {
     const back = L.amount * 2;
     dialogue([
-      ['Geroof', 'Eddy! Come, come. Like I promised.'],
-      ['Geroof', 'W ' + back + '. Count it. Go on, count it. Geroof always wins.'],
-    ], () => { addMoney(back); L.out = false; L.amount *= 2; toast('GEROOF PAID YOU BACK', '+W ' + back + '. He somehow always wins.', 3); });
+      ['Nabil', 'Eddy! Come, come. Like I promised.'],
+      ['Nabil', 'W ' + back + '. Count it. Go on, count it. Nabil always wins.'],
+    ], () => { addMoney(back); L.out = false; L.amount *= 2; toast('NABIL PAID YOU BACK', '+W ' + back + '. He somehow always wins.', 3); });
     return;
   }
-  const ask = () => choice('Geroof', `Listen. I need W ${L.amount}. Just a small loan. I give it back, double. Geroof always pays.`, [`Lend W ${L.amount}`, 'Not now'], (i) => {
-    if (i !== 0) { dialogue([['Geroof', 'Your loss, my friend. The cards are hot today.']]); return; }
-    if (state.money < L.amount) { dialogue([['Geroof', `W ${L.amount}, Eddy. Not less. Come back when your pockets are fatter.`]]); return; }
+  const ask = () => choice('Nabil', `Listen. I need W ${L.amount}. Just a small loan. I give it back, double. Nabil always pays.`, [`Lend W ${L.amount}`, 'Not now'], (i) => {
+    if (i !== 0) { dialogue([['Nabil', 'Your loss, my friend. The cards are hot today.']]); return; }
+    if (state.money < L.amount) { dialogue([['Nabil', `W ${L.amount}, Eddy. Not less. Come back when your pockets are fatter.`]]); return; }
     addMoney(-L.amount); L.out = true; L.at = state.raids;
-    dialogue([['Geroof', 'You are a good boy. Like your father. Now let me play.']], () => toast('LOAN TO GEROOF', 'W ' + L.amount + ' gone into the card game.', 2.4));
+    dialogue([['Nabil', 'You are a good boy. Like your father. Now let me play.']], () => toast('LOAN TO NABIL', 'W ' + L.amount + ' gone into the card game.', 2.4));
   });
-  if (!state.metGeroof) {
-    state.metGeroof = true;
+  if (!state.metNabil) {
+    state.metNabil = true;
     dialogue([
-      ['Geroof', 'Eddy & Zn! The son! Sit, sit. No, not there, that is Tony\'s chair. He gets upset.'],
-      ['Geroof', 'Your father, he always believed in me. Even in 1984. Especially in 1984.'],
+      ['Nabil', 'Eddy & Zn! The son! Sit, sit. No, not there, that is Tony\'s chair. He gets upset.'],
+      ['Nabil', 'Your father, he always believed in me. Even in 1984. Especially in 1984.'],
     ], ask);
   } else ask();
 }
 addInteract({ obj: jDoor, pos: () => new THREE.Vector3((JS.doorX0 + JS.doorX1) / 2, 0, JS.z1 + 0.4), r: 1.6, enabled: () => jDoorTarget === 0, label: () => 'Open the door · Shoarma Schmatzel', act: openJointDoor });
 addInteract({ obj: schmatzel, pos: () => schmatzel.position, r: 2.6, enabled: () => isInJoint(player.position), label: () => 'Talk to Schmatzel', act: talkSchmatzel });
-addInteract({ obj: geroof, pos: () => geroof.position, r: 1.9, enabled: () => isInJoint(player.position), label: () => geroofHasAsk() ? 'Talk to Geroof  (!)' : 'Talk to Geroof', act: talkGeroof });
-cardPlayers.slice(1).forEach((p, i) => addInteract({ obj: p, pos: () => p.position, r: 1.7, enabled: () => isInJoint(player.position), label: () => 'Talk', act: () => dialogue([['Card player', ['Fuhgeddaboudit.', 'You in or you out? We play for real Wilders here.', 'Geroof, it\'s your deal. AGAIN.', 'Hey. Respect the table.'][i]]]) }));
+addInteract({ obj: nabil, pos: () => nabil.position, r: 1.9, enabled: () => isInJoint(player.position), label: () => nabilHasAsk() ? 'Talk to Nabil  (!)' : 'Talk to Nabil', act: talkNabil });
+cardPlayers.slice(1).forEach((p, i) => addInteract({ obj: p, pos: () => p.position, r: 1.7, enabled: () => isInJoint(player.position), label: () => 'Talk', act: () => dialogue([['Card player', ['Fuhgeddaboudit.', 'You in or you out? We play for real Wilders here.', 'Nabil, it\'s your deal. AGAIN.', 'Hey. Respect the table.'][i]]]) }));
 function updateJoint(dt) {
   jDoorOpen += (jDoorTarget - jDoorOpen) * Math.min(1, dt * 3); jDoor.rotation.y = jDoorOpen * 1.7;
   const inJ = isInJoint(player.position);
@@ -1730,9 +1770,9 @@ function updateJoint(dt) {
   cardPlayers.forEach((p) => { const u = p.userData; u.cardPhase += dt; u.arms[0].rotation.x = -1.1 + Math.sin(u.cardPhase * 1.7) * 0.15; u.arms[1].rotation.x = -1.0 + (Math.sin(u.cardPhase * 0.6) > 0.85 ? -0.5 : 0); u.head.rotation.y = Math.sin(u.cardPhase * 0.4) * 0.3; });
   diners.forEach((p) => { const u = p.userData; u.eatPh += dt; const k = (Math.sin(u.eatPh * 1.2) + 1) / 2; u.arms[1].rotation.x = -0.6 - k * 1.5; u.arms[0].rotation.x = -0.5; });
   { const toP = Math.atan2(player.position.x - schmatzel.position.x, player.position.z - schmatzel.position.z); schmatzel.rotation.y += Math.atan2(Math.sin(toP - schmatzel.rotation.y), Math.cos(toP - schmatzel.rotation.y)) * Math.min(1, dt * 3); animate(schmatzel, 0, dt); }
-  const show = geroofHasAsk();
+  const show = nabilHasAsk();
   prism.visible = prismGlow.visible = show;
-  if (show) { prism.position.set(geroof.position.x, 2.7 + Math.sin(t * 2.5) * 0.08, geroof.position.z); prism.rotation.y += dt * 2; prismGlow.position.copy(prism.position); prismGlow.lookAt(camera.position); }
+  if (show) { prism.position.set(nabil.position.x, 2.7 + Math.sin(t * 2.5) * 0.08, nabil.position.z); prism.rotation.y += dt * 2; prismGlow.position.copy(prism.position); prismGlow.lookAt(camera.position); }
   return inJ;
 }
 
@@ -2012,12 +2052,12 @@ function updateStreet(dt) {
     const want = free < 0.8 ? 0 : free < 5 ? u.vmax * free / 5 : u.vmax;
     u.v += Math.max(-10 * dt, Math.min(3 * dt, want - u.v));
     if (byPlayer && u.v < 0.6) { u.shoutT -= dt; if (u.shoutT <= 0) { bell(); say(u.bubble, BIKE_SHOUTS[Math.floor(Math.random() * BIKE_SHOUTS.length)], '#2fb8a8'); u.shoutT = 3; } }
-    if (u.v > 2 && Math.abs(P.z - b.position.z) < 0.6 && Math.abs(P.x - b.position.x) < u.len + 0.3 && P.y < 0.3) bump(u.dir * 4, Math.sign(P.z - b.position.z || 1) * 3, 4, 'Run over by a ' + ['bike', 'vierfiets', 'tricycle', 'bike', 'bakfiets full of Gouda', 'tall bike'][u.kind] + '.');
+    if (u.v > 2 && Math.abs(P.z - b.position.z) < 0.6 && Math.abs(P.x - b.position.x) < u.len + 0.3 && P.y < 0.3) bump(u.dir * 4, Math.sign(P.z - b.position.z || 1) * 3, 4, 'Run over by a ' + ['bike', 'vierfiets', 'tricycle', 'tall bike', 'bakfiets full of Gouda', 'mini bike', 'penny-farthing', 'double-decker bike', 'extra-tall bike', 'four-man tower bike'][u.kind] + '.');
     b.position.x += u.v * u.dir * dt;
     if (b.position.x * u.dir > 66) b.position.x = -66 * u.dir;
     for (const w of b.children) if (w.userData.r) w.rotation.z -= u.v * dt / w.userData.r;
     u.phase += u.v * dt * 1.6;
-    u.riders.forEach((r, k) => { const ru = r.userData, ph = u.phase + k * 0.7; ru.legs[0].rotation.x = -0.9 + Math.sin(ph) * 0.5; ru.legs[1].rotation.x = -0.9 - Math.sin(ph) * 0.5; });
+    u.riders.forEach((r, k) => { const ru = r.userData, ph = u.phase + k * 0.7; const base = ru.squat ? -1.55 : -0.9, amp = ru.squat ? 0.25 : 0.5; ru.legs[0].rotation.x = base + Math.sin(ph * (ru.squat ? 2 : 1)) * amp; ru.legs[1].rotation.x = base - Math.sin(ph * (ru.squat ? 2 : 1)) * amp; });
     const bu = u.bubble.userData; if (bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; }
   }
   for (const w of walkers) {
@@ -2191,5 +2231,5 @@ updateObjective();
 mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
   makeVan: () => oof.clone(true), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
-window.__sme = { mission, BOUNDS,  clearPlayerSplats, playerSplats, geroof, schmatzel, talkGeroof, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+window.__sme = { scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
