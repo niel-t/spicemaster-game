@@ -18,6 +18,10 @@ Mission (Spekbuurt): mouse aim · click / F attack · E grab / throw · 1 melee 
 
 - **Loadout:** slot 1 is melee (the Maboota; press 1 again to switch to the honkbalknuppel if you have one), slots 2 and 3 hold guns.
   A picked-up gun fills an empty slot, otherwise it swaps with the gun in your hands. Pocket ammo is shared per calibre.
+- **Your kit carries over:** whatever you walk out of a mission with (guns incl. ones taken off the Lampas, their loaded rounds,
+  pocket ammo, the vest if it wasn't shot through) goes home with you and into the next mission. Backspace restores the kit you came in with.
+- **De Kluis (stash):** a green locker in the warehouse (E) with 6 shelves to store and swap gear. Purchases from The Russian go
+  into your hands if there is room, otherwise into the kluis.
 - **Active reload:** R starts a reload from your pocket ammo (9mm for the Makarov, shells for the sawn-off). Press R again inside the
   green window on the bar above Eddy for an instant reload; miss it and the gun jams (slower reload). An empty gun reloads by itself when you attack.
 - **Ammo:** bought boxes go to your pocket. Grab (E) a Lampas gun of the calibre you hold to strip its rounds; picking up a new gun also pockets its spare rounds.

@@ -304,12 +304,23 @@ export function initMission(ctx) {
     state.pool = { '9mm': 0, '12ga': 0 };
     for (const id of ['makarov', 'shotgun']) { const w = WD[id], n = state.ammo[id] || 0; if (n > w.mag) { state.pool[w.cal] += n - w.mag; state.ammo[id] = w.mag; } }
   }
+  // what you carry between missions (Neon Vice kit): two guns with their loaded rounds, a melee weapon, a vest. Pocket ammo is state.pool.
+  // Gear that doesn't fit goes to the kluis (stash) in the warehouse.
+  const STASH_CAP = 6;
+  function migrateKit() { // before the persistent kit, guns came from the purchase list
+    if (!state.loadout || !Array.isArray(state.loadout.guns)) {
+      const g = ['makarov', 'shotgun'].filter((k) => (state.kit || []).includes(k));
+      state.loadout = { guns: [0, 1].map((i) => (g[i] ? { id: g[i], ammo: state.ammo[g[i]] ?? WD[g[i]].mag } : null)), melee: (state.kit || []).includes('bat') ? 'bat' : null, vest: (state.kit || []).includes('vest') ? 1 : 0 };
+    }
+    if (!Array.isArray(state.stash)) state.stash = [];
+  }
+  migrateKit();
   const P = { slot: 1, held: null, hp: EASY.hp, maxhp: EASY.hp, armor: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, cause: '', vx: 0, vz: 0, last: new THREE.Vector3(), rl: null, sprint: false, stepT: 0, guns: [null, null], melee: null, useBat: false, lastGun: 2 };
   const handGun = new THREE.Group(); handGun.position.set(0, -0.68, 0.05); handGun.visible = false; player.userData.arms[0].add(handGun);
   const owned = () => ['shotgun', 'makarov', 'bat'].filter((k) => state.kit.includes(k));
   const isMelee = (id) => !!(id && WD[id] && WD[id].melee);
   function ownWeapon(id) { return { id, ammo: isGun(id) ? (state.ammo[id] || 0) : 0, own: true }; }
-  function saveOwnAmmo() { for (const g of P.guns) if (g && g.own) state.ammo[g.id] = g.ammo; }
+  function saveOwnAmmo() { /* loaded rounds live on the gun itself and go home with you (commitKit) */ }
   let meshOf = null;
   function syncHeld() { // P.held = whatever is in the active slot; meshes and the armed flag follow
     if (P.slot >= 2 && !P.guns[P.slot - 2]) P.slot = 1;
@@ -338,11 +349,21 @@ export function initMission(ctx) {
     const n = !P.guns[0] ? 2 : !P.guns[1] ? 3 : P.slot >= 2 ? P.slot : P.lastGun; // empty slot first, else swap with the gun in your hands
     drop(P.guns[n - 2]); P.guns[n - 2] = it; P.slot = n; P.lastGun = n; syncHeld();
   }
-  function loadKit() { // what you bring into the mission: the guns and bat you bought
-    const g = ['makarov', 'shotgun'].filter((k) => state.kit.includes(k));
-    P.guns = [g[0] ? ownWeapon(g[0]) : null, g[1] ? ownWeapon(g[1]) : null];
-    P.melee = state.kit.includes('bat') ? ownWeapon('bat') : null; P.useBat = false; P.lastGun = 2;
+  const copyGun = (g) => (g && WD[g.id] ? { id: g.id, ammo: Math.max(0, g.ammo | 0), own: true } : null);
+  function loadKit() { // what you bring into the mission: your carried kit
+    const L = state.loadout; P.guns = [copyGun(L.guns[0]), copyGun(L.guns[1])];
+    P.melee = L.melee ? { id: L.melee, ammo: 0, own: true } : null; P.useBat = false; P.lastGun = 2;
   }
+  function commitKit() { // what you carry out of the mission is yours: Lampas guns included
+    state.loadout = { guns: P.guns.map((g) => (g ? { id: g.id, ammo: g.ammo } : null)), melee: P.melee ? P.melee.id : null, vest: P.armor > 0 ? 1 : 0 };
+  }
+  const gearName = (id) => (WD[id] ? WD[id].name : id === 'vest' ? 'KEVLAR VEST' : id.toUpperCase());
+  function fitsLoadout(id) { const L = state.loadout; return isGun(id) ? !L.guns[0] || !L.guns[1] : id === 'bat' ? !L.melee : id === 'vest' ? !L.vest : false; }
+  function addToLoadout(it) { const L = state.loadout; if (isGun(it.id)) L.guns[L.guns[0] ? 1 : 0] = { id: it.id, ammo: it.ammo | 0 }; else if (it.id === 'bat') L.melee = 'bat'; else if (it.id === 'vest') L.vest = 1; }
+  const GEAR = ['makarov', 'shotgun', 'bat', 'vest'];
+  const owns = (id) => { const L = state.loadout; return L.guns.some((g) => g && g.id === id) || L.melee === id || (id === 'vest' && L.vest > 0) || state.stash.some((s) => s.id === id); };
+  const canBuy = (id) => !GEAR.includes(id) || fitsLoadout(id) || state.stash.length < STASH_CAP;
+  function kitSummary() { const L = state.loadout, n = [...(state.kit.includes('maboota') ? ['Maboota'] : []), ...(L.melee ? [WD.bat.name] : []), ...L.guns.filter(Boolean).map((g) => WD[g.id].name), ...(L.vest ? ['Vest'] : [])]; return n.length ? 'Kit: ' + n.join(', ') + (state.stash.length ? ` · Kluis ${state.stash.length}/${STASH_CAP}` : '') : ''; }
   const gunOut = () => M.active && P.slot >= 2 && P.held && isGun(P.held.id);
   function holster() { saveOwnAmmo(); P.slot = 1; P.useBat = false; P.rl = null; handGun.visible = false; }
 
@@ -619,26 +640,24 @@ export function initMission(ctx) {
   function hideScreen() { screenEl.style.display = 'none'; }
 
   // ================================================================== INVENTORY (I)
-  const ICON = { maboota: '🏏', makarov: '🔫', shotgun: '💥', bat: '⚾', vest: '🦺', ammo: '📦', shells: '🧨', loot: '🌶️', money: '💶', shoarma: '🥙' };
+  const ICON = { maboota: '🏏', makarov: '🔫', shotgun: '💥', bat: '⚾', vest: '🦺', ammo: '📦', shells: '🧨', loot: '🌶️', stash: '🗄️', money: '💶', shoarma: '🥙' };
   const INFO = { maboota: ['Maboota', 'A Russian police truncheon. Knocks people down; hit them again on the floor to finish them.', 'A gift from The Russian'] };
-  let invOpen = false;
+  let invOpen = false, invMode = 'inv';
   function openInv() {
     const shop = ctx.shop || [], row = [];
     const add = (id, name, desc, src, count, eq) => row.push(`<div class="it${eq ? ' eq' : ''}"><div class="ic">${ICON[id] || '▪'}</div><div><div class="nm">${name}${count > 1 ? ' ×' + count : ''}</div><div class="ds">${desc}</div><div class="tag">${src}${eq ? ' · EQUIPPED' : ''}</div></div></div>`);
     if (state.kit.includes('maboota')) add('maboota', ...INFO.maboota, 1, P.slot === 1 && state.armed);
-    const counts = {}; for (const k of state.kit) if (k !== 'maboota') counts[k] = (counts[k] || 0) + 1;
-    for (const [k, n] of Object.entries(counts)) {
-      const it = shop.find((s) => s.id === k) || { name: k, desc: '' };
-      let desc = (it.desc || '').replace(' (Slot 2)', ''); if (k === 'makarov') desc += ` Loaded: ${state.ammo.makarov || 0}/${WD.makarov.mag}.`; if (k === 'shotgun') desc += ` Loaded: ${state.ammo.shotgun || 0}/${WD.shotgun.mag}.`;
-      if (k === 'ammo' || k === 'shells') { const c = k === 'ammo' ? '9mm' : '12ga'; desc += ` In your pocket: ${state.pool[c] | 0}.`; }
-      if (isGun(k)) desc += ' Slot 2 or 3, missions only.'; if (k === 'bat') desc += ' Slot 1 (press 1 again), missions only.';
-      add(k, it.name, desc, 'Bought from The Russian', k === 'ammo' || k === 'shells' ? n : 1, M.active && P.held && P.held.own && P.held.id === k);
-    }
-    if (M.active) for (const h of [P.melee, ...P.guns]) if (h && !h.own) add(h.id, WD[h.id].name, `Taken off a Lampas.${isGun(h.id) ? ' Loaded: ' + h.ammo + '.' : ''} Stays here when you leave.`, 'Picked up', 1, h === P.held);
+    const L = state.loadout, gear = M.active ? { guns: P.guns, melee: P.melee && P.melee.id, vest: P.armor > 0 } : { guns: L.guns, melee: L.melee, vest: L.vest > 0 };
+    if (gear.melee) add('bat', WD.bat.name, 'Kills in one swing. On a mission: press 1 again to switch from the Maboota.', 'Slot 1', 1, M.active && P.held && P.held.id === 'bat');
+    gear.guns.forEach((g, i) => { if (g) add(g.id, WD[g.id].name, `Loaded ${g.ammo}/${WD[g.id].mag}. Comes along on every mission.`, `Slot ${i + 2}`, 1, M.active && P.held === g); });
+    if (gear.vest) add('vest', 'Kevlar vest', 'Stops one bullet, then it\'s done. Buy a new one from The Russian.', 'Worn', 1);
+    if (state.pool['9mm']) add('ammo', '9mm rounds', 'In your pocket. R reloads the Makarov from here.', 'Pocket', state.pool['9mm']);
+    if (state.pool['12ga']) add('shells', 'Hagel (shells)', 'In your pocket. R reloads the sawn-off from here.', 'Pocket', state.pool['12ga']);
+    if (state.stash.length) add('stash', 'De Kluis', state.stash.map((s) => gearName(s.id)).join(', ') + '. Store and swap gear at the kluis in the warehouse.', `Home · ${state.stash.length}/${STASH_CAP}`, 1);
     if (state.loot) add('loot', 'Lampas spice crate', 'Stolen from the Lampas warehouse. Sell it on Kaasplaats (PC) for W 150 each.', 'Loot', state.loot);
     if (state.metSchmatzel) add('shoarma', 'Shoarma broodje', 'Schmatzel\'s, on the house. Your father\'s favourite.', 'From Schmatzel', 1);
-    invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Nabil owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: Maboota (always). Slot 2: guns and the bat, on missions only.</span><span>[I] / [Esc] close</span></div></div>`;
-    invEl.style.display = 'flex'; invOpen = true;
+    invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Nabil owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: melee. Slots 2 + 3: guns, on missions only. What you carry out of a mission stays with you.</span><span>[I] / [Esc] close</span></div></div>`;
+    invEl.style.display = 'flex'; invOpen = true; invMode = 'inv';
   }
   function closeInv() { invEl.style.display = 'none'; invOpen = false; }
 
@@ -668,8 +687,9 @@ export function initMission(ctx) {
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = (state.spekbuurtLootTaken || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false });
+    if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
-    Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.kit.includes('vest') ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
+    Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.loadout.vest > 0 ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
     player.position.set(OX + 19, 0, 2.2); player.rotation.y = Math.PI; P.last.copy(player.position);
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
@@ -683,7 +703,7 @@ export function initMission(ctx) {
       scene.background.set(0x1a0e2a); scene.fog.color.set(0x1a0e2a); scene.fog.near = 30; scene.fog.far = 70; hemi.intensity = 0.55; sun.intensity = 0.9;
       lights.forEach(([l, k]) => { l.intensity = k; });
       setBounds({ x0: OX - 6, x1: OX + W + 6, z0: Z0, z1: 10 });
-      R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool };
+      R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
       resetFloor();
       setArea('KAASLAND · SPEKBUURT');
       $('objective').innerHTML = state.spekbuurt ? 'Spekbuurt is <b>yours</b>. Shop setup comes in a later build. Drive home in the <b>Oofmobiel</b>.' : 'Take <b>Snackpaleis Spekbuurt</b> from the Lampas. Clear the restaurant, then the back of house. <span style="color:#ffd36b">Leave nobody standing.</span>';
@@ -699,7 +719,7 @@ export function initMission(ctx) {
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
       R.lootAtStart = state.loot || 0;
-      saveOwnAmmo(); P.guns = P.guns.map((g) => (g && g.own ? g : null)); if (P.melee && !P.melee.own) P.melee = null; // picked-up Lampas weapons stay in Spekbuurt
+      commitKit(); // guns, rounds and the vest you walk out with come home with you
       holster(); syncHeld(); maboota.visible = true; equip(true);
       const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
       player.position.set(5.3, 0, -5.8); player.rotation.y = Math.PI;
@@ -793,7 +813,7 @@ export function initMission(ctx) {
     const pay = Math.round(R.score / 100) * 10; R.pay = pay; R.grade = gr;
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
     showScreen(`<div class="logo2">SPEKBUURT UNLOCKED</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}</b><br>WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">The Lampas are out of Spekbuurt. Grab the spice crates (E), then drive home. You'll set up shop here later.</div><div class="btn">CONTINUE · E</div>`);
-    sfx('cash'); addMoney(pay);
+    sfx('cash'); addMoney(pay); commitKit();
     if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
     $('objective').innerHTML = '<b style="color:#6ed36e">Spekbuurt is yours.</b> Grab any spice crates (E), then drive home in the <b>Oofmobiel</b>.';
   }
@@ -1116,13 +1136,62 @@ export function initMission(ctx) {
     return { pos: look.clone().add(new THREE.Vector3(0, 17 * zoom, 3.6 * zoom)), look };
   }
   function onBuy(id) {
-    if (id === 'makarov') state.ammo.makarov = WD.makarov.mag;            // comes loaded
     if (id === 'ammo') state.pool['9mm'] = (state.pool['9mm'] | 0) + 50;  // boxes go in your pocket: R reloads from there
-    if (id === 'shotgun') { state.ammo.shotgun = WD.shotgun.mag; state.pool['12ga'] = (state.pool['12ga'] | 0) + 12 - WD.shotgun.mag; } // 12 shells: 2 loaded, 10 spare
     if (id === 'shells') state.pool['12ga'] = (state.pool['12ga'] | 0) + 12;
-    if (['makarov', 'shotgun', 'bat'].includes(id)) toast(WD[id].name + ' · IN YOUR INVENTORY', 'Slot 2 on missions. On the street it stays in the Oofmobiel. Press I to check your kit.', 3);
+    if (id === 'shotgun') state.pool['12ga'] = (state.pool['12ga'] | 0) + 12 - WD.shotgun.mag; // 12 shells: 2 loaded, 10 spare
+    if (GEAR.includes(id)) {
+      const it = { id, ammo: isGun(id) ? WD[id].mag : 0 };
+      if (fitsLoadout(id)) { addToLoadout(it); toast(gearName(id) + ' · IN YOUR KIT', isGun(id) ? 'A gun slot on missions. On the street it stays in the Oofmobiel. Press I to check your kit.' : 'Press I to check your kit.', 3); }
+      else { state.stash.push(it); toast(gearName(id) + ' · IN DE KLUIS', 'Your hands are full. It\'s waiting in the kluis (stash) at the warehouse.', 3.2); }
+    }
     hud();
   }
+  // ================================================================== DE KLUIS (stash at the warehouse: store and swap gear between missions)
+  const kluis = new THREE.Group(); kluis.position.set(0.55, 0, -12); scene.add(kluis);
+  { const g = lam({ color: 0x4a6a3a }), d = lam({ color: 0x2a3a22 });
+    box(0.6, 2.0, 1.2, g, 0, 1.0, 0, kluis); box(0.03, 1.8, 0.03, d, -0.31, 1.0, 0, kluis);
+    for (const z of [-0.3, 0.3]) { box(0.03, 0.12, 0.08, lam({ color: 0xc8c8c8 }), -0.32, 1.05, z * 0.25, kluis); for (let k = 0; k < 4; k++) box(0.02, 0.03, 0.3, d, -0.31, 1.65 - k * 0.07, z, kluis); }
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.24), lam({ map: signTex([{ t: 'KLUIS', size: 72 }], '#ffd36b', '#2a1a12', 256, 64) }));
+    sign.rotation.y = -Math.PI / 2; sign.position.set(-0.32, 2.15, 0); kluis.add(sign); }
+  solid(0.2, 0.9, -12.65, -11.35);
+  addInteract({ obj: kluis, pos: () => new THREE.Vector3(-0.3, 0, -12), r: 1.7, enabled: () => !M.active && state.step !== 'talk', label: () => `Kluis · store / swap gear (${state.stash.length}/${STASH_CAP})`, act: () => openStash() });
+  let stashMsg = '';
+  function openStash(msg) {
+    stashMsg = msg || ''; const L = state.loadout;
+    const row = (ic, nm, ds, act, label, dis) => `<div class="it"><div class="ic">${ICON[ic] || '▪'}</div><div style="flex:1"><div class="nm">${nm}</div><div class="ds">${ds}</div>${act ? `<button data-k="${act}" ${dis ? 'disabled' : ''} style="margin-top:6px;font:9px 'Press Start 2P',monospace;background:${dis ? '#3d2260' : '#ff2d95'};color:#fff;border:0;padding:6px 8px;cursor:${dis ? 'default' : 'pointer'}">${label}</button>` : ''}</div></div>`;
+    const desc = (it) => (isGun(it.id) ? `Loaded ${it.ammo}/${WD[it.id].mag}.` : it.id === 'vest' ? 'Stops one bullet.' : 'Kills in one swing.');
+    const full = state.stash.length >= STASH_CAP;
+    const kit = [
+      row('maboota', 'Slot 1 · MABOOTA', 'Always with you.', '', ''),
+      L.melee ? row('bat', 'Slot 1 · ' + WD.bat.name, 'Kills in one swing. Press 1 twice on a mission.', 'store:melee', 'IN DE KLUIS', full) : row('bat', 'Slot 1 · —', 'No second melee weapon.', '', ''),
+      ...[0, 1].map((i) => (L.guns[i] ? row(L.guns[i].id, `Slot ${i + 2} · ${WD[L.guns[i].id].name}`, desc(L.guns[i]), 'store:' + i, 'IN DE KLUIS', full) : row('ammo', `Slot ${i + 2} · —`, 'Empty gun slot.', '', ''))),
+      L.vest ? row('vest', 'KEVLAR VEST', 'Worn. Stops one bullet.', 'store:vest', 'IN DE KLUIS', full) : row('vest', 'No vest', 'Buy one from The Russian.', '', ''),
+    ];
+    const st = state.stash.map((it, i) => row(it.id, gearName(it.id), desc(it), 'take:' + i, 'PAKKEN'));
+    for (let i = st.length; i < STASH_CAP; i++) st.push(`<div class="it" style="opacity:.35"><div class="ic"></div><div><div class="nm">—</div><div class="ds">Empty shelf.</div></div></div>`);
+    invEl.innerHTML = `<div class="box"><h2>DE KLUIS</h2><div class="sub">Eddy's stash at the warehouse · ${state.stash.length}/${STASH_CAP} · Pockets: 9MM ${state.pool['9mm'] | 0} · HAGEL ${state.pool['12ga'] | 0}${stashMsg ? ` · <span style="color:#ffd36b">${stashMsg}</span>` : ''}</div>
+      <div class="sub" style="color:#3ff0ff;margin:8px 0 6px">WHAT YOU CARRY</div><div class="grid">${kit.join('')}</div>
+      <div class="sub" style="color:#3ff0ff;margin:14px 0 6px">IN DE KLUIS</div><div class="grid">${st.join('')}</div>
+      <div class="foot"><span>Take a gun with a full kit and it swaps with slot 2. Everything you carry goes on the next mission.</span><span>[Esc] / [I] close</span></div></div>`;
+    invEl.style.display = 'flex'; invOpen = true; invMode = 'stash';
+  }
+  function stashAct(k) {
+    const L = state.loadout, [act, arg] = k.split(':');
+    if (act === 'store') {
+      if (state.stash.length >= STASH_CAP) return openStash('The kluis is full.');
+      if (arg === 'melee') { state.stash.push({ id: L.melee, ammo: 0 }); L.melee = null; }
+      else if (arg === 'vest') { state.stash.push({ id: 'vest', ammo: 0 }); L.vest = 0; }
+      else { const i = +arg; state.stash.push({ id: L.guns[i].id, ammo: L.guns[i].ammo }); L.guns[i] = null; }
+    } else if (act === 'take') {
+      const i = +arg, it = state.stash[i]; if (!it) return;
+      if (fitsLoadout(it.id)) { state.stash.splice(i, 1); addToLoadout(it); }
+      else if (isGun(it.id)) { state.stash[i] = { id: L.guns[0].id, ammo: L.guns[0].ammo }; L.guns[0] = { id: it.id, ammo: it.ammo }; }
+      else if (it.id === 'bat') return openStash('You already carry a bat.');
+      else if (it.id === 'vest') return openStash('You\'re already wearing a vest.');
+    }
+    beep(520, 0.05, 'square', 0.03); ctx.kitChanged && ctx.kitChanged(); if (ctx.save) ctx.save(); openStash();
+  }
+  invEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-k]'); if (b && !b.disabled && invMode === 'stash') stashAct(b.dataset.k); });
   // level checks: every door has free floor on both sides, and every Lampas and crate can be reached from the front door
   function validate() {
     const issues = [];
@@ -1137,7 +1206,7 @@ export function initMission(ctx) {
   }
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate,
-    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
+    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
   hud();
   return M;
 }

@@ -1255,11 +1255,11 @@ addInteract({ obj: desk, pos: () => new THREE.Vector3(-8.8, 0, -16.6), r: 1.8, e
 addInteract({ obj: oof, pos: () => oof.position, r: 4.2, label: () => 'Oofmobiel · get in', act: () => openPC('map', 'van'), far: true });
 
 const SHOP = [
-  { id: 'makarov', name: 'Makarov PM', desc: '9mm pistol, 8 rounds. Reliable. Like Lada, but works. (Slot 2)', price: 350 },
+  { id: 'makarov', name: 'Makarov PM', desc: '9mm pistol, 8 rounds. Reliable. Like Lada, but works. (Gun slot)', price: 350 },
   { id: 'bat', name: 'Honkbalknuppel', desc: 'Baseball bat. Quiet. Very persuasive.', price: 90 },
   { id: 'ammo', name: '9mm ammo (50)', desc: 'For the Makarov. Bullets are not included, my friend. Never.', price: 40, multi: true },
   { id: 'vest', name: 'Kevlar vest', desc: 'Stops one bullet. Maybe two. Do not test.', price: 500 },
-  { id: 'shotgun', name: 'Sawn-off shotgun', desc: 'Two barrels, one opinion. Comes with 12 shells. (Slot 2)', price: 1400 },
+  { id: 'shotgun', name: 'Sawn-off shotgun', desc: 'Two barrels, one opinion. Comes with 12 shells. (Gun slot)', price: 1400 },
   { id: 'shells', name: 'Shotgun shells (12)', desc: 'For the sawn-off. Twelve opinions.', price: 60, multi: true },
   { id: 'goldak', name: 'Golden AK-47', desc: '"For you? Later. When you are big boss."', price: 0, locked: true },
 ];
@@ -1270,7 +1270,7 @@ function closeShop() {
   if (state.step === 'russian' && state.kit.includes('maboota')) { state.step = 'free'; toast('END OF CHAPTER 0', 'You\'re armed. Next: take Spekbuurt from the Lampas.', 4); }
   updateObjective();
 }
-function kitText() { const names = state.kit.filter((k, i, a) => a.indexOf(k) === i).map((k) => k === 'maboota' ? 'Maboota' : SHOP.find((x) => x.id === k).name); $('kit').textContent = names.length ? 'Kit: ' + names.join(', ') : ''; }
+function kitText() { if (mission && mission.kitSummary) { $('kit').textContent = mission.kitSummary(); return; } const names = state.kit.filter((k, i, a) => a.indexOf(k) === i).map((k) => k === 'maboota' ? 'Maboota' : SHOP.find((x) => x.id === k).name); $('kit').textContent = names.length ? 'Kit: ' + names.join(', ') : ''; }
 function giveMaboota() {
   if (state.kit.includes('maboota')) return;
   state.kit.unshift('maboota'); kitText(); equip(true);
@@ -1280,7 +1280,7 @@ $('shopclose').onclick = closeShop;
 function renderShop(msg) {
   const L = $('shoplist'); L.innerHTML = '';
   for (const it of SHOP) {
-    const owned = state.kit.includes(it.id) && !it.multi;
+    const owned = !it.multi && (mission && mission.owns && ['makarov', 'shotgun', 'bat', 'vest'].includes(it.id) ? mission.owns(it.id) : state.kit.includes(it.id));
     const d = document.createElement('div'); d.className = 'item';
     d.innerHTML = `<div><div class="nm">${it.name}</div><div class="ds">${it.desc}</div></div><div class="pr">${it.locked ? 'LATER' : 'W ' + it.price}</div>`;
     const b = document.createElement('button'); b.textContent = it.locked ? 'Locked' : owned ? 'Owned' : 'Buy';
@@ -1291,8 +1291,9 @@ function renderShop(msg) {
 }
 function buyItem(it, btn) {
   if (it.locked || state.money < it.price) return;
+  if (!mission.canBuy(it.id)) { renderShop('"Your hands are full and your kluis is full. Make room first, my friend." · The Russian'); return; }
   addMoney(-it.price, btn); state.kit.push(it.id);
-  kitText(); mission.onBuy(it.id); writeSave();
+  mission.onBuy(it.id); kitText(); writeSave();
   renderShop('"Good choice. ' + (it.id === 'bat' ? 'Classic.' : 'Very good choice.') + '" · The Russian');
 
 }
@@ -1369,7 +1370,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'ammo', 'pool'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'ammo', 'pool', 'loadout', 'stash'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -1381,7 +1382,6 @@ function writeSave() {
   const st = { ...(saveExtra.state || {}) };
   for (const k of SAVE_FIELDS) if (state[k] !== undefined) st[k] = state[k];
   st.listed = [...state.listed]; st.sold = [...state.sold];
-  if (mission && mission.kitData) st.loadout = mission.kitData();
   const d = { ...saveExtra, v: SAVE_VER, at: Date.now(), state: st, settings: { ...(saveExtra.settings || {}), music: music.on } };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(d)); saveExtra = d; return true; } catch (e) { return false; }
 }
@@ -1398,7 +1398,7 @@ function applySave(d) {
   state.naknik = 0; for (let i = 0; i < Math.min(3, +s.naknik || 0); i++) spawnNaknik(false);
   if (['russian', 'free'].includes(state.step)) { dad.visible = false; dad.userData.leaving = false; dadSolid.off = true; }
   kitText(); if (state.kit.includes('maboota')) equip(true);
-  if (mission && mission.loadKitData) mission.loadKitData(s.loadout);
+  if (!s.loadout) state.loadout = null; if (!s.stash) state.stash = null; mission.migrateKit(); kitText();
   loadingSave = false;
 }
 let savedGame = readSave();
@@ -2302,6 +2302,6 @@ camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(pl
 updateObjective();
 mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
-  makeVan: () => oof.clone(true), save: () => writeSave(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
+  makeVan: () => oof.clone(true), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 window.__sme = { writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
