@@ -5,7 +5,7 @@
 //   - low furniture (tables, sofas, card tables, gym benches) blocks walking but bullets fly over it
 //   - glass panes block walking, you can see through them, and any bullet shatters them
 //   - red barrels explode when shot
-// Rules: 3 lives (Neon Vice Easy), mouse aim, click / F attack, E grab / throw, 1 Maboota / 2 gun, R reload (active reload), Shift sprint (loud), Backspace restart.
+// Rules: 3 lives (Neon Vice Easy), mouse aim, click / F attack, E grab / throw, 1 melee / 2 + 3 guns (wheel / Tab cycle), R reload (active reload), Shift sprint (loud), Backspace restart.
 //
 // The level is built once, 300 m east of De Natte Worst, in the same scene. initMission(ctx) gets the engine
 // helpers from main.js.
@@ -297,32 +297,54 @@ export function initMission(ctx) {
   const isGun = (id) => !!(id && WD[id] && !WD[id].melee);
 
   // ================================================================== THE PLAYER'S KIT
-  // slot 1 = Maboota (always), slot 2 = a weapon bought from The Russian or picked up. Slot 2 only works on missions.
+  // Neon Vice loadout: slot 1 = melee (the Maboota, always; a honkbalknuppel if you have one: press 1 again to switch),
+  // slots 2 and 3 = guns, bought from The Russian or taken off a Lampas. Guns only come out on missions.
   state.ammo = state.ammo || {}; // rounds loaded in each owned gun
   if (!state.pool) { // ammo you carry, per caliber; before this, everything sat in state.ammo: move the overflow into the pool
     state.pool = { '9mm': 0, '12ga': 0 };
     for (const id of ['makarov', 'shotgun']) { const w = WD[id], n = state.ammo[id] || 0; if (n > w.mag) { state.pool[w.cal] += n - w.mag; state.ammo[id] = w.mag; } }
   }
-  const P = { slot: 1, held: null, hp: EASY.hp, maxhp: EASY.hp, armor: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, cause: '', vx: 0, vz: 0, last: new THREE.Vector3(), rl: null, sprint: false, stepT: 0 };
+  const P = { slot: 1, held: null, hp: EASY.hp, maxhp: EASY.hp, armor: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, cause: '', vx: 0, vz: 0, last: new THREE.Vector3(), rl: null, sprint: false, stepT: 0, guns: [null, null], melee: null, useBat: false, lastGun: 2 };
   const handGun = new THREE.Group(); handGun.position.set(0, -0.68, 0.05); handGun.visible = false; player.userData.arms[0].add(handGun);
   const owned = () => ['shotgun', 'makarov', 'bat'].filter((k) => state.kit.includes(k));
-  function setHeld(h) { P.held = h; P.rl = null; handGun.clear(); if (h) handGun.add(weaponMesh(h.id)); hud(); }
+  const isMelee = (id) => !!(id && WD[id] && WD[id].melee);
   function ownWeapon(id) { return { id, ammo: isGun(id) ? (state.ammo[id] || 0) : 0, own: true }; }
-  function saveOwnAmmo() { if (P.held && P.held.own && isGun(P.held.id)) state.ammo[P.held.id] = P.held.ammo; }
-  function selectSlot(n) {
-    if (n === 2) {
-      if (!M.active) { toast('NOT ON THE STREET', 'Your guns stay in the Oofmobiel. Slot 2 works on missions only. Press I for your inventory.', 2); return; }
-      const o = owned().filter((k) => !items.some((it) => it.own && it.id === k)); // a bought gun you threw is on the floor: go get it
-      if (!P.held && !o.length) { toast('NO WEAPON IN SLOT 2', 'Grab one from a Lampas (E), or buy one from The Russian.', 1.6); return; }
-      if (P.slot === 2 && P.held && P.held.own && o.length > 1) { saveOwnAmmo(); setHeld(ownWeapon(o[(o.indexOf(P.held.id) + 1) % o.length])); } // press 2 again: cycle what you own
-      else if (!P.held) setHeld(ownWeapon(o[0]));
-    }
-    P.slot = n; maboota.visible = n === 1; handGun.visible = n === 2;
-    state.armed = n === 1 || (P.held && WD[P.held.id].melee);
-    $('weapon').className = 'hud on'; hud(); beep(300, 0.05, 'square', 0.03);
+  function saveOwnAmmo() { for (const g of P.guns) if (g && g.own) state.ammo[g.id] = g.ammo; }
+  let meshOf = null;
+  function syncHeld() { // P.held = whatever is in the active slot; meshes and the armed flag follow
+    if (P.slot >= 2 && !P.guns[P.slot - 2]) P.slot = 1;
+    if (P.useBat && !P.melee) P.useBat = false;
+    P.held = P.slot === 1 ? (P.useBat ? P.melee : null) : P.guns[P.slot - 2];
+    if (meshOf !== P.held) { meshOf = P.held; handGun.clear(); if (P.held) handGun.add(weaponMesh(P.held.id)); }
+    maboota.visible = M.active ? P.slot === 1 && !P.useBat : true; handGun.visible = !!P.held && M.active;
+    state.armed = P.slot === 1 || isMelee(P.held && P.held.id);
+    hud();
   }
-  const gunOut = () => M.active && P.slot === 2 && P.held && isGun(P.held.id);
-  function holster() { saveOwnAmmo(); P.slot = 1; P.rl = null; handGun.visible = false; }
+  function selectSlot(n, quiet) {
+    if (!M.active) { if (n >= 2) toast('NOT ON THE STREET', 'Your guns stay in the Oofmobiel. Slots 2 and 3 work on missions only. Press I for your inventory.', 2); return; }
+    if (n === 1) { if (P.slot === 1 && P.melee) P.useBat = !P.useBat; P.slot = 1; }
+    else { if (!P.guns[n - 2]) { if (!quiet) toast(`SLOT ${n} IS LEEG`, 'Grab a gun from a Lampas (E), or buy one from The Russian.', 1.4); return; } P.slot = n; P.lastGun = n; }
+    $('weapon').className = 'hud on'; syncHeld(); beep(300, 0.05, 'square', 0.03);
+  }
+  function cycleSlot(dir) { // mouse wheel / Tab: 1 → 2 → 3 → 1, skipping empty gun slots
+    const order = [1, 2, 3].filter((n) => n === 1 || P.guns[n - 2]); if (order.length < 2) return;
+    selectSlot(order[(order.indexOf(P.slot) + dir + order.length) % order.length]);
+  }
+  // puts a weapon in your hands: melee goes to slot 1, a gun fills an empty gun slot or swaps with the gun you hold (the old one drops)
+  function putInHand(it) {
+    const drop = (old) => { if (old) dropItem(old.id, player.position, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, old.ammo, false, old.own); };
+    if (isMelee(it.id)) { drop(P.melee); P.melee = it; P.useBat = true; P.slot = 1; syncHeld(); return; }
+    saveOwnAmmo();
+    const n = !P.guns[0] ? 2 : !P.guns[1] ? 3 : P.slot >= 2 ? P.slot : P.lastGun; // empty slot first, else swap with the gun in your hands
+    drop(P.guns[n - 2]); P.guns[n - 2] = it; P.slot = n; P.lastGun = n; syncHeld();
+  }
+  function loadKit() { // what you bring into the mission: the guns and bat you bought
+    const g = ['makarov', 'shotgun'].filter((k) => state.kit.includes(k));
+    P.guns = [g[0] ? ownWeapon(g[0]) : null, g[1] ? ownWeapon(g[1]) : null];
+    P.melee = state.kit.includes('bat') ? ownWeapon('bat') : null; P.useBat = false; P.lastGun = 2;
+  }
+  const gunOut = () => M.active && P.slot >= 2 && P.held && isGun(P.held.id);
+  function holster() { saveOwnAmmo(); P.slot = 1; P.useBat = false; P.rl = null; handGun.visible = false; }
 
   // ================================================================== ACTIVE RELOAD (Neon Vice W6c: Gears-style window)
   // R starts a reload that tops the magazine up from the caliber pool after WD.rl seconds. One more R inside the green window
@@ -354,13 +376,13 @@ export function initMission(ctx) {
   function reloadTick(dt) { const r = P.rl; if (!r) return; if (r.h !== P.held || !gunOut()) { P.rl = null; hud(); return; } r.t += dt; if (r.t >= r.dur) reloadDone(false); }
   // pockets the rounds of a dropped gun of the caliber you hold (Neon Vice: same-calibre pickups strip into the pool)
   function stripAmmo(it) {
-    if (!isGun(it.id) || !P.held || !isGun(P.held.id) || WD[P.held.id].cal !== WD[it.id].cal) return false;
+    if (!isGun(it.id) || !P.guns.some((g) => g && WD[g.id].cal === WD[it.id].cal)) return false;
     const cal = WD[it.id].cal, room = CAL[cal].cap - (state.pool[cal] | 0), n = Math.min(room, it.ammo + (it.spare || 0));
     if (n <= 0) return false;
     const fromSpare = Math.min(it.spare || 0, n); it.spare = (it.spare || 0) - fromSpare; it.ammo -= n - fromSpare;
     state.pool[cal] = (state.pool[cal] | 0) + n; popup(player.position, `+${n} ${CAL[cal].name}`, '#ffd36b'); sfx('pick');
     if (it.ammo <= 0 && !it.own) { root.remove(it.g, it.ring); items.splice(items.indexOf(it), 1); }
-    if (P.held.ammo <= 0) reloadStart(); hud(); return true;
+    if (gunOut() && P.held.ammo <= 0) reloadStart(); hud(); return true;
   }
 
   // ================================================================== FX: popups, shake, flash, hitstop, blood, gibs, pools, casings, muzzle flash
@@ -578,10 +600,10 @@ export function initMission(ctx) {
   const fade = document.createElement('div'); fade.style.cssText = 'position:fixed;inset:0;background:#0a0410;opacity:0;pointer-events:none;transition:opacity .45s;z-index:30'; document.body.appendChild(fade);
   let bannerT = 0;
   function banner(a, b, t = 3) { bannerEl.innerHTML = `<div class="b1">${a}</div><div class="b2">${b || ''}</div>`; bannerEl.style.opacity = 1; bannerT = t; }
-  function weaponLabel() {
-    const h = P.held; if (!h) return owned().length ? '[2] ' + WD[owned()[0]].name : '[2] —';
-    if (!isGun(h.id)) return '[2] ' + WD[h.id].name;
-    return '[2] ' + WD[h.id].name + ` ${h.ammo}/${WD[h.id].mag} <span style="color:#bfa6d8">+${poolOf(h.id)}</span>` + (P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#7dff9a'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · R' : 'LEEG · ATTACK TO THROW'}</span>` : '');
+  function gunLabel(n) {
+    const h = P.guns[n - 2]; if (!h) return `[${n}] —`;
+    const on = P.slot === n;
+    return `[${n}] ${WD[h.id].name} ${h.ammo}/${WD[h.id].mag} <span style="color:#bfa6d8">+${poolOf(h.id)}</span>` + (on && P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#7dff9a'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : on && h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · R' : 'LEEG · ATTACK TO THROW'}</span>` : '');
   }
   function hud() {
     const wbox = $('weapon');
@@ -590,7 +612,7 @@ export function initMission(ctx) {
     const on = M.active; hudEl.style.display = scoreEl.style.display = grainEl.style.display = scanEl.style.display = on ? 'block' : 'none';
     if (!on) return;
     let hp = ''; for (let i = 0; i < P.maxhp; i++) hp += i < P.hp ? '♥' : '<i>♥</i>';
-    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#ff3fa4' : '#777'}">[1] MABOOTA</span><span style="color:${P.slot === 2 ? '#3ff0ff' : '#777'}">${weaponLabel()}</span></div><div class="w" style="color:#ff7a1a">LAMPAS LEFT: ${alive().length}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
+    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#ff3fa4' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#3ff0ff' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#3ff0ff' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">LAMPAS LEFT: ${alive().length}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
     scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">KAASLAND · SPEKBUURT</div>`;
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }
@@ -609,10 +631,10 @@ export function initMission(ctx) {
       const it = shop.find((s) => s.id === k) || { name: k, desc: '' };
       let desc = (it.desc || '').replace(' (Slot 2)', ''); if (k === 'makarov') desc += ` Loaded: ${state.ammo.makarov || 0}/${WD.makarov.mag}.`; if (k === 'shotgun') desc += ` Loaded: ${state.ammo.shotgun || 0}/${WD.shotgun.mag}.`;
       if (k === 'ammo' || k === 'shells') { const c = k === 'ammo' ? '9mm' : '12ga'; desc += ` In your pocket: ${state.pool[c] | 0}.`; }
-      if (isGun(k) || k === 'bat') desc += ' Slot 2, missions only.';
-      add(k, it.name, desc, 'Bought from The Russian', k === 'ammo' || k === 'shells' ? n : 1, M.active && P.slot === 2 && P.held && P.held.id === k);
+      if (isGun(k)) desc += ' Slot 2 or 3, missions only.'; if (k === 'bat') desc += ' Slot 1 (press 1 again), missions only.';
+      add(k, it.name, desc, 'Bought from The Russian', k === 'ammo' || k === 'shells' ? n : 1, M.active && P.held && P.held.own && P.held.id === k);
     }
-    if (M.active && P.held && !P.held.own) add(P.held.id, WD[P.held.id].name, `Taken off a Lampas.${isGun(P.held.id) ? ' Ammo: ' + P.held.ammo + '.' : ''} Stays here when you leave.`, 'Picked up', 1, P.slot === 2);
+    if (M.active) for (const h of [P.melee, ...P.guns]) if (h && !h.own) add(h.id, WD[h.id].name, `Taken off a Lampas.${isGun(h.id) ? ' Loaded: ' + h.ammo + '.' : ''} Stays here when you leave.`, 'Picked up', 1, h === P.held);
     if (state.loot) add('loot', 'Lampas spice crate', 'Stolen from the Lampas warehouse. Sell it on Kaasplaats (PC) for W 150 each.', 'Loot', state.loot);
     if (state.metSchmatzel) add('shoarma', 'Shoarma broodje', 'Schmatzel\'s, on the house. Your father\'s favourite.', 'From Schmatzel', 1);
     invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Nabil owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: Maboota (always). Slot 2: guns and the bat, on missions only.</span><span>[I] / [Esc] close</span></div></div>`;
@@ -646,11 +668,11 @@ export function initMission(ctx) {
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = (state.spekbuurtLootTaken || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false });
-    const o = owned(); setHeld(o.length ? ownWeapon(o[0]) : null);
+    loadKit(); P.rl = null;
     Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.kit.includes('vest') ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
     player.position.set(OX + 19, 0, 2.2); player.rotation.y = Math.PI; P.last.copy(player.position);
-    selectSlot(o.some(isGun) ? 2 : 1); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
+    P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
   }
   function enter() {
     if (M.active) return;
@@ -666,7 +688,7 @@ export function initMission(ctx) {
       setArea('KAASLAND · SPEKBUURT');
       $('objective').innerHTML = state.spekbuurt ? 'Spekbuurt is <b>yours</b>. Shop setup comes in a later build. Drive home in the <b>Oofmobiel</b>.' : 'Take <b>Snackpaleis Spekbuurt</b> from the Lampas. Clear the restaurant, then the back of house. <span style="color:#ffd36b">Leave nobody standing.</span>';
       fade.style.opacity = '0';
-      if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. Mouse aim · click / F attack · E grab / throw · 1 / 2 weapons · R reload · Shift sprint · I inventory · Backspace restart', 4.5);
+      if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. Mouse aim · click / F attack · E grab / throw · 1 · 2 · 3 / wheel weapons · R reload · Shift sprint · I inventory · Backspace restart', 4.5);
     }, 480);
   }
   function exit() {
@@ -677,8 +699,8 @@ export function initMission(ctx) {
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
       R.lootAtStart = state.loot || 0;
-      if (P.held && !P.held.own) setHeld(null); // picked-up Lampas guns stay in Spekbuurt
-      holster(); maboota.visible = true; equip(true);
+      saveOwnAmmo(); P.guns = P.guns.map((g) => (g && g.own ? g : null)); if (P.melee && !P.melee.own) P.melee = null; // picked-up Lampas weapons stay in Spekbuurt
+      holster(); syncHeld(); maboota.visible = true; equip(true);
       const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
       player.position.set(5.3, 0, -5.8); player.rotation.y = Math.PI;
       setArea('KAASLAND · DE NATTE WORST'); hideScreen(); for (const p of pops) p.el.remove(); pops.length = 0;
@@ -797,7 +819,9 @@ export function initMission(ctx) {
     const h = P.held; if (!h) return false;
     const a = player.rotation.y, at = player.position.clone().add(new THREE.Vector3(Math.sin(a) * 0.4, 0, Math.cos(a) * 0.4));
     saveOwnAmmo(); dropItem(h.id, at, Math.sin(a) * 15, Math.cos(a) * 15, h.ammo, true, h.own); items[items.length - 1].g.position.y = 1.0;
-    setHeld(null); selectSlot(1); sfx('throw'); P.fireT = 0.25; return true;
+    if (P.slot >= 2) P.guns[P.slot - 2] = null; else { P.melee = null; P.useBat = false; }
+    const other = P.slot >= 2 ? P.guns[(P.slot === 2 ? 3 : 2) - 2] : null; P.slot = other ? (P.slot === 2 ? 3 : 2) : 1; syncHeld();
+    sfx('throw'); P.fireT = 0.25; return true;
   }
   function grab() {
     if (P.dead || !M.active) return false;
@@ -809,15 +833,16 @@ export function initMission(ctx) {
     }
     let best = null, bd = 1.3;
     for (const it of items) { if (it.flying) continue; const k = Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z); if (k < bd) { bd = k; best = it; } }
-    if (!best) return P.slot === 2 && P.held ? throwHeld() : false; // nothing to grab: throw what you hold (Neon Vice)
-    if (gunOut() && stripAmmo(best)) return true;
+    if (!best) return P.held ? throwHeld() : false; // nothing to grab: throw what you hold (Neon Vice)
+    // a gun of a calibre you carry: strip its rounds, unless it's a new gun and a slot is free (then take it)
+    const fits = isGun(best.id) && (!P.guns[0] || !P.guns[1]) && !P.guns.some((g) => g && g.id === best.id);
+    if (!fits && stripAmmo(best)) return true;
     pickUp(best); return true;
   }
   function pickUp(it) {
     root.remove(it.g, it.ring); items.splice(items.indexOf(it), 1);
     if (it.spare && isGun(it.id)) { const c = WD[it.id].cal, n = Math.min(it.spare, CAL[c].cap - (state.pool[c] | 0)); if (n > 0) { state.pool[c] = (state.pool[c] | 0) + n; setTimeout(() => popup(player.position, `+${n} ${CAL[c].name}`, '#ffd36b'), 250); } }
-    if (P.held) { saveOwnAmmo(); dropItem(P.held.id, player.position, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, P.held.ammo, false, P.held.own); }
-    setHeld({ id: it.id, ammo: it.ammo, own: it.own }); selectSlot(2); sfx('pick'); popup(player.position, WD[it.id].name, '#ffd36b');
+    putInHand({ id: it.id, ammo: it.ammo, own: it.own }); sfx('pick'); popup(player.position, WD[it.id].name, '#ffd36b');
   }
 
   // ================================================================== INPUT (capture phase: runs before main.js)
@@ -827,7 +852,7 @@ export function initMission(ctx) {
     if (e.code === 'KeyI') { stop(); invOpen ? closeInv() : openInv(); return; }
     if (invOpen) { if (e.code === 'Escape') { stop(); closeInv(); } else if (!['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight'].includes(e.code)) stop(); return; }
     if (!M.active) { // street: slot 2 stays in the van
-      if ((e.code === 'Digit2' || e.code === 'Numpad2') && state.kit.includes('maboota')) { stop(); selectSlot(2); }
+      if (['Digit2', 'Numpad2', 'Digit3', 'Numpad3'].includes(e.code) && state.kit.includes('maboota')) { stop(); selectSlot(2); }
       return;
     }
     if (e.code === 'Backspace') { stop(); if (!state.spekbuurt) resetFloor(); return; }
@@ -835,6 +860,8 @@ export function initMission(ctx) {
     if (e.code === 'KeyR') { stop(); if (!e.repeat) reloadInput(); return; }
     if (e.code === 'Digit1' || e.code === 'Numpad1') { stop(); selectSlot(1); }
     else if (e.code === 'Digit2' || e.code === 'Numpad2') { stop(); selectSlot(2); }
+    else if (e.code === 'Digit3' || e.code === 'Numpad3') { stop(); selectSlot(3); }
+    else if (e.code === 'Tab') { stop(); cycleSlot(e.shiftKey ? -1 : 1); }
     else if (e.code === 'KeyF') { stop(); attack(); }
     else if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { if (grab()) stop(); }
   }, true);
@@ -845,6 +872,8 @@ export function initMission(ctx) {
     if (R.results) { grab(); return; }
     if (e.button === 2) { grab(); return; } attack();
   }, true);
+  let wheelT = 0; // mouse wheel cycles weapons on missions (zoom stays on the street)
+  addEventListener('wheel', (e) => { if (!M.active || invOpen || state.inPC || P.dead) return; e.stopImmediatePropagation(); const t = performance.now(); if (t - wheelT < 140) return; wheelT = t; cycleSlot(Math.sign(e.deltaY) || 1); }, { capture: true, passive: true });
   const shift = { on: false };
   addEventListener('keydown', (e) => { if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift.on = true; });
   addEventListener('keyup', (e) => { if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift.on = false; });
@@ -857,7 +886,7 @@ export function initMission(ctx) {
     rc.setFromCamera(mouseN, camera);
     if (rc.ray.intersectPlane(aimPlane, aim)) player.rotation.y = Math.atan2(aim.x - player.position.x, aim.z - player.position.z);
   }
-  function holdPose(dt) { if (P.slot === 2 && P.held && isGun(P.held.id)) { const a = player.userData.arms[0]; a.rotation.x += (-1.45 - a.rotation.x) * Math.min(1, dt * 12); a.rotation.z = 0; if (WD[P.held.id].pel > 1) player.userData.arms[1].rotation.x = -1.2; } }
+  function holdPose(dt) { if (gunOut()) { const a = player.userData.arms[0]; a.rotation.x += (-1.45 - a.rotation.x) * Math.min(1, dt * 12); a.rotation.z = 0; if (WD[P.held.id].pel > 1) player.userData.arms[1].rotation.x = -1.2; } }
   function street() { /* guns are mission-only; nothing to do on the street */ }
   function updateParts(dt) {
     for (let i = parts.length - 1; i >= 0; i--) {
@@ -897,7 +926,7 @@ export function initMission(ctx) {
     if (P.sprint) { P.stepT -= dt; if (P.stepT <= 0) { P.stepT = 0.3; alertNoise(player.position, 4.5); beep(70 + Math.random() * 20, 0.04, 'square', 0.02); } } else P.stepT = 0;
     P.fireT -= dt; P.invT -= dt; P.bloom = Math.max(0, P.bloom - dt * 0.45); if (FX.hurtT > 0) FX.hurtT -= dt;
     if (!P.dead && P.hp < P.maxhp && R.time - P.lastHurt > EASY.regen) { P.hp++; P.lastHurt = R.time; popup(player.position, '+1 HEALTH', '#7dff9a'); sfx('pick'); hud(); }
-    if (!P.dead && !P.held) for (const it of items) if (!it.flying && it.age > 1 && Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z) < 0.45) { pickUp(it); break; }
+    if (!P.dead) for (const it of items) if (!it.flying && it.age > 1 && (isGun(it.id) ? !P.guns[0] || !P.guns[1] : !P.melee) && Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z) < 0.45) { pickUp(it); break; }
     if (R.comboT > 0) { R.comboT -= dt; if (R.comboT <= 0) { R.combo = 0; hud(); } }
     updateDoors(dt);
     for (const e of enemies) updateEnemy(e, dt, pv);
@@ -1065,7 +1094,7 @@ export function initMission(ctx) {
   }
   // melee from main.js swing(): lunge at the target (Neon Vice), Maboota and fists knock down, a bat kills, downed = execution
   function melee(fv) {
-    const id = P.slot === 2 && P.held && WD[P.held.id].melee ? P.held.id : 'maboota', W2 = WD[id];
+    const id = P.slot === 1 && P.held && isMelee(P.held.id) ? P.held.id : 'maboota', W2 = WD[id];
     const sprinting = Math.hypot(player.position.x - P.last.x, player.position.z - P.last.z) * 60 > 5.5;
     let tgt = null, bd = W2.range + 0.45 + (sprinting ? 0.4 : 0);
     for (const e of enemies) { const f = e.userData.foe; if (!f.alive) continue;
@@ -1107,7 +1136,7 @@ export function initMission(ctx) {
   }
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate,
-    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
+    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
   hud();
   return M;
 }
