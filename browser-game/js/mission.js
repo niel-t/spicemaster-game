@@ -705,7 +705,7 @@ export function initMission(ctx) {
       player.position.set(5.3, 0, -5.8); player.rotation.y = Math.PI;
       setArea('KAASLAND · DE NATTE WORST'); hideScreen(); for (const p of pops) p.el.remove(); pops.length = 0;
       vigEl.style.opacity = flashEl.style.opacity = 0; bannerEl.style.opacity = 0; hud();
-      updateObjective();
+      updateObjective(); if (ctx.save) ctx.save();
       fade.style.opacity = '0';
     }, 480);
   }
@@ -794,6 +794,7 @@ export function initMission(ctx) {
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
     showScreen(`<div class="logo2">SPEKBUURT UNLOCKED</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}</b><br>WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">The Lampas are out of Spekbuurt. Grab the spice crates (E), then drive home. You'll set up shop here later.</div><div class="btn">CONTINUE · E</div>`);
     sfx('cash'); addMoney(pay);
+    if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
     $('objective').innerHTML = '<b style="color:#6ed36e">Spekbuurt is yours.</b> Grab any spice crates (E), then drive home in the <b>Oofmobiel</b>.';
   }
 

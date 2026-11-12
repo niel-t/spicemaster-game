@@ -38,6 +38,11 @@ Mission (Spekbuurt): mouse aim · click / F attack · E grab / throw · 1 melee 
 Talk to Eddy Sr. → list the 6 junk items on the PC → sell them on Kaasplaats → buy a mixing table → hire a Naknik →
 Eddy Sr.'s farewell → visit The Russian (pawnshop, De Natte Worst) → buy a weapon → end of Chapter 0.
 
+## Saving
+The game autosaves to `localStorage` (key `spiceMasterEddy.save`, versioned) on every story step, purchase, sale, music toggle,
+mission end and when the tab closes. Mid-mission progress is not saved (it is when the mission ends). The title screen offers
+**[Enter] Continue** or **[N] New Game** (asks to confirm with J). Fields a newer build added to the save are kept untouched.
+
 Testing hooks are exposed on `window.__sme` in the browser console.
 
 ## Naming rules

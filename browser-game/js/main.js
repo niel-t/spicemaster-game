@@ -1116,7 +1116,7 @@ function renderPC() {
     if (unl > 0 && state.step !== 'talk') h += `<p>${unl} more item(s) in the warehouse aren't listed yet.</p>`;
     body.innerHTML = h;
     body.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => sellItem(b.dataset.sell, b));
-    const sl = $('sellLoot'); if (sl) sl.onclick = () => { addMoney(state.loot * LOOT_PRICE, sl); toast('SOLD', `${state.loot} crate(s) of Lampas spice. Kees doesn't ask questions.`, 2); state.loot = 0; renderPC(); };
+    const sl = $('sellLoot'); if (sl) sl.onclick = () => { addMoney(state.loot * LOOT_PRICE, sl); toast('SOLD', `${state.loot} crate(s) of Lampas spice. Kees doesn't ask questions.`, 2); state.loot = 0; writeSave(); renderPC(); };
   } else if (pcTab === 'hire') {
     title.textContent = 'Naknik Uitzendbureau · "They get it done. Mostly."';
     body.innerHTML = `<div class="well"><b>Naknikim</b>: hard workers, soft heads. They mix, restock and deliver so you don't have to.<br><br>
@@ -1196,26 +1196,31 @@ function sellItem(id, btn) {
     setTimeout(() => { toast('ALL SOLD!', 'The warehouse is empty. Time to start mixing.'); }, 300);
     state.step = 'hire'; updateObjective();
   }
-  renderPC();
+  renderPC(); writeSave();
 }
 function buyTable() {
   if (state.table || state.money < TABLE_COST) return;
   addMoney(-TABLE_COST, $('tableBtn')); state.table = true; mixTable.visible = true;
   mixSolid = solid(-8.0, -3.2, -13.4, -11.8);
-  updateObjective(); renderPC();
+  updateObjective(); renderPC(); writeSave();
 }
 const naknikim = [];
 function hireNaknik() {
   if (!state.table || state.money < NAKNIK_COST || state.naknik >= 3) return;
-  addMoney(-NAKNIK_COST, $('hireBtn')); state.naknik++; state.income = state.naknik * NAKNIK_INCOME;
+  addMoney(-NAKNIK_COST, $('hireBtn'));
+  spawnNaknik(true);
+  toast('NAKNIK HIRED', 'He\'s heading to the mixing table. Passive income is running!');
+  updateObjective(); renderPC(); writeSave();
+}
+function spawnNaknik(walk) {
+  state.naknik++; state.income = state.naknik * NAKNIK_INCOME;
   const n = makePerson({ headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true });
   n.position.set((WH.doorX0 + WH.doorX1) / 2, 0, -6.2);
   const spots = [[-4.6, -11.3], [-3.1, -12.6], [-6.1, -12.6]];
   n.userData.target = new THREE.Vector3(spots[state.naknik - 1][0], 0, spots[state.naknik - 1][1]);
-  n.userData.walking = true; naknikim.push(n);
+  n.userData.walking = walk; naknikim.push(n);
+  if (!walk) { n.position.copy(n.userData.target); n.rotation.y = Math.atan2(-4.6 - n.position.x, -12.6 - n.position.z); n.userData.phase = Math.random() * 6; }
   addInteract({ obj: n, pos: () => n.position, r: 1.8, label: () => 'Talk to the Naknik', act: () => dialogue([['Naknik', ['I mix! I mix!', 'Boss, what is cumin? I just put lots in.', 'Paprika is red. Red is fast. I mix fast.', 'Can I have a break? No? Okay. I mix.'][Math.floor(Math.random() * 4)]]]) });
-  toast('NAKNIK HIRED', 'He\'s heading to the mixing table. Passive income is running!');
-  updateObjective(); renderPC();
 }
 function poof(g) {
   const t0 = performance.now();
@@ -1287,7 +1292,7 @@ function renderShop(msg) {
 function buyItem(it, btn) {
   if (it.locked || state.money < it.price) return;
   addMoney(-it.price, btn); state.kit.push(it.id);
-  kitText(); mission.onBuy(it.id);
+  kitText(); mission.onBuy(it.id); writeSave();
   renderShop('"Good choice. ' + (it.id === 'bat' ? 'Classic.' : 'Very good choice.') + '" · The Russian');
 
 }
@@ -1360,10 +1365,60 @@ function updateObjective() {
   setObjective(t || '');
 }
 
+// ------------------------------------------------------------------ save (localStorage, one versioned key)
+// Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
+// Unknown fields in a save (from a newer build) are kept and written back untouched.
+const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'ammo', 'pool'];
+let saveExtra = {}, loadingSave = false, titleConfirm = false;
+function readSave() {
+  try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
+  catch (e) { return null; }
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* storage blocked */ } saveExtra = {}; }
+function writeSave() {
+  if (loadingSave || state.step === 'title' || (mission && mission.active)) return false; // mid-mission progress is saved when the mission ends
+  const st = { ...(saveExtra.state || {}) };
+  for (const k of SAVE_FIELDS) if (state[k] !== undefined) st[k] = state[k];
+  st.listed = [...state.listed]; st.sold = [...state.sold];
+  if (mission && mission.kitData) st.loadout = mission.kitData();
+  const d = { ...saveExtra, v: SAVE_VER, at: Date.now(), state: st, settings: { ...(saveExtra.settings || {}), music: music.on } };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(d)); saveExtra = d; return true; } catch (e) { return false; }
+}
+function applySave(d) {
+  loadingSave = true; saveExtra = d;
+  const s = d.state;
+  for (const k of SAVE_FIELDS) if (s[k] !== undefined && k !== 'naknik') state[k] = s[k];
+  state.kit = Array.isArray(s.kit) ? s.kit.slice() : []; state.ammo = { ...(s.ammo || {}) }; if (s.pool) state.pool = { ...s.pool };
+  state.loan = { amount: 1000, out: false, at: 0, ...(s.loan || {}) };
+  state.listed = new Set(s.listed || []); state.sold = new Set(s.sold || []); state.shown = state.money = +s.money || 0;
+  for (const j of junkDefs) { if (state.sold.has(j.id)) { j.solid.off = true; j.group.visible = false; } else if (state.listed.has(j.id)) j.tag.visible = true; }
+  if (state.step !== 'talk') { shutterTarget = shutterOpen = 1; shutterSolid.off = true; }
+  if (state.table) { mixTable.visible = true; if (!mixSolid) mixSolid = solid(-8.0, -3.2, -13.4, -11.8); }
+  state.naknik = 0; for (let i = 0; i < Math.min(3, +s.naknik || 0); i++) spawnNaknik(false);
+  if (['russian', 'free'].includes(state.step)) { dad.visible = false; dad.userData.leaving = false; dadSolid.off = true; }
+  kitText(); if (state.kit.includes('maboota')) equip(true);
+  if (mission && mission.loadKitData) mission.loadKitData(s.loadout);
+  loadingSave = false;
+}
+let savedGame = readSave();
+function titleMenu(confirm) {
+  titleConfirm = confirm;
+  const p = $('title').querySelector('.press'); if (!savedGame) return;
+  const st = savedGame.state, when = new Date(savedGame.at || Date.now()).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const btn = (t, txt, col) => `<span data-t="${t}" style="cursor:pointer;color:${col};padding:4px 10px;display:inline-block">${txt}</span>`;
+  p.style.animation = 'none';
+  p.innerHTML = confirm
+    ? `<div style="color:#ffd36b">START A NEW GAME? Your saved game will be gone.</div>${btn('yes', '[J] JA, OPNIEUW', '#ff6b6b')} · ${btn('no', '[ESC] NEE', '#7ee36b')}`
+    : `${btn('cont', '[ENTER] CONTINUE', '#7ee36b')} · ${btn('new', '[N] NEW GAME', '#ddd')}<div style="color:#aaa;font-size:14px;margin-top:8px">Saved ${when} · W ${(+st.money || 0).toLocaleString('nl-NL')}${st.spekbuurt ? ' · Spekbuurt is yours' : ''}</div>`;
+}
+titleMenu(false);
+addEventListener('pagehide', () => writeSave());
+
 // ------------------------------------------------------------------ input
 const keys = {};
 addEventListener('keydown', (e) => {
-  if (state.step === 'title') { startGame(); return; }
+  if (state.step === 'title') { titleKey(e); return; }
   keys[e.code] = true;
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
     if (state.inDialogue) { nextLine(); return; }
@@ -1372,7 +1427,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.code === 'Escape' && choiceOpen) { closeChoice(-1); return; }
   if (e.code === 'Escape' && state.inPC) { if ($('shop').style.display === 'block') closeShop(); else closePC(); }
-  if (e.code === 'KeyN') { const on = music.toggle(); toast(on ? 'MUSIC ON' : 'MUSIC OFF', '', 1); }
+  if (e.code === 'KeyN') { const on = music.toggle(); toast(on ? 'MUSIC ON' : 'MUSIC OFF', '', 1); writeSave(); }
   if (e.code === 'KeyM' && !state.inDialogue && !choiceOpen) state.inPC ? closePC() : openPC('map', 'pc');
   if ((e.code === 'Digit1' || e.code === 'Numpad1') && !state.inPC && !state.inDialogue) { if (state.kit.includes('maboota')) equip(!state.armed); else toast('NO WEAPON', 'You have nothing to hold yet.', 1.4); }
   if (e.code === 'KeyF' && !state.inPC && !state.inDialogue) swing();
@@ -1396,10 +1451,26 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (state.armed) swing();
 });
-$('title').addEventListener('click', startGame);
+$('title').addEventListener('click', (e) => {
+  if (!savedGame) { startGame(); return; }
+  const t = e.target.closest('[data-t]'); if (!t) return;
+  ({ cont: continueGame, new: () => titleMenu(true), yes: newGame, no: () => titleMenu(false) })[t.dataset.t]();
+});
+function titleKey(e) {
+  if (!savedGame) { startGame(); return; }
+  if (titleConfirm) { if (['KeyJ', 'KeyY', 'Enter'].includes(e.code)) newGame(); else if (['Escape', 'KeyN', 'Backspace'].includes(e.code)) titleMenu(false); return; }
+  if (['Enter', 'Space', 'KeyE', 'KeyC'].includes(e.code)) continueGame(); else if (e.code === 'KeyN') titleMenu(true);
+}
+function newGame() { clearSave(); savedGame = null; startGame(); }
+function continueGame() {
+  if (state.step !== 'title') return;
+  applySave(savedGame); $('title').style.display = 'none'; updateObjective(); beep(440, 0.1, 'triangle');
+  toast('WELKOM TERUG', `W ${state.money.toLocaleString('nl-NL')} in your pocket.`, 2);
+  if (!(savedGame.settings && savedGame.settings.music === false)) { try { music.start(); } catch (e) { /* audio optional */ } }
+}
 function startGame() {
   if (state.step !== 'title') return;
-  $('title').style.display = 'none'; state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle');
+  $('title').style.display = 'none'; state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle'); writeSave();
   try { music.start(); } catch (e) { /* audio optional */ }
 }
 
@@ -2109,8 +2180,9 @@ let current = null;
 const clock = new THREE.Clock();
 const occl = new THREE.Raycaster();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
-let incomeT = 0;
+let incomeT = 0, lastStep = state.step;
 function tick() {
+  if (state.step !== lastStep) { lastStep = state.step; writeSave(); }
   let dt = Math.min(clock.getDelta(), 0.05);
   if (mission && mission.active) dt = mission.hitstop(dt); // Neon Vice hitstop on kills
   // movement (screen-relative: camera looks north)
@@ -2230,6 +2302,6 @@ camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(pl
 updateObjective();
 mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
-  makeVan: () => oof.clone(true), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
-window.__sme = { scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+  makeVan: () => oof.clone(true), save: () => writeSave(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
+window.__sme = { writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
