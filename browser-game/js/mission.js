@@ -667,6 +667,7 @@ export function initMission(ctx) {
   const saved = {};
   const pristine = { glass: new Map(glass), barrels: new Map(barrels) };
   function resetFloor() {
+    cancelArrive(); // a restart never replays the drive in
     const done = !!state.spekbuurt;
     // glass and barrels come back
     for (const [k, q] of pristine.glass) { glass.set(k, q); G[q.z][q.x] = '%'; q.s.off = false; q.pane.visible = true; }
@@ -708,7 +709,7 @@ export function initMission(ctx) {
       setArea('KAASLAND · SPEKBUURT');
       $('objective').innerHTML = state.spekbuurt ? 'Spekbuurt is <b>yours</b>. Shop setup comes in a later build. Drive home in the <b>Oofmobiel</b>.' : 'Take <b>Snackpaleis Spekbuurt</b> from the Lampas. Clear the restaurant, then the back of house. <span style="color:#ffd36b">Leave nobody standing.</span>';
       fade.style.opacity = '0';
-      if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. Mouse aim · click / F attack · E grab / throw · 1 · 2 · 3 / wheel weapons · R reload · Shift sprint · I inventory · Backspace restart', 4.5);
+      startArrive(() => { if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. Mouse aim · click / F attack · E grab / throw · 1 · 2 · 3 / wheel weapons · R reload · Shift sprint · I inventory · Backspace restart', 4.5); });
     }, 480);
   }
   function exit() {
@@ -729,7 +730,7 @@ export function initMission(ctx) {
       fade.style.opacity = '0';
     }, 480);
   }
-  addInteract({ obj: van, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results, label: () => state.spekbuurt ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to De Natte Worst', act: exit });
+  addInteract({ obj: van, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => state.spekbuurt ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to De Natte Worst', act: exit });
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
   function addKillScore(e, type) {
@@ -876,6 +877,7 @@ export function initMission(ctx) {
       if (['Digit2', 'Numpad2', 'Digit3', 'Numpad3'].includes(e.code) && state.kit.includes('maboota')) { stop(); selectSlot(2); }
       return;
     }
+    if (ARR) { stop(); if (['KeyE', 'Space', 'Enter', 'Escape', 'Backspace'].includes(e.code) && ARR.t > 0.4) endArrive(); return; }
     if (e.code === 'Backspace') { stop(); if (!state.spekbuurt) resetFloor(); return; }
     if (P.dead) { stop(); return; }
     if (e.code === 'KeyR') { stop(); if (!e.repeat) reloadInput(); return; }
@@ -890,6 +892,7 @@ export function initMission(ctx) {
     if (invOpen) { if (e.target === invEl) closeInv(); e.stopImmediatePropagation(); return; }
     if (!M.active || state.inDialogue || state.inPC || e.target !== ctx.canvas) return;
     e.stopImmediatePropagation();
+    if (ARR) { if (ARR.t > 0.4) endArrive(); return; }
     if (R.results) { grab(); return; }
     if (e.button === 2) { grab(); return; } attack();
   }, true);
@@ -935,6 +938,7 @@ export function initMission(ctx) {
   }
   function hitstop(dt) { if (FX.freeze > 0) { FX.freeze -= dt; return 0; } return dt; }
   function update(dt) {
+    if (ARR) { updateArrive(dt); return; }
     R.time += dt; if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
     if (!P.dead) { if (P.exec > 0) P.exec -= dt; else aimAtMouse(); holdPose(dt); }
     else { P.deadT += dt; const u = player.userData; u.body.rotation.x = Math.max(-1.5, -P.deadT * 6); u.body.position.y = 0.1; slide(player, P, dt, 0.38); }
@@ -1130,6 +1134,7 @@ export function initMission(ctx) {
     if (W2.kill) hitEnemy(tgt, id, dir, 2); else if (f.boss) stagger(tgt, dir); else { knockdown(tgt, dir); popup(tgt.position, 'DOWN!', '#ffd36b'); }
   }
   function cameraFor(zoom) {
+    if (ARR) { const look = (ARR.ph === 'drive' ? van.position : player.position).clone().setY(0.8); return { pos: look.clone().add(new THREE.Vector3(0, 12 * zoom, 8 * zoom)), look }; }
     const lean = P.dead ? new THREE.Vector3() : aim.clone().sub(player.position).setY(0).clampLength(0, 6).multiplyScalar(0.3);
     const look = player.position.clone().add(lean).add(FX.kick).setY(0.8);
     const sh = FX.shake; if (sh > 0.01) look.add(new THREE.Vector3((Math.random() - 0.5) * sh, 0, (Math.random() - 0.5) * sh));
@@ -1146,6 +1151,54 @@ export function initMission(ctx) {
     }
     hud();
   }
+  // ================================================================== ARRIVAL (Neon Vice: every mission opens with you pulling up)
+  // The Oofmobiel drives in along the street, parks out front, Eddy climbs out and walks to the door. E / Space / click skips it.
+  const VAN_PARK = OX + 12, START = () => new THREE.Vector3(OX + 19, 0, 2.2);
+  let ARR = null;
+  const lbCss = document.createElement('style'); lbCss.textContent = `
+    #nvLbT,#nvLbB{position:fixed;left:0;right:0;height:0;background:#000;z-index:7;transition:height .35s;pointer-events:none;overflow:hidden}
+    #nvLbT{top:0}#nvLbB{bottom:0;display:flex;align-items:center;justify-content:flex-end;padding:0 22px;box-sizing:border-box}
+    #nvLbT.on,#nvLbB.on{height:11vh}
+    #nvLbB span{font:10px 'Press Start 2P',monospace;color:#bfa6d8;animation:nvblink 1.1s steps(2) infinite}
+    #nvLbT span{display:block;padding:3.5vh 22px 0;font:clamp(12px,2.2vw,18px) 'Press Start 2P',monospace;color:#ff3fa4;text-shadow:2px 2px 0 #2de2e6}
+    @keyframes nvblink{50%{opacity:.25}}`;
+  document.head.appendChild(lbCss);
+  const lbTop = mk('nvLbT'), lbBot = mk('nvLbB');
+  lbBot.innerHTML = '<span>E / SPACE / CLICK · OVERSLAAN</span>';
+  function letterbox(on) {
+    lbTop.innerHTML = `<span>KAASLAND · SPEKBUURT</span>`;
+    lbTop.className = lbBot.className = on ? 'on' : '';
+    hudEl.style.opacity = scoreEl.style.opacity = on ? 0 : 1; $('objective').style.opacity = on ? 0 : 1;
+  }
+  function startArrive(then) {
+    ARR = { ph: 'drive', t: 0, x0: OX + 44, then };
+    van.position.set(ARR.x0, 0, van.position.z); player.visible = false; letterbox(true); M.snap = true;
+    beep(70, 2.3, 'sawtooth', 0.04); beep(46, 2.3, 'square', 0.03); setTimeout(() => { if (ARR && ARR.ph === 'drive') beep(1900, 0.3, 'triangle', 0.015); }, 2050);
+  }
+  function endArrive() {
+    if (!ARR) return; const then = ARR.then; ARR = null;
+    van.position.set(VAN_PARK, 0, van.position.z); player.visible = true;
+    player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position); P.vx = P.vz = 0;
+    letterbox(false); M.snap = true; if (then) then();
+  }
+  function cancelArrive() { if (ARR) { ARR.then = null; endArrive(); } }
+  function updateArrive(dt) {
+    const A = ARR; A.t += dt;
+    if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
+    if (A.ph === 'drive') {
+      const u = Math.min(1, A.t / 2.4), e = 1 - Math.pow(1 - u, 3);
+      van.position.x = A.x0 + (VAN_PARK - A.x0) * e; van.position.y = Math.abs(Math.sin(A.t * 17)) * 0.035 * (1 - u);
+      van.rotation.z = (1 - u) * 0.015 * Math.sin(A.t * 9);
+      if (u >= 1) { A.ph = 'park'; A.t = 0; van.position.y = 0; van.rotation.z = 0; beep(415, 0.12, 'square', 0.03); setTimeout(() => beep(349, 0.16, 'square', 0.03), 130); } // a little Oof-Oof
+    } else if (A.ph === 'park') {
+      if (A.t > 0.45) { A.ph = 'out'; A.t = 0; player.visible = true; player.position.set(VAN_PARK + 0.8, 0, 3.0); player.rotation.y = Math.PI; sfx('door'); }
+    } else {
+      const d = START().sub(player.position); d.y = 0; const L2 = d.length();
+      if (L2 > 0.05) { const st = Math.min(L2, 2.6 * dt); player.rotation.y = Math.atan2(d.x, d.z); player.position.addScaledVector(d.normalize(), st); animate(player, 2.6, dt); }
+      if (L2 <= 0.05 || A.t > 3) endArrive();
+    }
+  }
+
   // ================================================================== DE KLUIS (stash at the warehouse: store and swap gear between missions)
   const kluis = new THREE.Group(); kluis.position.set(0.55, 0, -12); scene.add(kluis);
   { const g = lam({ color: 0x4a6a3a }), d = lam({ color: 0x2a3a22 });
@@ -1204,9 +1257,9 @@ export function initMission(ctx) {
     for (const [x, z] of LOOT) if (!path(start, L(x, z))) issues.push(`loot ${x},${z} unreachable`);
     return issues;
   }
-  Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
+  Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate,
-    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
+    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, endArrive, arriving: () => !!ARR, van, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
   hud();
   return M;
 }
