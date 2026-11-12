@@ -5,7 +5,7 @@
 //   - low furniture (tables, sofas, card tables, gym benches) blocks walking but bullets fly over it
 //   - glass panes block walking, you can see through them, and any bullet shatters them
 //   - red barrels explode when shot
-// Rules: 3 lives (Neon Vice Easy), mouse aim, click / F attack, E grab / throw, 1 Maboota / 2 gun, R restart.
+// Rules: 3 lives (Neon Vice Easy), mouse aim, click / F attack, E grab / throw, 1 Maboota / 2 gun, R reload (active reload), Shift sprint (loud), Backspace restart.
 //
 // The level is built once, 300 m east of De Natte Worst, in the same scene. initMission(ctx) gets the engine
 // helpers from main.js.
@@ -265,6 +265,10 @@ export function initMission(ctx) {
     glass: () => { for (let i = 0; i < 4; i++) setTimeout(() => beep(2600 + Math.random() * 2400, 0.06, 'triangle', 0.035), i * 25); beep(900, 0.12, 'sawtooth', 0.03); },
     boom: () => { beep(40, 0.6, 'sawtooth', 0.12); beep(65, 0.5, 'square', 0.1); beep(120, 0.2, 'sawtooth', 0.06); },
     empty: () => beep(900, 0.03, 'square', 0.03),
+    rlStart: () => { beep(420, 0.04, 'square', 0.03); setTimeout(() => beep(260, 0.05, 'square', 0.03), 60); },
+    rlDone: () => { beep(520, 0.04, 'square', 0.04); setTimeout(() => beep(780, 0.05, 'square', 0.035), 70); },
+    rlPerfect: () => [880, 1175, 1568].forEach((f, i) => setTimeout(() => beep(f, 0.06, 'triangle', 0.045), i * 45)),
+    jam: () => { beep(110, 0.18, 'sawtooth', 0.06); beep(330, 0.06, 'square', 0.03); },
     cash: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.06), i * 110)),
   }[k] || (() => {}))();
 
@@ -273,13 +277,16 @@ export function initMission(ctx) {
     maboota: { name: 'MABOOTA', melee: true, knock: true, range: 1.15 },
     fists: { name: 'FISTS', melee: true, knock: true, range: 1.0 },
     bat: { name: 'HONKBALKNUPPEL', melee: true, kill: true, range: 1.25 },
-    makarov: { name: 'MAKAROV', ammo: 8, cd: 0.2, pel: 1, spr: 0.025, mv: 0.07, bloom: 0.04, ecd: 0.8, loud: 13, kick: 0.1, snd: 'pistol' },
-    shotgun: { name: 'SAWN-OFF', ammo: 6, cd: 0.75, pel: 7, spr: 0.26, mv: 0.04, bloom: 0, ecd: 1.2, loud: 16, kick: 0.4, snd: 'shotgun' },
+    makarov: { name: 'MAKAROV', ammo: 8, cal: '9mm', mag: 8, rl: 1.3, ar: [0.45, 0.16], spare: 8, cd: 0.2, pel: 1, spr: 0.025, mv: 0.07, bloom: 0.04, ecd: 0.8, loud: 13, kick: 0.1, snd: 'pistol' },
+    shotgun: { name: 'SAWN-OFF', ammo: 2, cal: '12ga', mag: 2, rl: 1.9, ar: [0.4, 0.18], spare: 4, cd: 0.75, pel: 7, spr: 0.26, mv: 0.04, bloom: 0, ecd: 1.2, loud: 16, kick: 0.4, snd: 'shotgun' },
   };
+  // ammo pools per caliber (Neon Vice CAL): bought boxes and rounds stripped off Lampas guns; a reload tops the magazine up from here
+  const CAL = { '9mm': { name: '9MM', cap: 90 }, '12ga': { name: 'HAGEL', cap: 30 } };
+  const AR_JAM = 1.4; // a mistimed press: the rest of the reload takes 1.4x longer (Neon Vice W6c)
   const KILLPTS = { maboota: 450, bat: 450, fists: 500, exec: 800, door: 600, throw: 550, makarov: 300, shotgun: 300, boom: 700 };
   const FORCE = { makarov: 4.5, shotgun: 9.5, bat: 6.5, maboota: 5.5, fists: 5.5, exec: 1, throw: 5, door: 6, boom: 10 };
   const EASY = { hp: 3, react: 1.9, espr: 0.17, ebSpd: 15, vision: 9, cone: 0.85, ecd: 1.5, regen: 7 };
-  const TIPS = ['Red laser = a Lampas is aiming at you. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Out of ammo? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'There is always another way round. The restaurant, the lounge and the garage all connect.'];
+  const TIPS = ['Red laser = a Lampas is aiming at you. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'There is always another way round. The restaurant, the lounge and the garage all connect.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
   function weaponMesh(id) {
     const g = new THREE.Group();
     if (id === 'bat') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.025, 0.85, 8), lam({ color: 0xc8a06a })); b.position.y = -0.4; g.add(b); }
@@ -291,11 +298,15 @@ export function initMission(ctx) {
 
   // ================================================================== THE PLAYER'S KIT
   // slot 1 = Maboota (always), slot 2 = a weapon bought from The Russian or picked up. Slot 2 only works on missions.
-  state.ammo = state.ammo || {};
-  const P = { slot: 1, held: null, hp: EASY.hp, maxhp: EASY.hp, armor: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, cause: '', vx: 0, vz: 0, last: new THREE.Vector3() };
+  state.ammo = state.ammo || {}; // rounds loaded in each owned gun
+  if (!state.pool) { // ammo you carry, per caliber; before this, everything sat in state.ammo: move the overflow into the pool
+    state.pool = { '9mm': 0, '12ga': 0 };
+    for (const id of ['makarov', 'shotgun']) { const w = WD[id], n = state.ammo[id] || 0; if (n > w.mag) { state.pool[w.cal] += n - w.mag; state.ammo[id] = w.mag; } }
+  }
+  const P = { slot: 1, held: null, hp: EASY.hp, maxhp: EASY.hp, armor: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, cause: '', vx: 0, vz: 0, last: new THREE.Vector3(), rl: null, sprint: false, stepT: 0 };
   const handGun = new THREE.Group(); handGun.position.set(0, -0.68, 0.05); handGun.visible = false; player.userData.arms[0].add(handGun);
   const owned = () => ['shotgun', 'makarov', 'bat'].filter((k) => state.kit.includes(k));
-  function setHeld(h) { P.held = h; handGun.clear(); if (h) handGun.add(weaponMesh(h.id)); hud(); }
+  function setHeld(h) { P.held = h; P.rl = null; handGun.clear(); if (h) handGun.add(weaponMesh(h.id)); hud(); }
   function ownWeapon(id) { return { id, ammo: isGun(id) ? (state.ammo[id] || 0) : 0, own: true }; }
   function saveOwnAmmo() { if (P.held && P.held.own && isGun(P.held.id)) state.ammo[P.held.id] = P.held.ammo; }
   function selectSlot(n) {
@@ -311,7 +322,46 @@ export function initMission(ctx) {
     $('weapon').className = 'hud on'; hud(); beep(300, 0.05, 'square', 0.03);
   }
   const gunOut = () => M.active && P.slot === 2 && P.held && isGun(P.held.id);
-  function holster() { saveOwnAmmo(); P.slot = 1; handGun.visible = false; }
+  function holster() { saveOwnAmmo(); P.slot = 1; P.rl = null; handGun.visible = false; }
+
+  // ================================================================== ACTIVE RELOAD (Neon Vice W6c: Gears-style window)
+  // R starts a reload that tops the magazine up from the caliber pool after WD.rl seconds. One more R inside the green window
+  // finishes it at once; a press anywhere else jams the gun (the rest takes AR_JAM x longer) and locks further tries.
+  const poolOf = (id) => state.pool[WD[id].cal] | 0;
+  const reloadNeed = (h) => (h && isGun(h.id) ? Math.max(0, Math.min(WD[h.id].mag - h.ammo, poolOf(h.id))) : 0);
+  function reloadStart() {
+    if (!gunOut() || P.rl || P.dead || !reloadNeed(P.held)) return false;
+    const w = WD[P.held.id], d = w.rl, a = w.ar;
+    P.rl = { t: 0, dur: d, ar0: a[0] * d, ar1: (a[0] + a[1]) * d, tried: false, jam: false, h: P.held };
+    sfx('rlStart'); hud(); return true;
+  }
+  function reloadDone(perfect) {
+    const h = P.rl.h, n = reloadNeed(h); P.rl = null;
+    state.pool[WD[h.id].cal] = poolOf(h.id) - n; h.ammo += n; P.fireT = Math.max(P.fireT, perfect ? 0 : 0.1);
+    sfx(perfect ? 'rlPerfect' : 'rlDone'); saveOwnAmmo(); hud();
+  }
+  function reloadInput() {
+    if (P.rl) {
+      const r = P.rl; if (r.tried) return; r.tried = true;
+      if (r.t >= r.ar0 && r.t <= r.ar1) { popup(player.position, 'PERFECT!', '#7dff9a'); reloadDone(true); }
+      else { r.jam = true; r.dur = r.t + (r.dur - r.t) * AR_JAM; popup(player.position, 'VASTGELOPEN!', '#ff8a95'); sfx('jam'); hud(); }
+      return;
+    }
+    if (reloadStart() || !gunOut()) return;
+    if (P.held.ammo >= WD[P.held.id].mag) popup(player.position, 'AL VOL', '#cbb6e6');
+    else { popup(player.position, 'GEEN ' + CAL[WD[P.held.id].cal].name, '#ff8a95'); sfx('empty'); }
+  }
+  function reloadTick(dt) { const r = P.rl; if (!r) return; if (r.h !== P.held || !gunOut()) { P.rl = null; hud(); return; } r.t += dt; if (r.t >= r.dur) reloadDone(false); }
+  // pockets the rounds of a dropped gun of the caliber you hold (Neon Vice: same-calibre pickups strip into the pool)
+  function stripAmmo(it) {
+    if (!isGun(it.id) || !P.held || !isGun(P.held.id) || WD[P.held.id].cal !== WD[it.id].cal) return false;
+    const cal = WD[it.id].cal, room = CAL[cal].cap - (state.pool[cal] | 0), n = Math.min(room, it.ammo + (it.spare || 0));
+    if (n <= 0) return false;
+    const fromSpare = Math.min(it.spare || 0, n); it.spare = (it.spare || 0) - fromSpare; it.ammo -= n - fromSpare;
+    state.pool[cal] = (state.pool[cal] | 0) + n; popup(player.position, `+${n} ${CAL[cal].name}`, '#ffd36b'); sfx('pick');
+    if (it.ammo <= 0 && !it.own) { root.remove(it.g, it.ring); items.splice(items.indexOf(it), 1); }
+    if (P.held.ammo <= 0) reloadStart(); hud(); return true;
+  }
 
   // ================================================================== FX: popups, shake, flash, hitstop, blood, gibs, pools, casings, muzzle flash
   const FX = { shake: 0, freeze: 0, flash: 0, flashC: '255,0,30', kick: new THREE.Vector3(), hurtT: 0 };
@@ -432,7 +482,7 @@ export function initMission(ctx) {
     if (!id || id === 'maboota' || id === 'fists') return;
     const g = weaponMesh(id); g.rotation.set(Math.PI / 2, 0, Math.random() * 6); g.position.set(at.x, 0.08, at.z);
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.42, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })); ring.rotation.x = -Math.PI / 2;
-    root.add(g, ring); items.push({ id, g, ring, ammo: ammo ?? (WD[id].ammo || 0), vx, vz, flying, own, age: 0 });
+    root.add(g, ring); items.push({ id, g, ring, ammo: ammo ?? (WD[id].ammo || 0), spare: ammo === undefined && !own ? (WD[id].spare || 0) : 0, vx, vz, flying, own, age: 0 });
   }
   const lootCrates = [];
   const crateM = lam({ map: canvasTex(64, 64, (g) => { g.fillStyle = '#8a6a3a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#5a3a1a'; g.lineWidth = 4; g.strokeRect(3, 3, 58, 58); g.beginPath(); g.moveTo(3, 3); g.lineTo(61, 61); g.stroke(); g.fillStyle = '#ff7a1a'; g.font = '900 12px Arial'; g.textAlign = 'center'; g.fillText('LAMPAS', 32, 36); }) });
@@ -514,18 +564,24 @@ export function initMission(ctx) {
     #nvInv .nm{font:11px 'Press Start 2P',monospace;color:#fff;line-height:1.4}
     #nvInv .ds{font:18px 'VT323',monospace;color:#cbb6e6;line-height:1.05;margin-top:4px}
     #nvInv .tag{font:9px 'Press Start 2P',monospace;color:#3ff0ff;margin-top:6px}
+    #nvReload{position:fixed;z-index:6;display:none;width:84px;height:9px;margin-left:-42px;background:rgba(255,255,255,.16);outline:2px solid rgba(0,0,0,.8);pointer-events:none}
+    #nvReload .g{position:absolute;top:0;bottom:0;background:#7dff9a}#nvReload .f{position:absolute;left:0;top:0;bottom:0;background:rgba(45,226,230,.5)}
+    #nvReload .m{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:#fff}#nvReload.jam .f{background:rgba(255,74,90,.65)}
+    #nvReload .t{position:absolute;left:50%;top:-17px;transform:translateX(-50%);font:8px 'Press Start 2P',monospace;color:#fff;text-shadow:1px 1px 0 #000;white-space:nowrap}
     #nvInv .foot{font:18px 'VT323',monospace;color:#9a86b6;margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}`;
   document.head.appendChild(css);
   if (!document.querySelector('link[data-nvfont]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.dataset.nvfont = 1; l.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap'; document.head.appendChild(l); }
   const mk = (id) => { const d = document.createElement('div'); d.id = id; document.body.appendChild(d); return d; };
-  const hudEl = mk('nvHud'), scoreEl = mk('nvScore'), grainEl = mk('nvGrain'), scanEl = mk('nvScan'), vigEl = mk('nvVig'), flashEl = mk('nvFlash'), screenEl = mk('nvScreen'), bannerEl = mk('nvBanner'), invEl = mk('nvInv');
+  const hudEl = mk('nvHud'), scoreEl = mk('nvScore'), grainEl = mk('nvGrain'), scanEl = mk('nvScan'), vigEl = mk('nvVig'), flashEl = mk('nvFlash'), screenEl = mk('nvScreen'), bannerEl = mk('nvBanner'), invEl = mk('nvInv'), reloadEl = mk('nvReload');
+  reloadEl.innerHTML = '<div class="g"></div><div class="f"></div><div class="m"></div><div class="t"></div>';
   { const c = document.createElement('canvas'); c.width = c.height = 160; const g = c.getContext('2d'), id = g.createImageData(160, 160); for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } g.putImageData(id, 0, 0); grainEl.style.backgroundImage = `url(${c.toDataURL()})`; }
   const fade = document.createElement('div'); fade.style.cssText = 'position:fixed;inset:0;background:#0a0410;opacity:0;pointer-events:none;transition:opacity .45s;z-index:30'; document.body.appendChild(fade);
   let bannerT = 0;
   function banner(a, b, t = 3) { bannerEl.innerHTML = `<div class="b1">${a}</div><div class="b2">${b || ''}</div>`; bannerEl.style.opacity = 1; bannerT = t; }
   function weaponLabel() {
     const h = P.held; if (!h) return owned().length ? '[2] ' + WD[owned()[0]].name : '[2] —';
-    return '[2] ' + WD[h.id].name + (isGun(h.id) ? ' ' + h.ammo : '');
+    if (!isGun(h.id)) return '[2] ' + WD[h.id].name;
+    return '[2] ' + WD[h.id].name + ` ${h.ammo}/${WD[h.id].mag} <span style="color:#bfa6d8">+${poolOf(h.id)}</span>` + (P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#7dff9a'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · R' : 'LEEG · ATTACK TO THROW'}</span>` : '');
   }
   function hud() {
     const wbox = $('weapon');
@@ -551,7 +607,8 @@ export function initMission(ctx) {
     const counts = {}; for (const k of state.kit) if (k !== 'maboota') counts[k] = (counts[k] || 0) + 1;
     for (const [k, n] of Object.entries(counts)) {
       const it = shop.find((s) => s.id === k) || { name: k, desc: '' };
-      let desc = (it.desc || '').replace(' (Slot 2)', ''); if (k === 'makarov') desc += ` Rounds: ${state.ammo.makarov || 0}.`; if (k === 'shotgun') desc += ` Shells: ${state.ammo.shotgun || 0}.`;
+      let desc = (it.desc || '').replace(' (Slot 2)', ''); if (k === 'makarov') desc += ` Loaded: ${state.ammo.makarov || 0}/${WD.makarov.mag}.`; if (k === 'shotgun') desc += ` Loaded: ${state.ammo.shotgun || 0}/${WD.shotgun.mag}.`;
+      if (k === 'ammo' || k === 'shells') { const c = k === 'ammo' ? '9mm' : '12ga'; desc += ` In your pocket: ${state.pool[c] | 0}.`; }
       if (isGun(k) || k === 'bat') desc += ' Slot 2, missions only.';
       add(k, it.name, desc, 'Bought from The Russian', k === 'ammo' || k === 'shells' ? n : 1, M.active && P.slot === 2 && P.held && P.held.id === k);
     }
@@ -565,7 +622,7 @@ export function initMission(ctx) {
 
   // ================================================================== RUN STATE
   const M = { active: false };
-  const R = { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: false, results: false, ammoAtStart: {}, lootAtStart: 0, lastOneShown: false };
+  const R = { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: false, results: false, ammoAtStart: {}, poolAtStart: {}, lootAtStart: 0, lastOneShown: false };
   const saved = {};
   const pristine = { glass: new Map(glass), barrels: new Map(barrels) };
   function resetFloor() {
@@ -587,10 +644,10 @@ export function initMission(ctx) {
     for (const d of doors) { d.th = 0; d.w = 0; d.g.rotation.y = d.base; }
     for (const p of pops) p.el.remove(); pops.length = 0;
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = (state.spekbuurtLootTaken || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
-    Object.assign(state.ammo, R.ammoAtStart);
+    Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false });
     const o = owned(); setHeld(o.length ? ownWeapon(o[0]) : null);
-    Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.kit.includes('vest') ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0 });
+    Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.kit.includes('vest') ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
     player.position.set(OX + 19, 0, 2.2); player.rotation.y = Math.PI; P.last.copy(player.position);
     selectSlot(o.some(isGun) ? 2 : 1); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
@@ -604,18 +661,18 @@ export function initMission(ctx) {
       scene.background.set(0x1a0e2a); scene.fog.color.set(0x1a0e2a); scene.fog.near = 30; scene.fog.far = 70; hemi.intensity = 0.55; sun.intensity = 0.9;
       lights.forEach(([l, k]) => { l.intensity = k; });
       setBounds({ x0: OX - 6, x1: OX + W + 6, z0: Z0, z1: 10 });
-      R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo };
+      R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool };
       resetFloor();
       setArea('KAASLAND · SPEKBUURT');
       $('objective').innerHTML = state.spekbuurt ? 'Spekbuurt is <b>yours</b>. Shop setup comes in a later build. Drive home in the <b>Oofmobiel</b>.' : 'Take <b>Snackpaleis Spekbuurt</b> from the Lampas. Clear the restaurant, then the back of house. <span style="color:#ffd36b">Leave nobody standing.</span>';
       fade.style.opacity = '0';
-      if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. Mouse aim · click / F attack · E grab / throw · 1 / 2 weapons · I inventory · R restart', 4.5);
+      if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. Mouse aim · click / F attack · E grab / throw · 1 / 2 weapons · R reload · Shift sprint · I inventory · Backspace restart', 4.5);
     }, 480);
   }
   function exit() {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
-      saveOwnAmmo(); M.active = false; root.visible = false; clearPlayerSplats();
+      saveOwnAmmo(); M.active = false; root.visible = false; clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
@@ -702,7 +759,7 @@ export function initMission(ctx) {
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
     const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', fists: 'Punched out by a Lampas.', boom: 'Too close to a red barrel.' }[cause] || 'Killed by the Lampas.';
-    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${TIPS[Math.floor(Math.random() * TIPS.length)]}</div><div class="btn">RETRY · R</div>`); }, 900);
+    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${TIPS[Math.floor(Math.random() * TIPS.length)]}</div><div class="btn">RETRY · BACKSPACE</div>`); }, 900);
   }
 
   // ================================================================== RESULTS (Neon Vice grade: score vs. 700 per enemy)
@@ -726,13 +783,13 @@ export function initMission(ctx) {
   function nearestDowned() { let best = null, bd = 1.15; for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down > 0) { const d = e.position.distanceTo(player.position); if (d < bd) { bd = d; best = e; } } } return best; }
   function attack() {
     if (!M.active || P.dead || P.exec > 0 || state.inDialogue || state.inPC || invOpen) return;
-    const t = nearestDowned(); if (t && !(gunOut() && P.held.ammo <= 0)) { execute(t); return; }
+    const t = nearestDowned(); if (t && !(gunOut() && P.held.ammo <= 0) && !P.rl) { execute(t); return; }
     if (gunOut()) {
-      if (P.fireT > 0) return;
-      if (P.held.ammo <= 0) { throwHeld(); return; }
+      if (P.fireT > 0 || P.rl) return;
+      if (P.held.ammo <= 0) { if (!reloadStart()) throwHeld(); return; }
       const W2 = WD[P.held.id]; P.held.ammo--; P.fireT = W2.cd; R.shots++;
       fireGun(player.position, player.rotation.y, P.held.id, true, moving());
-      player.userData.arms[0].rotation.x = -1.2; saveOwnAmmo(); hud(); return;
+      player.userData.arms[0].rotation.x = -1.2; saveOwnAmmo(); if (P.held.ammo <= 0) reloadStart(); hud(); return;
     }
     if (state.armed) { ctx.swing(); sfx('swing'); alertNoise(player.position, 3); }
   }
@@ -753,10 +810,12 @@ export function initMission(ctx) {
     let best = null, bd = 1.3;
     for (const it of items) { if (it.flying) continue; const k = Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z); if (k < bd) { bd = k; best = it; } }
     if (!best) return P.slot === 2 && P.held ? throwHeld() : false; // nothing to grab: throw what you hold (Neon Vice)
+    if (gunOut() && stripAmmo(best)) return true;
     pickUp(best); return true;
   }
   function pickUp(it) {
     root.remove(it.g, it.ring); items.splice(items.indexOf(it), 1);
+    if (it.spare && isGun(it.id)) { const c = WD[it.id].cal, n = Math.min(it.spare, CAL[c].cap - (state.pool[c] | 0)); if (n > 0) { state.pool[c] = (state.pool[c] | 0) + n; setTimeout(() => popup(player.position, `+${n} ${CAL[c].name}`, '#ffd36b'), 250); } }
     if (P.held) { saveOwnAmmo(); dropItem(P.held.id, player.position, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, P.held.ammo, false, P.held.own); }
     setHeld({ id: it.id, ammo: it.ammo, own: it.own }); selectSlot(2); sfx('pick'); popup(player.position, WD[it.id].name, '#ffd36b');
   }
@@ -771,8 +830,9 @@ export function initMission(ctx) {
       if ((e.code === 'Digit2' || e.code === 'Numpad2') && state.kit.includes('maboota')) { stop(); selectSlot(2); }
       return;
     }
-    if (e.code === 'KeyR' || e.code === 'Backspace') { stop(); if (!state.spekbuurt) resetFloor(); return; }
+    if (e.code === 'Backspace') { stop(); if (!state.spekbuurt) resetFloor(); return; }
     if (P.dead) { stop(); return; }
+    if (e.code === 'KeyR') { stop(); if (!e.repeat) reloadInput(); return; }
     if (e.code === 'Digit1' || e.code === 'Numpad1') { stop(); selectSlot(1); }
     else if (e.code === 'Digit2' || e.code === 'Numpad2') { stop(); selectSlot(2); }
     else if (e.code === 'KeyF') { stop(); attack(); }
@@ -785,6 +845,10 @@ export function initMission(ctx) {
     if (R.results) { grab(); return; }
     if (e.button === 2) { grab(); return; } attack();
   }, true);
+  const shift = { on: false };
+  addEventListener('keydown', (e) => { if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift.on = true; });
+  addEventListener('keyup', (e) => { if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift.on = false; });
+  addEventListener('blur', () => { shift.on = false; });
   ctx.canvas.addEventListener('contextmenu', (e) => { if (M.active) e.preventDefault(); });
 
   // ================================================================== UPDATE
@@ -810,6 +874,15 @@ export function initMission(ctx) {
         if (g.m.position.y <= 0.05) { g.m.position.y = 0.05; if (g.vy < -2) { g.vy *= -0.3; floorDecal(g.m.position.x, g.m.position.z, 0.25, Math.random() * 6); } else g.vy = 0; g.vx *= 0.6; g.vz *= 0.6; g.wx *= 0.5; g.wy *= 0.5; } } }
     for (const pl of pools) if (pl.s < pl.max) { pl.s = Math.min(pl.max, pl.s + dt * 0.28); pl.m.scale.set(pl.s, pl.s, 1); pl.m.position.x = pl.e.position.x; pl.m.position.z = pl.e.position.z; }
   }
+  function drawReload() {
+    const r = P.rl; if (!r || !M.active) { reloadEl.style.display = 'none'; return; }
+    const v = player.position.clone().setY(2.35).project(camera);
+    reloadEl.style.display = 'block'; reloadEl.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; reloadEl.style.top = ((1 - v.y) / 2 * innerHeight) + 'px';
+    reloadEl.className = r.jam ? 'jam' : '';
+    const [g, f, m, t] = reloadEl.children, k = Math.min(1, r.t / r.dur);
+    g.style.display = r.tried ? 'none' : 'block'; g.style.left = (r.ar0 / r.dur * 100) + '%'; g.style.width = Math.max(3, (r.ar1 - r.ar0) / r.dur * 100) + '%';
+    f.style.width = (k * 100) + '%'; m.style.left = (k * 100) + '%'; t.textContent = r.jam ? 'VASTGELOPEN' : 'HERLADEN · R';
+  }
   function hitstop(dt) { if (FX.freeze > 0) { FX.freeze -= dt; return 0; } return dt; }
   function update(dt) {
     R.time += dt; if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
@@ -818,6 +891,10 @@ export function initMission(ctx) {
     if (!P.dead && (P.vx || P.vz)) { player.position.x += P.vx * dt; player.position.z += P.vz * dt; ctx.collide(player.position, 0.38); P.vx *= Math.exp(-dt * 8); P.vz *= Math.exp(-dt * 8); if (Math.hypot(P.vx, P.vz) < 0.05) P.vx = P.vz = 0; }
     const pv = [(player.position.x - P.last.x) / Math.max(dt, 1e-4), (player.position.z - P.last.z) / Math.max(dt, 1e-4)];
     if (!P.dead) collideDoors(player.position, 0.42, pv[0], pv[1], true);
+    reloadTick(dt); drawReload();
+    // sprint (Shift, same speed as on the street): loud footsteps, every Lampas within 4.5 m hears them (Neon Vice alertNoise)
+    const spd = Math.hypot(pv[0], pv[1]); P.sprint = !P.dead && shift.on && spd > 5;
+    if (P.sprint) { P.stepT -= dt; if (P.stepT <= 0) { P.stepT = 0.3; alertNoise(player.position, 4.5); beep(70 + Math.random() * 20, 0.04, 'square', 0.02); } } else P.stepT = 0;
     P.fireT -= dt; P.invT -= dt; P.bloom = Math.max(0, P.bloom - dt * 0.45); if (FX.hurtT > 0) FX.hurtT -= dt;
     if (!P.dead && P.hp < P.maxhp && R.time - P.lastHurt > EASY.regen) { P.hp++; P.lastHurt = R.time; popup(player.position, '+1 HEALTH', '#7dff9a'); sfx('pick'); hud(); }
     if (!P.dead && !P.held) for (const it of items) if (!it.flying && it.age > 1 && Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z) < 0.45) { pickUp(it); break; }
@@ -1009,10 +1086,10 @@ export function initMission(ctx) {
     return { pos: look.clone().add(new THREE.Vector3(0, 17 * zoom, 3.6 * zoom)), look };
   }
   function onBuy(id) {
-    if (id === 'makarov') state.ammo.makarov = (state.ammo.makarov || 0) + WD.makarov.ammo;
-    if (id === 'ammo') state.ammo.makarov = (state.ammo.makarov || 0) + 50;
-    if (id === 'shotgun') state.ammo.shotgun = (state.ammo.shotgun || 0) + 12;
-    if (id === 'shells') state.ammo.shotgun = (state.ammo.shotgun || 0) + 12;
+    if (id === 'makarov') state.ammo.makarov = WD.makarov.mag;            // comes loaded
+    if (id === 'ammo') state.pool['9mm'] = (state.pool['9mm'] | 0) + 50;  // boxes go in your pocket: R reloads from there
+    if (id === 'shotgun') { state.ammo.shotgun = WD.shotgun.mag; state.pool['12ga'] = (state.pool['12ga'] | 0) + 12 - WD.shotgun.mag; } // 12 shells: 2 loaded, 10 spare
+    if (id === 'shells') state.pool['12ga'] = (state.pool['12ga'] | 0) + 12;
     if (['makarov', 'shotgun', 'bat'].includes(id)) toast(WD[id].name + ' · IN YOUR INVENTORY', 'Slot 2 on missions. On the street it stays in the Oofmobiel. Press I to check your kit.', 3);
     hud();
   }
@@ -1030,7 +1107,7 @@ export function initMission(ctx) {
   }
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate,
-    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false) });
+    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
   hud();
   return M;
 }

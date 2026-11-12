@@ -14,6 +14,13 @@ Then open http://localhost:8765
 ## Controls
 WASD / arrows move · E interact · Esc close windows · N music on/off
 
+Mission (Spekbuurt): mouse aim · click / F attack · E grab / throw · 1 Maboota / 2 gun · R reload · Shift sprint · I inventory · Backspace restart
+
+- **Active reload:** R starts a reload from your pocket ammo (9mm for the Makarov, shells for the sawn-off). Press R again inside the
+  green window on the bar above Eddy for an instant reload; miss it and the gun jams (slower reload). An empty gun reloads by itself when you attack.
+- **Ammo:** bought boxes go to your pocket. Grab (E) a Lampas gun of the calibre you hold to strip its rounds; picking up a new gun also pockets its spare rounds.
+- **Sprint:** Shift. Loud: any Lampas within ~4.5 m hears your footsteps and comes looking.
+
 ## Layout
 | Path | What |
 |---|---|
