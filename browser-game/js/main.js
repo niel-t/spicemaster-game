@@ -1,4 +1,4 @@
-// Spice Master Eddy: Chapter 0, De Natte Worst.
+// Spice Master Eddy: Chapter 0, Kipkruidenkwartier.
 // Neon Vice-style top-down browser game: three.js, PS2-style low-poly people with photo faces.
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
@@ -1127,11 +1127,11 @@ function renderPC() {
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + d1Owned()}</b> (De Natte Worst${D1.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
+    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + d1Owned()}</b> (Kipkruidenkwartier${D1.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
     econ.propertyBind(body, renderPC);
   }
 }
-// ------------------------------------------------------------------ district 1: De Natte Worst (Spekbuurt, Kroketkade, Uitjesbuurt)
+// ------------------------------------------------------------------ district 1: Kipkruidenkwartier (Spekbuurt, Kroketkade, Uitjesbuurt)
 // Each territory is a mission (js/levels/*.js). Spekbuurt opens the other two; owning all three clears the district.
 const D1 = [['Spekbuurt', 'spekbuurt', 1], ['Kroketkade', 'kroketkade', 2], ['Uitjesbuurt', 'uitjesbuurt', 3]];
 const DISTRICT_BONUS = 5000;
@@ -1140,12 +1140,12 @@ const d1Owned = () => D1.filter(([, id]) => owns(id)).length;
 function checkDistrict() { // all three owned: the district is yours, once
   if (state.district1 || d1Owned() < D1.length || (mission && mission.active)) return false;
   state.district1 = true; addMoney(DISTRICT_BONUS);
-  toast('DE NATTE WORST IS YOURS', `All three territories are yours. Bonus: W ${DISTRICT_BONUS.toLocaleString('nl-NL')}. Next: Oud-Vettenburg, Lampas heartland.`, 7);
+  toast('KIPKRUIDENKWARTIER IS YOURS', `All three territories are yours. Bonus: W ${DISTRICT_BONUS.toLocaleString('nl-NL')}. Next: Oud-Vettenburg, Lampas heartland.`, 7);
   [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.06), i * 120));
   writeSave(); return true;
 }
 const PINS = [
-  ['De Natte Worst', 235, 430, 'own'], ['Spekbuurt', 420, 465, 'next'],
+  ['Kipkruidenkwartier', 235, 430, 'own'], ['Spekbuurt', 420, 465, 'next'],
   ['Sauzenbuurt', 145, 297, 'a1'], ['Frietwijk', 265, 274, 'a1'], ['Knoflooksteeg', 378, 286, 'a1'], ['Mayonaisemarkt', 475, 232, 'a1'], ['Halve Kip Plein', 475, 330, 'a1'], ['Bitterbalbuurt', 575, 286, 'a1'],
   ['Havermelkhaven', 330, 130, 'a2'], ['Kombucha-kwartier', 502, 147, 'a2'], ['Avocado-akkers', 645, 84, 'a2'],
   ['Komijnkade', 767, 242, 'a3'], ['Smokkelsloot', 620, 427, 'a3'], ['Containerchaos', 739, 476, 'a3'],
@@ -1158,7 +1158,7 @@ let MAPL = null;
 fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; }).catch(() => {});
 function mapHTML(van) {
   const col = { lost: '#e8a33d', m1: '#e8a33d', m2: '#e8a33d', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
-  const kindOf = (n, r) => { const d = D1.find((x) => x[0] === n); if (d && owns(d[1]) && econ.isRetaken(d[1])) return 'lost'; if (n === 'De Natte Worst' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
+  const kindOf = (n, r) => { const d = D1.find((x) => x[0] === n); if (d && owns(d[1]) && econ.isRetaken(d[1])) return 'lost'; if (n === 'Kipkruidenkwartier' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
   let h = `<div class="mapwrap"><img src="./assets/kaasland_map.jpg" alt="Map of Kaasland">`;
   if (MAPL) {
     const [W, H] = MAPL.size;
@@ -1203,8 +1203,8 @@ function bindMap() {
       own: d1 ? remixInfo(n, d1[1]) + (pcMode === 'van' ? ' <button class="b95" id="goM">Drive · remix raid</button>' : ' <i>Drive there in the Oofmobiel.</i>') : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
       lost: d1 ? remixInfo(n, d1[1]) + (pcMode === 'van' ? ' <button class="b95" id="goM">Drive · retake it</button>' : ' <i>Drive there in the Oofmobiel.</i>') : '',
       m1: `<b>Spekbuurt</b>: Lampas turf. Snackpaleis Spekbuurt sells their watered-down spice, and the back of house is full of Lampas. <b>Mission 1.</b> ${pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? '<button class="b95" id="goM">Drive · start mission</button>' : '<i>Get a weapon from The Russian first.</i>'}`,
-      m2: d1 ? `<b>${n}</b>: Lampas turf in De Natte Worst. ${blurb[n] || ''} <b>Mission ${d1[2]}.</b> ${drive('Drive · start mission')}` : '',
-      next: d1 ? `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>Take Spekbuurt first.</i>` : state.district1 ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. Next on the list. <i>(Missions in a later build.)</i> ${pcMode === 'van' ? '<button class="b95" id="goD">Drive to Oud-Vettenburg</button>' : '<i>Drive there in the Oofmobiel.</i>'}` : `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
+      m2: d1 ? `<b>${n}</b>: Lampas turf in Kipkruidenkwartier. ${blurb[n] || ''} <b>Mission ${d1[2]}.</b> ${drive('Drive · start mission')}` : '',
+      next: d1 ? `<b>${n}</b>: part of Kipkruidenkwartier, but the shoarma joints here still buy Lampas spice. <i>Take Spekbuurt first.</i>` : state.district1 ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. Next on the list. <i>(Missions in a later build.)</i> ${pcMode === 'van' ? '<button class="b95" id="goD">Drive to Oud-Vettenburg</button>' : '<i>Drive there in the Oofmobiel.</i>'}` : `<b>${n}</b>: part of Kipkruidenkwartier, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
       a1: `<b>${n}</b>: Lampas territory. Their watered-down spice, your customers. <i>Locked.</i>`,
       a2: `<b>${n}</b>: Noshgey Kariot territory. Organic, artisanal, wildly overpriced. <i>Locked.</i>`,
       a3: `<b>${n}</b>: Abdavissies territory. Nobody asks questions here. <i>Locked.</i>`,
@@ -1371,7 +1371,7 @@ function talkDad() {
       hire: 'A mixing table and a few Naknikim. Those boys aren\'t smart, but they mix like nobody else.',
       russian: 'Go on, the pawn shop at the east end. The Russian is expecting you.',
       map: 'Have a look at the map. Kaasland is big, and the Lampas are everywhere.',
-      free: state.district1 ? 'De Natte Worst is ours again, jongen. Your old man is proud. Oud-Vettenburg is where the Lampas really live.' : owns('spekbuurt') ? `Spekbuurt is ours. Now ${D1.filter(([, id]) => !owns(id)).map(([n]) => n).join(' and ')}. Then De Natte Worst is ours again.` : 'Spekbuurt is next. Three joints, all selling Lampas rubbish. Start there.',
+      free: state.district1 ? 'Kipkruidenkwartier is ours again, jongen. Your old man is proud. Oud-Vettenburg is where the Lampas really live.' : owns('spekbuurt') ? `Spekbuurt is ours. Now ${D1.filter(([, id]) => !owns(id)).map(([n]) => n).join(' and ')}. Then Kipkruidenkwartier is ours again.` : 'Spekbuurt is next. Three joints, all selling Lampas rubbish. Start there.',
     };
     dialogue([['Eddy Sr.', lines[state.step] || 'Get to work, jongen.']]);
   }
@@ -1391,7 +1391,7 @@ function updateObjective() {
     map: 'Check the <b>map of Kaasland</b> on the PC or in the Oofmobiel.',
     dad2: 'Talk to <b>Eddy Sr.</b> one last time.',
     russian: 'Visit <b>The Russian</b>: go inside <b>Pandjeshuis Spasibo</b>, east end of the street.',
-    free: state.district1 ? `<b style="color:#6ed36e">De Natte Worst is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: Oud-Vettenburg, Lampas heartland (missions in a later build).</span>` : owns('spekbuurt') ? `<b style="color:#6ed36e">${D1.filter(([, id]) => owns(id)).map(([n]) => n).join(' and ')} ${d1Owned() > 1 ? 'are' : 'is'} yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: take ${D1.filter(([, id]) => !owns(id)).map(([n]) => `<b>${n}</b>`).join(' and ')}.</span> Drive there in the <b>Oofmobiel</b>.` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
+    free: state.district1 ? `<b style="color:#6ed36e">Kipkruidenkwartier is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: Oud-Vettenburg, Lampas heartland (missions in a later build).</span>` : owns('spekbuurt') ? `<b style="color:#6ed36e">${D1.filter(([, id]) => owns(id)).map(([n]) => n).join(' and ')} ${d1Owned() > 1 ? 'are' : 'is'} yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: take ${D1.filter(([, id]) => !owns(id)).map(([n]) => `<b>${n}</b>`).join(' and ')}.</span> Drive there in the <b>Oofmobiel</b>.` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
   }[state.step];
   if (state.step === 'hire' && state.table && state.naknik > 0) state.step = 'dad2';
   setObjective(t || '');
@@ -1404,8 +1404,8 @@ function updateObjective() {
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
 const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'npcs'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
-function readSave() {
-  try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
+function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
+  try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
   catch (e) { return null; }
 }
 function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* storage blocked */ } saveExtra = {}; }
@@ -1437,7 +1437,7 @@ function applySave(d) {
 let savedGame = readSave();
 // ---- start menu: Continue / New Game / Controls / Music / Credits (mouse, keyboard, controller and touch)
 let titleView = 'main', titleSel = 0;
-const districtSummary = (st) => (st.econ && st.econ.rep ? ` · ${rankOf(st.econ.rep).name}` : '') + (st.district1 ? ' · De Natte Worst is yours' : ((n) => (n ? ` · ${n}/3 of De Natte Worst` : ''))(['spekbuurt', 'kroketkade', 'uitjesbuurt'].filter((id) => (st.owned && st.owned[id]) || (id === 'spekbuurt' && st.spekbuurt)).length));
+const districtSummary = (st) => (st.econ && st.econ.rep ? ` · ${rankOf(st.econ.rep).name}` : '') + (st.district1 ? ' · Kipkruidenkwartier is yours' : ((n) => (n ? ` · ${n}/3 of Kipkruidenkwartier` : ''))(['spekbuurt', 'kroketkade', 'uitjesbuurt'].filter((id) => (st.owned && st.owned[id]) || (id === 'spekbuurt' && st.spekbuurt)).length));
 const titleItems = () => titleView === 'confirm' ? [['no', 'Nee, terug'], ['yes', 'Ja, opnieuw beginnen']]
   : titleView === 'controls' || titleView === 'credits' ? [['back', 'Terug']]
   : [...(savedGame ? [['cont', 'Continue']] : []), ['new', 'New Game'], ['controls', 'Controls'], ['music', 'Music'], ['credits', 'Credits']];
@@ -1543,7 +1543,7 @@ function startGame() {
   if (state.step !== 'title') return;
   $('title').style.display = 'none'; document.body.classList.remove('on-title'); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle'); writeSave();
   if (musicPref) { try { music.start(); } catch (e) { /* audio optional */ } }
-  toast('DE NATTE WORST', 'Eddy Sr. is waiting for you in the warehouse.', 2.6);
+  toast('KIPKRUIDENKWARTIER', 'Eddy Sr. is waiting for you in the warehouse.', 2.6);
 }
 
 // ------------------------------------------------------------------ street life: traffic, cyclists, pedestrians
@@ -2386,9 +2386,9 @@ mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, soli
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
   makeVan: () => oof.clone(true), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
-// top-down drive to the next district (js/drive.js): from the van map once De Natte Worst is yours
+// top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
 const oofDrive = initDrive({ THREE, renderer, canvasTex, signTex, beep, virt, isPaused });
-function startDrive() { oofDrive.start({ from: 'De Natte Worst', to: 'Oud-Vettenburg', onDone: afterDrive }); }
+function startDrive() { oofDrive.start({ from: 'Kipkruidenkwartier', to: 'Oud-Vettenburg', onDone: afterDrive }); }
 function afterDrive(res) {
   clearPlayerSplats(); clock.getDelta();
   if (res.arrived) {

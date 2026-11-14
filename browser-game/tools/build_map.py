@@ -14,7 +14,7 @@ img = base.resize((W, H), Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=2
 REGIONS = {
     'start': dict(col=(235, 240, 245), poly=[(160, 377), (440, 348), (490, 349), (490, 510), (380, 512), (350, 534), (315, 537),
                                              (272, 520), (260, 505), (140, 490), (120, 500), (90, 511), (95, 502), (130, 482), (165, 445)],
-                  seeds={'De Natte Worst': (235, 430), 'Spekbuurt': (420, 465), 'Kroketkade': (450, 380), 'Uitjesbuurt': (175, 486)}),
+                  seeds={'Kipkruidenkwartier': (235, 430), 'Spekbuurt': (420, 465), 'Kroketkade': (450, 380), 'Uitjesbuurt': (175, 486)}),
     'lampas': dict(col=(255, 128, 48), poly=[(65, 168), (100, 160), (150, 180), (185, 205), (215, 224), (630, 222), (625, 262), (600, 300),
                                              (560, 330), (510, 345), (440, 350), (160, 377), (165, 445), (130, 482), (95, 502), (85, 520),
                                              (72, 505), (56, 455), (47, 410), (40, 370), (47, 330), (56, 285), (62, 240), (64, 200)],
@@ -40,7 +40,7 @@ TERR_LABELS = {
     'Avocado-akkers': (645, 84), 'Glutenvrije Gaarde': (726, 145), 'Oat-oase': (868, 102),
     'Mayonaisemarkt': (475, 232), 'Frietwijk': (265, 274), 'Knoflooksteeg': (378, 286), 'Sauzenbuurt': (145, 297),
     'Halve Kip Plein': (475, 330), 'Bitterbalbuurt': (575, 286),
-    'Spekbuurt': (397, 491), 'De Natte Worst': None, 'Kroketkade': (452, 378), 'Uitjesbuurt': (172, 490),
+    'Spekbuurt': (397, 491), 'Kipkruidenkwartier': None, 'Kroketkade': (452, 378), 'Uitjesbuurt': (172, 490),
     'Joppiehaven': (190, 116), 'Speltpolder': (982, 58), "Kaneelsilo's": (895, 258), 'Paprikapakhuis': (706, 284),
     'Pindasausplein': (95, 432), 'Quinoaplantage': (772, 82), 'Kurkumaloods': (562, 372), 'Nootmuskade': (876, 432), 'Kardemomdok': (626, 500),
     'Komijnkade': (767, 242), 'Kruidnagelkade': (835, 294), 'Peperhaven': (687, 321), 'Saffraanpier': (930, 351),
@@ -50,7 +50,7 @@ TITLES = [  # (title, subtitle, centre, region)
     ('NOSHGEY KARIOT TERRITORY', 'Hipsterheuvel', (500, 101), 'nosh'),
     ('LAMPAS TERRITORY', 'Oud-Vettenburg', (475, 254), 'lampas'),
     ('ABDAVISSIES TERRITORY', 'De Duistere Dokken', (754, 363), 'abd'),
-    ('DE NATTE WORST', 'Home base', (292, 407), 'start'),
+    ('KIPKRUIDENKWARTIER', 'Home base', (292, 407), 'start'),
 ]
 OTHER = [("Eddy's warehouse", (242, 468)), ('De Gouden Molen', (712, 205))]
 
@@ -186,7 +186,7 @@ for nm, pos in TERR_LABELS.items():
     plate(pos[0] * S, pos[1] * S, [(nm, f_terr, (255, 255, 255, 255))], accent=col, pad=12, lead=34, **extra)
     LABEL_BOXES[nm] = dict(box=[round(v / S, 1) for v in BOXES_LAST], region=rk, dot=[round((BOXES_LAST[0] + 12 + 17) / S, 1), pos[1]])
 plate(OTHER[0][1][0] * S, OTHER[0][1][1] * S, [(OTHER[0][0], f_terr, (255, 255, 255, 255))], accent=(255, 80, 70), pad=12, lead=34)
-LABEL_BOXES['De Natte Worst'] = dict(box=[round(v / S, 1) for v in BOXES_LAST], region='start', dot=[round((BOXES_LAST[0] + 12 + 17) / S, 1), OTHER[0][1][1]])
+LABEL_BOXES['Kipkruidenkwartier'] = dict(box=[round(v / S, 1) for v in BOXES_LAST], region='start', dot=[round((BOXES_LAST[0] + 12 + 17) / S, 1), OTHER[0][1][1]])
 plate(OTHER[1][1][0] * S + 40, OTHER[1][1][1] * S, [(OTHER[1][0], f_title, (255, 205, 60, 255))], accent=(255, 205, 60), pad=16, lead=44)
 LABEL_BOXES['De Gouden Molen'] = dict(box=[round(v / S, 1) for v in BOXES_LAST], region='fin', dot=[round((BOXES_LAST[0] + 16 + 22) / S, 1), OTHER[1][1][1]])
 import json

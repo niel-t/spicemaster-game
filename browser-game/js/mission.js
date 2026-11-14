@@ -7,7 +7,7 @@
 //   - red barrels explode when shot
 // Rules: 3 lives (Neon Vice Easy), mouse aim, click / F attack, E grab / throw, 1 melee / 2 + 3 guns (wheel / Tab cycle), R reload (active reload), Shift sprint (loud), Backspace restart.
 //
-// Only one level lives in the scene at a time: it is built 300 m east of De Natte Worst when a mission starts (enter(id)) and
+// Only one level lives in the scene at a time: it is built 300 m east of Kipkruidenkwartier when a mission starts (enter(id)) and
 // the previous one is torn down (meshes and collision solids). initMission(ctx) gets the engine helpers from main.js.
 //
 // Grid legend (shared by all levels):
@@ -785,13 +785,13 @@ export function initMission(ctx) {
       holster(); syncHeld(); maboota.visible = true; equip(true);
       const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
       player.position.set(5.3, 0, -5.8); player.rotation.y = Math.PI;
-      setArea('KAASLAND · DE NATTE WORST'); hideScreen(); for (const p of pops) p.el.remove(); pops.length = 0;
+      setArea('KAASLAND · KIPKRUIDENKWARTIER'); hideScreen(); for (const p of pops) p.el.remove(); pops.length = 0;
       vigEl.style.opacity = flashEl.style.opacity = 0; bannerEl.style.opacity = 0; hud();
       updateObjective(); if (ctx.save) ctx.save();
       fade.style.opacity = '0';
     }, 480);
   }
-  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to De Natte Worst', act: exit });
+  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: exit });
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
   function addKillScore(e, type) {

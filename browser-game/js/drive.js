@@ -1,4 +1,4 @@
-// Oofmobiel drive: a top-down driving level between districts (De Natte Worst → Oud-Vettenburg).
+// Oofmobiel drive: a top-down driving level between districts (Kipkruidenkwartier → Oud-Vettenburg).
 // Classic overhead city driving: the camera looks straight down, north is up, the van rotates under it.
 // Eddy drives the blue Oofmobiel through a grid of Kaasland streets: honk (E / Space) and pedestrians press
 // themselves against the wall and cars pull over; run someone over and you pay smartengeld; cross the
@@ -23,7 +23,7 @@ const HONK_LINES = ['HÈ!', 'GEK!', 'TOETER NIET!', 'MIJN FRIKANDEL!', 'RIJ NORM
 const HIT_LINES = ['AU!', 'MIJN HEUP!', 'SMARTENGELD!', 'IK HEB EEN ADVOCAAT!', 'NIET OP MIJN KAAS!', 'OEF!'];
 const CAR_LINES = ['TOET TOET!', 'JA JA, RUSTIG!', 'BUSJE!', 'GA DAN!'];
 const LAMPAS_LINES = ['DIT IS ONZE STRAAT!', 'LAMPAS!', 'STOP DAT BUSJE!', 'VERDUND IS LEKKER!'];
-const ROOF_ADS = [['LAMPAS SPICE', '99% ZOUT · 1% SPICE'], ['FRIKANDEL XXL', 'NU MET MEER FRIKANDEL'], ['KAASLAND VERZEKERT', 'OOK UW BUSJE (NIET)'], ['DE NATTE WORST', 'NAT SINDS 1652'], ['KAASDOWS 95', 'NU MET MUIS'], ['GOUDA GAMES', 'WIE KAAS ZEGT...']];
+const ROOF_ADS = [['LAMPAS SPICE', '99% ZOUT · 1% SPICE'], ['FRIKANDEL XXL', 'NU MET MEER FRIKANDEL'], ['KAASLAND VERZEKERT', 'OOK UW BUSJE (NIET)'], ['KIPKRUIDENKWARTIER', 'GEKRUID SINDS 1652'], ['KAASDOWS 95', 'NU MET MUIS'], ['GOUDA GAMES', 'WIE KAAS ZEGT...']];
 
 import { makeOofmobiel, makeCar as makeStreetCar } from './vehicles.js';
 
@@ -195,7 +195,7 @@ export function initDrive(ctx) {
     if (opt.chimney) box(0.7, 1.4, 0.7, wallM(0x5a3a30), x0 + 1, h + 0.7, z0 + 1);
   }
   function buildSouthBlock(b) {
-    // De Natte Worst: brick warehouses and flat-roofed blocks, split in quadrants
+    // Kipkruidenkwartier: brick warehouses and flat-roofed blocks, split in quadrants
     const mx = (b.x0 + b.x1) / 2 + (Math.random() - 0.5) * 6, mz = (b.z0 + b.z1) / 2 + (Math.random() - 0.5) * 6;
     const quads = Math.random() < 0.35 ? [[b.x0, b.x1, b.z0, mz], [b.x0, b.x1, mz, b.z1]] : [[b.x0, mx, b.z0, mz], [mx, b.x1, b.z0, mz], [b.x0, mx, mz, b.z1], [mx, b.x1, mz, b.z1]];
     for (const [x0, x1, z0, z1] of quads) {
@@ -713,7 +713,7 @@ export function initDrive(ctx) {
   function finish(res) { stop(); if (opts && opts.onDone) opts.onDone(res); }
   const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   function start(o) {
-    opts = { from: 'De Natte Worst', to: 'Oud-Vettenburg', ...o };
+    opts = { from: 'Kipkruidenkwartier', to: 'Oud-Vettenburg', ...o };
     D.active = true; document.body.classList.add('driving'); hud.style.display = 'block';
     $('drvRoute').textContent = `${opts.from} → ${opts.to}`;
     $('drvHint').textContent = 'W / ↑ gas · S / ↓ brake · A D steer · Shift handbrake · E / Space honk · ⌫ restart';

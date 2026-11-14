@@ -103,8 +103,8 @@ const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul
 const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 // Daily events (one may roll each market day; they change the clients' orders for that day)
 const EVENTS = [
-  { id: 'pricewar', text: (b) => `The Lampas dump cheap ${b.name} on De Natte Worst: clients pay 25% less for it today`, pay: 0.75 },
-  { id: 'kermis', text: () => 'Kermis in De Natte Worst! Every client orders 50% more today', vol: 1.5 },
+  { id: 'pricewar', text: (b) => `The Lampas dump cheap ${b.name} on Kipkruidenkwartier: clients pay 25% less for it today`, pay: 0.75 },
+  { id: 'kermis', text: () => 'Kermis in Kipkruidenkwartier! Every client orders 50% more today', vol: 1.5 },
   { id: 'feest', text: () => "Nabil throws a party at Schmatzel's: Schmatzel orders double today", vol: 2, only: 'schmatzel' },
   { id: 'regen', text: () => 'Three days of rain: nobody goes out, clients order 30% less today', vol: 0.7 },
 ];
@@ -515,7 +515,7 @@ export function createEconomy(deps) {
     }
     h += '</table>';
     if (e.owed.length) h += `<p>Owed to you: ${e.owed.map((o) => `${o.name} ${fmt(o.amount)} (in ${o.days} day${o.days > 1 ? 's' : ''})`).join(', ')}</p>`;
-    h += `<p><small>Take more joints to win more clients. ${cl.length < CLIENTS.length ? 'Each De Natte Worst territory you own becomes a client.' : ''}</small></p>`;
+    h += `<p><small>Take more joints to win more clients. ${cl.length < CLIENTS.length ? 'Each Kipkruidenkwartier territory you own becomes a client.' : ''}</small></p>`;
     return h;
   }
   function reportBind(body, rerender) {
@@ -614,7 +614,7 @@ export function createEconomy(deps) {
   let qty = 5;
   function html() {
     const e = ensure(), disc = deps.discount ? deps.discount() : 0;
-    let h = `<div class="well" style="margin-bottom:8px"><b>Kruidenbeurs De Natte Worst</b> · Market day <b>${e.day}</b> · Balance <b>${fmt(state.money)}</b><br>
+    let h = `<div class="well" style="margin-bottom:8px"><b>Kruidenbeurs Kipkruidenkwartier</b> · Market day <b>${e.day}</b> · Balance <b>${fmt(state.money)}</b><br>
       Warehouse stock: <b>${stockTotal()} / ${cap()} kg</b>${disc > 0 ? ` · Home turf discount <b>${Math.round(disc * 100)}%</b>` : ''}<br>
       <small>Prices move after every outing. Lampas grade is cheap and diluted, Bio is the Noshgey Kariot's overpriced best. Dock spices come through the Abdavissies, a few kilos a day.</small></div>`;
     if (e.news.length) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>KAASLAND SPICE NEWS</b><br>${e.news.map((n) => `· ${n.text} <b style="color:${n.f > 1 ? '#b00000' : '#007000'}">${n.f > 1 ? '▲' : '▼'} ${Math.round(Math.abs(n.f - 1) * 100)}%</b>`).join('<br>')}</div>`;
