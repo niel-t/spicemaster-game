@@ -50,6 +50,7 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 - **Mini-boss STEVEN ZEEGAAL** (Spekbuurt gym, his dojo): a 90s action-star parody. Slow, unarmed, never picks up guns,
   takes 4 hits, lazily leans out of the way of bullets, and his wrist lock twists your gun out of your hand. Enemy types are
   data-driven (`FOE_TYPES` in `js/mission.js`): give a spawn entry in a level file (`js/levels/*.js`) a 7th field `'zeegaal'` (or `{ type: 'zeegaal' }`) to place him in any level; Spekbuurt has him in the gym.
+- **Neon Vice arsenal:** Makarov, silenced 9mm, .357 Magnum (through 3 bodies), dual 9mms, Uzi (full auto: hold to fire), sawn-off, pump shotgun, M16 (3-round burst, through a thin wall), knife, honkbalknuppel, machete, throwing knives (pick them up again), and The Russian's exclusives (Golden AK-47, Golden Deagles, Katana) on some market days once you own three joints. Attachments: Makarov suppressor (quiet shots), extended Uzi mag (48), quick sling (fast weapon switch). Armour: kevlar vest (1 plate) or plate carrier (2 plates), repaired at The Russian's. Every calibre has its own pocket pool; bigger stashes raise the cap.
 - **Active reload:** R starts a reload from your pocket ammo (9mm for the Makarov, shells for the sawn-off). Press R again inside the
   green window on the bar above Eddy for an instant reload; miss it and the gun jams (slower reload). An empty gun reloads by itself when you attack.
 - **Ammo:** bought boxes go to your pocket. Grab (E) a Lampas gun of the calibre you hold to strip its rounds; picking up a new gun also pockets its spare rounds.
@@ -60,6 +61,9 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 |---|---|
 | `index.html` | HUD, dialogue box, Kaasdows 95 PC window, the Russian's gun shop, title screen (HTML/CSS overlays) |
 | `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map, district progression |
+| `js/arsenal.js` | Every weapon, calibre, attachment and armour piece, ported from Neon Vice (`WD`, `CAL`, `MODS`, `ARMOUR`, kill points, body force, The Russian's catalogue and prices in Wilders) |
+| `js/gunshop.js` | Pandjeshuis Spasibo: The Russian's shop as Neon Vice's catalogue (sections, stat bars, attachments, ammo, bigger stashes, vest / plate carrier, deals and exclusives per market day, sell back at 40%) |
+| `js/gunaudio.js` + `assets/audio/guns.mp3` | Neon Vice's real gun recordings (CC0, Free Firearm Sound Library, see `assets/audio/CREDITS.md`): shots, reload steps, dry clicks. Falls back to the synth sounds until loaded |
 | `js/mission.js` | Mission engine (Neon Vice rules): builds the chosen level on a 1 m cell grid, Lampas AI, weapons, kit, kluis, HUD, results. Only one level is in the scene at a time |
 | `js/levels/*.js` | One file per mission: grid layout, rooms + floors, doors, glass, furniture, spawns (incl. boss), loot, entry point, van arrival, texts, bounds, mood lighting and unique props (`decorate`). `spekbuurt.js`, `kroketkade.js`, `uitjesbuurt.js` |
 | `js/economy.js` | The spice economy: market days, the Kruidenbeurs (prices, news, trends), warehouse stock. main.js creates it (`econ`), shows its PC tab and calls `econ.update()` in the hub loop |
