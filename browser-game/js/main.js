@@ -1135,8 +1135,8 @@ function renderPC() {
 // Each territory is a mission (js/levels/*.js). Spekbuurt opens the other two; owning all three clears the district.
 const D1 = [['Spekbuurt', 'spekbuurt', 1], ['Kroketkade', 'kroketkade', 2], ['Uitjesbuurt', 'uitjesbuurt', 3]];
 // Act 1: Oud-Vettenburg, the Lampas heartland. One mission per territory (plan: Frietwijk first, then the rest, Pindasausplein last).
-// [name, level id, mission number, unlocked()]; reached by the top-down Oofmobiel drive (js/drive.js), which starts the mission on arrival.
-const LAMPAS = [['Frietwijk', 'frietwijk', 1, () => !!state.district1]];
+// [name, level id, mission number, unlocked(), drive target]; reached by the top-down Oofmobiel drive (js/drive.js), which starts the mission on arrival.
+const LAMPAS = [['Frietwijk', 'frietwijk', 1, () => !!state.district1], ['Sauzenbuurt', 'sauzenbuurt', 2, () => owns('frietwijk'), [0, 6]], ['Knoflooksteeg', 'knoflooksteeg', 3, () => owns('frietwijk'), [2, 7]]]; // 5th: the drive's parking crossing (default: the Frietwijk plaza)
 const JOINTS = [...D1, ...LAMPAS]; // every territory with a mission: remix raids, the daily challenge and clients use all of them
 const lampasOwned = () => LAMPAS.filter(([, id]) => owns(id)).length;
 const DISTRICT_BONUS = 5000;
@@ -1203,7 +1203,7 @@ function bindMap() {
     const n = p.dataset.pin, k = p.dataset.k, info = $('pininfo'); beep(600, 0.04);
     const d1 = D1.find((x) => x[0] === n), lj = LAMPAS.find((x) => x[0] === n), jt = d1 || lj;
     const drive = (label) => (pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? `<button class="b95" id="goM">${label}</button>` : '<i>Get a weapon from The Russian first.</i>');
-    const lblurb = { Frietwijk: 'Friettent De Vette Hap: the Lampas’ busiest snack corner. Behind the counter, a kitchen made of glass and a back office full of Wilders.' };
+    const lblurb = { Knoflooksteeg: 'De Knoflookbol, a takeaway hatch in a dark alley. Behind it, three Lampas gambling dens. Go quiet.', Sauzenbuurt: 'Het Dunne Sausje, on the west quay: the Lampas water down the garlic sauce here. Kick over their kettles.', Frietwijk: 'Friettent De Vette Hap: the Lampas’ busiest snack corner. Behind the counter, a kitchen made of glass and a back office full of Wilders.' };
     const blurb = { Kroketkade: 'A Lampas snackbar on the rainy corner of the quay. The kitchen and the garage behind it are full of Lampas.', Uitjesbuurt: 'De Zure Ui, the corner snackbar with a terrace. Underneath: an onion cellar and a Lampas gambling den.' };
     const t = {
       own: jt ? remixInfo(n, jt[1]) + (pcMode === 'van' ? ' <button class="b95" id="goM">Drive · remix raid</button>' : ' <i>Drive there in the Oofmobiel.</i>') : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
@@ -2398,7 +2398,7 @@ initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
 // top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
 const oofDrive = initDrive({ THREE, renderer, canvasTex, signTex, beep, virt, isPaused });
 let driveMission = null; // the Lampas mission the drive is heading for (null: a scouting run)
-function startDrive(id = null) { driveMission = id; oofDrive.start({ from: 'Kipkruidenkwartier', to: id ? JOINTS.find((j) => j[1] === id)[0] : 'Oud-Vettenburg', mission: id ? mission.LEVELS[id].text.banner[0] + ' is just round the corner.' : null, onDone: afterDrive }); }
+function startDrive(id = null) { driveMission = id; const j = id && JOINTS.find((x) => x[1] === id); oofDrive.start({ from: 'Kipkruidenkwartier', to: j ? j[0] : 'Oud-Vettenburg', target: j && j[4], mission: id ? mission.LEVELS[id].text.banner[0] + ' is just round the corner.' : null, onDone: afterDrive }); }
 function afterDrive(res) {
   clearPlayerSplats(); clock.getDelta();
   if (res.arrived) {

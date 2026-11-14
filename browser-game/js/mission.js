@@ -23,8 +23,10 @@ import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
 import frietwijk from './levels/frietwijk.js';
+import sauzenbuurt from './levels/sauzenbuurt.js';
+import knoflooksteeg from './levels/knoflooksteeg.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -149,7 +151,8 @@ export function initMission(ctx) {
     }
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
-    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM }) || {};
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS }) || {};
+    tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;
     // neon: one strip per room, top of the walls
     for (const [name, x0, z0, x1] of def.rooms) if (def.neon[name] !== undefined) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, def.neon[name]);
@@ -537,6 +540,18 @@ export function initMission(ctx) {
   function setFoeWeapon(e, id) { const f = e.userData.foe; f.weapon = id; f.hand.clear(); if (id) f.hand.add(weaponMesh(id)); }
   const ALERT_LINES = ['Hé! Wie ben jij?!', 'Het is die Eddy!', 'PAK HEM!', 'Lampas forever!', 'Dit is ons gebied!', 'Eddy Junior?! Grijp hem!'];
   const alive = () => enemies.filter((e) => e.userData.foe.alive);
+  // objectives (a level's decorate() returns tasks: [{ pos, obj, label, act(), reset(done) }]): the floor only clears when they are all done
+  let tasks = [];
+  const tasksLeft = () => tasks.filter((t) => !t.done).length;
+  const nearTask = () => { let b = null, bd = 2.5; if (!M.active) return null; for (const t of tasks) if (!t.done) { const d = Math.hypot(player.position.x - t.pos.x, player.position.z - t.pos.z); if (d < bd) { bd = d; b = t; } } return b; };
+  function doTask(t) {
+    if (!t || t.done) return; t.done = true; if (t.act) t.act();
+    R.score += 750; sfx('thud'); shake(0.35); popup(t.pos, t.doneText || 'SABOTAGED!', '#e8a33d', true);
+    const n = tasksLeft(); if (n) banner(`${n} TO GO`, LV.text.taskHint || '', 1.6);
+    else if (!alive().length && !R.cleared) { R.cleared = true; popup(t.pos, 'FLOOR CLEAR', '#e8a33d', true); setTimeout(results, 1500); }
+    else banner(LV.text.tasksDone || 'ALL DONE', 'Now finish off the Lampas.', 2);
+    hud();
+  }
 
   // ================================================================== ITEMS (weapons on the floor, flying thrown weapons, loot crates)
   const items = [];
@@ -655,7 +670,7 @@ export function initMission(ctx) {
     const on = M.active; hudEl.style.display = scoreEl.style.display = grainEl.style.display = scanEl.style.display = on ? 'block' : 'none';
     if (!on) return;
     let hp = ''; for (let i = 0; i < P.maxhp; i++) hp += i < P.hp ? '♥' : '<i>♥</i>';
-    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">LAMPAS LEFT: ${alive().length}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
+    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">LAMPAS LEFT: ${alive().length}${tasks.length ? ` <span style="color:#e8a33d;margin-left:10px">${(LV.taskName || 'TARGET')}S: ${tasks.length - tasksLeft()}/${tasks.length}</span>` : ''}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
     scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">${LV.text.area}</div>`;
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }
@@ -745,6 +760,7 @@ export function initMission(ctx) {
     for (const p of pops) p.el.remove(); pops.length = 0;
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = REMIX ? !REMIX.loot.has(i) : (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
+    for (const t of tasks) { t.done = !!done; if (t.reset) t.reset(t.done); }
     Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, foes: Math.max(1, alive().length) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
@@ -792,6 +808,7 @@ export function initMission(ctx) {
       fade.style.opacity = '0';
     }, 480);
   }
+  addInteract({ get obj() { const t = nearTask(); return t ? t.obj : van; }, pos: () => (nearTask() || { pos: van.position }).pos, r: 2.5, enabled: () => M.active && !P.dead && !R.results && !ARR && !!nearTask(), label: () => nearTask().label, act: () => doTask(nearTask()) });
   addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: exit });
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
@@ -825,7 +842,8 @@ export function initMission(ctx) {
     else if (f.boss) { banner(LV.text.bossDown[0], LV.text.bossDown[1], 2.5); shake(0.6); FX.freeze = 0.3; }
     const left = alive().length;
     if (left === 1 && !R.lastOneShown) { R.lastOneShown = true; popup(alive()[0].position, 'LAST ONE', '#e8a33d', true); }
-    if (left === 0 && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#e8a33d', true); shake(0.5); setTimeout(results, 1500); }
+    if (left === 0 && !tasksLeft() && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#e8a33d', true); shake(0.5); setTimeout(results, 1500); }
+    else if (left === 0 && tasksLeft()) popup(e.position, `${tasksLeft()} ${LV.taskName || 'TARGET'}${tasksLeft() > 1 ? 'S' : ''} LEFT`, '#e8a33d', true);
     hud();
   }
   function knockdown(e, dir) {

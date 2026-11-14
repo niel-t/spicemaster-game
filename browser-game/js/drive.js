@@ -14,7 +14,8 @@ const CANAL = { z0: -212, z1: -184, row: 4 };                 // the Grote Grach
 const OPEN_BRIDGES = [1, 3, 5];
 const CLOSED = new Set(['v0,4', 'v2,4', 'v4,4', 'h2,2', 'h1,6', 'v3,7', 'h3,1']); // raised bridges + road works
 const PARK = '1,6', PLAZA = '4,8';
-const TARGET = { x: (GX[4] + GX[5]) / 2, z: (GZ[8] + GZ[9]) / 2, r: 6 };
+const PLAZA_XZ = { x: (GX[4] + GX[5]) / 2, z: (GZ[8] + GZ[9]) / 2 }; // the Frietwijk plaza (the default target)
+const TARGET = { ...PLAZA_XZ, r: 6 }; // where this drive ends: start({ target: [i, j] }) parks on the crossing of road GX[i] and GZ[j]
 const START = { x: 12, z: 2.2, h: Math.PI / 2 };             // in front of Eddy & Zn, nose east
 const MAXV = 26, REV = 9, PAR = 60;
 const SMART = 15, LAMPAS_BOUNTY = 50, BASE_PAY = 250;
@@ -96,7 +97,7 @@ export function initDrive(ctx) {
   const solids = []; // {x0,x1,z0,z1}
   const solid = (x0, x1, z0, z1) => { const s = { x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1) }; solids.push(s); return s; };
   const blocks = []; // {i, j, x0, x1, z0, z1, kind}
-  let built = false, targetRing, arrow, plazaGlow;
+  let built = false, targetRing, arrow, plazaGlow, parkLabel;
   const segOpen = (k) => !CLOSED.has(k);
   const BW = SW; // bridge half width: road plus both sidewalks, so you never snag on a railing end
   const isWater = (x, z) => z > CANAL.z0 && z < CANAL.z1 && !OPEN_BRIDGES.some((i) => Math.abs(x - GX[i]) < BW - 0.2);
@@ -169,7 +170,7 @@ export function initDrive(ctx) {
     // target ring on the plaza
     targetRing = new THREE.Mesh(new THREE.RingGeometry(TARGET.r - 0.8, TARGET.r, 48), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.9, depthWrite: false }));
     targetRing.rotation.x = -Math.PI / 2; targetRing.position.set(TARGET.x, 0.2, TARGET.z); scene.add(targetRing);
-    label([{ t: 'PARKEER HIER', size: 70 }], 'none', '#ffd36b', 9, 2, TARGET.x, 0.21, TARGET.z);
+    parkLabel = label([{ t: 'PARKEER HIER', size: 70 }], 'none', '#ffd36b', 9, 2, TARGET.x, 0.21, TARGET.z);
     plazaGlow = new THREE.PointLight(0xffb040, 40, 30, 1.6); plazaGlow.position.set(TARGET.x, 6, TARGET.z); scene.add(plazaGlow);
     // arrow that points the way
     const sh = new THREE.Shape(); sh.moveTo(0, 2.2); sh.lineTo(1.6, -0.6); sh.lineTo(0.5, -0.2); sh.lineTo(0.5, -1.8); sh.lineTo(-0.5, -1.8); sh.lineTo(-0.5, -0.2); sh.lineTo(-1.6, -0.6); sh.closePath();
@@ -691,7 +692,7 @@ export function initDrive(ctx) {
     }
     for (const p of peds) { p.down = 0; p.flee = 0; p.g.rotation.x = 0; p.g.position.y = 0; }
     $('drvRes').style.display = 'none';
-    banner(`${opts.from} → ${opts.to}`, 'Drive to the Frietwijk plaza. <b>E / Space</b> honks.', 2.6);
+    banner(`${opts.from} → ${opts.to}`, `Drive to ${opts.target ? opts.to : 'the Frietwijk plaza'}: follow the arrow and park in the ring. <b>E / Space</b> honks.`, 2.6);
     camera.position.set(van.x, 60, van.z); shake = 0;
   }
   function payFor() { return Math.max(0, BASE_PAY + run.wrecked * LAMPAS_BOUNTY + Math.max(0, Math.round((PAR - run.t) * 3)) - run.smart); }
@@ -714,6 +715,8 @@ export function initDrive(ctx) {
   const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   function start(o) {
     opts = { from: 'Kipkruidenkwartier', to: 'Oud-Vettenburg', ...o };
+    Object.assign(TARGET, opts.target ? { x: GX[opts.target[0]], z: GZ[opts.target[1]] } : PLAZA_XZ);
+    if (built) { targetRing.position.set(TARGET.x, 0.2, TARGET.z); parkLabel.position.set(TARGET.x, 0.21, TARGET.z); plazaGlow.position.set(TARGET.x, 6, TARGET.z); }
     D.active = true; document.body.classList.add('driving'); hud.style.display = 'block';
     $('drvRoute').textContent = `${opts.from} → ${opts.to}`;
     $('drvHint').textContent = 'W / ↑ gas · S / ↓ brake · A D steer · Shift handbrake · E / Space honk · ⌫ restart';
