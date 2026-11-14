@@ -297,6 +297,7 @@ export function createEconomy(deps) {
   // 40: price war and pressure on control · 60: they lean on a client · 80: they retake a joint · 100: they raid the warehouse
   function turf() {
     const e = ensure(), out = [], L = e.heat;
+    if (state.act1) { L.lampas = 0; e.retaken = {}; return out; } // Fort Pindasaus fell (js/levels/pindasausplein.js): the Lampas are finished
     const owned = ownedClients().map((c) => c.id).filter((id) => !NOT_TURF.includes(id));
     if (!e.known) { e.known = owned.slice(); L.lampas = clamp(L.lampas + 15 * owned.length, 0, 100); } // first look at an older save
     for (const id of owned) if (!e.known.includes(id)) { e.known.push(id); e.control[id] = 60; L.lampas += 25; }

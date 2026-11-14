@@ -28,8 +28,9 @@ import knoflooksteeg from './levels/knoflooksteeg.js';
 import mayonaisemarkt from './levels/mayonaisemarkt.js';
 import halvekipplein from './levels/halvekipplein.js';
 import bitterbalbuurt from './levels/bitterbalbuurt.js';
+import pindasausplein from './levels/pindasausplein.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -154,7 +155,7 @@ export function initMission(ctx) {
     }
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
-    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS }) || {};
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup }) || {};
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;
     // neon: one strip per room, top of the walls
@@ -508,6 +509,16 @@ export function initMission(ctx) {
   //   zeegaal: STEVEN ZEEGAAL, a 90s action-star parody mini-boss. Unarmed and slow, never picks up guns, takes 4 hits,
   //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
   const FOE_TYPES = {
+    //   janvankaas: JAN VAN KAAS, boss of the Lampas (Act 1 finale, Pindasausplein). White suit, gold hair; keeps his shotgun, takes 5 hits.
+    janvankaas: {
+      name: 'JAN VAN KAAS', hp: 5, speed: 0.85, dodge: 0.15, mass: 2.8, score: 5000,
+      look: { head: { skin: 0xf2c8a0, hair: '#d8b040', brow: '#a88030', hairLine: 46, mouth: 'smile', iris: '#3a5a8a', slick: true }, front: '#f3ecdc', shirt: 0xf3ecdc, pants: 0xf3ecdc, shoes: 0x7a2e1a, belt: 0xc8a040, belly: 1.3, scale: 1.08 },
+      alert: ['Wie laat die snotneus binnen?!', 'Eddy junior. Net zo dom als zijn vader.', 'Dit is MIJN stad!', 'Verdunnen is een kunst, jongen.'],
+      hurt: ['Mijn pak!', 'Au! Weet je wel wie ik ben?!', 'Dat ga je betalen.', 'Bewakers!'],
+      dodgeSay: ['Mis!', 'Te langzaam.'],
+      disarm: ['Niemand pakt mijn geweer.'],
+      down: ['JAN VAN KAAS IS DOWN', 'The Lampas are finished.'],
+    },
     zeegaal: {
       name: 'STEVEN ZEEGAAL', ps2: 'zeegaal', hp: 4, speed: 0.62, dodge: 0.4, grab: true, noWeapons: true, mass: 2.4, score: 2500,
       look: { head: { skin: 0xe9c2a2, hair: '#0d0b0a', brow: '#14100c', browW: 5, hairLine: 70, sideLine: 112, backLine: 150, mouth: 'smile', squint: true, glasses: true, tint: 'rgba(70,40,30,.62)', goatee: '#17120e', iris: '#2a1c14', slick: true, ponytail: true },

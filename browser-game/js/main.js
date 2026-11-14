@@ -1138,9 +1138,18 @@ const D1 = [['Spekbuurt', 'spekbuurt', 1], ['Kroketkade', 'kroketkade', 2], ['Ui
 // [name, level id, mission number, unlocked(), drive target]; reached by the top-down Oofmobiel drive (js/drive.js), which starts the mission on arrival.
 const LAMPAS = [['Frietwijk', 'frietwijk', 1, () => !!state.district1], ['Sauzenbuurt', 'sauzenbuurt', 2, () => owns('frietwijk'), [0, 6]], ['Knoflooksteeg', 'knoflooksteeg', 3, () => owns('frietwijk'), [2, 7]],
   ['Mayonaisemarkt', 'mayonaisemarkt', 4, () => owns('frietwijk'), [3, 9]], ['Halve Kip Plein', 'halvekipplein', 5, () => ['sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt'].filter(owns).length >= 2, [3, 6]],
-  ['Bitterbalbuurt', 'bitterbalbuurt', 6, () => ['sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt'].filter(owns).length >= 2, [5, 7]]]; // 5th: the drive's parking crossing (default: the Frietwijk plaza)
+  ['Bitterbalbuurt', 'bitterbalbuurt', 6, () => ['sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt'].filter(owns).length >= 2, [5, 7]],
+  ['Pindasausplein', 'pindasausplein', 7, () => LAMPAS.filter(([, id]) => id !== 'pindasausplein' && owns(id)).length >= 6, [0, 8]]]; // the act finale: Jan van Kaas // 5th: the drive's parking crossing (default: the Frietwijk plaza)
 const JOINTS = [...D1, ...LAMPAS]; // every territory with a mission: remix raids, the daily challenge and clients use all of them
 const lampasOwned = () => LAMPAS.filter(([, id]) => owns(id)).length;
+const ACT1_BONUS = 10000;
+function checkAct1() { // Fort Pindasaus has fallen: the Lampas are finished (no more Lampas heat, retakes or raids)
+  if (state.act1 || !owns('pindasausplein') || (mission && mission.active)) return false;
+  state.act1 = true; addMoney(ACT1_BONUS);
+  toast('THE LAMPAS ARE FINISHED', `Oud-Vettenburg is yours. Bonus: W ${ACT1_BONUS.toLocaleString('nl-NL')}. No more Lampas heat. Next: the Noshgey Kariot on Hipsterheuvel.`, 8);
+  [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.06), i * 120));
+  writeSave(); return true;
+}
 const DISTRICT_BONUS = 5000;
 const owns = (id) => !!(state.owned && state.owned[id]) || (id === 'spekbuurt' && !!state.spekbuurt);
 const d1Owned = () => D1.filter(([, id]) => owns(id)).length;
@@ -1205,7 +1214,7 @@ function bindMap() {
     const n = p.dataset.pin, k = p.dataset.k, info = $('pininfo'); beep(600, 0.04);
     const d1 = D1.find((x) => x[0] === n), lj = LAMPAS.find((x) => x[0] === n), jt = d1 || lj;
     const drive = (label) => (pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? `<button class="b95" id="goM">${label}</button>` : '<i>Get a weapon from The Russian first.</i>');
-    const lblurb = { Bitterbalbuurt: 'Café De Gouden Bitterbal, a brown café next to a white gabled shoarma shop. The Lampas keep their Wilders in the vault below.', Mayonaisemarkt: 'De Witte Klodder on the market square, and behind it the Lampas wholesale depot: a huge open hall full of pallets and spice crates.', 'Halve Kip Plein': 'De Halve Haan, a chicken grill on the corner. Behind it, the office where every Lampas order is booked. Wipe their PCs.', Knoflooksteeg: 'De Knoflookbol, a takeaway hatch in a dark alley. Behind it, three Lampas gambling dens. Go quiet.', Sauzenbuurt: 'Het Dunne Sausje, on the west quay: the Lampas water down the garlic sauce here. Kick over their kettles.', Frietwijk: 'Friettent De Vette Hap: the Lampas’ busiest snack corner. Behind the counter, a kitchen made of glass and a back office full of Wilders.' };
+    const lblurb = { Pindasausplein: 'Fort Pindasaus: the Lampas headquarters on a fortified pier. Watchtowers, searchlights, and Jan van Kaas himself.', Bitterbalbuurt: 'Café De Gouden Bitterbal, a brown café next to a white gabled shoarma shop. The Lampas keep their Wilders in the vault below.', Mayonaisemarkt: 'De Witte Klodder on the market square, and behind it the Lampas wholesale depot: a huge open hall full of pallets and spice crates.', 'Halve Kip Plein': 'De Halve Haan, a chicken grill on the corner. Behind it, the office where every Lampas order is booked. Wipe their PCs.', Knoflooksteeg: 'De Knoflookbol, a takeaway hatch in a dark alley. Behind it, three Lampas gambling dens. Go quiet.', Sauzenbuurt: 'Het Dunne Sausje, on the west quay: the Lampas water down the garlic sauce here. Kick over their kettles.', Frietwijk: 'Friettent De Vette Hap: the Lampas’ busiest snack corner. Behind the counter, a kitchen made of glass and a back office full of Wilders.' };
     const blurb = { Kroketkade: 'A Lampas snackbar on the rainy corner of the quay. The kitchen and the garage behind it are full of Lampas.', Uitjesbuurt: 'De Zure Ui, the corner snackbar with a terrace. Underneath: an onion cellar and a Lampas gambling den.' };
     const t = {
       own: jt ? remixInfo(n, jt[1]) + (pcMode === 'van' ? ' <button class="b95" id="goM">Drive · remix raid</button>' : ' <i>Drive there in the Oofmobiel.</i>') : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
@@ -1214,7 +1223,7 @@ function bindMap() {
       m2: d1 ? `<b>${n}</b>: Lampas turf in Kipkruidenkwartier. ${blurb[n] || ''} <b>Mission ${d1[2]}.</b> ${drive('Drive · start mission')}` : '',
       next: d1 ? `<b>${n}</b>: part of Kipkruidenkwartier, but the shoarma joints here still buy Lampas spice. <i>Take Spekbuurt first.</i>` : state.district1 ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. Next on the list. <i>(Missions in a later build.)</i> ${pcMode === 'van' ? '<button class="b95" id="goD">Drive to Oud-Vettenburg</button>' : '<i>Drive there in the Oofmobiel.</i>'}` : `<b>${n}</b>: part of Kipkruidenkwartier, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
       m3: lj ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. ${lblurb[n] || ''} <b>Act 1 · mission ${lj[2]}.</b> ${pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? `<button class="b95" id="goL">Drive to ${n} · start mission</button>` : '<i>Get a weapon from The Russian first.</i>'}` : '',
-      locked: `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. ${lblurb[n] || ''} <i>${['Halve Kip Plein', 'Bitterbalbuurt'].includes(n) ? 'Take two of Sauzenbuurt, Knoflooksteeg and Mayonaisemarkt first.' : 'Take Frietwijk first.'}</i>`,
+      locked: `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. ${lblurb[n] || ''} <i>${n === 'Pindasausplein' ? 'Take the other six Oud-Vettenburg territories first.' : ['Halve Kip Plein', 'Bitterbalbuurt'].includes(n) ? 'Take two of Sauzenbuurt, Knoflooksteeg and Mayonaisemarkt first.' : 'Take Frietwijk first.'}</i>`,
       later: `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. ${lampasOwned() ? 'Next on the list.' : '<i>Take Frietwijk first.</i>'} <i>(This mission comes in a later build.)</i>`,
       a1: `<b>${n}</b>: Lampas territory. Their watered-down spice, your customers. <i>Locked.</i>`,
       a2: `<b>${n}</b>: Noshgey Kariot territory. Organic, artisanal, wildly overpriced. <i>Locked.</i>`,
@@ -1403,18 +1412,19 @@ function updateObjective() {
     map: 'Check the <b>map of Kaasland</b> on the PC or in the Oofmobiel.',
     dad2: 'Talk to <b>Eddy Sr.</b> one last time.',
     russian: 'Visit <b>The Russian</b>: go inside <b>Pandjeshuis Spasibo</b>, east end of the street.',
-    free: state.district1 ? `<b style="color:#6ed36e">Kipkruidenkwartier is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} ${owns('frietwijk') ? ' <span style="color:#6ed36e">Frietwijk is yours too.</span> <span style="color:#ffd36b">More of Oud-Vettenburg comes in the next build.</span>' : ' <span style="color:#ffd36b">Next: <b>Frietwijk</b> in Oud-Vettenburg, Lampas heartland. Drive there in the <b>Oofmobiel</b>.</span>'}` : owns('spekbuurt') ? `<b style="color:#6ed36e">${D1.filter(([, id]) => owns(id)).map(([n]) => n).join(' and ')} ${d1Owned() > 1 ? 'are' : 'is'} yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: take ${D1.filter(([, id]) => !owns(id)).map(([n]) => `<b>${n}</b>`).join(' and ')}.</span> Drive there in the <b>Oofmobiel</b>.` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
+    free: state.district1 ? `<b style="color:#6ed36e">Kipkruidenkwartier is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} ${state.act1 ? ' <span style="color:#6ed36e">Oud-Vettenburg is yours: the Lampas are finished.</span> <span style="color:#ffd36b">The Noshgey Kariot on Hipsterheuvel are next (in a later build).</span>' : owns('frietwijk') ? ` <span style="color:#6ed36e">${lampasOwned()}/${LAMPAS.length} of Oud-Vettenburg is yours.</span> <span style="color:#ffd36b">Next: ${LAMPAS.filter(([, id, , ok]) => !owns(id) && ok()).map(([n]) => `<b>${n}</b>`).join(', ') || 'Pindasausplein'}. Drive there in the <b>Oofmobiel</b>.</span>` : ' <span style="color:#ffd36b">Next: <b>Frietwijk</b> in Oud-Vettenburg, Lampas heartland. Drive there in the <b>Oofmobiel</b>.</span>'}` : owns('spekbuurt') ? `<b style="color:#6ed36e">${D1.filter(([, id]) => owns(id)).map(([n]) => n).join(' and ')} ${d1Owned() > 1 ? 'are' : 'is'} yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: take ${D1.filter(([, id]) => !owns(id)).map(([n]) => `<b>${n}</b>`).join(' and ')}.</span> Drive there in the <b>Oofmobiel</b>.` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
   }[state.step];
   if (state.step === 'hire' && state.table && state.naknik > 0) state.step = 'dad2';
   setObjective(t || '');
   if (state.step === 'free' && checkDistrict()) updateObjective();
+  if (state.step === 'free' && checkAct1()) updateObjective();
 }
 
 // ------------------------------------------------------------------ save (localStorage, one versioned key)
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'npcs'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'npcs'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
   try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
