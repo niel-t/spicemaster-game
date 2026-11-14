@@ -537,7 +537,7 @@ export function createEconomy(deps) {
   const whOpen = () => WAREHOUSES.filter((w) => ensure().wh[w.id] && !ensure().retaken[w.id]);
   const cap = () => STOCK_CAP + whOpen().reduce((a, w) => a + w.kg, 0);
   const mcap = () => MACHINE_CAP + whOpen().length;
-  const mixers = () => (state.naknik || 0) + whOpen().reduce((a, w) => a + ensure().wh[w.id].naknik - (ensure().wh[w.id].guard ? 1 : 0), 0);
+  const mixers = () => Math.max(0, (state.naknik || 0) - (deps.away ? deps.away() : 0)) + whOpen().reduce((a, w) => a + ensure().wh[w.id].naknik - (ensure().wh[w.id].guard ? 1 : 0), 0);
   const guarded = () => whOpen().some((w) => ensure().wh[w.id].guard);
   function buyWarehouse(id, el) {
     const e = ensure(), w = WAREHOUSES.find((x) => x.id === id);

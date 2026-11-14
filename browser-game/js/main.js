@@ -9,6 +9,7 @@ import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, st
 import { makeOofmobiel, makeCar } from './vehicles.js'; // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 import { createEconomy, rankOf } from './economy.js';
+import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
 import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wheel clamps, the tax inspector
 import { createWorkshop } from './workshop.js'; // De Werkplaats: build and repair machines, upgrade the Kaasdows
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
@@ -1063,9 +1064,10 @@ const LOOT_PRICE = 150;
 const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
-const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
+const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const ws = createWorkshop({ state, econ, addMoney, toast, beep, save: () => writeSave() });
 const garage = createGarage({ state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c) });
+const crew = createCrew({ state, econ, ws, addMoney, toast, save: () => writeSave() });
 function paintVan(c) { oof.traverse((o) => { if (o.userData && o.userData.paint) o.userData.paint.color.setHex(c); }); }
 function openPC(tab = 'sell', mode = 'pc') {
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
@@ -1314,7 +1316,23 @@ function spawnNaknik(walk) {
   n.userData.target = new THREE.Vector3(spots[state.naknik - 1][0], 0, spots[state.naknik - 1][1]);
   n.userData.walking = walk; naknikim.push(n);
   if (!walk) { n.position.copy(n.userData.target); n.rotation.y = Math.atan2(-4.6 - n.position.x, -12.6 - n.position.z); n.userData.phase = Math.random() * 6; }
-  addInteract({ obj: n, pos: () => n.position, r: 1.8, label: () => 'Talk to the Naknik', act: () => dialogue([['Naknik', ['I mix! I mix!', 'Boss, what is cumin? I just put lots in.', 'Paprika is red. Red is fast. I mix fast.', 'Can I have a break? No? Okay. I mix.'][Math.floor(Math.random() * 4)]]]) });
+  addInteract({ obj: n, pos: () => n.position, r: 1.8, enabled: () => n.visible, label: () => { const m = crew.info(naknikim.indexOf(n)); return m ? `Talk to ${m.name}` : 'Talk to the Naknik'; }, act: () => talkNaknik(n) });
+}
+const NAK_LINES = ['I mix! I mix!', 'Boss, what is cumin? I just put lots in.', 'Paprika is red. Red is fast. I mix fast.', 'Can I have a break? No? Ok.', 'I counted the koriander. It is many.'];
+function talkNaknik(n) { // name, skill and mood; send them out on an errand or give them a day off
+  const i = naknikim.indexOf(n), m = crew.info(i);
+  if (!m) return dialogue([['Naknik', NAK_LINES[Math.floor(Math.random() * NAK_LINES.length)]]]);
+  if (crew.napping(i)) return choice(m.name, `<i>(snoring on a sack of paprika)</i> Mood: <b>${m.moodWord}</b> (${m.mood}). Skill ${m.stars}. A day off would help.`, ['Give a day off', 'Let them sleep'], (k) => { if (k === 0) crew.dayOff(i); });
+  choice(m.name, `"${NAK_LINES[Math.floor(Math.random() * NAK_LINES.length)]}" <br><small>Skill ${m.stars} · mood <b>${m.moodWord}</b> (${m.mood}) · an errand takes one market day, and they don't mix meanwhile.</small>`, ['Back to work', 'Send on an errand', 'Give a day off'], (k) => {
+    if (k === 2) crew.dayOff(i);
+    if (k === 1) setTimeout(() => choice(m.name, 'Where to, boss?', [...crew.ERRANDS.map((e) => e.name), 'Never mind'], (e) => { if (e < crew.ERRANDS.length) crew.send(i, crew.ERRANDS[e].id); }), 50);
+  });
+}
+function spiceCloud(at) { // a mixing mistake: a puff of paprika
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshBasicMaterial({ color: 0xc2412d, transparent: true, opacity: 0.7, depthWrite: false }));
+  m.position.set(at.x, 1.0, at.z); scene.add(m); const t0 = performance.now();
+  const step = () => { const k = (performance.now() - t0) / 1600; if (k >= 1) { scene.remove(m); return; } m.scale.setScalar(1 + k * 3); m.material.opacity = 0.7 * (1 - k); m.position.y = 1.0 + k * 0.8; requestAnimationFrame(step); };
+  step();
 }
 function poof(g) {
   const t0 = performance.now();
@@ -1469,7 +1487,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'npcs', 'ws', 'van'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'npcs', 'ws', 'van', 'crew', 'crewDay'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
   try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -2416,14 +2434,18 @@ function tick() {
   const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then stir
   for (const n of naknikim) {
-    const u = n.userData;
+    const u = n.userData; { const m = crew.info(naknikim.indexOf(n)); n.visible = !(m && m.away); } { const bu = u.bubble && u.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; } }
     if (u.walking) {
       const via = n.position.z > -7.5 ? new THREE.Vector3((WH.doorX0 + WH.doorX1) / 2, 0, -9) : u.target;
       const d = via.clone().sub(n.position); d.y = 0; const L = d.length();
       if (L < 0.15 && via === u.target) { u.walking = false; n.rotation.y = Math.atan2(-4.6 - n.position.x, -12.6 - n.position.z); }
       else { d.normalize(); n.position.addScaledVector(d, Math.min(L, 2.6 * dt)); n.rotation.y = Math.atan2(d.x, d.z); }
       animate(n, u.walking ? 2.6 : 0, dt);
+    } else if (crew.napping(naknikim.indexOf(n))) { // low mood: asleep against the sacks
+      u.body.rotation.x = -0.5; u.arms[0].rotation.x = 0; u.arms[1].rotation.x = 0; u.phase += dt;
+      if (Math.sin(u.phase * 0.7) > 0.995 && !(u.bubble && u.bubble.visible)) personBubble(n, 'Zzz...', '#a9c46a');
     } else {
+      u.body.rotation.x = 0;
       u.phase += dt * 7; u.arms[1].rotation.x = -1.2 + Math.sin(u.phase) * 0.35; u.arms[0].rotation.x = -0.9 + Math.cos(u.phase) * 0.3;
       u.body.position.y = Math.abs(Math.sin(u.phase * 0.5)) * 0.03;
     }
@@ -2431,7 +2453,7 @@ function tick() {
   if (state.table) spiceInBowl.rotation.y += dt * (state.naknik ? 2 : 0);
   // a finished mission ends the market day (checked back in the hub, so the toast doesn't cover the results screen)
   if (!mission.active && !state.inDialogue && econ.update()) garage.afterMission(); // a mission ended: maybe a wheel clamp
-  if (!mission.active) garage.dayCheck();
+  if (!mission.active) { garage.dayCheck(); const oops = crew.dayCheck(); if (oops) { const here = naknikim.filter((x, k) => x.visible && !crew.napping(k)); const who = here[Math.floor(Math.random() * here.length)]; if (who) { personBubble(who, oops, '#f2c14e'); spiceCloud(who.position); } } }
   if (npcs) npcs.update(dt);
   // passive income
   if (state.income > 0) {
@@ -2518,5 +2540,5 @@ npcs = initNpcs({ THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; } };
+window.__sme = { charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; } };
 tick();
