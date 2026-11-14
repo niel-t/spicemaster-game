@@ -47,6 +47,9 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
   into your hands if there is room, otherwise into the kluis.
 - **Arrival:** launching Spekbuurt plays a short drive-in: the Oofmobiel pulls up, parks out front and Eddy walks to the door.
   Skip it with E / Space / click; a restart (Backspace) never replays it.
+- **Mini-boss STEVEN ZEEGAAL** (Spekbuurt gym, his dojo): a 90s action-star parody. Slow, unarmed, never picks up guns,
+  takes 4 hits, lazily leans out of the way of bullets, and his wrist lock twists your gun out of your hand. Enemy types are
+  data-driven (`FOE_TYPES` in `js/mission.js`): give a SPAWNS entry a 7th field `'zeegaal'` to place him in any level.
 - **Active reload:** R starts a reload from your pocket ammo (9mm for the Makarov, shells for the sawn-off). Press R again inside the
   green window on the bar above Eddy for an instant reload; miss it and the gun jams (slower reload). An empty gun reloads by itself when you attack.
 - **Ammo:** bought boxes go to your pocket. Grab (E) a Lampas gun of the calibre you hold to strip its rounds; picking up a new gun also pockets its spare rounds.
