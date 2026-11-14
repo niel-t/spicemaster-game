@@ -684,19 +684,56 @@ export function initMission(ctx) {
 
   // ================================================================== RUN STATE
   const M = { active: false };
+  // ================================================================== REMIX RAIDS (replayability)
+  // An owned joint can be raided again: the Lampas restock it every market day. Each run is rolled from a seed
+  // (level + market day), so a reload can't reroll it: non-boss Lampas swap spawn spots and weapons, some stay
+  // home, loot crates sit at a random few of the level's spots, and one modifier changes the night.
+  const REMIX_MODS = {
+    normaal: { name: 'GEWONE AVOND', line: 'The Lampas restocked. Business as usual.', keep: [0.7, 0.9], pay: 1, w: 35 },
+    stroom: { name: 'STROOMSTORING', line: 'Power cut. Watch for the red lasers. Pay x1.3.', keep: [0.7, 0.9], pay: 1.3, dark: true, w: 20 },
+    spits: { name: 'SPITSUUR', line: 'Rush hour: the whole crew is in. Pay x1.5.', keep: [1, 1], pay: 1.5, guns: 0.15, w: 20 },
+    kassa: { name: 'KASSA VOL', line: 'The till is full and they are armed for it. Pay x2.', keep: [0.8, 1], pay: 2, guns: 0.5, w: 10 },
+    rustig: { name: 'RUSTIGE AVOND', line: 'A quiet night. Fewer Lampas, half pay.', keep: [0.45, 0.55], pay: 0.5, w: 15 },
+  };
+  const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
+  function remixFor(id, day) { // what tonight's remix of a level is (deterministic per level and market day)
+    const seed = hashStr(`${id}#${day}`), r = rng32(seed);
+    let x = r() * Object.values(REMIX_MODS).reduce((a, m) => a + m.w, 0), mod = 'normaal';
+    for (const [k, m] of Object.entries(REMIX_MODS)) { x -= m.w; if (x <= 0) { mod = k; break; } }
+    return { seed, mod, day };
+  }
+  let REMIX = null;
+  function rollRemix(opt) {
+    const r = rng32(opt.seed ^ 0x9e3779b9), m = REMIX_MODS[opt.mod] || REMIX_MODS.normaal;
+    const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const grunts = enemies.map((e, i) => i).filter((i) => !enemies[i].userData.foe.boss && !enemies[i].userData.foe.type);
+    const spots = shuffle(grunts.map((i) => enemies[i].userData.foe.spawn));
+    const arms = shuffle(grunts.map((i) => enemies[i].userData.foe.spawn[3]));
+    const place = {}, weapons = {}, keep = new Set(enemies.map((e, i) => i).filter((i) => !grunts.includes(i)));
+    const nKeep = Math.round(grunts.length * (m.keep[0] + r() * (m.keep[1] - m.keep[0])));
+    grunts.forEach((i, k) => { place[i] = spots[k]; let w = arms[k]; if (m.guns && r() < m.guns) w = w === 'makarov' ? 'shotgun' : 'makarov'; weapons[i] = w; });
+    for (const i of shuffle(grunts.slice()).slice(0, nKeep)) keep.add(i);
+    const loot = new Set(shuffle(lootCrates.map((l, i) => i)).slice(0, Math.min(3, lootCrates.length)));
+    return { ...opt, m, place, weapons, keep, loot };
+  }
+  M.REMIX_MODS = REMIX_MODS; M.remixFor = remixFor;
+  Object.defineProperty(M, 'remix', { get: () => REMIX, enumerable: true });
   const R = { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: false, results: false, ammoAtStart: {}, poolAtStart: {}, lootAtStart: 0, lastOneShown: false };
   const saved = {};
   function resetFloor() {
     cancelArrive(); // a restart never replays the drive in
-    const done = ownsLevel(LV.id);
+    const done = ownsLevel(LV.id) && !REMIX;
     // glass and barrels come back
     for (const [k, q] of pristine.glass) { glass.set(k, q); G[q.z][q.x] = '%'; q.s.off = false; q.pane.visible = true; }
     for (const [k, b] of pristine.barrels) { if (!barrels.has(k)) root.add(b.g); barrels.set(k, b); G[b.z][b.x] = 'X'; b.s.off = false; }
     for (const e of enemies) {
-      const f = e.userData.foe, [x, z, r, w] = f.spawn, u = e.userData;
-      Object.assign(f, { alive: !done, down: 0, hp: f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 : 1, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
-      setFoeWeapon(e, done ? null : w);
-      e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !done; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
+      const f = e.userData.foe, u = e.userData, i = enemies.indexOf(e);
+      let [x, z, r, w] = f.spawn, off = done;
+      if (REMIX) { if (REMIX.place[i]) [x, z, r] = REMIX.place[i]; if (i in REMIX.weapons) w = REMIX.weapons[i]; off = !REMIX.keep.has(i); }
+      Object.assign(f, { alive: !off, down: 0, hp: f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 : 1, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
+      setFoeWeapon(e, off ? null : w);
+      e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !off; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
     }
     for (const it of items) root.remove(it.g, it.ring); items.length = 0;
     for (const b of bullets) root.remove(b.m); bullets.length = 0;
@@ -705,9 +742,9 @@ export function initMission(ctx) {
     for (const d of decals) root.remove(d); decals.length = 0; pools.length = 0;
     for (const d of doors) { d.th = 0; d.w = 0; d.g.rotation.y = d.base; }
     for (const p of pops) p.el.remove(); pops.length = 0;
-    state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
+    state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = REMIX ? !REMIX.loot.has(i) : (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
-    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false });
+    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, foes: Math.max(1, alive().length) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
     Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.loadout.vest > 0 ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
@@ -715,29 +752,31 @@ export function initMission(ctx) {
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
   }
-  function enter(id = 'spekbuurt') {
+  function enter(id = 'spekbuurt', opts = {}) {
     if (M.active || !LEVELS[id]) return;
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
       if (!LV || LV.id !== id) buildLevel(LEVELS[id]);
+      REMIX = opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
       const mood = LV.mood;
       M.active = true; root.visible = true; clearPlayerSplats();
       saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity;
       scene.background.set(mood.bg); scene.fog.color.set(mood.bg); scene.fog.near = mood.fogNear; scene.fog.far = mood.fogFar; hemi.intensity = mood.hemi; sun.intensity = mood.sun;
       lights.forEach(([l, k]) => { l.intensity = k; });
+      if (REMIX && REMIX.m.dark) { lights.forEach(([l, k]) => { l.intensity = k * 0.2; }); hemi.intensity *= 0.45; sun.intensity *= 0.4; }
       setBounds({ x0: OX + LV.bounds[0], x1: OX + LV.bounds[1], z0: LV.bounds[2], z1: LV.bounds[3] });
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
       resetFloor();
       setArea(LV.text.area);
-      $('objective').innerHTML = ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
+      $('objective').innerHTML = REMIX ? `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}` : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
-      startArrive(() => { if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
+      startArrive(() => { if (REMIX) banner(`REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
   function exit() {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
-      saveOwnAmmo(); M.active = false; root.visible = false; clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
+      saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
@@ -856,11 +895,15 @@ export function initMission(ctx) {
   function results() {
     if (!M.active) return;
     R.results = true; setOwned(LV.id); state.raids = (state.raids || 0) + 1;
-    setLootTaken(LV.id, lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0));
-    const ratio = R.score / (enemies.length * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
-    const pay = Math.round(R.score / 100) * 10; R.pay = pay; R.grade = gr;
+    if (!REMIX) setLootTaken(LV.id, lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0));
+    const ratio = R.score / ((R.foes || enemies.length) * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
+    const pay = Math.round(R.score / 100 * (REMIX ? REMIX.m.pay : 1)) * 10; R.pay = pay; R.grade = gr;
+    // personal bests per level (shown on the map); remixes count too
+    state.best = state.best && typeof state.best === 'object' ? state.best : {};
+    const prev = state.best[LV.id], isBest = !prev || R.score > prev.score;
+    if (isBest) state.best[LV.id] = { score: R.score, grade: gr, time: Math.floor(R.time), runs: ((prev && prev.runs) || 0) + 1 }; else prev.runs = (prev.runs || 0) + 1;
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
-    showScreen(`<div class="logo2">${LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}</b><br>WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
+    showScreen(`<div class="logo2">${LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#ff5fb8">NEW BEST</span>' : ''}</b><br>${REMIX ? `REMIX<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
     sfx('cash'); addMoney(pay); commitKit();
     if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
     $('objective').innerHTML = LV.text.objectiveCleared;
@@ -897,7 +940,7 @@ export function initMission(ctx) {
     if (R.results) { hideScreen(); R.results = false; banner(LV.text.ownedBanner[0], LV.text.ownedBanner[1], 3); return true; }
     for (const [i, l] of lootCrates.entries()) if (!l.taken && Math.hypot(l.c.position.x - player.position.x, l.c.position.z - player.position.z) < 1.2) {
       l.taken = true; l.c.visible = l.glow.visible = false; state.loot = (state.loot || 0) + 1;
-      if (ownsLevel(LV.id)) setLootTaken(LV.id, [...(state.lootTaken[LV.id] || []), i]);
+      if (ownsLevel(LV.id) && !REMIX) setLootTaken(LV.id, [...(state.lootTaken[LV.id] || []), i]);
       popup(player.position, '+1 CRATE OF LAMPAS SPICE', '#ffd23a'); toast('+1 CRATE OF LAMPAS SPICE', 'Sell it on Kaasplaats (PC) for W 150. Check it with I.', 1.8); sfx('pick'); hud(); return true;
     }
     let best = null, bd = 1.3;
@@ -1320,6 +1363,9 @@ export function initMission(ctx) {
     canRestart: () => M.active && !!LV && !ownsLevel(LV.id), levelName: () => (LV ? LV.name : ''),
     _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, FOE_TYPES, _wristLock: wristLock, _tryDodge: tryDodge, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
   Object.defineProperty(M, 'van', { get: () => van, enumerable: true });
+  // test hooks: where the Lampas stand, and a forced clear (results screen) for remix/best-score checks
+  M.debugFoes = () => enemies.map((e) => ({ alive: e.userData.foe.alive, x: +e.position.x.toFixed(1), z: +e.position.z.toFixed(1), w: e.userData.foe.weapon }));
+  M.debugClear = () => { for (const e of enemies) e.userData.foe.alive = false; R.score = R.score || 9000; results(); };
   buildLevel(spekbuurt); // Mission 1 is built up front (as before); other levels replace it when they're launched
   hud();
   return M;

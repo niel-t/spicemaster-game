@@ -1165,6 +1165,11 @@ function mapHTML(van) {
   h += `</div><div class="well" id="pininfo" style="margin-top:8px">${van ? 'Pick a destination for the Oofmobiel.' : 'Click a territory. Green = yours.'}</div>`;
   return h;
 }
+// an owned joint: the Lampas move back in every market day, so it can be raided again (a remix: js/mission.js)
+function remixInfo(n, id) {
+  const rx = mission.remixFor(id, econ.ensure().day), m = mission.REMIX_MODS[rx.mod], b = state.best && state.best[id];
+  return `<b>${n}</b>: yours, and a client of Eddy & Zn. But the Lampas sneak back in every night. <b>Tonight's remix: ${m.name}</b> (${m.line})${b ? ` Your best: <b>${b.grade}</b> · W ${b.score.toLocaleString('nl-NL')} · ${b.runs || 1} run(s).` : ''}`;
+}
 function bindMap() {
   document.querySelectorAll('[data-pin]').forEach((p) => p.onclick = () => {
     const n = p.dataset.pin, k = p.dataset.k, info = $('pininfo'); beep(600, 0.04);
@@ -1172,7 +1177,7 @@ function bindMap() {
     const drive = (label) => (pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? `<button class="b95" id="goM">${label}</button>` : '<i>Get a weapon from The Russian first.</i>');
     const blurb = { Kroketkade: 'A Lampas snackbar on the rainy corner of the quay. The kitchen and the garage behind it are full of Lampas.', Uitjesbuurt: 'De Zure Ui, the corner snackbar with a terrace. Underneath: an onion cellar and a Lampas gambling den.' };
     const t = {
-      own: d1 ? `<b>${n}</b>: yours now. ${{ Spekbuurt: 'Snackpaleis Spekbuurt is empty', Kroketkade: 'The fryers on the quay are cold', Uitjesbuurt: 'The poker table downstairs is empty' }[n]}; set up shop here later. ${pcMode === 'van' ? '<button class="b95" id="goM">Drive</button>' : ''}` : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
+      own: d1 ? remixInfo(n, d1[1]) + (pcMode === 'van' ? ' <button class="b95" id="goM">Drive · remix raid</button>' : ' <i>Drive there in the Oofmobiel.</i>') : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
       m1: `<b>Spekbuurt</b>: Lampas turf. Snackpaleis Spekbuurt sells their watered-down spice, and the back of house is full of Lampas. <b>Mission 1.</b> ${pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? '<button class="b95" id="goM">Drive · start mission</button>' : '<i>Get a weapon from The Russian first.</i>'}`,
       m2: d1 ? `<b>${n}</b>: Lampas turf in De Natte Worst. ${blurb[n] || ''} <b>Mission ${d1[2]}.</b> ${drive('Drive · start mission')}` : '',
       next: d1 ? `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>Take Spekbuurt first.</i>` : state.district1 ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. Next on the list. <i>(Missions in a later build.)</i> ${pcMode === 'van' ? '<button class="b95" id="goD">Drive to Oud-Vettenburg</button>' : '<i>Drive there in the Oofmobiel.</i>'}` : `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
@@ -1183,7 +1188,7 @@ function bindMap() {
     }[k];
     info.innerHTML = t;
     const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); }; // travelling elsewhere must call clearPlayerSplats()
-    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); mission.enter(d1 ? d1[1] : 'spekbuurt'); };
+    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); const id = d1 ? d1[1] : 'spekbuurt'; mission.enter(id, owns(id) ? { remix: mission.remixFor(id, econ.ensure().day) } : {}); };
     const goD = $('goD'); if (goD) goD.onclick = () => { closePC(); startDrive(); };
   });
 }
@@ -1372,7 +1377,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
