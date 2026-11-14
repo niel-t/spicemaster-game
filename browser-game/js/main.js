@@ -1374,7 +1374,7 @@ function updateObjective() {
   if (state.step === 'list' && n === N) state.step = 'sell';
   const t = {
     title: '',
-    talk: 'Talk to <b>Eddy Sr.</b>. He\'s waiting for you in the warehouse.',
+    talk: 'Talk to <b>Eddy Sr.</b> He\'s waiting for you in the warehouse.',
     list: `List the old shoarma junk for sale: walk up to each machine and press <b>E</b> (${n}/${N}).`,
     sell: `Sell everything on <b>Kaasplaats</b> using the Kaasdows 95 PC at the back (${s}/${N} sold).`,
     hire: !state.table ? `Buy a <b>mixing table</b> on the PC (W ${TABLE_COST}).` : state.naknik === 0 ? `Hire your first <b>Naknik</b> on the PC (W ${NAKNIK_COST}).` : 'Talk to <b>Eddy Sr.</b> one last time.',
