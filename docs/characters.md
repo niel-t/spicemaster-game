@@ -22,7 +22,7 @@ Each one gives Eddy Jr. an idea for his Ideeënboek. Code: `browser-game/js/npcs
 
 ## Haggling cast (Werkplaats clients and shopkeepers)
 
-Portraits from Tristan's Drive folder 01_Characters, in `browser-game/assets/people/`. Code: `browser-game/js/haggle.js` (PEOPLE). Names and personalities are placeholders until Tristan names them.
+Portraits from Tristan's Drive folder 01_Characters, in `browser-game/assets/people/`. Code: `browser-game/js/haggle.js` (PEOPLE). Names approved by Tristan.
 
 - **Fenna**, the receptionist. Role: parts counter at Kaasland Auto Parts (new Werkplaats parts). Look: black hair with blonde streaks, glasses, Kaasland Auto Parts tee. Personality: knows every part number, has heard every sob story twice.
 - **Oma Zahra**, the Lady of Spices. Role: one sack under the counter at the back of the Kruidenbeurs each market day. Look: striped headscarf, woven shawl, old scales. Personality: warm, patient, impossible to fool.
