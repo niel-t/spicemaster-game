@@ -1,0 +1,32 @@
+# Publishes the browser game on GitHub Pages (https://niel-t.github.io/spicemaster-game/).
+# No build step: the game is plain ES modules, so we only copy what's needed to play.
+name: Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect the game files
+        run: |
+          mkdir -p site
+          cp -r browser-game/index.html browser-game/js browser-game/assets browser-game/vendor site/
+          touch site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

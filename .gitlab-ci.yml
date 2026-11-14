@@ -1,0 +1,15 @@
+# Publishes the browser game on GitLab Pages (https://<namespace>.gitlab.io/spice-master-eddy/).
+# No build step: the game is plain ES modules, so we only copy what's needed to play into public/.
+pages:
+  stage: deploy
+  image: alpine:3.20
+  script:
+    - mkdir -p public
+    - cp -r browser-game/index.html browser-game/js browser-game/assets browser-game/vendor public/
+    - ls -la public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == "claude/neon-vice-mechanics"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
