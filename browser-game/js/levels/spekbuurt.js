@@ -62,13 +62,13 @@ export default {
   start: [19, 2.2],              // world: where Eddy stands after the drive in (and on a restart)
   bounds: [-6, W + 6, -H, 10],   // world: x0, x1, z0, z1
   validateFrom: [18.5, 24.5],    // cell: the front door
-  spawns: [ // cell x, cell z, weapon, facing (0 = +z/south), room, boss
+  spawns: [ // cell x, cell z, weapon, facing (0 = +z/south), room, boss, enemy type (FOE_TYPES in mission.js)
     [13, 19, 'bat', Math.PI, 'restaurant'], [22, 18, 'makarov', 0, 'restaurant'], [16, 15.6, 'makarov', 0, 'restaurant'], [23, 22, 'bat', -Math.PI / 2, 'restaurant'],
     [5, 15, 'makarov', Math.PI / 2, 'lounge'], [3, 21.5, 'bat', 0, 'lounge'], [7, 22, null, -Math.PI / 2, 'lounge'],
     [6, 5.5, 'makarov', Math.PI / 2, 'gambling'], [10.5, 6, 'bat', -Math.PI / 2, 'gambling'], [13.5, 3.5, 'makarov', -Math.PI / 2, 'gambling'], [5.5, 9, 'bat', Math.PI, 'gambling'],
     [19.5, 2, 'shotgun', 0, 'office', true], [22.5, 5.5, 'makarov', -Math.PI / 2, 'office'],
     [20, 10, 'bat', Math.PI / 2, 'landing'], [17, 12.5, 'makarov', Math.PI / 2, 'landing'],
-    [28.5, 5.5, 'bat', Math.PI, 'gym'], [31, 6.5, null, -Math.PI / 2, 'gym'],
+    [28.5, 5.5, 'bat', Math.PI, 'gym'], [31, 6.5, null, -Math.PI / 2, 'gym', true, 'zeegaal'], // Steven Zeegaal: the gym is his dojo
     [31.5, 12.5, 'bat', -Math.PI / 2, 'corridor'],
     [37.5, 4.5, 'makarov', 0, 'warehouse'], [40.5, 9.5, 'shotgun', Math.PI, 'warehouse'], [43.5, 3.5, 'bat', -Math.PI / 2, 'warehouse'],
     [27.5, 21.5, 'bat', Math.PI / 2, 'mixing'], [31, 16.5, 'makarov', 0, 'mixing'],

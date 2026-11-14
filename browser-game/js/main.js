@@ -657,11 +657,17 @@ function paintHead(f) {
       g.fillStyle = '#f4efe2'; g.fillRect(C - 11, my - 0.5, 22, 4);
     }
     g.strokeStyle = shade(sk, 0.6); g.lineWidth = 1.6; for (const s of [-1, 1]) { g.beginPath(); g.arc(C + s * 24, my - 4, 5, s > 0 ? 0.2 : 2.3, s > 0 ? 1.0 : 3.0); g.stroke(); }
+    if (f.goatee) { // a trimmed goatee: thin moustache down into a pointed chin beard
+      g.fillStyle = f.goatee;
+      g.beginPath(); g.moveTo(C - 21, my - 1); g.quadraticCurveTo(C, my - 12, C + 21, my - 1); g.quadraticCurveTo(C, my - 6, C - 21, my - 1); g.fill();
+      for (const s of [-1, 1]) { g.beginPath(); g.moveTo(C + s * 20, my - 1); g.lineTo(C + s * 17, my + 14); g.lineTo(C + s * 12, my + 13); g.lineTo(C + s * 15, my); g.fill(); }
+      g.beginPath(); g.moveTo(C - 13, my + 10); g.quadraticCurveTo(C, my + 16, C + 13, my + 10); g.lineTo(C + 9, my + 26); g.quadraticCurveTo(C, my + 34, C - 9, my + 26); g.closePath(); g.fill();
+    }
     if (f.glasses) {
       g.strokeStyle = '#0c0c10'; g.lineWidth = 3.2;
       for (const s of [-1, 1]) { const ex = C + s * 19; g.beginPath(); g.roundRect(ex - 14, 115, 28, 18, 5); g.stroke(); }
       g.beginPath(); g.moveTo(C - 5, 121); g.lineTo(C + 5, 121); g.stroke();
-      g.fillStyle = 'rgba(190,220,255,.16)'; for (const s of [-1, 1]) g.fillRect(C + s * 19 - 12, 117, 24, 14);
+      g.fillStyle = f.tint || 'rgba(190,220,255,.16)'; for (const s of [-1, 1]) g.fillRect(C + s * 19 - 12, 117, 24, 14);
     }
     g.restore();
     if (f.glasses) { g.strokeStyle = '#0c0c10'; g.lineWidth = 3; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(C + s * 44, 120); g.lineTo(C + s * 66, 124); g.stroke(); } }
@@ -816,6 +822,10 @@ function makePerson(o) {
       const vis = add(new THREE.CylinderGeometry(0.13, 0.13, 0.015, 16, 1, false, -Math.PI / 2, Math.PI), std(o.ballcap, 0.6), 0, 0.245, 0.09, head); vis.scale.z = 1.25;
     }
     if (o.head.beard3d) { const bm = std(parseInt(o.head.beard3d.slice(1), 16), 0.9); for (let i = 0; i < 24; i++) { const a = -0.15 * Math.PI + Math.random() * 1.3 * Math.PI; add(new THREE.SphereGeometry(0.036, 8, 6), bm, Math.cos(a) * 0.112, 0.06 + Math.random() * 0.09, Math.sin(a) * 0.1 + 0.045, head); } }
+    if (o.mandarin) { // silk jacket details: gold mandarin collar and three frog buttons down the chest
+      const gm = std(o.mandarin, 0.3); const col = add(new THREE.CylinderGeometry(0.09, 0.1, 0.07, 18, 1, true), gm, 0, 1.69, 0); col.scale.z = 0.85;
+      for (let k = 0; k < 3; k++) { add(new THREE.BoxGeometry(0.11, 0.022, 0.02), gm, 0, 1.56 - k * 0.11, 0.2); add(new THREE.SphereGeometry(0.016, 8, 6), gm, 0, 1.56 - k * 0.11, 0.212); }
+    }
     if (o.chain) { const ch = add(new THREE.TorusGeometry(0.1, 0.012, 6, 18), std(0xe8c040, 0.2), 0, 1.66, 0.05); ch.rotation.x = Math.PI / 2 - 0.35; ch.scale.y = 1.2; }
     if (o.police || o.capColor) { // peaked cap: police navy, or the ticket inspectors' colour
       const cc = o.capColor || 0x1a2440;
@@ -825,7 +835,12 @@ function makePerson(o) {
       add(new THREE.BoxGeometry(0.05, 0.05, 0.01), std(0xd8b040, 0.3), 0, 0.33, 0.155, head);
     }
     const hairM = std(parseInt(o.head.hair.slice(1), 16), 0.9);
-    if (!o.head.bald) for (let i = 0; i < 22; i++) { const a = Math.random() * Math.PI * 2, el = 0.3 + Math.random() * 0.7; const p = new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el)); if (p.z > 0.45 && p.y < 0.6) continue; add(new THREE.SphereGeometry(0.048, 8, 6), hairM, p.x * 0.14, 0.2 + p.y * 0.13, p.z * 0.14 - 0.01, head); }
+    if (o.head.slick) { // slicked straight back: one smooth glossy cap instead of tufts
+      const sm = new THREE.MeshStandardMaterial({ color: parseInt(o.head.hair.slice(1), 16), roughness: 0.25, metalness: 0.1 });
+      const cap = add(new THREE.SphereGeometry(0.152, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), sm, 0, 0.165, -0.03, head); cap.scale.set(0.96, 0.82, 1.04); cap.rotation.x = -0.55; // tilted back: hairline high on the forehead, volume at the back
+    }
+    if (o.head.ponytail) { const pt = add(new THREE.CapsuleGeometry(0.032, 0.13, 4, 8), hairM, 0, 0.13, -0.17, head); pt.rotation.x = 0.35; add(new THREE.SphereGeometry(0.03, 8, 6), hairM, 0, 0.21, -0.155, head); }
+    if (!o.head.bald && !o.head.slick) for (let i = 0; i < 22; i++) { const a = Math.random() * Math.PI * 2, el = 0.3 + Math.random() * 0.7; const p = new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el)); if (p.z > 0.45 && p.y < 0.6) continue; add(new THREE.SphereGeometry(0.048, 8, 6), hairM, p.x * 0.14, 0.2 + p.y * 0.13, p.z * 0.14 - 0.01, head); }
     if (o.head.long) { const l = add(new THREE.CapsuleGeometry(0.11, 0.2, 4, 10), hairM, 0, 0.08, -0.08, head); l.scale.set(1.25, 1, 0.7); }
     if (o.head.bun) add(new THREE.SphereGeometry(0.07, 10, 8), hairM, 0, 0.36, -0.07, head);
   } else if (o.headKind === 'nak') {

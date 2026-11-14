@@ -496,20 +496,38 @@ export function initMission(ctx) {
     { front: '#e8641as', shirt: 0xe8641a, pants: 0x2a2a3a }, { front: '#2a1a12', shirt: 0x2a1a12, pants: 0x1a1a22 },
     { front: '#f2efe6', shirt: 0xf2efe6, pants: 0xe8641a }, { front: '#ff7a1a', shirt: 0xff7a1a, pants: 0xf2efe6 },
   ];
+  // Enemy types (data-driven): a level's spawn entry may name one as its 7th field (js/levels/*.js). Any level can place them.
+  //   zeegaal: STEVEN ZEEGAAL, a 90s action-star parody mini-boss. Unarmed and slow, never picks up guns, takes 4 hits,
+  //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
+  const FOE_TYPES = {
+    zeegaal: {
+      name: 'STEVEN ZEEGAAL', hp: 4, speed: 0.62, dodge: 0.4, grab: true, noWeapons: true, mass: 2.4, score: 2500,
+      look: { head: { skin: 0xe9c2a2, hair: '#0d0b0a', brow: '#14100c', browW: 5, hairLine: 70, sideLine: 112, backLine: 150, mouth: 'smile', squint: true, glasses: true, tint: 'rgba(70,40,30,.62)', goatee: '#17120e', iris: '#2a1c14', slick: true, ponytail: true },
+        front: '#1d1a24', shirt: 0x1d1a24, pants: 0x121016, shoes: 0x050505, skirt: 0x1d1a24, belt: 0xc8a040, mandarin: 0xd8b04a, belly: 0.6, scale: 1.1 },
+      alert: ['Ik vecht niet. Ik maak het af.', 'Jij hebt de verkeerde snackbar gekozen.', 'Dit wordt... onaangenaam.', 'Rustig. Ik ben getraind.'],
+      hurt: ['Interessant.', 'Dat... was een vergissing.', 'Ik voelde niets.', 'Mijn chi is ongedeerd.'],
+      dodgeSay: ['Te traag.', 'Hmm.', 'Ik zag het aankomen.'],
+      disarm: ['Je pistool... is van mij.', 'Pols. Draaien. Klaar.', 'Dat hoort hier niet.'],
+      down: ['STEVEN ZEEGAAL IS DOWN', 'Direct-to-video. Again.'],
+    },
+  };
   const enemies = [];
   const laserM = new THREE.MeshBasicMaterial({ color: 0xff1030, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
-  function spawnEnemies(def) { def.spawns.forEach(([x, z, w, rot, room, boss, opt], i) => { // opt: { cap: colour } puts a cap / hard hat on him
+  // spawn entry: [cell x, cell z, weapon, facing, room, boss, extra]; extra is an enemy type name (FOE_TYPES) or { type, cap }
+  function spawnEnemies(def) { def.spawns.forEach(([x, z, w, rot, room, boss, opt], i) => {
+    if (typeof opt === 'string') opt = { type: opt };
+    const type = opt && opt.type, FT = type && FOE_TYPES[type];
     const look = LAMPAS_LOOKS[i % LAMPAS_LOOKS.length], bl = def.bossLook || {};
     const skin = boss ? (bl.skin ?? 0xf0c8a8) : [0xf0c8a8, 0xe0a882, 0xf4d2bc, 0xd8a080][i % 4];
     const head = boss
       ? { skin, hair: '#d8c080', brow: '#a89060', hairLine: 80, sideLine: 116, backLine: 150, mouth: 'smile', glasses: true, iris: '#3a5a7a', ...(bl.head || {}) }
       : { skin, hair: ['#2a2a2a', '#d8c080', '#7a5a30', '#1a1a1a'][i % 4], brow: '#3a2a1a', hairLine: i % 3 === 0 ? 40 : 96, sideLine: 120, backLine: 150, mouth: 'smile', iris: '#3a3a3a' };
     const shirt = boss ? (bl.shirt ?? 0xf2efe6) : look.shirt;
-    const p = makePerson({ head, ballcap: opt && 'cap' in opt ? opt.cap : boss && bl.cap !== undefined ? bl.cap : i % 5 === 2 ? 0xff7a1a : undefined, front: boss ? (bl.front ?? '#f2efe6') : look.front, shirt, pants: boss ? (bl.pants ?? 0xf2efe6) : look.pants, shoes: 0x111111, belly: boss ? (bl.belly ?? 1.2) : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1 });
+    const p = FT ? makePerson({ ...FT.look, skin: FT.look.head.skin }) : makePerson({ head, ballcap: opt && 'cap' in opt ? opt.cap : boss && bl.cap !== undefined ? bl.cap : i % 5 === 2 ? 0xff7a1a : undefined, front: boss ? (bl.front ?? '#f2efe6') : look.front, shirt, pants: boss ? (bl.pants ?? 0xf2efe6) : look.pants, shoes: 0x111111, belly: boss ? (bl.belly ?? 1.2) : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1 });
     scene.remove(p); root.add(p);
     const hand = new THREE.Group(); hand.position.set(0, -0.68, 0.05); p.userData.arms[0].add(hand);
     const laser = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 1), laserM.clone()); laser.visible = false; root.add(laser);
-    p.userData.foe = { id: i, spawn: [x, z, rot, w], room, boss: !!boss, hand, laser, skin, shirt, pers: ['rush', 'careful', 'normal'][i % 3], mass: boss ? 2.6 : 1 + (i % 3) * 0.15 };
+    p.userData.foe = { id: i, spawn: [x, z, rot, w], room, boss: !!boss, type: type || null, hand, laser, skin, shirt, pers: ['rush', 'careful', 'normal'][i % 3], mass: FT ? FT.mass : boss ? 2.6 : 1 + (i % 3) * 0.15 };
     p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0);
     p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
@@ -675,7 +693,7 @@ export function initMission(ctx) {
     for (const [k, b] of pristine.barrels) { if (!barrels.has(k)) root.add(b.g); barrels.set(k, b); G[b.z][b.x] = 'X'; b.s.off = false; }
     for (const e of enemies) {
       const f = e.userData.foe, [x, z, r, w] = f.spawn, u = e.userData;
-      Object.assign(f, { alive: !done, down: 0, hp: f.boss ? 2 : 1, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
+      Object.assign(f, { alive: !done, down: 0, hp: f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 : 1, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
       setFoeWeapon(e, done ? null : w);
       e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !done; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
     }
@@ -761,7 +779,8 @@ export function initMission(ctx) {
     else if ((type === 'bat' && Math.random() < 0.2) || (type === 'makarov' && Math.random() < 0.08)) limbOff(e, dir);
     sfx('splat'); FX.freeze = type === 'exec' ? 0.14 : 0.045; shake(type === 'shotgun' ? 0.4 : 0.25);
     R.kills++; if (type === 'exec') R.execs++; addKillScore(e, type);
-    if (f.boss) { banner(LV.text.bossDown[0], LV.text.bossDown[1], 2.5); shake(0.6); FX.freeze = 0.3; }
+    if (f.type) { const FT = FOE_TYPES[f.type]; banner(FT.down[0], FT.down[1], 2.5); shake(0.6); FX.freeze = 0.3; R.score += FT.score; }
+    else if (f.boss) { banner(LV.text.bossDown[0], LV.text.bossDown[1], 2.5); shake(0.6); FX.freeze = 0.3; }
     const left = alive().length;
     if (left === 1 && !R.lastOneShown) { R.lastOneShown = true; popup(alive()[0].position, 'LAST ONE', '#ff3fa4', true); }
     if (left === 0 && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#ff3fa4', true); shake(0.5); setTimeout(results, 1500); }
@@ -776,9 +795,31 @@ export function initMission(ctx) {
     say(e.userData.bubble, ['AU!', 'Mijn hoofd!', 'Ooompf!', 'Vuile...'][Math.floor(Math.random() * 4)], '#ff7a1a');
   }
   function stagger(e, dir) { const f = e.userData.foe; f.vx += dir[0] * 3; f.vz += dir[1] * 3; f.cd = Math.max(f.cd, 0.5); f.wind = 0; sfx('hit'); if (f.state !== 'chase') { f.state = 'chase'; f.react = 0.4; } }
+  // Zeegaal-style dodge: a small, almost bored lean to the side; the bullet goes past (not while he's winding up or down)
+  function tryDodge(e, b) {
+    const f = e.userData.foe, FT = f.type && FOE_TYPES[f.type];
+    if (!FT || !FT.dodge || f.down > 0 || f.wind > 0 || f.dodgeT > 0 || Math.random() > FT.dodge) return false;
+    b.hit.add(e); f.dodgeT = 0.7; f.leanT = 0.45; f.leanS = Math.random() < 0.5 ? -1 : 1;
+    say(e.userData.bubble, pickLine(FT, 'dodgeSay'), '#ffd36b');
+    popup(e.position, 'ONTWEKEN', '#9fd3ff'); return true;
+  }
+  const pickLine = (FT, k) => { const a = k === 'dodgeSay' ? FT.dodgeSay || ['Te traag.'] : FT[k]; return a[Math.floor(Math.random() * a.length)]; };
+  // wrist lock: twists the gun out of Eddy's hand and throws it behind him; bare-handed Eddy just gets hurt and shoved
+  function wristLock(e, dir) {
+    const f = e.userData.foe, FT = FOE_TYPES[f.type];
+    if (gunOut()) {
+      const h = P.held, a = Math.atan2(dir[0], dir[1]) + (Math.random() - 0.5) * 0.8;
+      dropItem(h.id, player.position, Math.sin(a) * 9, Math.cos(a) * 9, h.ammo, false, h.own);
+      P.guns[P.slot - 2] = null; P.slot = 1; P.rl = null; syncHeld();
+      P.vx += dir[0] * 4; P.vz += dir[1] * 4; shake(0.35); sfx('throw'); sfx('hit');
+      popup(player.position, 'ONTWAPEND!', '#ff8a95', true); say(e.userData.bubble, pickLine(FT, 'disarm'), '#ffd36b');
+      f.cd = 1.4; return;
+    }
+    hurtPlayer(dir, 'fists'); P.vx += dir[0] * 6; P.vz += dir[1] * 6;
+  }
   function hitEnemy(e, type, dir, dmg) {
     const f = e.userData.foe; if (!f.alive) return;
-    if (f.hp > dmg) { f.hp -= dmg; bloodBurst(e.position, dir, 12, 3); floorDecal(e.position.x + dir[0] * 0.4, e.position.z + dir[1] * 0.4, 0.5, Math.random() * 6); popup(e.position, 'IS DAT ALLES?!', '#ffd36b'); f.state = 'chase'; f.react = Math.min(f.react, 0.2); return; }
+    if (f.hp > dmg) { f.hp -= dmg; bloodBurst(e.position, dir, 12, 3); floorDecal(e.position.x + dir[0] * 0.4, e.position.z + dir[1] * 0.4, 0.5, Math.random() * 6); popup(e.position, f.type ? FOE_TYPES[f.type].hurt[Math.floor(Math.random() * FOE_TYPES[f.type].hurt.length)] : 'IS DAT ALLES?!', '#ffd36b'); f.state = 'chase'; f.react = Math.min(f.react, 0.2); return; }
     killEnemy(e, type, dir);
   }
   function execute(e) {
@@ -1024,7 +1065,7 @@ export function initMission(ctx) {
         const dir = [b.dx, b.dz];
         if (b.byPlayer) {
           for (const e of enemies) { const f = e.userData.foe; if (!e.visible || b.hit.has(e)) continue;
-            if (f.alive) { const r = f.down > 0 ? 0.5 : 0.42; if (Math.hypot(e.position.x - nx, e.position.z - nz) < r) { R.hits++; b.hit.add(e); f.down > 0 ? killEnemy(e, b.id, dir) : hitEnemy(e, b.id, dir, 1); if (--b.pierce <= 0) { gone = true; break; } } }
+            if (f.alive) { const r = f.down > 0 ? 0.5 : 0.42; if (Math.hypot(e.position.x - nx, e.position.z - nz) < r) { if (tryDodge(e, b)) continue; R.hits++; b.hit.add(e); f.down > 0 ? killEnemy(e, b.id, dir) : hitEnemy(e, b.id, dir, 1); if (--b.pierce <= 0) { gone = true; break; } } }
             else if (Math.hypot(e.position.x - nx, e.position.z - nz) < 0.45) { b.hit.add(e); const kk = (FORCE[b.id] || 4) * 0.45 / f.mass; f.vx += b.dx * kk; f.vz += b.dz * kk; f.spin = (f.spin || 0) + rnd(-2, 2); bloodBurst(e.position, dir, 8, 2.5, 0.3); floorDecal(nx + b.dx * 0.4, nz + b.dz * 0.4, rnd(0.3, 0.5), Math.random() * 6); } }
         } else if (!P.dead && Math.hypot(player.position.x - nx, player.position.z - nz) < 0.38) { hurtPlayer(dir, b.id); gone = true; }
       }
@@ -1075,6 +1116,9 @@ export function initMission(ctx) {
       return;
     }
     if (Math.hypot(f.vx, f.vz) > 0.1) slide(e, f, dt, 0.34);
+    const FT = f.type && FOE_TYPES[f.type];
+    if (f.dodgeT > 0) f.dodgeT -= dt;
+    if (f.leanT > 0) { f.leanT -= dt; u.body.rotation.z = Math.sin(Math.min(1, f.leanT / 0.45) * Math.PI) * 0.45 * f.leanS; } else if (FT) u.body.rotation.z = 0;
     f.cd -= dt; f.laser.visible = false;
     const wid = f.weapon || 'fists', W2 = WD[wid];
     const pp = player.position, dx = pp.x - e.position.x, dz = pp.z - e.position.z, dist = Math.hypot(dx, dz) || 0.001, ang = Math.atan2(dx, dz);
@@ -1087,7 +1131,7 @@ export function initMission(ctx) {
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }
-    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react; say(u.bubble, ALERT_LINES[Math.floor(Math.random() * ALERT_LINES.length)], '#ff7a1a'); popup(e.position, '!', '#ff3fa4', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
+    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react; say(u.bubble, FT ? pickLine(FT, 'alert') : ALERT_LINES[Math.floor(Math.random() * ALERT_LINES.length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#ff3fa4', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
     else f.seeT += dt;
     if (P.dead && f.state === 'chase') f.state = 'idle';
     let tvx = 0, tvz = 0, face = null;
@@ -1099,11 +1143,11 @@ export function initMission(ctx) {
         if (dd > 0.9) { if (!goTo(f.sx, f.sz, 2.6)) f.searchT += dt; } else { f.searchT += dt; face = e.rotation.y + dt * 3; }
         if (f.searchT > (f.wary ? 6 : 3.5)) { f.state = 'idle'; f.turnT = 0; f.searchT = 0; } break; }
       case 'chase': {
-        if (!f.weapon) { let bi = null, bd = 4.5; for (const it of items) { if (it.flying) continue; const d = Math.hypot(it.g.position.x - e.position.x, it.g.position.z - e.position.z); if (d < bd && los(e.position, it.g.position)) { bd = d; bi = it; } }
+        if (!f.weapon && !(FT && FT.noWeapons)) { let bi = null, bd = 4.5; for (const it of items) { if (it.flying) continue; const d = Math.hypot(it.g.position.x - e.position.x, it.g.position.z - e.position.z); if (d < bd && los(e.position, it.g.position)) { bd = d; bi = it; } }
           if (bi && (dist > 2.5 || !see)) { const ddx = bi.g.position.x - e.position.x, ddz = bi.g.position.z - e.position.z; tvx = ddx / (bd || 1) * 3.2; tvz = ddz / (bd || 1) * 3.2; face = Math.atan2(ddx, ddz);
             if (bd < 0.5) { setFoeWeapon(e, bi.id); root.remove(bi.g, bi.ring); items.splice(items.indexOf(bi), 1); f.react = 0.5; say(u.bubble, 'Hebbes!', '#ff7a1a'); } break; } }
         if (see) { face = ang;
-          if (W2.melee) { const sp = f.weapon ? 3.6 : 3.4;
+          if (W2.melee) { const sp = (f.weapon ? 3.6 : 3.4) * (FT ? FT.speed : 1);
             if (dist > 0.85) { // melee Lampas path round furniture instead of running into it
               const direct = !isBlock(cellAt(e.position.x + dx / dist * 0.7, e.position.z + dz / dist * 0.7));
               if (direct) { tvx = dx / dist * sp; tvz = dz / dist * sp; } else goTo(pp.x, pp.z, sp);
@@ -1120,12 +1164,13 @@ export function initMission(ctx) {
     }
     if (f.wind > 0) { f.wind -= dt; tvx *= 0.3; tvz *= 0.3;
       if (f.wind <= 0) { f.atkT = 0.2; f.cd = 0.8; sfx('swing'); const d2 = Math.hypot(pp.x - e.position.x, pp.z - e.position.z);
-        if (!P.dead && d2 < 1.25 && Math.abs(angDiff(e.rotation.y, Math.atan2(pp.x - e.position.x, pp.z - e.position.z))) < 1.1) { sfx('hit'); hurtPlayer([(pp.x - e.position.x) / (d2 || 1), (pp.z - e.position.z) / (d2 || 1)], wid); } } }
+        if (!P.dead && d2 < 1.25 && Math.abs(angDiff(e.rotation.y, Math.atan2(pp.x - e.position.x, pp.z - e.position.z))) < 1.1) { const hd = [(pp.x - e.position.x) / (d2 || 1), (pp.z - e.position.z) / (d2 || 1)]; if (FT && FT.grab) wristLock(e, hd); else { sfx('hit'); hurtPlayer(hd, wid); } } } }
     if (face !== null) { const turn = f.state === 'chase' ? 8 : 3; e.rotation.y += Math.max(-turn * dt, Math.min(turn * dt, angDiff(e.rotation.y, face))); }
     const k = 1 - Math.exp(-dt * 10); f.mvx += (tvx - f.mvx) * k; f.mvz += (tvz - f.mvz) * k;
     e.position.x += f.mvx * dt; e.position.z += f.mvz * dt; ctx.collide(e.position, 0.34); collideDoors(e.position, 0.36, f.mvx, f.mvz, false);
-    animate(e, Math.hypot(f.mvx, f.mvz), dt);
-    if (f.wind > 0) u.arms[0].rotation.x = -2.6; else if (f.atkT > 0) { f.atkT -= dt; u.arms[0].rotation.x = W2.melee ? 0.6 : -1.3; } else if (f.aiming && see) u.arms[0].rotation.x = -1.45;
+    animate(e, Math.hypot(f.mvx, f.mvz) * (FT ? 0.8 : 1), dt);
+    if (FT && f.wind > 0) { u.arms[0].rotation.x = -1.3; u.arms[1].rotation.x = -1.3; } // both hands out for the grab
+    else if (f.wind > 0) u.arms[0].rotation.x = -2.6; else if (f.atkT > 0) { f.atkT -= dt; u.arms[0].rotation.x = W2.melee ? 0.6 : -1.3; } else if (f.aiming && see) u.arms[0].rotation.x = -1.45;
     f.aiming = false;
   }
   // melee from main.js swing(): lunge at the target (Neon Vice), Maboota and fists knock down, a bat kills, downed = execution
@@ -1270,7 +1315,7 @@ export function initMission(ctx) {
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,
     canRestart: () => M.active && !!LV && !ownsLevel(LV.id), levelName: () => (LV ? LV.name : ''),
-    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
+    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, FOE_TYPES, _wristLock: wristLock, _tryDodge: tryDodge, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
   Object.defineProperty(M, 'van', { get: () => van, enumerable: true });
   buildLevel(spekbuurt); // Mission 1 is built up front (as before); other levels replace it when they're launched
   hud();
