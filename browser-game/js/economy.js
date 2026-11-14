@@ -420,7 +420,7 @@ export function createEconomy(deps) {
     rollOffers(r);
     const ok = cand.filter((j) => j.needs !== 'district1' || state.district1);
     for (let i = ok.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ok[i], ok[j]] = [ok[j], ok[i]]; }
-    e.jobs = ok.slice(0, has('koerier') ? 4 : 3).map((j, i) => ({ ...j, n: i, done: false }));
+    e.jobs = ok.slice(0, (has('koerier') ? 4 : 3) + (deps.extraJobs ? deps.extraJobs() : 0)).map((j, i) => ({ ...j, n: i, done: false }));
     e.event = null;
     if (r() < 0.35) { const ev = rp(EVENTS), bl = rp(BLENDS.filter(blendOpen)); e.event = { id: ev.id, text: ev.text(bl), vol: ev.vol, pay: ev.pay, only: ev.only, blend: ev.pay ? bl.id : null }; }
   }
