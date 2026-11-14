@@ -22,8 +22,9 @@ import { LOOKS, bloody, cleanBlood } from './characters.js';
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
+import frietwijk from './levels/frietwijk.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -135,7 +136,7 @@ export function initMission(ctx) {
       else if (ch === 'R') { box(n - 0.04, h, 0.9, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) for (let s = 0; s < 2; s++) box(0.42, 0.42, 0.6, lam({ color: (def.rackGoods || [0xe8a020, 0xc8402e, 0xf2c43a])[(x + k + s + z) % 3] }), OX + x + k + 0.5, 0.45 + s * 0.85, cz + (s ? 0.12 : -0.12), root); }
       else if (ch === 'M') { box(n - 0.06, h, 0.8, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) { const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.45), new THREE.MeshBasicMaterial({ color: [0xffe14a, 0xf2c14e, 0xe8862c][(x + k) % 3] })); sc.rotation.x = -Math.PI / 2.6; sc.position.set(OX + x + k + 0.5, h + 0.01, cz + 0.1); root.add(sc); } }
       else box(n - 0.06, h, 0.9, lam({ color: col }), cx, h / 2, cz, root);
-      if (ch === 'K' || ch === 'w') box(n, 0.06, 1.0, new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.8 }), cx, h + 0.03, cz, root, false);
+      if ((ch === 'K' || ch === 'w') && !(own && own.draw)) box(n, 0.06, 1.0, new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.8 }), cx, h + 0.03, cz, root, false);
       solidRun(x, x1 + 1, z, z + 1); x = x1;
     }
     // explosive barrels
@@ -760,8 +761,8 @@ export function initMission(ctx) {
       REMIX = opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
       const mood = LV.mood;
       M.active = true; root.visible = true; clearPlayerSplats();
-      saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity;
-      scene.background.set(mood.bg); scene.fog.color.set(mood.bg); scene.fog.near = mood.fogNear; scene.fog.far = mood.fogFar; hemi.intensity = mood.hemi; sun.intensity = mood.sun;
+      saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity; saved.hemiC = [hemi.color.clone(), hemi.groundColor.clone()];
+      scene.background.set(mood.bg); scene.fog.color.set(mood.bg); scene.fog.near = mood.fogNear; scene.fog.far = mood.fogFar; hemi.intensity = mood.hemi; sun.intensity = mood.sun; if (mood.sky) hemi.color.set(mood.sky); if (mood.ground) hemi.groundColor.set(mood.ground); // optional per-level ambient colours
       lights.forEach(([l, k]) => { l.intensity = k; });
       if (REMIX && REMIX.m.dark) { lights.forEach(([l, k]) => { l.intensity = k * 0.2; }); hemi.intensity *= 0.45; sun.intensity *= 0.4; }
       setBounds({ x0: OX + LV.bounds[0], x1: OX + LV.bounds[1], z0: LV.bounds[2], z1: LV.bounds[3] });
@@ -777,7 +778,7 @@ export function initMission(ctx) {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
       saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
-      scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; sun.intensity = saved.sun;
+      scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; if (saved.hemiC) { hemi.color.copy(saved.hemiC[0]); hemi.groundColor.copy(saved.hemiC[1]); } sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
       R.lootAtStart = state.loot || 0;

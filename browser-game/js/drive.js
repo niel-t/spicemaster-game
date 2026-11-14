@@ -699,11 +699,11 @@ export function initDrive(ctx) {
     run.over = true; const pay = payFor();
     beep(523, 0.15, 'triangle', 0.06); setTimeout(() => beep(659, 0.15, 'triangle', 0.06), 130); setTimeout(() => beep(784, 0.3, 'triangle', 0.06), 260);
     const tm = fmt(run.t);
-    showRes('AANGEKOMEN!', `${opts.to}. Lampas heartland. <i>Missions here come in a later build.</i>`, [
+    showRes('AANGEKOMEN!', opts.mission ? `${opts.to}. ${opts.mission}` : `${opts.to}. Lampas heartland, scouted.`, [
       ['Time', `${tm} (par ${fmt(PAR)})`], ['Delivery fee', `W ${BASE_PAY}`], ['On-time bonus', `W ${Math.max(0, Math.round((PAR - run.t) * 3))}`],
       ['Lampas cars wrecked', `${run.wrecked} × W ${LAMPAS_BOUNTY}`], ['Smartengeld', `${run.bumped} × −W ${SMART}`], ['Dents in the Oofmobiel', `${Math.round(100 - van.hp)}%`], ['Honks', `${run.honks}`],
       ['Total', `W ${pay}`, 'tot'],
-    ], [['Drive home · [E]', () => finish({ arrived: true, pay, time: run.t, wrecked: run.wrecked, bumped: run.bumped })], ['Drive again · [⌫]', reset]]);
+    ], [[opts.mission ? 'Raid the joint · [E]' : 'Drive home · [E]', () => finish({ arrived: true, pay, time: run.t, wrecked: run.wrecked, bumped: run.bumped })], ['Drive again · [⌫]', reset]]);
   }
   function fail(title, sub) {
     run.over = true; beep(160, 0.3, 'sawtooth', 0.06); setTimeout(() => beep(110, 0.5, 'sawtooth', 0.06), 250);
