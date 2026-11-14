@@ -78,7 +78,7 @@ export default {
   hallCells: [[5, 25], [6, 25], [10, 25], [11, 25], [12, 25], [14, 12], [14, 13], [14, 14], [14, 15]],
   doorSigns: { '35,25': 'CAFÉ', '14,5': '♠', '8,14': 'KEUKEN' },
   neon: { storage: 0x8a6a4a, kitchen: 0xf2c14e, shop: 0xe8862c, alley: 0x3a3028, yard: 0x3a3028, poker: 0xc2412d, cards: 0xa9c46a, bar: 0xe8a33d, mixing: 0xf2c14e, street: 0x3a3028 },
-  lights: [[4, 21, 0xe8862c, 1.6], [4, 15, 0xf2c14e, 1.0], [4, 5, 0x8a6a4a, 0.7], [20.5, 5, 0xc2412d, 1.8], [20.5, 20, 0xa9c46a, 1.5], [32, 6, 0xe8a33d, 1.7], [33, 12, 0xe8a33d, 1.0], [33, 20, 0xf2c14e, 1.2], [11, 6, 0xc2412d, 0.45], [11, 21, 0xa9c46a, 0.4], [21, 13.5, 0xe8a33d, 0.5], [3, 27, 0xe8862c, 1.0], [34, 27, 0xe8a33d, 1.0]],
+  lights: [[4, 21, 0xe8862c, 1.6], [4, 15, 0xf2c14e, 1.0], [4, 5, 0x8a6a4a, 0.7], [20.5, 5, 0xe8a33d, 2.0], [17, 8, 0xc2412d, 1.0], [20.5, 20, 0xa9c46a, 1.6], [32, 6, 0xe8a33d, 1.7], [33, 12, 0xe8a33d, 1.0], [33, 20, 0xf2c14e, 1.2], [11, 6, 0xc2412d, 0.45], [11, 21, 0xa9c46a, 0.4], [21, 13.5, 0xe8a33d, 0.5], [3, 27, 0xe8862c, 1.0], [34, 27, 0xe8a33d, 1.0]],
   mood: { bg: 0x07080c, fogNear: 26, fogFar: 64, hemi: 0.28, sun: 0.22, sky: 0xd8c8b8, ground: 0x2a2420, wall: 0x4a2a20, cap: 0xc8b8a0, under: 0x2a2018 },
   van: { park: [16, 4.6], rot: Math.PI, from: W + 14, exit: [16.6, 3.0], solid: [12.7, 18.8, 3.45, 5.75] }, // world; down the street, nose first
   start: [6, -0.7],              // world: on the street outside the hatch
@@ -143,8 +143,7 @@ export default {
     for (const [x, z] of [[17, 3], [23, 3], [20, 7], [17, 19], [23, 19]]) {
       cyl(0.95, 0.95, 0.06, lam({ color: 0x2a5a2a }), OX + x + 1, 0.78, Z0 + z + 1, root, 24); cyl(0.1, 0.12, 0.74, lam({ color: 0x1a1a1a }), OX + x + 1, 0.37, Z0 + z + 1, root);
       for (let k = 0; k < 5; k++) { const c = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.17), new THREE.MeshBasicMaterial({ color: k % 2 ? 0xf3e6c8 : 0xc2412d })); c.rotation.x = -Math.PI / 2; c.rotation.z = k + x; c.position.set(OX + x + 1 + Math.cos(k) * 0.5, 0.82, Z0 + z + 1 + Math.sin(k) * 0.5); root.add(c); }
-      const shade = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.3, 14, 1, true), lam({ color: 0x2a2a20, side: THREE.DoubleSide })); shade.position.set(OX + x + 1, 2.05, Z0 + z + 1); root.add(shade);
-      const g = glowSprite(THREE, z > 10 ? 0xa9c46a : 0xffd27a, 1.8, 1.8, 0.5); g.position.set(OX + x + 1, 1.85, Z0 + z + 1); root.add(g);
+      const g = glowSprite(THREE, z > 10 ? 0xa9c46a : 0xffd27a, 2.4, 2.4, 0.22); g.position.set(OX + x + 1, 1.85, Z0 + z + 1); root.add(g);
     }
     // smoke in the card room
     const smokeM = new THREE.MeshBasicMaterial({ color: 0xc8c0a0, transparent: true, opacity: 0.07, depthWrite: false }), smoke = [];
