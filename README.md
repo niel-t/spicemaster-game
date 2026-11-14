@@ -1,10 +1,14 @@
 # Spicemaster Game
 
+**Play it:** https://niel-t.github.io/spicemaster-game/ (PC, phone, tablet or controller).
+
+The playable game is the browser version in [`browser-game/`](browser-game/README.md): WebGL and plain JavaScript, no build step. See that README for controls, how to run it locally and how it's put together. Design and story live in the Game Bible on Drive; the notes below are the original planning README.
+
 First-person simulator-type game; think: thief simulator, drug-dealer simulator, or retro-rewind. The game style is 90s-style.  
 
 ## Project status
 
-Early planning. The game engine and platform target are still open (see `docs/decisions.md`). Perhaps Unity. 
+In development as a browser game (see `browser-game/`). The Godot prototype is kept on the `claude/godot-scaffold` and `claude/stage1-warehouse` branches for reference.
 
 ## Scene setting
 
