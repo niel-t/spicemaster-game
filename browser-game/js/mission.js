@@ -318,7 +318,7 @@ export function initMission(ctx) {
   const loudOf = (id) => (quiet(id) ? WD.silenced.loud : WD[id].loud);
   const sndOf = (id) => (quiet(id) ? 'silenced' : WD[id].snd);
   const EASY = { hp: 3, react: 1.9, espr: 0.17, ebSpd: 15, vision: 9, cone: 0.85, ecd: 1.5, regen: 7 };
-  const TIPS = ['A Lampas who stops and raises his gun is about to fire. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
+  const TIPS = ['Red laser = a gunman is aiming at you. Break line of sight.', 'Yellow cones show where they are looking. Stay out of them to sneak up.', 'A Lampas who stops and raises his gun is about to fire. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
   // low-poly weapon models, Neon Vice proportions (WD.len), gold for The Russian's exclusives
   const GM = { black: lam({ color: 0x1a1a1c }), steel: lam({ color: 0x8a8c90 }), wood: lam({ color: 0x6a3a1a }), grip: lam({ color: 0x3a2a1a }), gold: lam({ color: 0xe8b830, emissive: 0x3a2a00 }), blade: lam({ color: 0xd8dce0 }), tape: lam({ color: 0x2a2a2a }) };
   function weaponMesh(id) {
@@ -624,7 +624,32 @@ export function initMission(ctx) {
     },
   };
   const enemies = [];
-  const SHOW_LASERS = false;
+  // sight lines (Neon Vice, Easy): a red laser while a gunman aims at you, and yellow vision cones on the floor, cut off by walls.
+  // Heists keep their own rule: cones only with Kevin's floor plan (HEIST.cased), no lasers.
+  const SHOW_LASERS = true, SHOW_CONES = true;
+  const CONE_N = 13, CONE_COL = { idle: 0xffd84d, patrol: 0xffd84d, search: 0xff7320, distract: 0x66ff80 };
+  const visConeM = () => new THREE.MeshBasicMaterial({ color: CONE_COL.idle, transparent: true, opacity: 0.15, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  function rayLen(x, z, sa, ca, max) { // how far a guard sees along a ray: walls, racks and closed doors stop it (glass and low furniture don't)
+    let d = 0.3; while (d < max) { const nx = x + sa * d, nz = z + ca * d; if (SIGHT.has(cellAt(nx, nz)) || doorBlocks(x, z, nx, nz)) return d; d += 0.25; } return max;
+  }
+  function updateCones() {
+    const on = SHOW_CONES && M.active && !HEIST && !P.dead && !R.results;
+    for (const e of enemies) {
+      const f = e.userData.foe;
+      const show = on && e.visible && f.alive && f.down <= 0 && f.state !== 'chase' && e.position.distanceTo(player.position) < 26;
+      if (!f.cone) { if (!show) continue; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CONE_N * 9), 3)); f.cone = new THREE.Mesh(g, visConeM()); f.cone.frustumCulled = false; f.cone.renderOrder = 2; root.add(f.cone); }
+      f.cone.visible = show; if (!show) continue;
+      const x = e.position.x, z = e.position.z, a0 = e.rotation.y, cn = EASY.cone + (f.wary ? 0.35 : 0), arr = f.cone.geometry.attributes.position.array, y = 0.04;
+      let px = 0, pz = 0;
+      for (let i = 0; i <= CONE_N; i++) {
+        const a = a0 - cn + 2 * cn * i / CONE_N, sa = Math.sin(a), ca = Math.cos(a), L = rayLen(x, z, sa, ca, EASY.vision), qx = x + sa * L, qz = z + ca * L;
+        if (i) { const k = (i - 1) * 9; arr.set([x, y, z, px, y, pz, qx, y, qz], k); }
+        px = qx; pz = qz;
+      }
+      f.cone.geometry.attributes.position.needsUpdate = true;
+      f.cone.material.color.setHex(CONE_COL[f.state] || CONE_COL.idle);
+    }
+  }
   const laserM = new THREE.MeshBasicMaterial({ color: 0xff1030, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
   // spawn entry: [cell x, cell z, weapon, facing, room, boss, extra]; extra is an enemy type name (FOE_TYPES) or { type, cap }
   function spawnEnemies(def) { def.spawns.forEach(([x, z, w, rot, room, boss, opt], i) => {
@@ -700,7 +725,7 @@ export function initMission(ctx) {
     }
     const q = byPlayer && quiet(id);
     muzzle(new THREE.Vector3(bx + sa * 0.6, 0, bz + ca * 0.6), q ? 1.5 : 4); casing(from, a, W2.pel > 1);
-    sfx(byPlayer ? sndOf(id) : W2.snd, byPlayer ? 1 : 0.5);
+    sfx(byPlayer ? sndOf(id) : W2.snd, byPlayer ? 1 : 0.7);
     if (byPlayer) { P.bloom = Math.min(W2.bloomMax || 0.18, P.bloom + W2.bloom); shake(W2.kick * 1.2); FX.kick.set(-sa * W2.kick * 0.6, 0, -ca * W2.kick * 0.6); }
     alertNoise(from, byPlayer ? loudOf(id) : W2.loud);
   }
@@ -1392,6 +1417,7 @@ export function initMission(ctx) {
     if (R.comboT > 0) { R.comboT -= dt; if (R.comboT <= 0) { R.combo = 0; hud(); } }
     updateDoors(dt);
     for (const e of enemies) updateEnemy(e, dt, pv);
+    updateCones();
     separate(); bodyPhysics();
     updateBullets(dt); updateItems(dt); updateParts(dt);
     if (flashT > 0) { flashT -= dt; if (flashT <= 0) { flashL.intensity = 0; flashSp.visible = false; } }
@@ -1491,13 +1517,13 @@ export function initMission(ctx) {
 
   // ================================================================== ENEMY AI (Neon Vice's updateEnemy, Easy numbers)
   const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
-  function laserTo(e, a) { // aim lasers are switched off (Tristan, 2026-11-14): the Lampas still aim and wind up, you just don't see a red line
-    if (!SHOW_LASERS) return;
+  function laserTo(e, a) { // Neon Vice aim laser: a red line while a gunman aims at you, brighter just before he fires (back on, 2026-11-15; off in heists)
+    if (!SHOW_LASERS || HEIST) return;
     const f = e.userData.foe, from = e.position.clone().add(new THREE.Vector3(Math.sin(a) * 0.5, 0, Math.cos(a) * 0.5));
     let len = 0.2; const q = from.clone();
     while (len < 16) { q.set(from.x + Math.sin(a) * len, 0, from.z + Math.cos(a) * len); const ch = cellAt(q.x, q.z); if ((isCover(ch) && ch !== 'X') || Math.hypot(q.x - player.position.x, q.z - player.position.z) < 0.35) break; len += 0.25; }
     f.laser.visible = true; f.laser.scale.z = len; f.laser.position.set(from.x + Math.sin(a) * len / 2, 1.25, from.z + Math.cos(a) * len / 2); f.laser.rotation.y = a;
-    f.laser.material.opacity = 0.35 + (f.react < 0.35 ? 0.4 : 0);
+    f.laser.material.opacity = 0.3 + (f.react < 0.35 ? 0.5 : 0);
   }
   function spot(e) { // Neon Vice spot(): whoever sees you calls the others within 5 m
     heistAlarm(35, 'SPOTTED!');
