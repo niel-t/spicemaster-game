@@ -8,7 +8,8 @@ import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats } from './characters.js';
 import { makeOofmobiel, makeCar } from './vehicles.js'; // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
-import { createEconomy, rankOf } from './economy.js'; // spice market, stock (gang-wars economy layer)
+import { createEconomy, rankOf } from './economy.js';
+import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
 
@@ -1057,8 +1058,9 @@ function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math
 const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 30;
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
-const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
+const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
+let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: D1.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), joints: () => ['schmatzel', ...D1.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 function openPC(tab = 'sell', mode = 'pc') {
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
@@ -1067,7 +1069,7 @@ function closePC() { state.inPC = false; $('pc').style.display = 'none'; afterPC
 $('pcclose').onclick = closePC;
 function renderPC() {
   const ic = $('pcicons'); ic.innerHTML = '';
-  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport', 'jobs'].includes(id) || state.table)) {
+  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport', 'jobs', 'ideas'].includes(id) || state.table)) {
     const d = document.createElement('div'); d.className = 'icon' + (pcTab === id ? ' sel' : '');
     d.innerHTML = `<div class="g">${g}</div><span>${label}</span>`; d.onclick = () => { pcTab = id; beep(700, 0.03); renderPC(); }; ic.appendChild(d);
   }
@@ -1116,6 +1118,9 @@ function renderPC() {
   } else if (pcTab === 'jobs') {
     title.textContent = 'Klusbord · Jobs for today';
     body.innerHTML = econ.jobsHTML(); econ.jobsBind(body, renderPC);
+  } else if (pcTab === 'ideas') {
+    title.textContent = "Ideeënboek · Eddy Jr.'s notebook";
+    body.innerHTML = econ.ideasHTML();
   } else if (pcTab === 'map') {
     title.textContent = 'Map of Kaasland';
     body.innerHTML = mapHTML(false); bindMap();
@@ -1207,7 +1212,7 @@ function bindMap() {
     }[k];
     info.innerHTML = t;
     const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); }; // travelling elsewhere must call clearPlayerSplats()
-    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); const id = d1 ? d1[1] : 'spekbuurt'; mission.enter(id, owns(id) ? { remix: { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } } : {}); };
+    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); const id = d1 ? d1[1] : 'spekbuurt'; const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); };
     const goD = $('goD'); if (goD) goD.onclick = () => { closePC(); startDrive(); };
     const goDaily = $('goDaily'); if (goDaily) goDaily.onclick = () => { const dc = dailyChallenge(); if (!dc) return; closePC(); mission.enter(dc.id, { remix: dc.remix }); };
   });
@@ -1397,7 +1402,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'npcs'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -1735,7 +1740,7 @@ function choice(who, line, options, cb) {
   state.inPC = true; choiceOpen = true; choiceCb = cb;
   $('dlgwho').textContent = who; $('dlgline').innerHTML = line + '<div id="choices" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>';
   const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f;
-  options.forEach((o, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + o; b.style.cssText = 'font:700 15px Arial;padding:7px 14px;border-radius:6px;border:2px solid #ffd36b;background:#2a1a3a;color:#fff;cursor:pointer'; b.onclick = (ev) => { ev.stopPropagation(); closeChoice(i); }; $('choices').appendChild(b); });
+  options.forEach((o, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + o; b.style.cssText = 'font:700 15px Arial;padding:7px 14px;border-radius:6px;border:2px solid #ffd36b;background:#2a1a0e;color:#fff;cursor:pointer'; b.onclick = (ev) => { ev.stopPropagation(); closeChoice(i); }; $('choices').appendChild(b); });
   $('dialogue').style.display = 'block';
 }
 function closeChoice(i) { if (!choiceOpen) return; choiceOpen = false; state.inPC = false; $('dialogue').style.display = 'none'; const cb = choiceCb; choiceCb = null; if (cb) cb(i); }
@@ -2316,6 +2321,7 @@ function tick() {
   if (state.table) spiceInBowl.rotation.y += dt * (state.naknik ? 2 : 0);
   // a finished mission ends the market day (checked back in the hub, so the toast doesn't cover the results screen)
   if (!mission.active && !state.inDialogue) econ.update();
+  if (npcs) npcs.update(dt);
   // passive income
   if (state.income > 0) {
     incomeT += dt;
@@ -2395,8 +2401,9 @@ function afterDrive(res) {
   writeSave(); updateObjective();
 }
 deviceHints();
+npcs = initNpcs({ THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave() });
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ };
+window.__sme = { charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, get npcs() { return npcs; } };
 tick();
