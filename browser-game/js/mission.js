@@ -20,8 +20,9 @@
 import { virt, inputMode, glyph, controlsLine } from './input.js';
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
+import uitjesbuurt from './levels/uitjesbuurt.js';
 
-export const LEVELS = { spekbuurt, kroketkade };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -126,7 +127,7 @@ export function initMission(ctx) {
       let x1 = x; while (x1 + 1 < W && G[z][x1 + 1] === ch) x1++;
       if (ch === 'A') { solidRun(x, x1 + 1, z, z + 1); x = x1; continue; } // cars and boats: the level places the model
       const n = x1 - x + 1, [h, col, own] = FM[ch], cx = OX + x + n / 2, cz = Z0 + z + 0.5;
-      if (own && own.draw) own.draw({ THREE, root, box, cyl, lam, x, x1, z, n, h, col, cx, cz, OX, Z0 });
+      if (own && own.draw) own.draw({ THREE, root, box, cyl, lam, x, x1, z, n, h, col, cx, cz, OX, Z0, G });
       else if (ch === 'p') { for (let k = 0; k < n; k++) { cyl(0.22, 0.18, 0.4, lam({ color: 0x8a4a2a }), OX + x + k + 0.5, 0.2, cz, root, 10); const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), lam({ color: col })); b.position.set(OX + x + k + 0.5, 0.8, cz); b.castShadow = true; root.add(b); } }
       else if (ch === 'c') { /* card tables: the level draws the round tops */ }
       else if (ch === 'T') { box(n - 0.08, 0.06, 0.92, lam({ color: col }), cx, h, cz, root); for (const ox of [-n / 2 + 0.2, n / 2 - 0.2]) box(0.08, h, 0.08, lam({ color: 0x3a2212 }), cx + ox, h / 2, cz, root, false); }
