@@ -1057,7 +1057,7 @@ function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math
 const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 30;
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
-const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
+const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 const econ = createEconomy({ state, addMoney, toast, save: () => writeSave(), discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 function openPC(tab = 'sell', mode = 'pc') {
@@ -1067,7 +1067,7 @@ function closePC() { state.inPC = false; $('pc').style.display = 'none'; afterPC
 $('pcclose').onclick = closePC;
 function renderPC() {
   const ic = $('pcicons'); ic.innerHTML = '';
-  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => id !== 'beurs' || state.table)) {
+  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng'].includes(id) || state.table)) {
     const d = document.createElement('div'); d.className = 'icon' + (pcTab === id ? ' sel' : '');
     d.innerHTML = `<div class="g">${g}</div><span>${label}</span>`; d.onclick = () => { pcTab = id; beep(700, 0.03); renderPC(); }; ic.appendChild(d);
   }
@@ -1106,6 +1106,9 @@ function renderPC() {
   } else if (pcTab === 'beurs') {
     title.textContent = 'Kruidenbeurs.kl · Spice prices, live-ish';
     body.innerHTML = econ.html(); econ.bind(body, renderPC);
+  } else if (pcTab === 'meng') {
+    title.textContent = 'Mengkamer · What are the Naknikim mixing?';
+    body.innerHTML = econ.mixHTML(); econ.mixBind(body, renderPC);
   } else if (pcTab === 'map') {
     title.textContent = 'Map of Kaasland';
     body.innerHTML = mapHTML(false); bindMap();

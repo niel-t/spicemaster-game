@@ -20,6 +20,16 @@ export const GRADES = [
   { id: 'std', name: 'Standaard', mult: 1, stars: 3, note: 'honest spice' },
   { id: 'bio', name: 'Bio', mult: 1.8, stars: 5, note: 'Noshgey Kariot artisanal, overpriced, very good' },
 ];
+// Blends the Naknikim mix: kg of each ingredient per 10 kg of blend, and the blend's base value per kg.
+export const BLENDS = [
+  { id: 'kip', name: 'Kip Shoarma', mix: { paprika: 4, knoflook: 3, komijn: 3 }, value: 18, note: "Dad's classic. Every joint wants it." },
+  { id: 'lams', name: 'Lams Shoarma', mix: { komijn: 3, koriander: 3, knoflook: 2, paprika: 2 }, value: 20, note: 'Earthy, for the lamb spit. Old-school clients love it.' },
+  { id: 'kebab', name: 'Kebab Kruiden', mix: { paprika: 3, komijn: 2, koriander: 2, knoflook: 2, kaneel: 1 }, value: 30, note: 'Needs a pinch of Abdavissies kaneel.' },
+  { id: 'gouden', name: 'De Gouden Mix', mix: null, value: 0, note: "The legendary blend. Eddy Sr.'s notebook holds the clues." },
+];
+const PER_NAKNIK = 10; // kg of blend each Naknik mixes per market day
+const WHOLESALE_KG = 40; // kg the Groothandel buys per day (clients pay better, from step 3)
+const MISTAKES = ['Boss, I sneezed in the komijn.', 'I used the paprika as a pillow. Sorry.', 'I mixed in the dark. It is very... surprise.', 'The bowl fell. The floor is now Kip Shoarma.', 'I tasted to check. Then I tasted more.'];
 export const STOCK_CAP = 200; // kg in the home warehouse
 const HISTORY = 8; // days of price history shown in the trend column
 const CRATE_KG = 10; // a Lampas spice crate unpacks into 10 kg of Lampas-grade spice
@@ -52,6 +62,8 @@ export function createEconomy(deps) {
     e.raidsSeen = e.raidsSeen ?? (state.raids || 0); // a fresh economy on an old save doesn't count past raids
     e.mult = e.mult || {}; e.hist = e.hist || {}; e.stock = e.stock || {}; e.supply = e.supply || {};
     e.news = Array.isArray(e.news) ? e.news : [];
+    e.blends = e.blends || {}; e.order = e.order || 'kip'; e.policy = e.policy || 'cheap';
+    if (e.wholesaleLeft === undefined) e.wholesaleLeft = WHOLESALE_KG;
     for (const g of INGREDIENTS) {
       if (!(e.mult[g.id] > 0)) e.mult[g.id] = 1;
       if (!Array.isArray(e.hist[g.id])) e.hist[g.id] = [e.mult[g.id]];
@@ -63,7 +75,8 @@ export function createEconomy(deps) {
   // one market day: drift, news, supply refills
   function advance(why) {
     const e = ensure();
-    e.day++;
+    const made = mix(); // the Naknikim mix overnight with what's on the shelves
+    e.day++; e.wholesaleLeft = WHOLESALE_KG; e.lastMix = made;
     for (const n of e.news) n.days--;
     e.news = e.news.filter((n) => n.days > 0);
     for (const g of INGREDIENTS) {
@@ -82,7 +95,8 @@ export function createEconomy(deps) {
       headline = e.news.at(-1);
     }
     for (const g of INGREDIENTS) { e.hist[g.id].push(effMult(g.id)); if (e.hist[g.id].length > HISTORY) e.hist[g.id].shift(); }
-    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}. Check the Kruidenbeurs on the PC.`, 3);
+    const mixLine = made ? (made.kg ? `Naknikim mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
+    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine ? 4.5 : 3);
     return e.day;
   }
   // called every frame: a finished mission bumps state.raids, which ends the day
@@ -100,7 +114,46 @@ export function createEconomy(deps) {
   }
   const key = (id, gradeId) => `${id}:${gradeId}`;
   const stockOf = (id, gradeId) => ensure().stock[key(id, gradeId)] || 0;
-  const stockTotal = () => Object.values(ensure().stock).reduce((a, b) => a + b, 0);
+  const stockTotal = () => { const e = ensure(); return Math.round(Object.values(e.stock).reduce((a, b) => a + b, 0) + Object.values(e.blends).reduce((a, b) => a + b.kg, 0)); };
+  const have = (id) => GRADES.reduce((a, gr) => a + stockOf(id, gr.id), 0);
+  const blendOf = (id) => ensure().blends[id] || { kg: 0, q: 0 };
+
+  // the Naknikim mix today's order: PER_NAKNIK kg each, as far as the stock reaches. Grades are used cheapest
+  // or best first (the player's policy); quality = the average stars of what went in. Now and then one messes up.
+  function mix() {
+    const e = ensure(), n = state.naknik || 0, b = BLENDS.find((x) => x.id === e.order);
+    if (!n || !b || !b.mix) return null;
+    let kg = n * PER_NAKNIK;
+    for (const [id, w] of Object.entries(b.mix)) kg = Math.min(kg, Math.floor(have(id) * 10 / w));
+    if (kg <= 0) return { name: b.name, kg: 0, why: `not enough ${Object.keys(b.mix).filter((id) => have(id) * 10 / b.mix[id] < 1).map((id) => INGREDIENTS.find((g) => g.id === id).name.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' and $1')}.` };
+    const order = e.policy === 'best' ? GRADES.slice().reverse() : GRADES;
+    let starKg = 0, used = 0;
+    for (const [id, w] of Object.entries(b.mix)) {
+      let need = kg * w / 10;
+      for (const gr of order) {
+        const k = key(id, gr.id), take = Math.min(need, e.stock[k] || 0);
+        if (take <= 0) continue;
+        e.stock[k] = +(e.stock[k] - take).toFixed(2); if (e.stock[k] <= 0.001) delete e.stock[k];
+        need -= take; starKg += take * gr.stars; used += take;
+      }
+    }
+    let out = kg, oops = null;
+    for (let i = 0; i < n; i++) if (Math.random() < 0.12) { out -= 2; oops = pick(MISTAKES); }
+    out = Math.max(0, out);
+    const q = used ? starKg / used : 1, cur = blendOf(b.id);
+    e.blends[b.id] = { kg: cur.kg + out, q: cur.kg + out ? (cur.kg * cur.q + out * q) / (cur.kg + out) : q };
+    return { name: b.name, kg: out, q, oops };
+  }
+  const wholesalePrice = (id) => { const b = BLENDS.find((x) => x.id === id); return Math.round(b.value * (0.4 + 0.12 * blendOf(id).q) * 10) / 10; };
+  function sellBlend(id, kg, el) {
+    const e = ensure(), cur = blendOf(id);
+    kg = Math.min(kg, cur.kg, e.wholesaleLeft);
+    if (kg <= 0) return { ok: false, why: cur.kg <= 0 ? 'Nothing in stock.' : 'The Groothandel has bought enough for today.' };
+    const pay = Math.round(wholesalePrice(id) * kg);
+    cur.kg -= kg; e.wholesaleLeft -= kg; if (cur.kg <= 0) delete e.blends[id]; else e.blends[id] = cur;
+    deps.addMoney(pay, el); if (deps.save) deps.save();
+    return { ok: true, kg, pay };
+  }
   const space = () => STOCK_CAP - stockTotal();
 
   function buy(id, gradeId, kg, el) {
@@ -159,7 +212,7 @@ export function createEconomy(deps) {
     }
     h += '</table>';
     if (state.loot) h += `<p><button class="b95" id="unpack">Unpack ${state.loot} Lampas crate(s) into stock (${CRATE_KG} kg Lampas grade each)</button> <small>or sell them on Kaasplaats</small></p>`;
-    h += '<p><small>Naknikim start mixing blends from this stock in the next update. Until then they keep mixing the starter spices that came with the table.</small></p>';
+    h += '<p><small>Your Naknikim mix blends from this stock after every outing. Pick the blend in the <b>Mengkamer</b>.</small></p>';
     return h;
   }
   function bind(body, rerender) {
@@ -174,5 +227,34 @@ export function createEconomy(deps) {
     if (u) u.onclick = () => { const n = unpackCrates(); if (deps.toast) deps.toast('UNPACKED', n ? `${n} crate(s) of Lampas spice went onto the shelves.` : 'No room in the warehouse.', 2); rerender(); };
   }
 
-  return { INGREDIENTS, GRADES, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, html, bind };
+  // ---- Mengkamer (mixing room) window: pick the blend, grade policy, blend stock, sell to the Groothandel
+  const on = (yes) => (yes ? 'style="font-weight:bold;border-style:inset"' : '');
+  function mixHTML() {
+    const e = ensure(), n = state.naknik || 0;
+    let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${n * PER_NAKNIK} kg</b> after every outing` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
+      Stock: <b>${stockTotal()} / ${STOCK_CAP} kg</b> (spices + blends)<br>
+      <small>Quality = the average stars of the spices that went in. Lampas grade makes ★ blends, Bio makes ★★★★★.</small></div>`;
+    if (e.lastMix) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>Last night:</b> ${e.lastMix.kg ? `${e.lastMix.kg} kg ${e.lastMix.name} ${stars(Math.round(e.lastMix.q))}` : `no ${e.lastMix.name}, ${e.lastMix.why}`}${e.lastMix.oops ? `<br><i>Naknik: "${e.lastMix.oops}"</i>` : ''}</div>`;
+    h += `<div style="margin-bottom:6px">Grades: <button class="b95" data-pol="cheap" ${on(e.policy === 'cheap')}>Cheapest first</button> <button class="b95" data-pol="best" ${on(e.policy === 'best')}>Best first</button></div>`;
+    h += '<table class="list"><tr><th>Blend</th><th>Per 10 kg</th><th>Can mix now</th><th>Order</th></tr>';
+    for (const b of BLENDS) {
+      if (!b.mix) { h += `<tr><td><b>${b.name}</b><br><small>${b.note}</small></td><td>???</td><td>-</td><td><button class="b95" disabled>Locked</button></td></tr>`; continue; }
+      let can = n * PER_NAKNIK || PER_NAKNIK; for (const [id, w] of Object.entries(b.mix)) can = Math.min(can, Math.floor(have(id) * 10 / w));
+      h += `<tr><td><b>${b.name}</b><br><small>${b.note}</small></td><td><small>${Object.entries(b.mix).map(([id, w]) => `${w} kg ${INGREDIENTS.find((g) => g.id === id).name}${have(id) * 10 / w < 1 ? ' <b style="color:#a00">!</b>' : ''}`).join('<br>')}</small></td><td>${can} kg</td><td>${e.order === b.id ? '<b>Mixing this</b>' : `<button class="b95" data-order="${b.id}">Mix this</button>`}</td></tr>`;
+    }
+    h += '</table>';
+    const stocked = BLENDS.filter((b) => blendOf(b.id).kg > 0);
+    h += `<div class="well" style="margin-top:8px"><b>Blends in stock</b> · Groothandel Van Kruidenburg buys <b>${e.wholesaleLeft} kg</b> more today<br>`;
+    h += stocked.length ? '<table class="list" style="margin-top:4px"><tr><th>Blend</th><th>Stock</th><th>Quality</th><th>Groothandel pays</th><th></th></tr>' + stocked.map((b) => `<tr><td>${b.name}</td><td>${blendOf(b.id).kg} kg</td><td>${stars(Math.round(blendOf(b.id).q))}</td><td>${fmt(wholesalePrice(b.id))}/kg</td><td><button class="b95" data-sellbl="${b.id}:10">Sell 10 kg</button> <button class="b95" data-sellbl="${b.id}:999">Sell max</button></td></tr>`).join('') + '</table>' : 'Nothing yet. Buy spices at the Kruidenbeurs, then go on an outing while the Naknikim mix.';
+    h += '<br><small>Your own joints will pay better for blends than the Groothandel. Coming next.</small></div>';
+    return h;
+  }
+  function mixBind(body, rerender) {
+    const e = ensure();
+    body.querySelectorAll('[data-pol]').forEach((b) => b.onclick = () => { e.policy = b.dataset.pol; if (deps.save) deps.save(); rerender(); });
+    body.querySelectorAll('[data-order]').forEach((b) => b.onclick = () => { e.order = b.dataset.order; if (deps.save) deps.save(); rerender(); });
+    body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
+  }
+
+  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, html, bind, mixHTML, mixBind };
 }

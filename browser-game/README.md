@@ -111,8 +111,9 @@ Design: the *Gang Wars Economy* proposal (Claude Doc linked from the project). C
 - **Kruidenbeurs** (PC icon `%`, appears once the mixing table is bought): 8 ingredients in 3 grades (Lampas ★, Standaard ★★★, Bio ★★★★★). Prices drift every day (random walk pulled back to base), news events push one spice up or down 25-45% for 2-3 days, and the trend column shows the last 8 days. Dock spices (kurkuma, kaneel, kardemom, saffraan) come through the Abdavissies with a few kilos of supply a day.
 - **Stock:** 200 kg in the home warehouse; sell back at 70%. Lampas spice crates from missions can be unpacked into 10 kg of Lampas-grade stock (or still sold on Kaasplaats).
 - **Home turf discount:** 3% per owned De Natte Worst territory, +6% once the whole district is yours.
-- Next steps: Naknikim mix blends from stock, joints as clients with a day report, machine trade, territory control and faction heat, warehouses and raids.
-- Test hook: `__sme.econ` (`advance()` ends a market day, `buy(id, grade, kg)`, `stockTotal()`).
+- **Mengkamer** (PC icon `B`, step 2): pick the blend the Naknikim mix (Kip Shoarma, Lams Shoarma, Kebab Kruiden; De Gouden Mix stays locked). Each Naknik mixes 10 kg per market day from stock, using grades cheapest or best first; quality = the average stars of the spices used, and a Naknik sometimes wastes 2 kg. Blends sell to the Groothandel (up to 40 kg a day, price = value x (0.4 + 0.12 x stars)).
+- Next steps: joints as clients with a day report, machine trade, territory control and faction heat, warehouses and raids.
+- Test hook: `__sme.econ` (`advance()` ends a market day and runs the mix, `buy(id, grade, kg)`, `sellBlend(id, kg)`, `stockTotal()`).
 
 ## Start menu & fonts
 The game opens on a start menu (Continue / New Game / Controls / Music / Credits) over a slow dusk drift along the canal street;
