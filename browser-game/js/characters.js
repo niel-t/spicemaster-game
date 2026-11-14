@@ -362,10 +362,12 @@ export const LOOKS = {
     shirtPaint: { shirt: [0x1d, 0x1a, 0x24], pants: [0x12, 0x10, 0x16], skin: [0xe9, 0xc2, 0xa2], belt: [0xc8, 0xa0, 0x40], neck: 'crew', buttons: false, sleeves: 'long',
       badge: (x, fx, ty) => { x.fillStyle = '#d8b04a'; x.fillRect(0, 0, 512, 16); for (let k = 0; k < 3; k++) { x.fillRect(fx(-0.06), ty(1.4 - k * 0.11), fx(0.06) - fx(-0.06), 7); x.beginPath(); x.arc(fx(0), ty(1.4 - k * 0.11) + 3, 6, 0, 7); x.fill(); } } },
   },
+  // Naknik look C (picked by Tristan, 14 Nov): saffron beanie, cardamom-green tee, cumin-brown dungarees with the N badge
   naknik: {
-    skin: hex01(0xe8b890), hair: hex01(0xe8792a), hs: 'normal', hat: 'ballcap', hatC: hex01(0xf2c31a), calm: 1, smile: 1, body: 'stocky', B: { nowatch: true },
-    shirt: hex01(0xec7d2c), jacket: hex01(0xec7d2c), pants: hex01(0xc45e1a), shoes: hex01(0x3a2a1a), tee: 1,
-    shirtPaint: { shirt: [0xec, 0x7d, 0x2c], pants: [0xc4, 0x5e, 0x1a], skin: [0xe8, 0xb8, 0x90], tuck: false, neck: 'crew', sleeves: 'rolled', buttons: false, badge: naknikBadge },
+    skin: hex01(0xd8a07a), hair: hex01(0x1d1510), hs: 'normal', hat: 'beanie', hatC: hex01(0xe8a33d), calm: 1, smile: 1, body: 'stocky', B: { nowatch: true },
+    shirt: hex01(0xa9c46a), jacket: hex01(0xa9c46a), pants: hex01(0x6a4a2a), shoes: hex01(0x2a1a10), tee: 1,
+    shirtPaint: { shirt: [0xa9, 0xc4, 0x6a], pants: [0x6a, 0x4a, 0x2a], skin: [0xd8, 0xa0, 0x7a], tuck: true, neck: 'crew', sleeves: 'rolled', buttons: false,
+      badge: (x, fx, ty) => { x.fillStyle = '#6a4a2a'; x.fillRect(fx(-0.13), 0, 10, ty(1.0)); x.fillRect(fx(0.11), 0, 10, ty(1.0)); x.fillRect(fx(-0.13), ty(1.0), fx(0.13) - fx(-0.13), ty(0.6) - ty(1.0)); naknikBadge(x, fx, ty); } },
   },
   eddyJr: {
     tex: 512,
