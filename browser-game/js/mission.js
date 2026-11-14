@@ -958,7 +958,7 @@ export function initMission(ctx) {
     for (const c of HS.cones) root.remove(c); HS.cones.length = 0;
     if (HS.safe) root.remove(HS.safe.g); if (HS.special) root.remove(HS.special.g);
     Object.assign(HS, { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, pick: 0, quietShots: 0 });
-    nightVision(false);
+    nightVision(false); spySuit(!!HEIST);
     if (!HEIST) return;
     if (HEIST.cased) for (const e of enemies) {
       const geo = new THREE.CircleGeometry(EASY.vision, 20, -Math.PI / 2 - EASY.cone, EASY.cone * 2); geo.rotateX(-Math.PI / 2);
@@ -982,16 +982,45 @@ export function initMission(ctx) {
       root.add(g); HS.safe = { g, open: false };
     }
   }
+  // night vision: a green phosphor scope. The whole picture goes monochrome green, a round eyepiece mask with a soft
+  // edge, heavy scanlines, grain and a faint range reticle; the scene lights come up so the dark rooms read.
   const nvEl = document.createElement('div');
-  nvEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:4;display:none;background:radial-gradient(ellipse at center, rgba(60,255,90,.10) 35%, rgba(0,30,0,.75) 100%);mix-blend-mode:normal';
+  nvEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:4;display:none';
+  nvEl.innerHTML = '<div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 0, rgba(0,0,0,0) 40%, rgba(0,12,2,.55) 52%, rgba(0,6,0,.97) 62%)"></div>'
+    + '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, rgba(0,0,0,.32) 0 1px, transparent 1px 3px)"></div>'
+    + '<div style="position:absolute;left:50%;top:50%;width:46vmin;height:46vmin;transform:translate(-50%,-50%);border:1px solid rgba(140,255,150,.25);border-radius:50%"></div>'
+    + '<div style="position:absolute;left:50%;top:50%;width:62vmin;height:1px;transform:translate(-50%,-50%);background:linear-gradient(90deg, transparent, rgba(140,255,150,.35) 20%, transparent 46%, transparent 54%, rgba(140,255,150,.35) 80%, transparent)"></div>'
+    + '<div style="position:absolute;left:50%;top:50%;width:1px;height:62vmin;transform:translate(-50%,-50%);background:linear-gradient(180deg, transparent, rgba(140,255,150,.35) 20%, transparent 46%, transparent 54%, rgba(140,255,150,.35) 80%, transparent)"></div>'
+    + '<div class="nvtxt" style="position:absolute;left:50%;bottom:10vh;transform:translateX(-50%);font:11px \'Press Start 2P\',monospace;color:#8cff96;text-shadow:0 0 6px #2aff4a;letter-spacing:2px">NV · GAIN 4.0 · KAASLAND</div>';
   document.body.appendChild(nvEl);
   let nvOn = false, nvSave = null;
   function nightVision(on) {
     if (on === nvOn) return; nvOn = on; nvEl.style.display = on ? 'block' : 'none';
+    const cv = document.querySelector('canvas'); if (cv) cv.style.filter = on ? 'grayscale(1) sepia(1) hue-rotate(58deg) saturate(5) brightness(1.18) contrast(1.4)' : '';
     if (on) { nvSave = { hemi: hemi.intensity, sun: sun.intensity, hc: hemi.color.clone(), gc: hemi.groundColor.clone() }; hemi.intensity = Math.max(1.4, hemi.intensity * 4); sun.intensity = Math.max(0.6, sun.intensity * 2); hemi.color.set(0x9aff9a); hemi.groundColor.set(0x1a4a1a); beep(1800, 0.05, 'sine', 0.03); beep(2400, 0.08, 'sine', 0.02); }
     else if (nvSave) { hemi.intensity = nvSave.hemi; sun.intensity = nvSave.sun; hemi.color.copy(nvSave.hc); hemi.groundColor.copy(nvSave.gc); nvSave = null; }
   }
   addEventListener('keydown', (ev) => { if (ev.code === 'KeyN' && M.active && HEIST && HEIST.nv && !state.inPC && !state.inDialogue) { nightVision(!nvOn); popup(player.position, nvOn ? 'NIGHT VISION ON' : 'NIGHT VISION OFF', '#6eff7a'); } });
+  let suit = null;
+  function spySuit(on) { // Eddy's Nachtklus outfit: everything goes tactical charcoal, with green goggle lenses on his head
+    const u = player.userData;
+    if (on && !suit) {
+      suit = { mats: [] };
+      (u.body || player).traverse((o) => { if (o.isMesh && o.material && o.material.color && !o.userData.spyGear) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) if (m.color) { suit.mats.push([m, m.color.clone()]); m.color.multiply(new THREE.Color(0x3a3e46)); } } });
+      const g = new THREE.Group(); g.userData.spyGear = true;
+      const strap = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.016, 6, 18), new THREE.MeshLambertMaterial({ color: 0x15171a })); strap.rotation.x = Math.PI / 2; strap.userData.spyGear = true; g.add(strap);
+      const lensM = new THREE.MeshBasicMaterial({ color: 0x6aff7a });
+      for (const sx of [-0.045, 0.045]) {
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.07, 10), new THREE.MeshLambertMaterial({ color: 0x1a1c20 })); tube.rotation.x = Math.PI / 2; tube.position.set(sx, 0, 0.14); tube.userData.spyGear = true; g.add(tube);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.03, 12), lensM); lens.position.set(sx, 0, 0.177); lens.userData.spyGear = true; g.add(lens);
+        const glow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshBasicMaterial({ color: 0x4aff5a, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })); glow.position.set(sx, 0.02, 0.19); glow.userData.spyGear = true; g.add(glow);
+      }
+      g.position.set(0, 0.06, 0); (u.head || player).add(g); suit.gear = g;
+    } else if (!on && suit) {
+      for (const [m, c] of suit.mats) m.color.copy(c);
+      if (suit.gear && suit.gear.parent) suit.gear.parent.remove(suit.gear); suit = null;
+    }
+  }
   function heistAlarm(n, why) {
     if (!HEIST || HS.loud) return;
     HS.alarm = Math.min(100, HS.alarm + n);
