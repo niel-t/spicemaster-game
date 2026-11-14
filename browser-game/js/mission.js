@@ -33,8 +33,11 @@ import joppiehaven from './levels/joppiehaven.js';
 import frikandelhaven from './levels/frikandelhaven.js';
 import havermelkhaven from './levels/havermelkhaven.js';
 import kombuchakwartier from './levels/kombuchakwartier.js';
+import gembergracht from './levels/gembergracht.js';
+import avocadoakkers from './levels/avocadoakkers.js';
+import glutenvrijegaarde from './levels/glutenvrijegaarde.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
