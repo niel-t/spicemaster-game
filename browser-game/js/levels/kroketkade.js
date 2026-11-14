@@ -1,167 +1,155 @@
-// Mission 2: Kroketkade. The Lampas kroket factory on the quay, De Natte Worst.
-// Level data for the mission engine (js/mission.js); see spekbuurt.js for the coordinate conventions.
+// Mission 2: Kroketkade. Snackbar Kroketkade, a brick corner snackbar on a cobbled quay that juts into the canal. Night, rain.
+// Level data for the mission engine (js/mission.js); see spekbuurt.js for the coordinate conventions. Built after the concept art
+// (00_Start_Kroketkade): the wet brick quay wraps the south and east sides, canal water beyond the bollards.
 //
-// The front is a wall of glass snack hatches facing a long open quay along the water (long sightlines, little cover).
-// Inside: the hatch shop, the frying hall with conveyor lines (rows of tall cover), a walk-in freezer (one door, tight),
-// the frituurbaas' office, a packing room full of racks and the loading dock with containers and red barrels.
-// Every room has two ways in except the freezer:
-//   quay → shop → corridor → office → packing → dock → quay
-//   quay → dock → frying hall → shop / corridor / packing
+// Rooms: the warm yellow shop (counter, döner, snack display, tables by the window), the checkered kitchen behind it (fryers,
+// prep tables, fridge), a storeroom top-left, a narrow staff room and back corridor, and the big purple garage at the back right
+// with its roller shutter open onto the east quay. Two ways in: the glass front door and the roller shutter.
+//   quay → shop → kitchen → corridor → garage → shutter → quay
+//   shop → staff room → storeroom → corridor
 
-const W = 50, H = 32;
+import { rain, puddles, water, STREET_FURN } from './props.js';
+
+const W = 31, H = 24;
 
 export default {
   id: 'kroketkade', name: 'Kroketkade', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
-    ['freezer', 1, 1, 8, 7, 'ice'], ['office', 10, 1, 19, 7, 'parquet'], ['packing', 21, 1, 38, 7, 'concrete'], ['dock', 40, 1, 48, 22, 'garage'],
-    ['corridor', 1, 9, 19, 10, 'hall'], ['shop', 1, 12, 19, 22, 'redtile'], ['fryhall', 21, 9, 38, 22, 'grease'],
-    ['quay', 1, 24, 48, 30, 'cobble'],
+    ['storeroom', 1, 1, 5, 5, 'concrete'], ['staff', 1, 7, 5, 9, 'hall'], ['corridor', 7, 1, 13, 2, 'hall'], ['kitchen', 7, 4, 13, 9, 'checkbw'],
+    ['shop', 1, 11, 13, 15, 'warm'], ['garage', 15, 1, 22, 15, 'garage'],
+    ['quay', 1, 17, 29, 22, 'brick'], ['quayeast', 24, 1, 29, 16, 'brick'],
   ],
   layout({ carve, put, putR }) {
     // doors
-    putR(4, 8, 5, 8, 'D');     // freezer ↔ corridor (the only way in or out)
-    putR(14, 8, 15, 8, 'D');   // office ↔ corridor
-    putR(20, 3, 20, 4, 'D');   // office ↔ packing
-    putR(26, 8, 27, 8, 'D'); putR(34, 8, 35, 8, 'D'); // packing ↔ frying hall
-    putR(39, 3, 39, 4, 'D');   // packing ↔ dock
-    putR(4, 11, 5, 11, 'D'); putR(15, 11, 16, 11, 'D'); // corridor ↔ shop
-    putR(20, 9, 20, 10, 'D');  // corridor ↔ frying hall
-    putR(20, 18, 20, 19, 'D'); // shop ↔ frying hall
-    putR(39, 11, 39, 12, 'D'); putR(39, 19, 39, 20, 'D'); // frying hall ↔ dock
-    putR(10, 23, 11, 23, 'D'); // shop ↔ quay: the front door
-    carve(41, 23, 47, 23);     // the dock opens onto the quay (no door)
-    carve(49, 24, 49, 30);     // the quay runs on east (the Oofmobiel drives in here)
-    putR(1, 31, 49, 31, '_');  // quay edge with bollards: blocks walking, bullets and eyes go over it
-    // glass: the snack hatches along the whole front, office windows onto the corridor
-    putR(2, 23, 8, 23, '%'); putR(13, 23, 18, 23, '%'); putR(22, 23, 29, 23, '%'); putR(32, 23, 37, 23, '%');
-    putR(11, 8, 12, 8, '%'); putR(17, 8, 18, 8, '%');
-    // freezer: steel shelving and hanging racks, narrow aisles
-    putR(1, 1, 1, 7, 'F'); putR(3, 2, 3, 5, 'R'); putR(6, 2, 6, 5, 'R');
-    // office
-    putR(13, 3, 17, 3, 'O'); putR(18, 1, 19, 1, 'V'); putR(10, 6, 10, 7, 'S'); put(19, 7, 'p');
-    // packing room: racks of kroket boxes
-    putR(24, 2, 28, 2, 'R'); putR(31, 2, 35, 2, 'R'); putR(24, 5, 28, 5, 'R'); putR(31, 5, 35, 5, 'R'); putR(37, 6, 38, 7, 'C'); put(21, 1, 'C');
-    // frying hall: three conveyor lines with a gap down the middle, fryer vats by the hatches
-    for (const z of [12, 16, 20]) { putR(23, z, 29, z, 'L'); putR(32, z, 37, z, 'L'); }
-    putR(21, 21, 22, 22, 'Y'); put(38, 9, 'X');
-    // shop: hatch counters behind the glass, fryer banks, potato sacks
-    putR(2, 22, 8, 22, 'K'); putR(13, 22, 18, 22, 'K');
-    putR(3, 18, 7, 18, 'F'); putR(12, 18, 16, 18, 'F'); putR(1, 12, 2, 12, 'C');
-    // dock: containers, pallets, red barrels
-    putR(42, 2, 43, 8, 'U'); putR(46, 6, 47, 12, 'U'); putR(41, 15, 42, 15, 'C'); put(44, 21, 'X'); put(45, 21, 'X'); put(48, 1, 'X');
-    // quay: a few crate stacks and picnic tables, a barrel by the dock, the Oofmobiel's spot ('A')
-    putR(14, 25, 15, 26, 'C'); putR(29, 25, 30, 25, 'C'); putR(37, 26, 38, 27, 'C'); putR(18, 27, 19, 27, 'T'); putR(33, 27, 34, 27, 'T'); put(45, 25, 'X');
-    putR(3, 28, 8, 30, 'A');
+    putR(6, 1, 6, 2, 'D');     // storeroom ↔ corridor
+    putR(2, 6, 3, 6, 'D');     // storeroom ↔ staff room
+    putR(6, 8, 6, 9, 'D');     // staff room ↔ kitchen
+    putR(9, 3, 10, 3, 'D');    // kitchen ↔ back corridor
+    putR(14, 1, 14, 2, 'D');   // back corridor ↔ garage
+    putR(2, 10, 3, 10, 'D');   // staff room ↔ shop
+    putR(10, 10, 11, 10, 'D'); // kitchen ↔ shop (behind the counter)
+    putR(7, 16, 8, 16, 'D');   // the glass front door
+    carve(23, 10, 23, 13);     // the garage roller shutter, rolled up
+    carve(0, 17, 0, 22);       // the quay runs on west (the Oofmobiel comes from there)
+    // the quay edge: bollards and a kerb, canal beyond
+    putR(0, 23, 30, 23, '_'); putR(30, 1, 30, 22, '_'); for (const z of [3, 8, 13, 18]) put(30, z, 'o');
+    for (let x = 2; x < 30; x += 5) put(x, 23, 'o');
+    // glass: the shop windows on the quay
+    putR(1, 16, 6, 16, '%'); putR(9, 16, 13, 16, '%');
+    // storeroom: metal shelving, boxes
+    putR(1, 1, 1, 4, 'R'); putR(3, 1, 3, 3, 'R'); put(5, 4, 'C'); put(5, 5, 'C');
+    // staff room: lockers, a little table
+    putR(1, 7, 1, 9, 'F'); put(4, 7, 'T');
+    // kitchen: fryers under the hood, the tall fridge, steel prep tables
+    putR(11, 4, 13, 4, 'Y'); putR(7, 4, 7, 5, 'F'); putR(9, 6, 11, 6, 'w');
+    // shop: the counter with the döner and the heated display, bistro tables by the window
+    putR(5, 12, 12, 12, 'K'); put(2, 14, 't'); put(4, 14, 't'); putR(11, 14, 12, 14, 't');
+    // garage: stacked boxes, the dumpster, pallets, red barrels
+    putR(16, 2, 17, 3, 'C'); putR(20, 2, 21, 2, 'C'); putR(16, 8, 17, 9, 'C'); putR(21, 5, 22, 6, 'U'); putR(18, 11, 19, 12, 'q'); putR(16, 13, 17, 13, 'q'); put(22, 1, 'X'); put(15, 14, 'X');
+    // quay: parked bikes, street lamps, a crate stack, a barrel; the Oofmobiel's spot ('A')
+    putR(10, 18, 12, 18, 'k'); put(3, 17, 'l'); put(14, 17, 'l'); put(27, 10, 'l'); put(27, 3, 'l'); putR(17, 19, 18, 19, 'C'); put(28, 15, 'X');
+    putR(18, 20, 24, 22, 'A');
   },
-  // steel fryers instead of fridges, kroket boxes on the racks
   furn: {
-    F: { color: 0xb8c4cc },
-    L: { h: 1.15, cover: true, draw: ({ THREE, root, box, lam, n, h, cx, cz, x, OX }) => { // conveyor line
-      box(n - 0.04, 0.12, 0.86, lam({ color: 0x5a6670 }), cx, h - 0.12, cz, root);
-      box(n - 0.1, 0.03, 0.66, lam({ color: 0x1a1a1e }), cx, h - 0.04, cz, root, false);
-      box(n - 0.04, h - 0.18, 0.7, lam({ color: 0x3a444c }), cx, (h - 0.18) / 2, cz, root);
-      for (let k = 0; k <= n; k += 0.5) box(0.05, 0.05, 0.84, lam({ color: 0xa8b4bc }), OX + x + k, h - 0.18, cz, root, false);
+    ...STREET_FURN,
+    F: { color: 0xd8dcd8 },
+    Y: { h: 1.0, cover: true, draw: ({ THREE, root, box, lam, n, h, cx, cz, x, OX }) => { // steel fryers with baskets
+      box(n - 0.06, h, 0.9, lam({ color: 0xb8c0c4 }), cx, h / 2, cz, root);
+      for (let k = 0; k < n; k++) { const oil = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.55), new THREE.MeshBasicMaterial({ color: 0xd8a030 })); oil.rotation.x = -Math.PI / 2; oil.position.set(OX + x + k + 0.5, h + 0.01, cz); root.add(oil); box(0.3, 0.05, 0.25, lam({ color: 0x3a3a3a }), OX + x + k + 0.5, h + 0.12, cz - 0.1, root, false); }
     } },
-    U: { h: 2.5, cover: true, sight: true, draw: ({ THREE, root, box, lam, n, h, cx, cz, x, z }) => { // shipping container
-      const c = [0xc8402e, 0x2a6aa8, 0x3a8a4a][(x + z) % 3];
-      box(n - 0.04, h, 0.98, lam({ color: c }), cx, h / 2, cz, root);
-      box(n + 0.02, 0.08, 1.02, lam({ color: 0x1a1a1a }), cx, h, cz, root, false);
+    U: { h: 1.3, cover: true, draw: ({ box, lam, root, n, h, cx, cz }) => { // dumpster
+      box(n - 0.1, h, 0.95, lam({ color: 0x2a5a3a }), cx, h / 2, cz, root); box(n, 0.08, 1.0, lam({ color: 0x1a3a24 }), cx, h + 0.04, cz, root, false);
     } },
-    Y: { h: 1.1, cover: true, draw: ({ THREE, root, box, lam, n, h, cx, cz }) => { // fryer vat full of hot oil
-      box(n - 0.06, h, 0.92, lam({ color: 0x9aa4ac }), cx, h / 2, cz, root);
-      const oil = new THREE.Mesh(new THREE.PlaneGeometry(n - 0.3, 0.7), new THREE.MeshBasicMaterial({ color: 0xe8a020 })); oil.rotation.x = -Math.PI / 2; oil.position.set(cx, h + 0.01, cz); root.add(oil);
+    q: { h: 0.25, cover: false, draw: ({ box, lam, root, n, cx, cz }) => { // wooden pallet
+      for (const dz of [-0.35, 0, 0.35]) box(n - 0.1, 0.06, 0.2, lam({ color: 0xa87a4a }), cx, 0.2, cz + dz, root, false);
+      for (const s of [-1, 1]) box(0.1, 0.14, 0.9, lam({ color: 0x8a6038 }), cx + s * (n / 2 - 0.15), 0.08, cz, root, false);
     } },
-    _: { h: 0.4, cover: false, draw: ({ THREE, root, box, cyl, lam, n, h, cx, cz, x, OX }) => { // quay edge and bollards
-      box(n, h, 0.9, lam({ color: 0x7a7670 }), cx, h / 2, cz, root);
-      for (let k = 1; k < n; k += 5) { cyl(0.16, 0.2, 0.75, lam({ color: 0x1a1a1e }), OX + x + k + 0.5, 0.38, cz, root, 10); cyl(0.24, 0.24, 0.08, lam({ color: 0x1a1a1e }), OX + x + k + 0.5, 0.78, cz, root, 10); }
-    } },
+    _: { h: 0.4, cover: false, draw: ({ box, lam, root, n, h, cx, cz }) => { box(n, h, 0.9, lam({ color: 0x5a564e }), cx, h / 2, cz, root); } },
   },
-  rackGoods: [0xc87a3a, 0xe8a020, 0xf2efe6],
+  rackGoods: [0xc89a5a, 0xe8d8b0, 0xa8784a],
   floors: {
-    ice: (g) => { g.fillStyle = '#c8e4f0'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#8ab4c8'; g.lineWidth = 2; for (let i = 0; i <= 64; i += 32) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); } for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 1); } },
-    redtile: (g) => { g.fillStyle = '#a83a2a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#6a2018'; g.lineWidth = 2; for (let i = 0; i <= 64; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); } },
-    grease: (g) => { g.fillStyle = '#d8d4c8'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#a8a498'; g.lineWidth = 2; for (let i = 0; i <= 64; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); } for (let i = 0; i < 5; i++) { g.fillStyle = 'rgba(160,110,30,.25)'; g.beginPath(); g.ellipse(Math.random() * 64, Math.random() * 64, 5 + Math.random() * 8, 3 + Math.random() * 5, Math.random(), 0, 7); g.fill(); } },
-    cobble: (g) => { g.fillStyle = '#5a5a60'; g.fillRect(0, 0, 64, 64); for (let y = 0; y < 64; y += 8) for (let x = (y / 8) % 2 ? 0 : 4; x < 64; x += 8) { g.fillStyle = ['#6a6a70', '#76767c', '#626268'][(x + y) % 3]; g.fillRect(x + 1, y + 1, 6, 6); } },
+    warm: (g) => { g.fillStyle = '#e8c870'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#c8a050'; g.lineWidth = 2; for (let i = 0; i <= 64; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); } },
+    checkbw: (g) => { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#1a1a1e' : '#e8ece6'; g.fillRect(x * 32, y * 32, 32, 32); } for (let i = 0; i < 3; i++) { g.fillStyle = 'rgba(140,110,40,.18)'; g.beginPath(); g.ellipse(Math.random() * 64, Math.random() * 64, 8, 5, 0, 0, 7); g.fill(); } },
+    brick: (g) => { g.fillStyle = '#4a3430'; g.fillRect(0, 0, 64, 64); for (let y = 0; y < 64; y += 8) for (let x = (y / 8) % 2 ? 0 : 8; x < 64; x += 16) { g.fillStyle = ['#6a4038', '#5a3830', '#74483c'][(x + y) % 3]; g.fillRect(x + 1, y + 1, 14, 6); } },
   },
-  floorRep: { cobble: 1.6, ice: 1.2 },
-  hallCells: [[41, 23], [42, 23], [43, 23], [44, 23], [45, 23], [46, 23], [47, 23]],
-  doorSigns: { '10,23': 'INGANG', '4,8': 'VRIESCEL' },
-  neon: { freezer: 0x9ae8ff, office: 0xffd23a, packing: 0xffd8a0, dock: 0xffb040, corridor: 0x3ff0ff, shop: 0xff7a1a, fryhall: 0xffa040, quay: 0x3ff0ff },
-  lights: [[10, 17, 0xff8a3a, 2.0], [30, 15, 0xffa040, 2.4], [4.5, 4, 0x9ae8ff, 1.8], [15, 4, 0xffd23a, 1.6], [30, 4, 0xffd8a0, 1.4], [44, 12, 0xffb040, 1.8], [12, 27, 0x6ab0ff, 1.6], [30, 27, 0x6ab0ff, 1.6], [44, 27, 0xffb040, 1.4]],
-  mood: { bg: 0x08142a, fogNear: 28, fogFar: 72, hemi: 0.5, sun: 0.75, wall: 0x22303c, cap: 0xe6f0f2, under: 0x445566 },
-  van: { park: [6, -2.4], rot: Math.PI, from: W + 12, exit: [6.8, -4.5], solid: [2.7, 8.8, -3.55, -1.25] }, // world; rot: nose west, the way it drives in
-  start: [10.5, -5.6],          // world: on the quay, in front of the shop door
-  bounds: [0.6, W - 0.4, -H, -0.5], // world: x0, x1, z0, z1 (the water stops you)
-  validateFrom: [10.5, 24.5],   // cell: the front door
+  floorRep: { brick: 1.4, warm: 1.2, checkbw: 1.0 },
+  hallCells: [[23, 10], [23, 11], [23, 12], [23, 13], [0, 17], [0, 18], [0, 19], [0, 20], [0, 21], [0, 22]],
+  doorSigns: { '7,16': 'KROKETKADE' },
+  neon: { storeroom: 0xffd8a0, staff: 0xe8f4ff, corridor: 0xe8f4ff, kitchen: 0xc8ffd0, shop: 0xffd27a, garage: 0x9a5aff, quay: 0x3ff0ff },
+  lights: [[7, 13, 0xffd27a, 2.4], [10, 6.5, 0xc8ffd8, 1.9], [18.5, 7, 0x9a5aff, 1.8], [10, 1.5, 0xe8f4ff, 1.1], [3, 3, 0xffd8a0, 1.0], [3, 8, 0xe8f4ff, 0.9], [8, 20, 0x5a9aff, 1.6], [21, 20, 0x5a9aff, 1.4], [27, 8, 0x5a9aff, 1.5]],
+  mood: { bg: 0x050b1a, fogNear: 24, fogFar: 62, hemi: 0.42, sun: 0.55, wall: 0x6a3428, cap: 0xd8c8b8, under: 0x3a3440 },
+  van: { park: [21, -2.4], rot: 0, from: -16, exit: [20, -4.6], solid: [18.2, 24.3, -3.55, -1.25] }, // world; arrives along the quay from the west, nose first
+  start: [8, -5.6],              // world: on the quay in front of the glass door
+  bounds: [0.5, W - 0.4, -H, -0.6], // world: the canal stops you
+  validateFrom: [8, 17.5],       // cell: the front door
   bossLook: { shirt: 0xf2efe6, front: '#f2efe6', pants: 0x2a2a3a, belly: 1.4, head: { hair: '#3a2a1a', brow: '#2a1a0a', glasses: false, hairLine: 60, iris: '#3a2a1a' } },
-  spawns: [ // cell x, cell z, weapon, facing (0 = +z/south), room, boss
-    [22, 27, 'makarov', Math.PI / 2, 'quay'], [34, 25.5, 'bat', Math.PI / 2, 'quay'], [44.5, 28, 'shotgun', -Math.PI / 2, 'quay'],
-    [6, 20, 'bat', Math.PI, 'shop'], [15, 20, 'makarov', 0, 'shop'], [9, 13.5, 'bat', Math.PI / 2, 'shop'], [18.5, 13, 'makarov', Math.PI, 'shop'],
-    [12, 9.5, 'bat', -Math.PI / 2, 'corridor'],
-    [4.5, 3.5, 'makarov', 0, 'freezer'], [7.5, 6.5, 'bat', Math.PI, 'freezer'],
-    [15, 2, 'shotgun', 0, 'office', true], [12, 5.5, 'makarov', Math.PI / 2, 'office'],
-    [24, 3.5, 'bat', Math.PI / 2, 'packing'], [30, 2.5, 'makarov', 0, 'packing'], [36, 4, 'bat', -Math.PI / 2, 'packing'],
-    [24.5, 10.5, 'makarov', Math.PI / 2, 'fryhall'], [30.5, 14, 'bat', 0, 'fryhall'], [36, 17.5, 'makarov', -Math.PI / 2, 'fryhall'], [26, 21.5, 'shotgun', Math.PI, 'fryhall'], [33, 10.5, 'bat', 0, 'fryhall'], [22.5, 17.5, null, Math.PI / 2, 'fryhall'],
-    [44.5, 12, 'makarov', Math.PI, 'dock'], [41, 18, 'bat', Math.PI / 2, 'dock'], [46, 20, 'makarov', Math.PI, 'dock'], [45, 2.5, 'bat', 0, 'dock'],
+  spawns: [ // cell x, cell z, weapon, facing (0 = +z/south), room, boss, { cap }
+    [3, 13, 'bat', Math.PI, 'shop'], [8, 11.5, 'makarov', -Math.PI / 2, 'shop'],
+    [8, 8, 'bat', Math.PI / 2, 'kitchen'], [12.5, 6.5, 'makarov', -Math.PI / 2, 'kitchen'], [8, 5, null, Math.PI, 'kitchen'],
+    [2, 4, 'makarov', 0, 'storeroom'], [3, 8, 'bat', Math.PI / 2, 'staff'], [11, 1.5, 'makarov', -Math.PI / 2, 'corridor'],
+    [19, 4.5, 'shotgun', Math.PI, 'garage', true], [16, 6, 'makarov', Math.PI / 2, 'garage'], [20, 9, 'bat', Math.PI, 'garage'], [17, 11, 'makarov', 0, 'garage'], [21, 14, 'bat', -Math.PI / 2, 'garage'],
+    [20, 18, 'makarov', Math.PI / 2, 'quay'], [26, 12, 'bat', 0, 'quayeast'], [27, 5, 'makarov', Math.PI, 'quayeast'],
   ],
-  loot: [[2.5, 6.5], [7.5, 1.5], [19, 2.5], [37.5, 1.5], [47.5, 15.5], [38, 21.5]], // cell
+  loot: [[2, 1.5], [22, 3.5], [13, 9.5], [5, 7.5]], // cell
   text: {
     area: 'KAASLAND · KROKETKADE',
-    banner: ['LAMPAS KROKETTENFABRIEK', 'Kroketkade. Long quay, little cover.'],
-    objective: 'Take the <b>Lampas kroket factory</b> on Kroketkade. Mind the long quay, then clear the frying hall, the freezer and the office. <span style="color:#ffd36b">Leave nobody standing.</span>',
+    banner: ['SNACKBAR KROKETKADE', 'Kroketkade. Rain on the quay, Lampas in the kitchen.'],
+    objective: 'Take <b>Snackbar Kroketkade</b> on the quay from the Lampas: the shop, the kitchen, the back rooms and the garage. <span style="color:#ffd36b">Leave nobody standing.</span>',
     objectiveOwned: 'Kroketkade is <b>yours</b>. The fryers are cold for now. Drive home in the <b>Oofmobiel</b>.',
     objectiveCleared: '<b style="color:#6ed36e">Kroketkade is yours.</b> Grab any spice crates (E), then drive home in the <b>Oofmobiel</b>.',
     resultsTitle: 'KROKETKADE UNLOCKED',
     resultsHint: 'The Lampas are off the quay. Their kroket filling was forty percent spice-flavoured sawdust. Grab the crates (E), then drive home.',
     ownedBanner: ['KROKETKADE IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['DE FRITUURBAAS IS DOWN', 'No more Lampas krokets on the quay.'],
-    tips: ['The quay has long sightlines. Hug the crates, or go round through the loading dock.', 'The freezer has one door. Don\'t get cornered in there.', 'Conveyor lines stop bullets. Picnic tables don\'t.'],
+    tips: ['Two ways in: the glass front door, or round the corner through the garage roller shutter.', 'The bistro tables and the bikes are low. Bullets fly right over them.', 'The counter and the fryers stop bullets.'],
   },
-  // water, the far bank, the moored boat, the factory front, krokets riding the conveyors
-  decorate({ THREE, root, OX, Z0, G, box, cyl, lam, solid, floorW, T, WALL_H, neonRect, neonTube, signTex, canvasTex }) {
-    // the water and the quay wall
-    const waterT = canvasTex(64, 64, (g) => { g.fillStyle = '#0c2238'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(110,180,255,${0.05 + Math.random() * 0.12})`; g.fillRect(Math.random() * 64, Math.random() * 64, 6 + Math.random() * 10, 1); } });
-    const water = floorW(OX - 20, OX + W + 30, 0, 26, waterT, 6, 0xffffff, -0.35);
-    box(W + 50, 0.4, 0.3, lam({ color: 0x5a5650 }), OX + W / 2 + 5, -0.15, 0.15, root);
-    // the far bank: a row of houses with lit windows
-    box(W + 50, 0.6, 6, lam({ color: 0x3a3a40 }), OX + W / 2 + 5, 0, 24, root);
-    for (let i = 0; i < 12; i++) {
-      const x = OX - 18 + i * 6.5, h = 5 + (i * 7) % 4, c = [0x3a2a4a, 0x2a3a5a, 0x4a3a2a, 0x2a4a3a][i % 4];
-      box(6, h, 4, lam({ color: c }), x, h / 2, 23, root);
-      for (let k = 0; k < 3; k++) for (let r = 0; r < Math.floor(h / 2) - 1; r++) if ((i + k + r) % 3) box(0.8, 0.9, 0.05, new THREE.MeshBasicMaterial({ color: [0xffd88a, 0xffb04a, 0x9ad8ff][(i + k) % 3] }), x - 1.8 + k * 1.8, 1.6 + r * 1.8, 20.97, root, false);
+  decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
+    const ticks = [];
+    // the canal on the open sides, the quay running on west, the neighbours
+    ticks.push(water(THREE, root, floorW, canvasTex, OX - 24, 0, OX + W + 30, 30));
+    ticks.push(water(THREE, root, floorW, canvasTex, OX + W, Z0 - 10, OX + W + 30, 0));
+    box(W + 2, 0.5, 0.25, lam({ color: 0x4a463e }), OX + W / 2, -0.2, 0.12, root); box(0.25, 0.5, H, lam({ color: 0x4a463e }), OX + W + 0.12, -0.2, Z0 + H / 2, root);
+    floorW(OX - 24, OX, Z0 + 17, 0, T.brick, 1.4);
+    box(24, 7.5, 16, lam({ color: 0x5a2e24 }), OX - 12, 3.75, Z0 + 8, root);
+    for (let i = 0; i < 4; i++) box(1, 1.3, 0.05, new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffd88a : 0x2a3040 }), OX - 3 - i * 5, 2.2, Z0 + 16.03, root, false);
+    // houses on the far bank of the canal
+    for (let i = 0; i < 9; i++) {
+      const x = OX - 18 + i * 7, h = 7 + (i * 5) % 4, c = [0x5a2a22, 0x3a2a24, 0x6a4030, 0x4a3a34][i % 4];
+      box(6.6, h, 5, lam({ color: c }), x, h / 2, 22, root);
+      const gab = new THREE.Mesh(new THREE.ConeGeometry(3.6, 2.2, 4), lam({ color: c })); gab.position.set(x, h + 1, 22); gab.rotation.y = Math.PI / 4; root.add(gab);
+      for (let k = 0; k < 2; k++) for (let r = 0; r < 3; r++) if ((i + k + r) % 3) box(1.1, 1.2, 0.05, new THREE.MeshBasicMaterial({ color: [0xffd88a, 0xffb04a, 0x9ad8ff][(i + k + r) % 3] }), x - 1.4 + k * 2.8, 1.8 + r * 2.2, 19.47, root, false);
     }
-    // neighbours either side of the factory
-    for (const [x0, x1, c] of [[-12, 0, 0x2a3a4a], [W, W + 12, 0x3a2a3a]]) box(x1 - x0, 6, H - 9, lam({ color: c }), OX + (x0 + x1) / 2, 3, Z0 + (H - 9) / 2, root);
-    // the moored boat at the dock
-    const boat = new THREE.Group(); boat.position.set(OX + 44, -0.2, 2.6); root.add(boat);
-    box(7.5, 1.0, 2.6, lam({ color: 0x1a3a5a }), 0, 0.3, 0, boat); box(7.6, 0.12, 2.7, lam({ color: 0xf2efe6 }), 0, 0.85, 0, boat, false);
-    box(2.4, 1.3, 1.9, lam({ color: 0xf2efe6 }), -1.6, 1.45, 0, boat); box(2.5, 0.1, 2.0, lam({ color: 0xff7a1a }), -1.6, 2.15, 0, boat, false);
-    for (const k of [0, 1]) box(1.1, 0.9, 1.1, lam({ color: 0x8a6a3a }), 1.2 + k * 1.3, 1.25, 0, boat);
-    const name = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.45), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'DE VETTE PAAL', size: 60 }], '#1a3a5a', '#ffffff', 512, 80) })); name.position.set(0.8, 0.45, -1.31); name.rotation.y = Math.PI; boat.add(name);
-    solid(OX + 40, OX + 48, 1.2, 4);
-    // the factory front: sign and hatch menus
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.2), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'LAMPAS KROKETTENFABRIEK', size: 92 }, { t: 'VERS VAN DE KADE · SINDS GISTEREN', size: 40, color: '#ffffff' }], '#0a1020', '#ffb040', 1024, 150) }));
-    sign.position.set(OX + 20, 2.85, Z0 + 24.02); root.add(sign); neonRect(root, OX + 20, 2.85, 14.2, 1.35, Z0 + 24.06, 0xffb040);
-    for (const [x, t, c] of [[5.5, 'KROKET W 2', '#ffb040'], [16, 'FRIKANDEL W 2', '#3ff0ff'], [26, 'BAMISCHIJF W 3', '#ff3fa4'], [35, 'KAASSOUFFLÉ W 3', '#7dff9a']]) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.5), new THREE.MeshBasicMaterial({ map: signTex([{ t, size: 46 }], '#0a1020', c, 512, 64) }));
-      m.position.set(OX + x, 1.95, Z0 + 24.04); root.add(m);
-    }
-    // the office: a portrait of the boss of bosses, and a whiteboard of kroket numbers in the frying hall
-    const jvk = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.9), lam({ map: canvasTex(128, 96, (g) => { g.fillStyle = '#d8b040'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#2a1a1a'; g.fillRect(6, 6, 116, 84); g.fillStyle = '#f2c8a0'; g.beginPath(); g.arc(64, 44, 22, 0, 7); g.fill(); g.fillStyle = '#ff7a1a'; g.fillRect(36, 66, 56, 24); g.fillStyle = '#ffd36b'; g.font = '700 10px Arial'; g.textAlign = 'center'; g.fillText('JAN VAN KAAS', 64, 88); }) }));
-    jvk.position.set(OX + 15, 1.7, Z0 + 1.02); root.add(jvk);
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.1), lam({ map: signTex([{ t: 'QUOTA: 40.000 / NACHT', size: 40 }, { t: 'zaagsel: 40%  vlees: ?', size: 30, color: '#c8402e' }], '#f2f2f2', '#1a1a1a', 512, 180) }));
-    board.position.set(OX + 30, 1.6, Z0 + 9.02); root.add(board);
-    // krokets riding the conveyors
-    const krokM = lam({ color: 0xb8742a }), krokets = [];
-    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (G[z][x] === 'L' && (x === 0 || G[z][x - 1] !== 'L')) {
-      let x1 = x; while (G[z][x1 + 1] === 'L') x1++;
-      for (let k = x; k <= x1; k += 0.7) { const m = cyl(0.08, 0.08, 0.32, krokM, OX + k + 0.3, 1.2, Z0 + z + 0.5, root, 8); m.rotation.z = Math.PI / 2; krokets.push({ m, a: OX + x + 0.15, b: OX + x1 + 0.85 }); }
-    }
-    let t = 0;
-    return { tick(dt) {
-      t += dt; water.material.map.offset.x = t * 0.02; water.material.map.offset.y = Math.sin(t * 0.4) * 0.05;
-      boat.position.y = -0.2 + Math.sin(t * 1.3) * 0.05; boat.rotation.z = Math.sin(t * 0.9) * 0.015;
-      for (const k of krokets) { k.m.position.x += dt * 0.6; if (k.m.position.x > k.b) k.m.position.x = k.a; }
-    } };
+    // wall skins: purple garage, greasy kitchen tiles, warm shop
+    const skin = (x0, z0, x1, z1, color) => {
+      const m = lam({ color }), add = (x, z, rot) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(1, WALL_H - 0.1), m); p.position.set(x, (WALL_H - 0.1) / 2, z); p.rotation.y = rot; root.add(p); };
+      for (let x = x0; x <= x1; x++) { if (G[z0 - 1][x] === '#') add(OX + x + 0.5, Z0 + z0 + 0.012, 0); if (G[z1 + 1][x] === '#') add(OX + x + 0.5, Z0 + z1 + 1 - 0.012, Math.PI); }
+      for (let z = z0; z <= z1; z++) { if (G[z][x0 - 1] === '#') add(OX + x0 + 0.012, Z0 + z + 0.5, Math.PI / 2); if (G[z][x1 + 1] === '#') add(OX + x1 + 1 - 0.012, Z0 + z + 0.5, -Math.PI / 2); }
+    };
+    skin(15, 1, 22, 15, 0x4a2a5a); skin(7, 4, 13, 9, 0xc8d8c8); skin(1, 11, 13, 15, 0xe8c890);
+    // the shop front: neon window signs and the name board
+    const neonSign = (t, x, w, c, hex) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.6), new THREE.MeshBasicMaterial({ map: signTex([{ t, size: 64 }], '#0a0a14', hex, 512, 80), transparent: true, opacity: 0.95 })); m.position.set(OX + x, 1.95, Z0 + 17.04); root.add(m); neonRect(root, OX + x, 1.95, w + 0.15, 0.72, Z0 + 17.08, c); };
+    neonSign('SNACKS', 3.5, 3.6, 0x3ff0ff, '#3ff0ff'); neonSign('KROKETKADE', 11, 4.2, 0xff3f6a, '#ff3f6a');
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 0.9), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SNACKBAR KROKETKADE', size: 80 }], '#2a0a10', '#ffd27a', 1024, 110) }));
+    sign.position.set(OX + 7.5, 2.75, Z0 + 17.02); root.add(sign);
+    // inside the shop: döner, heated display, menu boards, clock
+    const doner = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.9, 14), lam({ color: 0x9a5a2a })); doner.position.set(OX + 6, 1.55, Z0 + 12.5); root.add(doner);
+    cyl(0.03, 0.03, 1.2, lam({ color: 0xc8ccd0 }), OX + 6, 1.6, Z0 + 12.5, root, 6);
+    const disp = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.45, 0.7), new THREE.MeshPhongMaterial({ color: 0xffe8a0, transparent: true, opacity: 0.35, shininess: 100 })); disp.position.set(OX + 9.5, 1.3, Z0 + 12.5); root.add(disp);
+    for (let k = 0; k < 8; k++) { const s = cyl(0.06, 0.06, 0.24, lam({ color: [0xb8742a, 0x8a4a1a, 0xd8a050][k % 3] }), OX + 8.4 + k * 0.3, 1.15, Z0 + 12.5 + (k % 2 ? 0.12 : -0.12), root, 8); s.rotation.z = Math.PI / 2; }
+    [['KROKET W 2', '#ffd27a'], ['FRIKANDEL W 2', '#ffffff'], ['DÖNER W 6', '#ffd27a']].forEach(([t, c], i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.6), new THREE.MeshBasicMaterial({ map: signTex([{ t, size: 44 }], '#1a1010', c, 384, 96) })); m.position.set(OX + 5.6 + i * 2.5, 1.9, Z0 + 11.03); root.add(m); });
+    const clock = new THREE.Mesh(new THREE.CircleGeometry(0.28, 20), new THREE.MeshBasicMaterial({ map: canvasTex(64, 64, (g) => { g.fillStyle = '#f2efe6'; g.beginPath(); g.arc(32, 32, 30, 0, 7); g.fill(); g.strokeStyle = '#1a1a1a'; g.lineWidth = 4; g.stroke(); g.beginPath(); g.moveTo(32, 32); g.lineTo(32, 12); g.moveTo(32, 32); g.lineTo(46, 38); g.stroke(); }) }));
+    clock.position.set(OX + 2.5, 1.95, Z0 + 11.03); root.add(clock);
+    // kitchen: extraction hood over the fryers, mop bucket
+    box(3, 0.4, 0.55, lam({ color: 0x9aa4a8 }), OX + 12.5, 2.05, Z0 + 4.3, root, false);
+    cyl(0.18, 0.15, 0.3, lam({ color: 0xffd23a }), OX + 7.5, 0.15, Z0 + 9.6, root, 10); cyl(0.02, 0.02, 1.2, lam({ color: 0x8a6a3a }), OX + 7.6, 0.7, Z0 + 9.5, root, 6);
+    // garage: the rolled-up shutter, a pallet jack
+    box(0.4, 0.5, 4, lam({ color: 0x8a8a86 }), OX + 23.5, 2.05, Z0 + 12, root, false);
+    box(0.5, 0.12, 1.2, lam({ color: 0xc83a2a }), OX + 20.5, 0.12, Z0 + 13.7, root, false); cyl(0.03, 0.03, 1.0, lam({ color: 0x1a1a1a }), OX + 20.5, 0.6, Z0 + 13.1, root, 6);
+    // the wet quay
+    const pl = []; for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (G[z][x] === '.' && (z >= 17 || x >= 24) && Math.random() < 0.06) pl.push([OX + x + Math.random(), Z0 + z + Math.random(), 0.3 + Math.random() * 0.4]);
+    for (const [x, z] of [[17, 6], [20, 11], [18, 14]]) pl.push([OX + x, Z0 + z, 0.5]);
+    puddles(THREE, root, pl);
+    ticks.push(rain(THREE, root, [[OX - 16, Z0 + 17, OX + W + 6, 12], [OX + 24, Z0 + 1, OX + W + 6, Z0 + 17]], 900));
+    return { tick(dt) { doner.rotation.y += dt * 0.8; for (const t of ticks) t(dt); } };
   },
 };
