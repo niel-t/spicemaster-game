@@ -45,11 +45,11 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
   pocket ammo, the vest if it wasn't shot through) goes home with you and into the next mission. Backspace restores the kit you came in with.
 - **De Kluis (stash):** a green locker in the warehouse (E) with 6 shelves to store and swap gear. Purchases from The Russian go
   into your hands if there is room, otherwise into the kluis.
-- **Arrival:** launching Spekbuurt plays a short drive-in: the Oofmobiel pulls up, parks out front and Eddy walks to the door.
+- **Arrival:** launching a mission plays a short drive-in: the Oofmobiel pulls up, parks out front and Eddy walks to the door.
   Skip it with E / Space / click; a restart (Backspace) never replays it.
 - **Mini-boss STEVEN ZEEGAAL** (Spekbuurt gym, his dojo): a 90s action-star parody. Slow, unarmed, never picks up guns,
   takes 4 hits, lazily leans out of the way of bullets, and his wrist lock twists your gun out of your hand. Enemy types are
-  data-driven (`FOE_TYPES` in `js/mission.js`): give a SPAWNS entry a 7th field `'zeegaal'` to place him in any level.
+  data-driven (`FOE_TYPES` in `js/mission.js`): give a spawn entry in a level file (`js/levels/*.js`) a 7th field `'zeegaal'` (or `{ type: 'zeegaal' }`) to place him in any level; Spekbuurt has him in the gym.
 - **Active reload:** R starts a reload from your pocket ammo (9mm for the Makarov, shells for the sawn-off). Press R again inside the
   green window on the bar above Eddy for an instant reload; miss it and the gun jams (slower reload). An empty gun reloads by itself when you attack.
 - **Ammo:** bought boxes go to your pocket. Grab (E) a Lampas gun of the calibre you hold to strip its rounds; picking up a new gun also pockets its spare rounds.
@@ -59,7 +59,10 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 | Path | What |
 |---|---|
 | `index.html` | HUD, dialogue box, Kaasdows 95 PC window, the Russian's gun shop, title screen (HTML/CSS overlays) |
-| `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map |
+| `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map, district progression |
+| `js/mission.js` | Mission engine (Neon Vice rules): builds the chosen level on a 1 m cell grid, Lampas AI, weapons, kit, kluis, HUD, results. Only one level is in the scene at a time |
+| `js/levels/*.js` | One file per mission: grid layout, rooms + floors, doors, glass, furniture, spawns (incl. boss), loot, entry point, van arrival, texts, bounds, mood lighting and unique props (`decorate`). `spekbuurt.js`, `kroketkade.js`, `uitjesbuurt.js` |
+| `js/levels/props.js` | Shared level dressing: rain, puddles, canal water, glow sprites and street furniture letters (lamps, bollards, bikes, planters, benches, bistro tables) |
 | `js/input.js` | Controller (Gamepad API) and touch input, pause menu, device-aware hints; turns both into the same key events the keyboard sends |
 | `js/music.js` | Procedural upbeat WebAudio soundtrack |
 | `vendor/three.module.min.js` | three.js r170 (MIT, see `three-LICENSE.txt`) |
@@ -70,6 +73,17 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 ## Story flow (Chapter 0)
 Talk to Eddy Sr. → list the 6 junk items on the PC → sell them on Kaasplaats → buy a mixing table → hire a Naknik →
 Eddy Sr.'s farewell → visit The Russian (pawnshop, De Natte Worst) → buy a weapon → end of Chapter 0.
+
+## Story flow (District 1: De Natte Worst)
+Drive the Oofmobiel to a territory from the map (needs a weapon). Each one is a mission; clear it and it's yours.
+1. **Spekbuurt** (Mission 1): Snackpaleis Spekbuurt, a Lampas shoarma joint. Owning it opens the other two.
+2. **Kroketkade** (Mission 2): a brick corner snackbar on a rainy quay jutting into the canal: the shop, a checkered kitchen, storeroom, staff room and a purple garage with its roller shutter open onto the quay. 16 Lampas, the frituurbaas in the garage.
+3. **Uitjesbuurt** (Mission 3): a white brick corner snackbar with a terrace on a street of canal houses. Down the stairs: a vaulted onion cellar with a glowing oven and, behind a hidden opening, the lieutenant's gambling den. 16 Lampas.
+
+Own all three: **DE NATTE WORST IS YOURS**, a W 5.000 bonus, and the Lampas territories on the map turn to "next" (Oud-Vettenburg, missions in a later build).
+Progress is saved per level (`state.owned`, `state.lootTaken`); old saves with `state.spekbuurt` are migrated.
+
+To add a mission: copy a file in `js/levels/`, add it to `LEVELS` in `js/mission.js`, and launch it with `mission.enter(id)`.
 
 ## Start menu & fonts
 The game opens on a start menu (Continue / New Game / Controls / Music / Credits) over a slow dusk drift along the canal street;
@@ -84,7 +98,8 @@ The game autosaves to `localStorage` (key `spiceMasterEddy.save`, versioned) on 
 mission end and when the tab closes. Mid-mission progress is not saved (it is when the mission ends). The title screen offers
 **[Enter] Continue** or **[N] New Game** (asks to confirm with J). Fields a newer build added to the save are kept untouched.
 
-Testing hooks are exposed on `window.__sme` in the browser console.
+Testing hooks are exposed on `window.__sme` in the browser console, e.g. `__sme.startLevel('kroketkade')` (jump into a mission),
+`__sme.own('spekbuurt', 'kroketkade', 'uitjesbuurt')` (mark territories owned) and `__sme.mission.validate()` (level reachability checks).
 
 ## Naming rules
 Kaasland (never the Netherlands) · currency Wilders · the blue Oofmobiel · factions Lampas, Noshgey Kariot, Abdavissies ·
