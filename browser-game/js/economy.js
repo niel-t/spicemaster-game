@@ -273,6 +273,18 @@ export function createEconomy(deps) {
       if (trustOf(c.id) < 20 && !e.pause[c.id]) { e.pause[c.id] = 2; rows.at(-1).note += '. Fed up: back to the Lampas for 2 days'; }
     }
     for (const c of ownedClients().filter((x) => e.retaken[x.id])) rows.push({ name: c.name, note: 'TAKEN BACK BY THE LAMPAS: raid it to win it back', pay: 0 });
+    const po = e.phoneOrder; // Hakan's kipkruiden, ordered by phone yesterday: Shooki drops it off after the joints are served
+    if (po) {
+      e.phoneOrder = null;
+      const have = blendOf('kip'), kg = Math.min(po.kg, Math.floor(have.kg)), who = 'Hakan Et & Döner (phone, Shooki delivers)';
+      if (kg <= 0) rows.push({ name: who, want: `${po.kg} kg Kip Shoarma`, note: 'Shooki turned up empty-handed. "Geen kipkraud? Tamam abi, volgende keer."', pay: 0 });
+      else {
+        have.kg -= kg; if (have.kg <= 0) delete e.blends.kip; else e.blends.kip = have;
+        const pay = Math.round(clientPrice('kip', have.q, null) * kg * 1.15); // a little extra for the rush
+        rows.push({ name: who, want: `${po.kg} kg Kip Shoarma`, kg, q: have.q, note: kg < po.kg ? `short ${po.kg - kg} kg. "Tamam, is ook goed."` : '"Shooki is held, abi!"', pay });
+        paid += pay;
+      }
+    }
     if (paid) { deps.addMoney(paid); addRep(paid / 20); }
     return { day: e.day, rows, paid, missed };
   }
@@ -723,5 +735,8 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  // Hakan's phone order (js/phone.js): Shooki brings it at the next market day
+  function phoneOrder(kg) { const e = ensure(); e.phoneOrder = { kg, day: e.day }; e.phoneDay = e.day; if (deps.save) deps.save(); }
+  const phoneQuote = (kg) => Math.round(clientPrice('kip', Math.max(1, blendOf('kip').q || 3), null) * kg * 1.15);
+  return { phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }
