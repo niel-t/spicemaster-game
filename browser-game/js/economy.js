@@ -22,13 +22,28 @@ export const GRADES = [
 ];
 // Blends the Naknikim mix: kg of each ingredient per 10 kg of blend, and the blend's base value per kg.
 export const BLENDS = [
-  { id: 'kip', name: 'Kip Shoarma', mix: { paprika: 4, knoflook: 3, komijn: 3 }, value: 18, note: "Dad's classic. Every joint wants it." },
-  { id: 'lams', name: 'Lams Shoarma', mix: { komijn: 3, koriander: 3, knoflook: 2, paprika: 2 }, value: 20, note: 'Earthy, for the lamb spit. Old-school clients love it.' },
-  { id: 'kebab', name: 'Kebab Kruiden', mix: { paprika: 3, komijn: 2, koriander: 2, knoflook: 2, kaneel: 1 }, value: 30, note: 'Needs a pinch of Abdavissies kaneel.' },
+  { id: 'kip', name: 'Kip Shoarma', mix: { paprika: 4, knoflook: 3, komijn: 3 }, value: 35, note: "Dad's classic. Every joint wants it." },
+  { id: 'lams', name: 'Lams Shoarma', mix: { komijn: 3, koriander: 3, knoflook: 2, paprika: 2 }, value: 40, note: 'Earthy, for the lamb spit. Old-school clients love it.' },
+  { id: 'kebab', name: 'Kebab Kruiden', mix: { paprika: 3, komijn: 2, koriander: 2, knoflook: 2, kaneel: 1 }, value: 60, note: 'Needs a pinch of Abdavissies kaneel.' },
   { id: 'gouden', name: 'De Gouden Mix', mix: null, value: 0, note: "The legendary blend. Eddy Sr.'s notebook holds the clues." },
 ];
 const PER_NAKNIK = 10; // kg of blend each Naknik mixes per market day
-const WHOLESALE_KG = 40; // kg the Groothandel buys per day (clients pay better, from step 3)
+const WHOLESALE_KG = 40;
+// Clients: the joints Eddy owns (plus Schmatzel, Dad's oldest friend). Each orders one blend a day.
+// kind: loyal (never complains), haggler (angles for discounts), late (pays a day or two late), picky (high minimum quality)
+export const CLIENTS = [
+  { id: 'schmatzel', name: 'Shoarma Schmatzel', blend: 'kip', kg: 8, minQ: 1, kind: 'loyal', who: 'Schmatzel' },
+  { id: 'spekbuurt', name: 'Snackpaleis Spekbuurt', blend: 'kip', kg: 15, minQ: 2, kind: 'haggler', who: 'Manager Kees' },
+  { id: 'kroketkade', name: 'Snackbar Kroketkade', blend: 'lams', kg: 10, minQ: 3, kind: 'picky', who: 'Frituurbaas Ruud' },
+  { id: 'uitjesbuurt', name: 'Snackbar Uitjesbuurt', blend: 'kebab', kg: 8, minQ: 2, kind: 'late', who: 'Mevrouw Ui' },
+];
+const HAGGLES = [
+  'Brother, this chicken spice makes my meat look sad, I no pay full today!',
+  'My cousin sells paprika for half. Half! You give me discount or I call him.',
+  'Customer said the shoarma tasted like Tuesday. You know what Tuesday tastes like? Discount.',
+  'I pay you... next week. Or now, if 30% less. Your choice, my friend.',
+];
+const COMPLAINTS = ['This is Lampas quality! I can taste the flour!', 'My grill is crying. Better spice, or I go back to the Lampas.', 'Too much salt, not enough soul.']; // kg the Groothandel buys per day (clients pay better, from step 3)
 const MISTAKES = ['Boss, I sneezed in the komijn.', 'I used the paprika as a pillow. Sorry.', 'I mixed in the dark. It is very... surprise.', 'The bowl fell. The floor is now Kip Shoarma.', 'I tasted to check. Then I tasted more.'];
 export const STOCK_CAP = 200; // kg in the home warehouse
 const HISTORY = 8; // days of price history shown in the trend column
@@ -64,6 +79,8 @@ export function createEconomy(deps) {
     e.news = Array.isArray(e.news) ? e.news : [];
     e.blends = e.blends || {}; e.order = e.order || 'kip'; e.policy = e.policy || 'cheap';
     if (e.wholesaleLeft === undefined) e.wholesaleLeft = WHOLESALE_KG;
+    e.trust = e.trust || {}; e.owed = Array.isArray(e.owed) ? e.owed : []; e.cards = Array.isArray(e.cards) ? e.cards : []; e.pause = e.pause || {};
+    e.report = e.report || null;
     for (const g of INGREDIENTS) {
       if (!(e.mult[g.id] > 0)) e.mult[g.id] = 1;
       if (!Array.isArray(e.hist[g.id])) e.hist[g.id] = [e.mult[g.id]];
@@ -76,7 +93,8 @@ export function createEconomy(deps) {
   function advance(why) {
     const e = ensure();
     const made = mix(); // the Naknikim mix overnight with what's on the shelves
-    e.day++; e.wholesaleLeft = WHOLESALE_KG; e.lastMix = made;
+    const rep = deliver(); // then the clients get their orders and pay (the day report)
+    e.day++; e.wholesaleLeft = WHOLESALE_KG; e.lastMix = made; e.report = rep;
     for (const n of e.news) n.days--;
     e.news = e.news.filter((n) => n.days > 0);
     for (const g of INGREDIENTS) {
@@ -96,7 +114,8 @@ export function createEconomy(deps) {
     }
     for (const g of INGREDIENTS) { e.hist[g.id].push(effMult(g.id)); if (e.hist[g.id].length > HISTORY) e.hist[g.id].shift(); }
     const mixLine = made ? (made.kg ? `Naknikim mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
-    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine ? 4.5 : 3);
+    const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
+    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + payLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine ? 5 : 3);
     return e.day;
   }
   // called every frame: a finished mission bumps state.raids, which ends the day
@@ -144,7 +163,77 @@ export function createEconomy(deps) {
     e.blends[b.id] = { kg: cur.kg + out, q: cur.kg + out ? (cur.kg * cur.q + out * q) / (cur.kg + out) : q };
     return { name: b.name, kg: out, q, oops };
   }
-  const wholesalePrice = (id) => { const b = BLENDS.find((x) => x.id === id); return Math.round(b.value * (0.4 + 0.12 * blendOf(id).q) * 10) / 10; };
+  // ---- clients
+  const activeClients = () => { const ids = deps.joints ? deps.joints() : []; return CLIENTS.filter((c) => ids.includes(c.id)); };
+  const trustOf = (id) => { const e = ensure(); if (e.trust[id] === undefined) e.trust[id] = 60; return e.trust[id]; };
+  const addTrust = (id, d) => { const e = ensure(); e.trust[id] = clamp(trustOf(id) + d, 0, 100); };
+  const clientPrice = (blendId, q) => { const b = BLENDS.find((x) => x.id === blendId); const ctl = deps.control ? deps.control(blendId) : 1; return Math.round(b.value * (0.6 + 0.15 * q) * ctl * 10) / 10; };
+  function deliver() {
+    const e = ensure(), rows = []; let paid = 0, missed = 0;
+    // late payments from earlier days come in first
+    for (const o of e.owed) o.days--;
+    for (const o of e.owed.filter((x) => x.days <= 0)) { paid += o.amount; rows.push({ name: o.name, note: `paid ${fmt(o.amount)} they owed`, pay: o.amount }); }
+    e.owed = e.owed.filter((x) => x.days > 0);
+    for (const c of activeClients()) {
+      if (e.pause[c.id] > 0) { e.pause[c.id]--; if (!e.pause[c.id]) e.trust[c.id] = 30; rows.push({ name: c.name, note: e.pause[c.id] ? 'buying from the Lampas for now' : 'willing to talk again tomorrow', pay: 0 }); continue; }
+      const b = BLENDS.find((x) => x.id === c.blend), have = blendOf(c.blend), kg = Math.min(c.kg, Math.floor(have.kg));
+      if (kg <= 0) {
+        missed++; addTrust(c.id, c.kind === 'loyal' ? -5 : -15);
+        rows.push({ name: c.name, want: `${c.kg} kg ${b.name}`, note: c.kind === 'loyal' ? '"No spice today? Next time, jongen."' : 'MISSED: no stock', pay: 0 });
+      } else {
+        have.kg -= kg; if (have.kg <= 0) delete e.blends[c.blend]; else e.blends[c.blend] = have;
+        let pay = Math.round(clientPrice(c.blend, have.q) * kg), note = kg < c.kg ? `short ${c.kg - kg} kg` : 'on time';
+        if (Math.round(have.q) < c.minQ && c.kind !== 'loyal') { pay = Math.round(pay / 2); addTrust(c.id, -10); note = `"${pick(COMPLAINTS)}" paid half`; }
+        else addTrust(c.id, kg < c.kg ? 0 : 4);
+        if (c.kind === 'haggler' && Math.random() < 0.35 && !e.cards.some((x) => x.id === c.id)) { e.cards.push({ id: c.id, name: c.name, who: c.who, text: pick(HAGGLES), amount: pay }); note += ', wants to haggle'; pay = 0; }
+        else if (c.kind === 'late' && Math.random() < 0.5) { const d = 1 + Math.floor(Math.random() * 2); e.owed.push({ name: c.name, amount: pay, days: d }); note += `, pays in ${d} day(s)`; pay = 0; }
+        rows.push({ name: c.name, want: `${c.kg} kg ${b.name}`, kg, q: have.q, note, pay });
+        paid += pay;
+      }
+      if (trustOf(c.id) < 20 && !e.pause[c.id]) { e.pause[c.id] = 2; rows.at(-1).note += '. Fed up: back to the Lampas for 2 days'; }
+    }
+    if (paid) deps.addMoney(paid);
+    return { day: e.day, rows, paid, missed };
+  }
+  // a haggling client: discount (80%, +trust), insist (coin flip: full pay or nothing and -trust), cut them off (nothing, -trust, 2 days paused)
+  function settle(cardIdx, choice, el) {
+    const e = ensure(), c = e.cards[cardIdx]; if (!c) return null;
+    e.cards.splice(cardIdx, 1);
+    let msg;
+    if (choice === 'discount') { const pay = Math.round(c.amount * 0.8); deps.addMoney(pay, el); addTrust(c.id, 8); msg = `${c.who} pays ${fmt(pay)} and calls you "brother".`; }
+    else if (choice === 'insist') {
+      if (Math.random() < 0.55) { deps.addMoney(c.amount, el); addTrust(c.id, -3); msg = `${c.who} grumbles and pays the full ${fmt(c.amount)}.`; }
+      else { addTrust(c.id, -15); msg = `${c.who} brings out his cousins. No money today.`; }
+    } else { addTrust(c.id, -20); e.pause[c.id] = 2; msg = `You cut off ${c.name}. They'll buy Lampas junk for two days.`; }
+    if (deps.save) deps.save();
+    return msg;
+  }
+  function reportHTML() {
+    const e = ensure(), cl = activeClients();
+    let h = `<div class="well" style="margin-bottom:8px"><b>Dagrapport</b> · Market day <b>${e.day}</b> · Balance <b>${fmt(state.money)}</b><br><small>Every outing ends the day: the Naknikim mix, then each client takes its order from your blend stock and pays. Good quality and full orders build trust; missed orders send them back to the Lampas.</small></div>`;
+    for (let i = 0; i < e.cards.length; i++) {
+      const c = e.cards[i];
+      h += `<div class="well" style="margin-bottom:8px;background:#fff0f0"><b>${c.who}, ${c.name}:</b><br><i>"${c.text}"</i><br>They owe you <b>${fmt(c.amount)}</b>.<br>
+        <button class="b95" data-card="${i}:discount">Give 20% off</button> <button class="b95" data-card="${i}:insist">Insist on full pay</button> <button class="b95" data-card="${i}:cut">Cut off their supply</button></div>`;
+    }
+    const r = e.report;
+    h += `<div class="well" style="margin-bottom:8px"><b>${r ? `Day ${r.day}` : 'No report yet'}</b>${r ? ` · Paid today <b>${fmt(r.paid)}</b>${r.missed ? ` · <span style="color:#a00">${r.missed} missed</span>` : ''}` : ''}`;
+    h += r && r.rows.length ? '<table class="list" style="margin-top:4px"><tr><th>Client</th><th>Order</th><th>Delivered</th><th>Paid</th><th></th></tr>' + r.rows.map((x) => `<tr><td>${x.name}</td><td>${x.want || ''}</td><td>${x.kg ? `${x.kg} kg ${stars(Math.round(x.q))}` : '-'}</td><td>${x.pay ? fmt(x.pay) : '-'}</td><td><small>${x.note}</small></td></tr>`).join('') + '</table>' : '<br>Go on an outing (a mission or a drive) to end the day.';
+    h += '</div>';
+    h += '<table class="list"><tr><th>Client</th><th>Wants daily</th><th>Min. quality</th><th>Pays now</th><th>Trust</th></tr>';
+    for (const c of cl) {
+      const b = BLENDS.find((x) => x.id === c.blend), t = trustOf(c.id);
+      h += `<tr><td><b>${c.name}</b><br><small>${c.who} · ${{ loyal: 'loyal, never complains', haggler: 'haggles', late: 'pays late', picky: 'picky about quality' }[c.kind]}</small></td><td>${c.kg} kg ${b.name}</td><td>${stars(c.minQ)}</td><td>${fmt(clientPrice(c.blend, Math.max(1, blendOf(c.blend).q || 3)))}/kg</td><td>${e.pause[c.id] ? '<span style="color:#a00">with the Lampas</span>' : `<span style="color:${t < 35 ? '#a00' : t > 70 ? '#070' : '#000'}">${t}</span>`}</td></tr>`;
+    }
+    h += '</table>';
+    if (e.owed.length) h += `<p>Owed to you: ${e.owed.map((o) => `${o.name} ${fmt(o.amount)} (in ${o.days} day${o.days > 1 ? 's' : ''})`).join(', ')}</p>`;
+    h += `<p><small>Take more joints to win more clients. ${cl.length < CLIENTS.length ? 'Each De Natte Worst territory you own becomes a client.' : ''}</small></p>`;
+    return h;
+  }
+  function reportBind(body, rerender) {
+    body.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { const [i, ch] = b.dataset.card.split(':'); const m = settle(+i, ch, b); if (m && deps.toast) deps.toast('DEAL', m, 3); rerender(); });
+  }
+  const wholesalePrice = (id) => { const b = BLENDS.find((x) => x.id === id); return Math.round(b.value * (0.3 + 0.08 * blendOf(id).q) * 10) / 10; };
   function sellBlend(id, kg, el) {
     const e = ensure(), cur = blendOf(id);
     kg = Math.min(kg, cur.kg, e.wholesaleLeft);
@@ -246,7 +335,7 @@ export function createEconomy(deps) {
     const stocked = BLENDS.filter((b) => blendOf(b.id).kg > 0);
     h += `<div class="well" style="margin-top:8px"><b>Blends in stock</b> · Groothandel Van Kruidenburg buys <b>${e.wholesaleLeft} kg</b> more today<br>`;
     h += stocked.length ? '<table class="list" style="margin-top:4px"><tr><th>Blend</th><th>Stock</th><th>Quality</th><th>Groothandel pays</th><th></th></tr>' + stocked.map((b) => `<tr><td>${b.name}</td><td>${blendOf(b.id).kg} kg</td><td>${stars(Math.round(blendOf(b.id).q))}</td><td>${fmt(wholesalePrice(b.id))}/kg</td><td><button class="b95" data-sellbl="${b.id}:10">Sell 10 kg</button> <button class="b95" data-sellbl="${b.id}:999">Sell max</button></td></tr>`).join('') + '</table>' : 'Nothing yet. Buy spices at the Kruidenbeurs, then go on an outing while the Naknikim mix.';
-    h += '<br><small>Your own joints will pay better for blends than the Groothandel. Coming next.</small></div>';
+    h += '<br><small>Your own joints pay better than the Groothandel: keep enough stock for their orders (Dagrapport).</small></div>';
     return h;
   }
   function mixBind(body, rerender) {
@@ -256,5 +345,5 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, html, bind, mixHTML, mixBind };
+  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }
