@@ -90,6 +90,7 @@ export function createEconomy(deps) {
     if (e.wholesaleLeft === undefined) e.wholesaleLeft = WHOLESALE_KG;
     e.trust = e.trust || {}; e.owed = Array.isArray(e.owed) ? e.owed : []; e.cards = Array.isArray(e.cards) ? e.cards : []; e.pause = e.pause || {};
     e.report = e.report || null; e.jobs = Array.isArray(e.jobs) ? e.jobs : null; e.event = e.event || null;
+    e.heat = e.heat || { lampas: 0 }; e.control = e.control || {}; e.retaken = e.retaken || {}; e.turfNews = Array.isArray(e.turfNews) ? e.turfNews : [];
     for (const g of INGREDIENTS) {
       if (!(e.mult[g.id] > 0)) e.mult[g.id] = 1;
       if (!Array.isArray(e.hist[g.id])) e.hist[g.id] = [e.mult[g.id]];
@@ -103,6 +104,7 @@ export function createEconomy(deps) {
     const e = ensure();
     const made = mix(); // the Naknikim mix overnight with what's on the shelves
     const rep = deliver(); // then the clients get their orders and pay (the day report)
+    const strikes = turf(); // the Lampas react to how much of their turf you hold
     e.day++; e.wholesaleLeft = WHOLESALE_KG; e.lastMix = made; e.report = rep;
     rollDay(); // the new day's job board and event (seeded by the day, so a reload shows the same)
     for (const n of e.news) n.days--;
@@ -125,6 +127,7 @@ export function createEconomy(deps) {
     for (const g of INGREDIENTS) { e.hist[g.id].push(effMult(g.id)); if (e.hist[g.id].length > HISTORY) e.hist[g.id].shift(); }
     const mixLine = made ? (made.kg ? `Naknikim mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
     const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
+    if (strikes.length && deps.toast) { deps.toast('THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
     if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + payLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine ? 5 : 3);
     return e.day;
   }
@@ -175,10 +178,13 @@ export function createEconomy(deps) {
     return { name: b.name, kg: out, q, oops };
   }
   // ---- clients
-  const activeClients = () => { const ids = deps.joints ? deps.joints() : []; return CLIENTS.filter((c) => ids.includes(c.id)); };
+  const ownedClients = () => { const ids = deps.joints ? deps.joints() : []; return CLIENTS.filter((c) => ids.includes(c.id)); };
+  const activeClients = () => ownedClients().filter((c) => !ensure().retaken[c.id]);
   const trustOf = (id) => { const e = ensure(); if (e.trust[id] === undefined) e.trust[id] = 60; return e.trust[id]; };
   const addTrust = (id, d) => { const e = ensure(); e.trust[id] = clamp(trustOf(id) + d, 0, 100); };
-  const clientPrice = (blendId, q) => { const b = BLENDS.find((x) => x.id === blendId); const ctl = deps.control ? deps.control(blendId) : 1; return Math.round(b.value * (0.6 + 0.15 * q) * ctl * 10) / 10; };
+  const controlOf = (id) => { const e = ensure(); if (id === 'schmatzel') return 100; if (e.control[id] === undefined) e.control[id] = 60; return e.control[id]; };
+  const ctlMult = (id) => (id === 'schmatzel' ? 1.1 : 0.5 + 0.7 * controlOf(id) / 100); // 0 control: half pay, 100: x1.2
+  const clientPrice = (blendId, q, cid) => { const b = BLENDS.find((x) => x.id === blendId); return Math.round(b.value * (0.6 + 0.15 * q) * (cid ? ctlMult(cid) : 1) * 10) / 10; };
   function deliver() {
     const e = ensure(), rows = []; let paid = 0, missed = 0;
     // late payments from earlier days come in first
@@ -189,13 +195,13 @@ export function createEconomy(deps) {
       if (e.pause[c.id] > 0) { e.pause[c.id]--; if (!e.pause[c.id]) e.trust[c.id] = 30; rows.push({ name: c.name, note: e.pause[c.id] ? 'buying from the Lampas for now' : 'willing to talk again tomorrow', pay: 0 }); continue; }
       const b = BLENDS.find((x) => x.id === c.blend), have = blendOf(c.blend), want = orderKg(c), kg = Math.min(want, Math.floor(have.kg));
       if (kg <= 0) {
-        missed++; addTrust(c.id, c.kind === 'loyal' ? -5 : -15);
+        missed++; addTrust(c.id, c.kind === 'loyal' ? -5 : -15); addControl(c.id, -10);
         rows.push({ name: c.name, want: `${want} kg ${b.name}`, note: c.kind === 'loyal' ? '"No spice today? Next time, jongen."' : 'MISSED: no stock', pay: 0 });
       } else {
         have.kg -= kg; if (have.kg <= 0) delete e.blends[c.blend]; else e.blends[c.blend] = have;
-        let pay = Math.round(clientPrice(c.blend, have.q) * kg * (e.event && e.event.blend === c.blend ? e.event.pay : 1)), note = kg < want ? `short ${want - kg} kg` : 'on time';
+        let pay = Math.round(clientPrice(c.blend, have.q, c.id) * kg * (e.event && e.event.blend === c.blend ? e.event.pay : 1)), note = kg < want ? `short ${want - kg} kg` : 'on time';
         if (Math.round(have.q) < c.minQ && c.kind !== 'loyal') { pay = Math.round(pay / 2); addTrust(c.id, -10); note = `"${pick(COMPLAINTS)}" paid half`; }
-        else addTrust(c.id, kg < want ? 0 : 4);
+        else { addTrust(c.id, kg < want ? 0 : 4); if (kg >= want) addControl(c.id, 5); }
         if (c.kind === 'haggler' && Math.random() < 0.35 && !e.cards.some((x) => x.id === c.id)) { e.cards.push({ id: c.id, name: c.name, who: c.who, text: pick(HAGGLES), amount: pay }); note += ', wants to haggle'; pay = 0; }
         else if (c.kind === 'late' && Math.random() < 0.5) { const d = 1 + Math.floor(Math.random() * 2); e.owed.push({ name: c.name, amount: pay, days: d }); note += `, pays in ${d} day(s)`; pay = 0; }
         rows.push({ name: c.name, want: `${want} kg ${b.name}`, kg, q: have.q, note, pay });
@@ -203,8 +209,47 @@ export function createEconomy(deps) {
       }
       if (trustOf(c.id) < 20 && !e.pause[c.id]) { e.pause[c.id] = 2; rows.at(-1).note += '. Fed up: back to the Lampas for 2 days'; }
     }
+    for (const c of ownedClients().filter((x) => e.retaken[x.id])) rows.push({ name: c.name, note: 'TAKEN BACK BY THE LAMPAS: raid it to win it back', pay: 0 });
     if (paid) deps.addMoney(paid);
     return { day: e.day, rows, paid, missed };
+  }
+  const addControl = (id, d) => { const e = ensure(); if (id !== 'schmatzel') e.control[id] = clamp(controlOf(id) + d, 0, 100); };
+  const isRetaken = (id) => !!ensure().retaken[id];
+  // ---- turf: Lampas heat (0-100) rises with every joint you hold and every raid, and cools a little each day.
+  // 40: price war and pressure on control · 60: they lean on a client · 80: they retake a joint · 100: they raid the warehouse
+  function turf() {
+    const e = ensure(), out = [], L = e.heat;
+    const owned = ownedClients().map((c) => c.id).filter((id) => id !== 'schmatzel');
+    if (!e.known) { e.known = owned.slice(); L.lampas = clamp(L.lampas + 15 * owned.length, 0, 100); } // first look at an older save
+    for (const id of owned) if (!e.known.includes(id)) { e.known.push(id); e.control[id] = 60; L.lampas += 25; }
+    const held = owned.filter((id) => !e.retaken[id]);
+    L.lampas = clamp(L.lampas + 2 * held.length - 4, 0, 100);
+    const name = (id) => CLIENTS.find((c) => c.id === id).name;
+    if (L.lampas >= 40) { for (const id of held) addControl(id, -5); if (!e.event) { const bl = pick(BLENDS.filter((x) => x.mix)); e.event = { id: 'pricewar', text: `The Lampas dump cheap ${bl.name} on your turf: clients pay 25% less for it today`, pay: 0.75, blend: bl.id }; } }
+    if (L.lampas >= 60 && held.length && Math.random() < 0.5) { const id = pick(held); addControl(id, -10); out.push(`Lampas thugs leaned on ${name(id)} (control -10).`); }
+    const weakest = held.slice().sort((a, b) => controlOf(a) - controlOf(b))[0];
+    if (weakest && (L.lampas >= 80 || controlOf(weakest) <= 0) && !Object.keys(e.retaken).length) { e.retaken[weakest] = true; L.lampas = clamp(L.lampas - 15, 0, 100); out.push(`They took ${name(weakest)} back! Raid it from the van map to retake it.`); }
+    if (L.lampas >= 100) { for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * 0.7); if (!e.stock[k]) delete e.stock[k]; } L.lampas = 60; out.push('They raided the warehouse and ran off with 30% of your spice.'); }
+    e.turfNews = out;
+    return out;
+  }
+  function tribute(el) {
+    const e = ensure(), cost = Math.round(e.heat.lampas * 40 / 10) * 10;
+    if (e.heat.lampas < 10) return 'The Lampas are calm. Keep your Wilders.';
+    if (state.money < cost) return `Tribute costs ${fmt(cost)}.`;
+    deps.addMoney(-cost, el); e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.save) deps.save();
+    return null;
+  }
+  function turfHTML(short) {
+    const e = ensure(), h0 = e.heat.lampas, owned = ownedClients().filter((c) => c.id !== 'schmatzel');
+    const bar = (v, c) => `<span style="display:inline-block;width:120px;height:10px;border:1px solid #808080;background:#fff;vertical-align:middle"><span style="display:block;height:100%;width:${v}%;background:${c}"></span></span>`;
+    const stage = h0 >= 80 ? 'retaking joints' : h0 >= 60 ? 'leaning on your clients' : h0 >= 40 ? 'price war' : h0 >= 20 ? 'grumbling' : 'calm';
+    let h = `<b>Lampas heat</b> ${bar(h0, h0 >= 60 ? '#c00000' : h0 >= 40 ? '#e08000' : '#60a060')} <b>${h0}</b>/100 · ${stage}`;
+    if (short) return h + (owned.length ? ` · Control: ${owned.map((c) => `${c.name.replace(/^Snack(paleis|bar) /, '')} ${e.retaken[c.id] ? '<b style="color:#a00">LOST</b>' : controlOf(c.id)}`).join(', ')}` : '');
+    h += '<br><small>Heat rises with every joint you hold (+2 a day each) and every raid (+5), and cools 4 a day. 40: price war · 60: they lean on clients · 80: they retake a joint · 100: they raid your warehouse.</small>';
+    if (owned.length) h += '<table class="list" style="margin-top:4px"><tr><th>Territory</th><th>Control</th><th>Pay</th></tr>' + owned.map((c) => `<tr><td>${c.name}</td><td>${e.retaken[c.id] ? '<b style="color:#a00">Taken back by the Lampas</b>' : bar(controlOf(c.id), '#2e8b2e') + ' ' + controlOf(c.id)}</td><td>x${ctlMult(c.id).toFixed(2)}</td></tr>`).join('') + '</table>';
+    h += `<div style="margin-top:6px"><button class="b95" id="tribute" ${h0 < 10 ? 'disabled' : ''}>Pay tribute to the Lampas (${fmt(Math.round(h0 * 40 / 10) * 10)}, heat -30)</button> <small>Winning a joint back also drops heat by 30.</small></div>`;
+    return h;
   }
   const orderKg = (c) => { const ev = ensure().event; return Math.round(c.kg * (ev && ev.vol && (!ev.only || ev.only === c.id) ? ev.vol : 1)); };
 
@@ -233,7 +278,11 @@ export function createEconomy(deps) {
     if (deps.toast) deps.toast('JOB DONE', `${j.title}${j.reward ? `: +${fmt(j.reward)}` : ''}.`, 3);
     if (deps.save) deps.save();
   }
-  function raidDone(raid) { for (const j of ensure().jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }
+  function raidDone(raid) {
+    const e = ensure();
+    if (raid.remix) e.heat.lampas = clamp(e.heat.lampas + 5, 0, 100);
+    if (e.retaken[raid.id]) { delete e.retaken[raid.id]; e.control[raid.id] = 60; e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.toast) deps.toast('TAKEN BACK', `${CLIENTS.find((c) => c.id === raid.id).name} is yours again. Lampas heat -30.`, 4); }
+    for (const j of e.jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }
   function driveDone(arrived) { for (const j of ensure().jobs || []) if (!j.done && j.kind === 'scout' && arrived) finishJob(j); }
   const jobFor = (level) => (ensure().jobs || []).find((j) => !j.done && j.level === level);
   function doJob(n, el) {
@@ -289,6 +338,7 @@ export function createEconomy(deps) {
         <button class="b95" data-card="${i}:discount">Give 20% off</button> <button class="b95" data-card="${i}:insist">Insist on full pay</button> <button class="b95" data-card="${i}:cut">Cut off their supply</button></div>`;
     }
     const r = e.report;
+    h += `<div class="well" style="margin-bottom:8px">${e.turfNews.length ? `<b style="color:#a00">THE LAMPAS STRUCK BACK:</b> ${e.turfNews.join(' ')}<br>` : ''}${turfHTML(false)}</div>`;
     if (e.event) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>TODAY:</b> ${e.event.text}.</div>`;
     h += `<div class="well" style="margin-bottom:8px"><b>${r ? `Day ${r.day}` : 'No report yet'}</b>${r ? ` · Paid today <b>${fmt(r.paid)}</b>${r.missed ? ` · <span style="color:#a00">${r.missed} missed</span>` : ''}` : ''}`;
     h += r && r.rows.length ? '<table class="list" style="margin-top:4px"><tr><th>Client</th><th>Order</th><th>Delivered</th><th>Paid</th><th></th></tr>' + r.rows.map((x) => `<tr><td>${x.name}</td><td>${x.want || ''}</td><td>${x.kg ? `${x.kg} kg ${stars(Math.round(x.q))}` : '-'}</td><td>${x.pay ? fmt(x.pay) : '-'}</td><td><small>${x.note}</small></td></tr>`).join('') + '</table>' : '<br>Go on an outing (a mission or a drive) to end the day.';
@@ -296,7 +346,7 @@ export function createEconomy(deps) {
     h += '<table class="list"><tr><th>Client</th><th>Wants daily</th><th>Min. quality</th><th>Pays now</th><th>Trust</th></tr>';
     for (const c of cl) {
       const b = BLENDS.find((x) => x.id === c.blend), t = trustOf(c.id);
-      h += `<tr><td><b>${c.name}</b><br><small>${c.who} · ${{ loyal: 'loyal, never complains', haggler: 'haggles', late: 'pays late', picky: 'picky about quality' }[c.kind]}</small></td><td>${c.kg} kg ${b.name}</td><td>${stars(c.minQ)}</td><td>${fmt(clientPrice(c.blend, Math.max(1, blendOf(c.blend).q || 3)))}/kg</td><td>${e.pause[c.id] ? '<span style="color:#a00">with the Lampas</span>' : `<span style="color:${t < 35 ? '#a00' : t > 70 ? '#070' : '#000'}">${t}</span>`}</td></tr>`;
+      h += `<tr><td><b>${c.name}</b><br><small>${c.who} · ${{ loyal: 'loyal, never complains', haggler: 'haggles', late: 'pays late', picky: 'picky about quality' }[c.kind]}</small></td><td>${c.kg} kg ${b.name}</td><td>${stars(c.minQ)}</td><td>${fmt(clientPrice(c.blend, Math.max(1, blendOf(c.blend).q || 3), c.id))}/kg</td><td>${e.pause[c.id] ? '<span style="color:#a00">with the Lampas</span>' : `<span style="color:${t < 35 ? '#a00' : t > 70 ? '#070' : '#000'}">${t}</span>`}</td></tr>`;
     }
     h += '</table>';
     if (e.owed.length) h += `<p>Owed to you: ${e.owed.map((o) => `${o.name} ${fmt(o.amount)} (in ${o.days} day${o.days > 1 ? 's' : ''})`).join(', ')}</p>`;
@@ -304,6 +354,7 @@ export function createEconomy(deps) {
     return h;
   }
   function reportBind(body, rerender) {
+    const tb = body.querySelector('#tribute'); if (tb) tb.onclick = () => { const m = tribute(tb); if (deps.toast) deps.toast('TRIBUTE', m || 'The Lampas count the money and back off. For now.', 3); rerender(); };
     body.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { const [i, ch] = b.dataset.card.split(':'); const m = settle(+i, ch, b); if (m && deps.toast) deps.toast('DEAL', m, 3); rerender(); });
   }
   const wholesalePrice = (id) => { const b = BLENDS.find((x) => x.id === id); return Math.round(b.value * (0.3 + 0.08 * blendOf(id).q) * 10) / 10; };
@@ -418,5 +469,5 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }
