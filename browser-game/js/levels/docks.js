@@ -71,7 +71,7 @@ export function dock(cfg) {
     validateFrom: [6, 26.5],
     bossLook: cfg.bossLook,
     spawns: [
-      [9, 27, 'makarov', Math.PI / 2, 'quay'], [26, 26.5, 'bat', Math.PI, 'quay'], [40, 28, 'makarov', -Math.PI / 2, 'quay'],
+      [13, 27.5, 'makarov', Math.PI / 2, 'quay'], [26, 26.5, 'bat', Math.PI, 'quay'], [40, 28, 'makarov', -Math.PI / 2, 'quay'],
       [4, 18.5, 'makarov', Math.PI, 'kiosk'], [9, 22, 'bat', -Math.PI / 2, 'kiosk'],
       ...(cfg.redSpawns || [[5, 1.8, 'shotgun', 0, 'redroom', true], [8, 5, 'makarov', -Math.PI / 2, 'redroom']]),
       ...cfg.hallSpawns,
