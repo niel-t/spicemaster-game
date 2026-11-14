@@ -12,6 +12,7 @@ import { initDrive } from './drive.js'; // top-down Oofmobiel drive between dist
 import { createEconomy, rankOf } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
 import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
+import { createKaasMap } from './kaasmap.js'; // the zoomable Map of Kaasland (PC + Oofmobiel)
 import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wheel clamps, the tax inspector
 import { createHaggle, createSpiceStall } from './haggle.js'; // haggling with Tristan's cast (Werkplaats clients, Fenna, Oma Zahra)
 import { createWorkshop } from './workshop.js'; // De Werkplaats: build and repair machines, upgrade the Kaasdows
@@ -1274,26 +1275,24 @@ const PINS = [
 ];
 let MAPL = null;
 fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; }).catch(() => {});
+const kmap = createKaasMap();
 function mapHTML(van) {
-  const col = { m3: '#e8a33d', later: '#ff8030', locked: '#ff8030', lost: '#e8a33d', m1: '#e8a33d', m2: '#e8a33d', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
   const kindOf = (n, r) => { const l = ACT_JOINTS.find((x) => x[0] === n); if (l) return owns(l[1]) ? (econ.isRetaken(l[1]) ? 'lost' : 'own') : l[3]() ? 'm3' : FINAL.includes(l) ? (state.act3 ? 'locked' : 'fin') : ABD.includes(l) ? (state.act2 ? 'locked' : 'a3') : NOSH.includes(l) ? (state.act1 ? 'locked' : 'a2') : state.district1 ? 'locked' : 'a1'; const d = D1.find((x) => x[0] === n); if (d && owns(d[1]) && econ.isRetaken(d[1])) return 'lost'; if (n === 'Kipkruidenkwartier' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
-  let h = `<div class="mapwrap"><img src="./assets/kaasland_map.jpg" alt="Map of Kaasland">`;
+  const terr = [];
   if (MAPL) {
-    const [W, H] = MAPL.size;
-    for (const [n, { box, region }] of Object.entries(MAPL.labels)) {
-      const k = kindOf(n, region), cy = (box[1] + box[3]) / 2;
-      // dot sits just left of the label plate so it never covers the text; the plate itself is clickable too
-      const dot = MAPL.labels[n].dot || [box[0] - 7, cy];
-      h += `<div data-pin="${n}" data-k="${k}" style="position:absolute;left:${box[0] / W * 100}%;top:${box[1] / H * 100}%;width:${(box[2] - box[0]) / W * 100}%;height:${(box[3] - box[1]) / H * 100}%;cursor:pointer"></div>`;
-      h += `<div class="pin" title="${n}" data-pin="${n}" data-k="${k}" style="left:${dot[0] / W * 100}%;top:${dot[1] / H * 100}%;background:${col[k]};cursor:pointer"></div>`;
-      if (k === 'own' && ws.hasPC('gpu')) { const jid = (JOINTS.find((x) => x[0] === n) || [])[1]; if (jid) h += `<div style="position:absolute;left:${dot[0] / W * 100}%;top:${(dot[1] + 9) / H * 100}%;transform:translateX(-50%);font:bold 10px monospace;color:#fff;background:rgba(30,20,12,.8);padding:0 3px;pointer-events:none">${Math.round(econ.controlOf(jid))}%</div>`; }
+    const [W, H] = MAPL.size, fx = 1024 / W, fy = 572 / H;
+    for (const [n, { box, region, dot }] of Object.entries(MAPL.labels)) {
+      const k = kindOf(n, region), b = [box[0] * fx, box[1] * fy, box[2] * fx, box[3] * fy];
+      const d = dot ? [dot[0] * fx, dot[1] * fy] : [b[0] - 7, (b[1] + b[3]) / 2];
+      const jid = (JOINTS.find((x) => x[0] === n) || [])[1];
+      terr.push({ n, k, region, box: b, dot: d, extra: k === 'own' && jid && ws.hasPC('gpu') ? Math.round(econ.controlOf(jid)) + '%' : '' });
     }
-  } else {
-    for (const [n, x, y, k] of PINS) h += `<div class="pin" title="${n}" data-pin="${n}" data-k="${k}" style="left:${x / 1024 * 100}%;top:${(y - 16) / 572 * 100}%;background:${col[k]};cursor:pointer"></div>`;
+  } else { // labels not loaded yet: the old pin table
+    const reg = { own: 'start', next: 'start', a1: 'lampas', a2: 'nosh', a3: 'abd', fin: 'fin' };
+    for (const [n, x, y, r] of PINS) terr.push({ n, k: kindOf(n, reg[r]), region: reg[r], box: [x - 40, y - 24, x + 40, y - 8], dot: [x - 46, y - 16] });
   }
-  if (state.table) h += `</div><div class="well" style="margin-top:8px">${econ.turfHTML(true)}`;
-  h += `</div><div class="well" id="pininfo" style="margin-top:8px">${van ? 'Pick a destination for the Oofmobiel.' : 'Click a territory. Green = yours.'}</div>`;
-  return h;
+  const e = econ.ensure(), wh = Object.keys(e.wh || {}).map((id) => { const j = JOINTS.find((x) => x[1] === id); return j && { n: j[0], name: j[0] + ' warehouse' }; }).filter(Boolean);
+  return kmap.html({ van, terr, warehouses: wh, heat: e.heat, turf: state.table ? econ.turfHTML(true) : '', done: { act1: state.act1, act2: state.act2, act3: state.act3 } });
 }
 // the daily challenge: one seeded raid per real day on one of your joints, the same for every player that day
 function dailyChallenge() {
@@ -1341,6 +1340,7 @@ function bindMap() {
     const goL = $('goL'); if (goL) goL.onclick = () => { closePC(); startDrive(lj[1]); };
     const goDaily = $('goDaily'); if (goDaily) goDaily.onclick = () => { const dc = dailyChallenge(); if (!dc) return; closePC(); mission.enter(dc.id, { remix: dc.remix }); };
   });
+  kmap.bind($('winbody'));
 }
 function sellItem(id, btn) {
   const d = junkDefs.find((j) => j.id === id); if (!d || state.sold.has(id)) return;
