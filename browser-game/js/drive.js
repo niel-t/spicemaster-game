@@ -165,7 +165,8 @@ export function initDrive(ctx) {
     // Eddy & Zn on the south edge, where the drive starts
     label([{ t: 'EDDY & ZN', size: 66 }, { t: 'SPECERIJEN · SINDS 1987', size: 30, color: '#ffffff' }], '#6b1410', '#ffd36b', 16, 4.5, 14, 21, 16);
     // welcome sign on the north quay
-    label([{ t: 'WELKOM IN OUD-VETTENBURG', size: 54 }, { t: 'LAMPAS GEBIED · VERDUNNEN VERPLICHT', size: 28, color: '#1a0a10' }], '#ff7a1a', '#1a0a10', 22, 4, 110, 0.09, CANAL.z0 - 6.2, 0, scene, 1024, 190);
+    const lampasSign = label([{ t: 'WELKOM IN OUD-VETTENBURG', size: 54 }, { t: 'LAMPAS GEBIED · VERDUNNEN VERPLICHT', size: 28, color: '#1a0a10' }], '#ff7a1a', '#1a0a10', 22, 4, 110, 0.09, CANAL.z0 - 6.2, 0, scene, 1024, 190);
+    buildThemes(lampasSign);
     label([{ t: 'DE GROTE GRACHT', size: 60 }], 'none', '#bfe8ff', 26, 3, 110, -1.1, (CANAL.z0 + CANAL.z1) / 2, 0, scene, 1024, 110);
     // target ring on the plaza
     targetRing = new THREE.Mesh(new THREE.RingGeometry(TARGET.r - 0.8, TARGET.r, 48), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.9, depthWrite: false }));
@@ -186,8 +187,10 @@ export function initDrive(ctx) {
     label([{ t: 'WERK IN UITVOERING', size: 44 }, { t: 'sinds 1998', size: 30, color: '#1a1a1a' }], '#ffd020', '#1a1a1a', 7, 2, x + (horiz ? 0 : 0), 0.6, z + (horiz ? -4.5 : -3.5), horiz ? Math.PI / 2 : 0);
     solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2);
   }
+  const northRoofs = [], lampasNeons = []; // Lampas neon signs hide on the other districts' drives // every roof in Oud-Vettenburg: the district themes lay their own roofs over these
   function building(x0, x1, z0, z1, h, wall, roofM, opt = {}) {
     const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    if (opt.north) northRoofs.push({ w, d, h, cx, cz });
     box(w, h, d, wallM(wall), cx, h / 2, cz);
     const r = plane(Math.max(0.5, w - 0.7), Math.max(0.5, d - 0.7), roofM, cx, h + 0.02, cz); r.castShadow = false;
     const uv = r.geometry.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / 6, uv.getY(k) * d / 6); // texture scale follows the roof size
@@ -215,7 +218,7 @@ export function initDrive(ctx) {
       for (let a = a0; a < a1 - 0.5;) {
         const w = Math.min(a1 - a, 4.5 + Math.random() * 2.5), h = 9 + Math.random() * 7, c = NORTH_WALL[(Math.random() * NORTH_WALL.length) | 0];
         const roof = tileRoofM(Math.random() < 0.6 ? 0x9a4a3a : 0x5a4a4a);
-        if (horiz) building(a + 0.1, a + w - 0.1, fixed0, fixed1, h, c, roof, { ridge: 'z' }); else building(fixed0, fixed1, a + 0.1, a + w - 0.1, h, c, roof, { ridge: 'x' });
+        if (horiz) building(a + 0.1, a + w - 0.1, fixed0, fixed1, h, c, roof, { ridge: 'z', north: true }); else building(fixed0, fixed1, a + 0.1, a + w - 0.1, h, c, roof, { ridge: 'x', north: true });
         a += w;
       }
     };
@@ -223,9 +226,55 @@ export function initDrive(ctx) {
     row(b.z0 + D, b.z1 - D, b.x0, b.x0 + D, false); row(b.z0 + D, b.z1 - D, b.x1 - D, b.x1, false);
     if (Math.random() < 0.6) {
       const neon = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'LAMPAS', size: 80 }], '#1a0a10', '#ff7a1a', 512, 128), transparent: true }));
-      neon.rotation.x = -Math.PI / 2; neon.position.set(b.x0 + 5, 17, b.z1 - 5); scene.add(neon);
+      neon.rotation.x = -Math.PI / 2; neon.position.set(b.x0 + 5, 17, b.z1 - 5); scene.add(neon); lampasNeons.push(neon);
     }
     solid(b.x0, b.x1, b.z0, b.z1);
+  }
+  // District themes: the same street grid dressed for each act's destination (start({ theme })). Lampas is the base city;
+  // 'nosh' turns the north into Hipsterheuvel (roof gardens, string lights, green signs), 'docks' into De Duistere Dokken
+  // (container stacks, cranes, rust). Each theme is one group that is shown or hidden when a drive starts.
+  const THEMES = {};
+  function buildThemes(lampasSign) {
+    const north = blocks.filter((b) => b.kind === 'north');
+    // Hipsterheuvel
+    const g2 = new THREE.Group(); scene.add(g2);
+    for (const b of north) { // the green courtyard inside each block (open to the sky): trees, string lights and a neon sign
+      const D = 10, x0 = b.x0 + D, x1 = b.x1 - D, z0 = b.z0 + D, z1 = b.z1 - D, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      for (const [x, z] of [[x0 + 2.5, z0 + 2.5], [x1 - 2.5, z0 + 2.5], [x0 + 2.5, z1 - 2.5], [x1 - 2.5, z1 - 2.5], [cx, cz]]) {
+        const t = new THREE.Mesh(new THREE.SphereGeometry(2, 10, 8), lam({ color: [0x4a8a3a, 0x5a9a3a, 0x3a7a2a][(Math.round(x + z)) % 3] })); t.position.set(x, 4, z); g2.add(t);
+      }
+      for (let x = x0 + 1; x < x1; x += 1.6) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), new THREE.MeshBasicMaterial({ color: 0xf2c14e })); l.position.set(x, 3 + Math.sin(x) * 0.3, cz + 3); g2.add(l); }
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.8), new THREE.MeshBasicMaterial({ map: signTex([{ t: ['BIO', 'VEGAN', 'KOMBUCHA', 'OAT'][(b.i + b.j) % 4], size: 80 }], '#0a140c', '#a9c46a', 512, 128), transparent: true }));
+      sign.rotation.x = -Math.PI / 2; sign.position.set(cx, 0.3, cz - 4); g2.add(sign);
+    }
+    // roof gardens on every roof: green with planters
+    const gardenT = canvasTex(64, 64, (g) => { g.fillStyle = '#4a7a32'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '120,170,70' : '30,60,20'},${Math.random() * 0.5})`; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } g.fillStyle = '#8a6a42'; g.fillRect(0, 0, 64, 4); g.fillRect(0, 60, 64, 4); });
+    const gardenM = lam({ map: gardenT });
+    for (const r of northRoofs) { const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.5, r.w - 0.7), Math.max(0.5, r.d - 0.7)), gardenM); m.rotation.x = -Math.PI / 2; m.position.set(r.cx, r.h + 0.4, r.cz); g2.add(m); if (Math.random() < 0.35) { const t = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), lam({ color: 0x3a7a2a })); t.position.set(r.cx, r.h + 1.2, r.cz); g2.add(t); } }
+    g2.add(label([{ t: 'WELKOM OP HIPSTERHEUVEL', size: 54 }, { t: 'NOSHGEY KARIOT · 100% BIOLOGISCH', size: 28, color: '#0a140c' }], '#a9c46a', '#0a140c', 22, 4, 110, 0.1, CANAL.z0 - 6.2, 0, g2, 1024, 190));
+    THEMES.nosh = { g: g2, hemi: [0xf0ffe0, 0x3a5a3a] };
+    // De Duistere Dokken
+    const g3 = new THREE.Group(); scene.add(g3);
+    const contC = [0x7a2e1a, 0x2a4a6a, 0x5a6a3a, 0xd8a83a, 0x3a3a3a];
+    for (const b of north) { // container stacks fill each courtyard, a small crane over every other one
+      const D = 10, x0 = b.x0 + D, z0 = b.z0 + D, x1 = b.x1 - D, z1 = b.z1 - D;
+      for (let k = 0; k < 6; k++) { const c = new THREE.Mesh(new THREE.BoxGeometry(5.5, 2.4, 2.3), lam({ color: contC[(k + b.i * 3 + b.j) % 5] })); c.position.set(x0 + 3.5 + (k % 2) * 6.5, 1.2 + Math.floor(k / 4) * 2.4, z0 + 2.5 + (Math.floor(k / 2) % 2) * 3.2); c.rotation.y = (k % 3) * 0.05; g3.add(c); }
+      if ((b.i + b.j) % 2 === 0) { const cr = new THREE.Group(); cr.position.set(x1 - 3, 0, z1 - 3); g3.add(cr); for (const dx of [-1, 1]) for (const dz of [-1, 1]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 12, 0.4), lam({ color: 0x8a2e1a })); leg.position.set(dx, 6, dz); cr.add(leg); } const jib = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 14), lam({ color: 0x8a2e1a })); jib.position.set(0, 12, -5); cr.add(jib); }
+    }
+    // rusty corrugated warehouse roofs everywhere
+    const rustT = canvasTex(64, 64, (g) => { for (let x = 0; x < 64; x += 4) { g.fillStyle = x % 8 ? '#6a3a24' : '#5a2e1c'; g.fillRect(x, 0, 4, 64); } for (let i = 0; i < 30; i++) { g.fillStyle = `rgba(160,80,30,${Math.random() * 0.4})`; g.fillRect(Math.random() * 64, Math.random() * 64, 6, 3); } });
+    const rustM = lam({ map: rustT });
+    for (const r of northRoofs) { const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.5, r.w - 0.7), Math.max(0.5, r.d - 0.7)), rustM); m.rotation.x = -Math.PI / 2; m.position.set(r.cx, r.h + 0.4, r.cz); g3.add(m); }
+    g3.add(label([{ t: 'DE DUISTERE DOKKEN', size: 54 }, { t: 'ABDAVISSIES · GEEN VRAGEN', size: 28, color: '#c8d8e0' }], '#1a2a3a', '#c8d8e0', 22, 4, 110, 0.1, CANAL.z0 - 6.2, 0, g3, 1024, 190));
+    THEMES.docks = { g: g3, hemi: [0xc8d8e8, 0x2a3040] };
+    THEMES.lampas = { g: null, sign: lampasSign, hemi: [0xffe8d0, 0x4a4060] };
+  }
+  function applyTheme(name) {
+    const th = THEMES[name] ? name : 'lampas';
+    for (const [k, t] of Object.entries(THEMES)) if (t.g) t.g.visible = k === th;
+    if (THEMES.lampas.sign) THEMES.lampas.sign.visible = th === 'lampas';
+    for (const n of lampasNeons) n.visible = th === 'lampas';
+    hemi.color.set(THEMES[th].hemi[0]); hemi.groundColor.set(THEMES[th].hemi[1]);
   }
   function buildPark(b) {
     plane(b.x1 - b.x0 + 2, b.z1 - b.z0 + 2, grassM, (b.x0 + b.x1) / 2, 0.16, (b.z0 + b.z1) / 2);
@@ -722,7 +771,7 @@ export function initDrive(ctx) {
     $('drvRoute').textContent = `${opts.from} → ${opts.to}`;
     $('drvHint').textContent = 'W / ↑ gas · S / ↓ brake · A D steer · Shift handbrake · E / Space honk · ⌫ restart';
     for (const k in keys) keys[k] = false;
-    reset();
+    reset(); applyTheme(opts.theme);
   }
   function stop() { D.active = false; document.body.classList.remove('driving'); hud.style.display = 'none'; $('drvRes').style.display = 'none'; $('drvBanner').style.display = 'none'; }
 
@@ -764,7 +813,7 @@ export function initDrive(ctx) {
     // ambush when you cross into Lampas turf
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0 && opts.van && opts.van.tint) run.ambush = 1; // tinted windows: they don't spot you at the canal
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0) {
-      run.ambush = 1; banner('HINDERLAAG!', 'The Lampas want their street back. Ram them into a wall.', 2.6);
+      run.ambush = 1; banner('HINDERLAAG!', `The ${({ nosh: 'Noshgey Kariot', docks: 'Abdavissies' })[opts.theme] || 'Lampas'} want their street back. Ram them into a wall.`, 2.6);
       for (const [dx, dz] of [[-30, -46], [26, -52], [0, -80]]) spawnLampas(Math.max(GX[0], Math.min(GX[5], Math.round((van.x + dx) / 44) * 44)) + 2.2, Math.max(GZ[9] + 2, van.z + dz));
     }
     if (!run.over && van.z < GZ[7] && run.ambush === 1) { run.ambush = 2; spawnLampas(GX[5] + 2.2, GZ[9] + 2); spawnLampas(GX[3] - 2.2, GZ[9] + 2); }
@@ -794,7 +843,7 @@ export function initDrive(ctx) {
     sun.position.set(camera.position.x - 30, 60, camera.position.z + 20); sun.target.position.set(camera.position.x, 0, camera.position.z);
     if (D._water) D._water.material.map.offset.x = (performance.now() * 0.00002) % 1; // the canal drifts
     // HUD
-    $('drvStats').innerHTML = `${fmt(run.t)} · ${Math.round(spd * 3.6)} KM/U<br>SMARTENGELD W ${run.smart} · LAMPAS ${run.wrecked}`;
+    $('drvStats').innerHTML = `${fmt(run.t)} · ${Math.round(spd * 3.6)} KM/U<br>SMARTENGELD W ${run.smart} · ${({ nosh: 'NOSHGEY', docks: 'ABDAVISSIES' })[opts.theme] || 'LAMPAS'} ${run.wrecked}`;
     const hp = $('drvHp'); hp.style.width = van.hp + '%'; hp.style.background = van.hp > 60 ? '#6ed36e' : van.hp > 30 ? '#ffd36b' : '#ff4a4a';
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('drvBanner').style.display = 'none'; }
     drawMinimap();
