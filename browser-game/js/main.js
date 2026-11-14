@@ -2,7 +2,7 @@
 // Neon Vice-style top-down browser game: three.js, PS2-style low-poly people with photo faces.
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
-import { initInput, virt, isPaused, glyph, inputMode, onInputMode } from './input.js';
+import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable } from './input.js';
 import { initMission } from './mission.js';
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
@@ -878,10 +878,14 @@ function animate(p, speed, dt) {
 }
 
 const player = makePerson({ headKind: 'jr', shirt: 0x86acdf, front: 'jr', pants: 0xe9e4d8, belt: 0x5a3018, shoes: 0x6a3a1c, belly: 1, skin: 0xe4ab88 });
-player.position.set(-8.5, 0, -5.4); player.rotation.y = Math.PI / 2;
+const START_POS = new THREE.Vector3(-4.4, 0, -16.3); // a new game starts inside the warehouse (Eddy's place), next to the old PC
+player.position.copy(START_POS); player.rotation.y = 0.5;
 const dad = makePerson({ headKind: 'sr', shirt: 0x232a40, front: 'sr', pants: 0x4a4a52, shoes: 0x2a2018, belly: 0.6, skin: 0xdc9c82, scale: 0.96 });
-dad.position.set(-1.6, 0, -6.0); dad.rotation.y = -Math.PI * 0.75;
-const dadSolid = solid(-1.95, -1.25, -6.35, -5.65);
+const DAD_IN = new THREE.Vector3(-2.5, 0, -12.9), DAD_OUT = new THREE.Vector3(-1.6, 0, -6.0); // waits inside, then stands out front
+dad.position.copy(DAD_IN); dad.rotation.y = -2.6;
+const dadSolid = solid(DAD_IN.x - 0.35, DAD_IN.x + 0.35, DAD_IN.z - 0.35, DAD_IN.z + 0.35);
+function placeDadSolid(p) { Object.assign(dadSolid, { minx: p.x - 0.35, maxx: p.x + 0.35, minz: p.z - 0.35, maxz: p.z + 0.35 }); }
+function dadOutside() { dad.position.copy(DAD_OUT); dad.rotation.y = -Math.PI * 0.75; placeDadSolid(DAD_OUT); dadSolid.off = false; dad.userData.walkTo = null; }
 // The Russian (same look and vibe as Nine of Nine in Neon Vice), behind the counter of his pawnshop like a Stalker trader
 const RU = { x: (PS.x0 + PS.x1) / 2, z: -12.3 };
 const russian = makePerson({ headKind: 'ru', shirt: 0x121216, front: 'ru', pants: 0x2a2c3a, shoes: 0x1e1814, belly: 0.9, skin: 0xf0c4a2, scale: 1.02 });
@@ -1338,6 +1342,7 @@ function talkDad() {
       ['Eddy Jr.', 'De Gouden Mix... Right. First, the junk goes.'],
     ], () => {
       state.step = 'list'; openShutter(); updateObjective();
+      dadSolid.off = true; dad.userData.walkTo = [new THREE.Vector3((WH.doorX0 + WH.doorX1) / 2, 0, WH.z1 - 1.4), new THREE.Vector3((WH.doorX0 + WH.doorX1) / 2, 0, WH.z1 + 1.0), DAD_OUT.clone()];
       toast('KEYS RECEIVED', 'The warehouse is yours');
     });
   } else if (state.step === 'dad2') {
@@ -1369,7 +1374,7 @@ function updateObjective() {
   if (state.step === 'list' && n === N) state.step = 'sell';
   const t = {
     title: '',
-    talk: 'Talk to <b>Eddy Sr.</b> outside the warehouse.',
+    talk: 'Talk to <b>Eddy Sr.</b>. He\'s waiting for you in the warehouse.',
     list: `List the old shoarma junk for sale: walk up to each machine and press <b>E</b> (${n}/${N}).`,
     sell: `Sell everything on <b>Kaasplaats</b> using the Kaasdows 95 PC at the back (${s}/${N} sold).`,
     hire: !state.table ? `Buy a <b>mixing table</b> on the PC (W ${TABLE_COST}).` : state.naknik === 0 ? `Hire your first <b>Naknik</b> on the PC (W ${NAKNIK_COST}).` : 'Talk to <b>Eddy Sr.</b> one last time.',
@@ -1412,21 +1417,44 @@ function applySave(d) {
   if (state.step !== 'talk') { shutterTarget = shutterOpen = 1; shutterSolid.off = true; }
   if (state.table) { mixTable.visible = true; if (!mixSolid) mixSolid = solid(-8.0, -3.2, -13.4, -11.8); }
   state.naknik = 0; for (let i = 0; i < Math.min(3, +s.naknik || 0); i++) spawnNaknik(false);
+  if (state.step !== 'talk') dadOutside(); // the keys were handed over: Eddy Sr. is out front (or gone)
   if (['russian', 'free'].includes(state.step)) { dad.visible = false; dad.userData.leaving = false; dadSolid.off = true; }
   kitText(); if (state.kit.includes('maboota')) equip(true);
   if (!s.loadout) state.loadout = null; if (!s.stash) state.stash = null; mission.migrateKit(); kitText();
   loadingSave = false;
 }
 let savedGame = readSave();
+// ---- start menu: Continue / New Game / Controls / Music / Credits (mouse, keyboard, controller and touch)
+let titleView = 'main', titleSel = 0;
+const titleItems = () => titleView === 'confirm' ? [['no', 'Nee, terug'], ['yes', 'Ja, opnieuw beginnen']]
+  : titleView === 'controls' || titleView === 'credits' ? [['back', 'Terug']]
+  : [...(savedGame ? [['cont', 'Continue']] : []), ['new', 'New Game'], ['controls', 'Controls'], ['music', 'Music'], ['credits', 'Credits']];
 function titleMenu(confirm) {
-  titleConfirm = confirm;
-  const p = $('title').querySelector('.press'); if (!savedGame) return;
-  const st = savedGame.state, when = new Date(savedGame.at || Date.now()).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const btn = (t, txt, col) => `<span data-t="${t}" style="cursor:pointer;color:${col};padding:4px 10px;display:inline-block">${txt}</span>`;
-  p.style.animation = 'none';
-  p.innerHTML = confirm
-    ? `<div style="color:#ffd36b">START A NEW GAME? Your saved game will be gone.</div>${btn('yes', `[${glyph('J')}] JA, OPNIEUW`, '#ff6b6b')} · ${btn('no', `[${glyph('Esc')}] NEE`, '#7ee36b')}`
-    : `${btn('cont', `[${glyph('Enter')}] CONTINUE`, '#7ee36b')} · ${btn('new', `[${glyph('N')}] NEW GAME`, '#ddd')}<div style="color:#aaa;font-size:14px;margin-top:8px">Saved ${when} · W ${(+st.money || 0).toLocaleString('nl-NL')}${st.spekbuurt ? ' · Spekbuurt is yours' : ''}</div>`;
+  if (confirm === true) titleView = 'confirm'; else if (confirm === false && titleView === 'confirm') titleView = 'main';
+  titleConfirm = titleView === 'confirm';
+  const items = titleItems(); titleSel = Math.max(0, Math.min(titleSel, items.length - 1));
+  const sub = (t) => t === 'music' ? (musicWanted() ? 'ON' : 'OFF') : t === 'cont' && savedGame ? `W ${(+savedGame.state.money || 0).toLocaleString('nl-NL')}` : '';
+  let panel = '';
+  if (titleView === 'controls') panel = `<div class="tpanel"><h3>Controls</h3>${controlsTable()}</div>`;
+  if (titleView === 'credits') panel = `<div class="tpanel"><h3>Credits</h3><p>An original Kaasland story about Eddy Jr., his father's spice warehouse and the Lampas.</p>
+    <p><b>Engine:</b> three.js (MIT) · <b>Textures:</b> ambientCG (CC0) · <b>Music:</b> generated live in your browser</p>
+    <p><b>Fonts</b> (SIL Open Font License): Bungee by David Jonathan Ross · Rubik by Hubert &amp; Fischer · VT323 by Peter Hull · Press Start 2P by Cody "CodeMan38" Boisclair</p>
+    <p>Built with Claude Code.</p></div>`;
+  if (titleView === 'confirm') panel = `<div class="tpanel"><h3>Nieuw spel?</h3>Your saved game will be gone for good.</div>`;
+  $('tmenu').innerHTML = panel + items.map(([t, label], i) => `<div class="mi${i === titleSel ? ' sel' : ''}" data-t="${t}"><span>${label}</span><small>${sub(t)}</small></div>`).join('');
+  const m = inputMode(), info = m === 'pad' ? 'D-pad to choose · A to select · B back' : m === 'touch' ? 'Tap to choose' : '↑ ↓ to choose · Enter to select · Esc back';
+  $('tinfo').textContent = titleView === 'main' && savedGame ? `Saved ${new Date(savedGame.at || Date.now()).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${savedGame.state.spekbuurt ? ' · Spekbuurt is yours' : ''} · ${info}` : info;
+}
+let musicPref = !(savedGame && savedGame.settings && savedGame.settings.music === false);
+const musicWanted = () => musicPref;
+function titleAct(t) {
+  beep(660, 0.05, 'triangle', 0.04);
+  if (t === 'cont') continueGame();
+  else if (t === 'new') { if (savedGame) { titleSel = 0; titleMenu(true); } else startGame(); }
+  else if (t === 'yes') newGame();
+  else if (t === 'no' || t === 'back') { titleView = 'main'; titleSel = 0; titleMenu(false); }
+  else if (t === 'controls' || t === 'credits') { titleView = t; titleSel = 0; titleMenu(); }
+  else if (t === 'music') { musicPref = !musicPref; try { if (musicPref) music.start(); else music.stop(); } catch (e) { /* audio optional */ } titleMenu(); }
 }
 titleMenu(false);
 // hints follow the last device used (keyboard / controller / touch)
@@ -1439,7 +1467,7 @@ function deviceHints() {
   const m = inputMode();
   $('help').textContent = HELP[m];
   const nx = document.querySelector('#dialogue .next'); if (nx) nx.textContent = m === 'pad' ? 'A to continue' : m === 'touch' ? 'tap to continue' : 'E / click to continue';
-  if (state.step === 'title') { if (savedGame) titleMenu(titleConfirm); else $('title').querySelector('.press').textContent = m === 'pad' ? 'PRESS A' : m === 'touch' ? 'TAP TO START' : 'CLICK OR PRESS ANY KEY'; }
+  if (state.step === 'title') titleMenu();
 }
 onInputMode(deviceHints);
 addEventListener('pagehide', () => writeSave());
@@ -1480,27 +1508,30 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (state.armed) swing();
 });
-$('title').addEventListener('click', (e) => {
-  if (!savedGame) { startGame(); return; }
-  const t = e.target.closest('[data-t]'); if (!t) return;
-  ({ cont: continueGame, new: () => titleMenu(true), yes: newGame, no: () => titleMenu(false) })[t.dataset.t]();
-});
+$('title').addEventListener('click', (e) => { const t = e.target.closest('[data-t]'); if (t) titleAct(t.dataset.t); });
+$('title').addEventListener('mousemove', (e) => { const t = e.target.closest('.mi'); if (!t) return; const i = [...$('tmenu').querySelectorAll('.mi')].indexOf(t); if (i >= 0 && i !== titleSel) { titleSel = i; $('tmenu').querySelectorAll('.mi').forEach((el, k) => el.classList.toggle('sel', k === i)); } });
 function titleKey(e) {
-  if (!savedGame) { startGame(); return; }
-  if (titleConfirm) { if (['KeyJ', 'KeyY', 'Enter'].includes(e.code)) newGame(); else if (['Escape', 'KeyN', 'Backspace'].includes(e.code)) titleMenu(false); return; }
-  if (['Enter', 'Space', 'KeyE', 'KeyC'].includes(e.code)) continueGame(); else if (e.code === 'KeyN') titleMenu(true);
+  const items = titleItems();
+  if (['ArrowUp', 'KeyW'].includes(e.code)) { titleSel = (titleSel + items.length - 1) % items.length; titleMenu(); beep(700, 0.03, 'square', 0.02); return; }
+  if (['ArrowDown', 'KeyS', 'Tab'].includes(e.code)) { e.preventDefault(); titleSel = (titleSel + 1) % items.length; titleMenu(); beep(700, 0.03, 'square', 0.02); return; }
+  if (['Enter', 'Space', 'KeyE'].includes(e.code)) { titleAct(items[titleSel][0]); return; }
+  if (titleConfirm && ['KeyJ', 'KeyY'].includes(e.code)) { newGame(); return; }
+  if (['Escape', 'Backspace'].includes(e.code) && titleView !== 'main') { titleAct('back'); return; }
+  if (e.code === 'KeyN' && titleView === 'main') titleAct('new');
+  if (e.code === 'KeyC' && titleView === 'main' && savedGame) titleAct('cont');
 }
 function newGame() { clearSave(); savedGame = null; startGame(); }
 function continueGame() {
   if (state.step !== 'title') return;
-  applySave(savedGame); $('title').style.display = 'none'; updateObjective(); beep(440, 0.1, 'triangle');
+  applySave(savedGame); $('title').style.display = 'none'; document.body.classList.remove('on-title'); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); updateObjective(); beep(440, 0.1, 'triangle');
   toast('WELKOM TERUG', `W ${state.money.toLocaleString('nl-NL')} in your pocket.`, 2);
-  if (!(savedGame.settings && savedGame.settings.music === false)) { try { music.start(); } catch (e) { /* audio optional */ } }
+  if (musicPref) { try { music.start(); } catch (e) { /* audio optional */ } }
 }
 function startGame() {
   if (state.step !== 'title') return;
-  $('title').style.display = 'none'; state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle'); writeSave();
-  try { music.start(); } catch (e) { /* audio optional */ }
+  $('title').style.display = 'none'; document.body.classList.remove('on-title'); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle'); writeSave();
+  if (musicPref) { try { music.start(); } catch (e) { /* audio optional */ } }
+  toast('DE NATTE WORST', 'Eddy Sr. is waiting for you in the warehouse.', 2.6);
 }
 
 // ------------------------------------------------------------------ street life: traffic, cyclists, pedestrians
@@ -2246,7 +2277,11 @@ function tick() {
   updateMelee(dt);
   // dad faces the player when close
   const toP = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z);
-  if (player.position.distanceTo(dad.position) < 6) { let dr = toP - dad.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); dad.rotation.y += dr * Math.min(1, dt * 4); }
+  if (dad.userData.walkTo && dad.userData.walkTo.length) { // walking out through the shutter
+    const t = dad.userData.walkTo[0], d = t.clone().sub(dad.position); d.y = 0; const L = d.length();
+    if (L < 0.08) { dad.userData.walkTo.shift(); if (!dad.userData.walkTo.length) dadOutside(); }
+    else if (shutterOpen > 0.6 || dad.userData.walkTo.length < 3) { const st = Math.min(L, 2.2 * dt); dad.position.addScaledVector(d.normalize(), st); dad.rotation.y = Math.atan2(d.x, d.z); animate(dad, 2.2, dt); }
+  } else if (player.position.distanceTo(dad.position) < 6) { let dr = toP - dad.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); dad.rotation.y += dr * Math.min(1, dt * 4); }
   if (dad.userData.leaving && dad.visible) {
     dad.rotation.y = Math.PI / 2; dad.position.x -= 2.4 * dt; dad.position.z += (-5.3 - dad.position.z) * dt;
     dad.rotation.y = -Math.PI / 2; dadSolid.off = true; animate(dad, 2.4, dt);
@@ -2285,7 +2320,7 @@ function tick() {
   shutterOpen += (shutterTarget - shutterOpen) * Math.min(1, dt * 1.5);
   shutter.position.y = 1.7 + shutterOpen * 3.1; shutter.scale.y = 1 - shutterOpen * 0.9;
   // inside the warehouse: hide roof + front wall, switch on lights
-  const inside = isInside(player.position);
+  const inside = isInside(player.position) && state.step !== 'title'; // the title backdrop shows the street with the roof on
   roof.visible = !inside; frontHigh.visible = !inside; shutter.visible = !inside || shutterOpen < 0.5;
   const li = inside ? 2.2 : 0; inLight1.intensity += (li - inLight1.intensity) * dt * 4; inLight2.intensity = inLight1.intensity;
   // pawnshop: door swings open, roof + façade hide while you're inside, bunker lights come on
@@ -2309,7 +2344,8 @@ function tick() {
   const jc = new THREE.Vector3(((JS.x0 + JS.x1) / 2) * 0.4 + player.position.x * 0.6, 0, -11.5 * 0.5 + player.position.z * 0.5);
   camPos.lerp((inJ ? jc.clone() : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone()).add(off), Math.min(1, dt * 4));
   const lookAt = inJ ? jc.clone().setY(0.8) : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
-  if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
+  if (state.step === 'title') { const tt = performance.now() * 0.001; camPos.set(-14 + Math.sin(tt * 0.045) * 16, 5.2 + Math.sin(tt * 0.11) * 0.6, 7.5); camLook.set(camPos.x * 0.85 + 2, 1.6, -7); }
+  else if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
   else camLook.lerp(lookAt, Math.min(1, dt * 6));
   camera.position.copy(camPos); camera.lookAt(camLook);
   sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position);

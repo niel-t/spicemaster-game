@@ -65,7 +65,7 @@ function setFocus(el) {
   if (el) { el.classList.add('sme-focus'); lastRect = el.getBoundingClientRect(); try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* old browsers */ } }
 }
 function ensureFocus(root) {
-  if (!root || mode !== 'pad') { if (focusEl) setFocus(null); lastRoot = null; return; }
+  if (!root || mode !== 'pad' || root === $('title')) { if (focusEl) setFocus(null); lastRoot = null; return; } // the start menu has its own highlight
   if (root !== lastRoot || (root === pauseEl && focusEl && !root.contains(focusEl))) { lastRoot = root; lastRect = null; if (focusEl && !root.contains(focusEl)) setFocus(null); } // a menu just opened: start on its default
   const list = focusables(root);
   if (focusEl && list.includes(focusEl)) return;
@@ -102,7 +102,7 @@ function pauseHTML(help) {
   return `<div class="pbox"><div class="ph">PAUZE</div>${help ? `<div class="pcontrols">${controlsTable()}</div>${b('back', 'TERUG')}` :
     `${b('resume', 'VERDER')}${b('inv', 'INVENTARIS')}${b('map', 'KAART', inM)}${b('music', 'MUZIEK AAN / UIT')}${inM ? b('restart', 'MISSIE OPNIEUW', !canRestart) : ''}${b('help', 'BESTURING')}`}</div>`;
 }
-function controlsTable() {
+export function controlsTable() {
   const rows = [['Move', 'WASD', 'Left stick', 'Left thumb'], ['Aim (missions)', 'Mouse', 'Right stick', 'Right thumb'], ['Attack / execute', 'Click / F', 'RT', 'SLAAN / push right thumb'],
     ['Interact / grab / throw', 'E', 'A', 'ACTIE'], ['Reload', 'R', 'X / LT', 'RELOAD'], ['Switch weapon', 'Wheel / Tab / 1-3', 'Y', 'WISSEL'], ['Sprint', 'Shift', 'LB / L3', 'SPRINT'],
     ['Map', 'M', 'RB', 'KAART'], ['Inventory', 'I', '—', 'INV'], ['Back / close', 'Esc', 'B', '✕'], ['Restart mission', 'Backspace', 'Back', 'OPNIEUW'], ['Pause', 'P', 'Start', 'II']];
@@ -163,6 +163,15 @@ function pollPad(dt) {
   ensureFocus(ov);
   // menus: D-pad / left stick move the focus (re-armed by returning to neutral, then auto-repeat), A clicks, B goes back
   const dir = PAD.b[12] ? [0, -1] : PAD.b[13] ? [0, 1] : PAD.b[14] ? [-1, 0] : PAD.b[15] ? [1, 0] : lm > 0.55 ? (Math.abs(lx) > Math.abs(ly) ? [Math.sign(lx), 0] : [0, Math.sign(ly)]) : null;
+  if (ov && ov === $('title')) {
+    virt.mx = virt.mz = 0; if (focusEl) setFocus(null);
+    const vd = dir && dir[1] !== 0 ? dir[1] : 0;
+    if (!vd) { PAD.navArm = true; PAD.navT = 0; }
+    else if (PAD.navArm) { press(vd < 0 ? 'ArrowUp' : 'ArrowDown'); PAD.navArm = false; PAD.navT = 0.42; }
+    else if ((PAD.navT -= dt) <= 0) { press(vd < 0 ? 'ArrowUp' : 'ArrowDown'); PAD.navT = 0.15; }
+    if (edge(0)) press('Enter'); if (edge(1)) press('Escape'); if (edge(3)) press('KeyN');
+    return;
+  }
   if (ov) {
     virt.mx = virt.mz = 0; virt.aim = null; hold('ShiftLeft', false); fireHeld = false;
     if (!dir) { PAD.navArm = true; PAD.navT = 0; }

@@ -71,6 +71,14 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 Talk to Eddy Sr. → list the 6 junk items on the PC → sell them on Kaasplaats → buy a mixing table → hire a Naknik →
 Eddy Sr.'s farewell → visit The Russian (pawnshop, De Natte Worst) → buy a weapon → end of Chapter 0.
 
+## Start menu & fonts
+The game opens on a start menu (Continue / New Game / Controls / Music / Credits) over a slow dusk drift along the canal street;
+it works with mouse, keyboard (↑ ↓ Enter Esc), controller (D-pad, A, B) and touch. A new game starts inside the warehouse:
+Eddy Sr. hands over the keys there, then walks out through the shutter.
+
+Fonts (SIL Open Font License, vendored in `assets/fonts` with their license files, so they work offline):
+**Bungee** (logo, headings, money, toasts) · **Rubik** (UI, dialogue, shop, menus) · **VT323** and **Press Start 2P** (mission HUD, pixel accents).
+
 ## Saving
 The game autosaves to `localStorage` (key `spiceMasterEddy.save`, versioned) on every story step, purchase, sale, music toggle,
 mission end and when the tab closes. Mid-mission progress is not saved (it is when the mission ends). The title screen offers
