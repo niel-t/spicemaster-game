@@ -12,6 +12,8 @@ python -m http.server 8765
 Then open http://localhost:8765
 
 ## Play online
+**GitHub Pages:** https://niel-t.github.io/spicemaster-game/ (from `niel-t/spicemaster-game`, deployed by `.github/workflows/pages.yml` on every push to `claude/neon-vice-mechanics`).
+
 GitLab Pages publishes the game on every push to `claude/neon-vice-mechanics` (and to the default branch once merged):
 https://srk7630145.gitlab.io/spice-master-eddy/ — works on PC, phone and tablet, controller included.
 The job lives in `.gitlab-ci.yml` at the repo root and only copies `index.html`, `js/`, `assets/` and `vendor/` (no build step).
