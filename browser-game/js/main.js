@@ -760,7 +760,7 @@ const HEADS = {
 };
 function makePerson(o) {
   // Neon Vice-style model (js/characters.js): a named look, or one derived from these options. ps2: false keeps the old capsule figure
-  if (o.ps2 !== false) return makePS2Person(o.ps2 || lookFromPerson(o, HEADS), { scale: o.scale, scene });
+  if (o.ps2 !== false) return makePS2Person(o.ps2 || lookFromPerson(o, HEADS), { scale: o.scale, scene, lazy: !o.ps2 }); // extras finish in the background
   const s = o.scale || 1, belly = o.belly || 0;
   const root = new THREE.Group();
   const body = new THREE.Group(); body.scale.setScalar(s); root.add(body);

@@ -8,7 +8,8 @@ import * as THREE from '../vendor/three.module.min.js';
 import * as P from './ps2c.js';
 
 const TAU = Math.PI * 2;
-const live = new Set();
+const live = new Set(), queue = [];
+export const stats = { built: 0, ms: 0, first: 0, queued: 0 };
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 export const hex01 = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
@@ -100,12 +101,23 @@ export function paintShirt(cv, S) {
 // look: Neon Vice look fields (colours 0..1): skin, hair, hs ('normal'|'slick'|'buzz'|'big'|'long'|'mohawk'), beard, stache,
 // stubble, glasses, shades, hat, calm, fem, body ('fat'|'big'|'thin'|'slim'|'stocky'|'boss'), shirt, jacket, pants, shoes, tee, tank ...
 // plus Spice Master extras: smile, shirtPaint (paintShirt options), B (raw geometry flags merged into the build), paintHead(cv), paintBody(cv)
-export const stats = { built: 0, ms: 0, first: 0 };
-export function buildModel(look) {
-  const t0 = performance.now(); if (!stats.first) stats.first = t0;
+// building is split in two: prepModel (skeleton and body group, instant) and finishModel (textures, meshes: the slow part),
+// so street extras can be finished in the background a few per frame (see the queue in syncCharacters)
+const geoCache = new Map();
+const SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 2.2); // covers standing and lying poses
+export function prepModel(look) {
   const cfg = P.lookCfg(look, look.body);
   cfg.B.nowatch = !look.watch; // Neon Vice gives everyone a gold watch; here only looks that ask for one
   Object.assign(cfg.B, look.B || {});
+  const body = new THREE.Group(), bones = [];
+  for (let i = 0; i < P.NB; i++) { const b = new THREE.Bone(); b.name = P.BONES[i][0]; b.matrixAutoUpdate = false; body.add(b); bones.push(b); }
+  const skeleton = new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4()));
+  return { look, body, bones, skeleton, meshes: [], mats: [], cfg, done: false };
+}
+export function finishModel(md) {
+  if (md.done) return md;
+  const t0 = performance.now(); if (!stats.first) stats.first = t0;
+  const { look, cfg } = md;
   const hc = P.paintHeadP(look);
   if (look.smile) P.paintSmile(hc, {});
   if (look.paintHead) look.paintHead(hc);
@@ -114,21 +126,22 @@ export function buildModel(look) {
   if (look.paintBody) look.paintBody(bc);
   // extras get 256 px sheets (a quarter of the memory); the named cast keeps 512 (look.tex)
   const ts = look.tex || 256, shrink = (cv) => { if (cv.width <= ts) return cv; const c = document.createElement('canvas'); c.width = c.height = ts; const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, ts, ts); return c; };
-  const mats = [], meshes = [];
-  const body = new THREE.Group();
-  const bones = [];
-  for (let i = 0; i < P.NB; i++) { const b = new THREE.Bone(); b.name = P.BONES[i][0]; b.matrixAutoUpdate = false; body.add(b); bones.push(b); }
-  const skeleton = new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4()));
-  for (const [M, cv] of [[P.buildBody(cfg.B), shrink(bc)], [P.buildHead(cfg.B), shrink(hc)]]) {
+  const key = JSON.stringify(cfg.B);
+  let geos = geoCache.get(key);
+  if (!geos) { geos = [geometry(P.buildBody(cfg.B)), geometry(P.buildHead(cfg.B))]; geoCache.set(key, geos); }
+  [shrink(bc), shrink(hc)].forEach((cv, i) => {
     const mat = new THREE.MeshStandardMaterial({ map: canvasTex(cv), roughness: 0.82, metalness: 0 });
-    const m = new THREE.SkinnedMesh(geometry(M), mat);
-    m.bind(skeleton, new THREE.Matrix4());
-    m.frustumCulled = false; m.castShadow = true; // no receiveShadow: painted shading, and a belly shouldn't black out the hips
-    body.add(m); mats.push(mat); meshes.push(m);
-  }
+    const m = new THREE.SkinnedMesh(geos[i], mat);
+    m.bind(md.skeleton, new THREE.Matrix4());
+    m.boundingSphere = SPHERE.clone(); // fixed sphere: no per-vertex skinning pass to compute one
+    m.castShadow = true; // no receiveShadow: painted shading, and a belly shouldn't black out the hips
+    md.body.add(m); md.mats.push(mat); md.meshes.push(m);
+  });
+  md.done = true;
   stats.built++; stats.ms += performance.now() - t0;
-  return { body, bones, skeleton, meshes, mats, cfg, canvases: { body: bc, head: hc } };
+  return md;
 }
+export function buildModel(look) { return finishModel(prepModel(look)); }
 
 /* ---------- person (makePerson-compatible) ---------- */
 const ARM = [{ s: -1, u: 'uarmR', f: 'farmR', h: 'handR' }, { s: 1, u: 'uarmL', f: 'farmL', h: 'handL' }];
@@ -145,7 +158,8 @@ const tmpM = new THREE.Matrix4(), headOff = new THREE.Matrix4().compose(new THRE
 
 export function makePS2Person(look, opts = {}) {
   const root = new THREE.Group();
-  const md = buildModel(look);
+  const md = prepModel(look);
+  if (opts.lazy) queue.push(md); else finishModel(md);
   const body = md.body; const s = opts.scale || 1;
   body.scale.set(md.cfg.scale[0] * s, md.cfg.scale[1] * s, md.cfg.scale[2] * s);
   root.add(body);
@@ -224,11 +238,18 @@ function inScene(o) { for (let n = o; n; n = n.parent) if (n.isScene) return tru
 function visibleInScene(o) { for (let n = o; n; n = n.parent) { if (!n.visible) return false; if (n.isScene) return true; } return false; }
 
 // sync every live character's bones to its pose; runs right before each render (scene.onBeforeRender)
-export function syncCharacters() {
+const frustum = new THREE.Frustum(), pv = new THREE.Matrix4(), ball = new THREE.Sphere();
+export function syncCharacters(camera) {
   const now = performance.now();
+  // finish queued extras within a small time budget per frame (always at least one)
+  for (let n = 0; queue.length && (n === 0 || performance.now() - now < 6); n++) finishModel(queue.shift());
+  stats.queued = queue.length;
+  if (camera) { pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pv); }
   for (const p of live) {
     if (!visibleInScene(p)) { const q = p.userData.ps2; if (++q.away > 600 && !inScene(p)) live.delete(p); continue; }
     p.userData.ps2.away = 0;
+    if (!p.userData.ps2.md.done) continue;
+    if (camera) { ball.copy(SPHERE).applyMatrix4(p.userData.body.matrixWorld); if (!frustum.intersectsSphere(ball)) continue; } // off screen: keep the last pose
     const u = p.userData, W = poseOf(p, now), bones = u.ps2.md.bones;
     for (let i = 0; i < bones.length; i++) { bones[i].matrix.fromArray(W[i]); bones[i].matrixWorldNeedsUpdate = true; bones[i].updateMatrixWorld(); }
     // the head proxy follows the head bone so hats, poop splats and props parented to it ride along
@@ -239,7 +260,7 @@ export function syncCharacters() {
 }
 export function installCharacters(scene) {
   const prev = scene.onBeforeRender;
-  scene.onBeforeRender = function (...a) { syncCharacters(); if (prev) prev.apply(this, a); };
+  scene.onBeforeRender = function (renderer, sc, camera, ...a) { syncCharacters(camera); if (prev) prev.call(this, renderer, sc, camera, ...a); };
 }
 // characters detached from the scene for ~10 s drop out of the update set; adding the root back re-registers it,
 // track() does the same when only an ancestor was re-added
@@ -259,6 +280,7 @@ function splat(cv, regions, n, big) {
 }
 export function bloody(p, lvl) {
   const q = p && p.userData && p.userData.ps2; if (!q || lvl <= (q.bl || 0)) return;
+  finishModel(q.md);
   const [bm, hm] = q.md.meshes.map((m) => m.material.map);
   if (!q.clean) q.clean = [bm, hm].map((t) => { const c = document.createElement('canvas'); c.width = t.image.width; c.height = t.image.height; c.getContext('2d').drawImage(t.image, 0, 0); return c; });
   q.bl = lvl;
