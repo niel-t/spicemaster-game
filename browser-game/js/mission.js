@@ -799,6 +799,7 @@ export function initMission(ctx) {
     spits: { name: 'SPITSUUR', line: 'Rush hour: the whole crew is in. Pay x1.5.', keep: [1, 1], pay: 1.5, guns: 0.15, w: 20 },
     kassa: { name: 'KASSA VOL', line: 'The till is full and they are armed for it. Pay x2.', keep: [0.8, 1], pay: 2, guns: 0.5, w: 10 },
     rustig: { name: 'RUSTIGE AVOND', line: 'A quiet night. Fewer Lampas, half pay.', keep: [0.45, 0.55], pay: 0.5, w: 15 },
+    nacht: { name: 'NACHTKLUS', line: 'Lights low, a skeleton crew. Take what you can carry and leave unseen.', keep: [0.4, 0.55], pay: 1, dark: true, w: 0 }, // heists only, never rolled
   };
   const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
@@ -809,6 +810,96 @@ export function initMission(ctx) {
     return { seed, mod, day };
   }
   let REMIX = null;
+  // ================================================================== NACHTKLUS (heist mode): sneak in at night, fill the bag, carry it to the
+  // Oofmobiel, drive home with the haul. Being seen fills the alarm; a full alarm turns the night into a loud raid.
+  // opts.heist: { title, day, cap (bag slots), cased (show sight cones), lockpick (quieter safe), safe, special: 'grill', onEnd(result) }
+  let HEIST = null;
+  const HS = { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, cones: [], pick: 0 };
+  const coneM = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
+  const CONE_C = { idle: 0xf2c14e, search: 0xe8862c, chase: 0xff2a3a };
+  function heistSetup() {
+    for (const c of HS.cones) root.remove(c); HS.cones.length = 0;
+    if (HS.safe) root.remove(HS.safe.g); if (HS.special) root.remove(HS.special.g);
+    Object.assign(HS, { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, pick: 0 });
+    if (!HEIST) return;
+    if (HEIST.cased) for (const e of enemies) {
+      const geo = new THREE.CircleGeometry(EASY.vision, 20, -Math.PI / 2 - EASY.cone, EASY.cone * 2); geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo, coneM(CONE_C.idle)); m.position.y = 0.05; m.userData.e = e; root.add(m); HS.cones.push(m);
+    }
+    if (HEIST.special === 'grill' && lootCrates.length) { // Dad's old döner grill, where the first crate would be
+      const l = lootCrates[0]; l.taken = true; l.c.visible = l.glow.visible = false;
+      const g = new THREE.Group(); g.position.set(l.c.position.x, 0, l.c.position.z);
+      const steel = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.7, roughness: 0.35 });
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.5), steel); base.position.y = 0.25; g.add(base);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.08), steel); back.position.set(0, 0.95, -0.21); g.add(back);
+      const spit = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.7, 10), new THREE.MeshLambertMaterial({ color: 0x8a4a22 })); spit.position.set(0, 0.95, 0); g.add(spit);
+      const glow = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.66, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.7 })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.04; g.add(glow);
+      root.add(g); HS.special = { g, glow, taken: false };
+    }
+    if (HEIST.safe) { // a safe in the boss's room (or by the last crate)
+      const b = enemies.find((e) => e.userData.foe.boss), src = b ? b.userData.foe.spawn : (LV.loot && LV.loot.at(-1)) || LV.start;
+      const g = new THREE.Group(); g.position.set(OX + src[0] + 0.6, 0, Z0 + src[1] + 0.6);
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.55), new THREE.MeshStandardMaterial({ color: 0x3a3e44, metalness: 0.6, roughness: 0.4 })); box.position.y = 0.35; g.add(box);
+      const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.04, 14), new THREE.MeshStandardMaterial({ color: 0xd8b04a, metalness: 0.8 })); dial.rotation.x = Math.PI / 2; dial.position.set(0, 0.42, 0.29); g.add(dial);
+      root.add(g); HS.safe = { g, open: false };
+    }
+  }
+  function heistAlarm(n, why) {
+    if (!HEIST || HS.loud) return;
+    HS.alarm = Math.min(100, HS.alarm + n);
+    if (HS.alarm >= 100) {
+      HS.loud = true; banner('ALARM!', "They know you're here. It's a loud raid now: grab what you can and get to the van.", 3.5); sfx('alert');
+      for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0 && f.state !== 'chase') { f.state = 'search'; f.sx = player.position.x; f.sz = player.position.z; f.searchT = 0; f.path = null; } }
+    } else if (why) popup(player.position, why, '#ff7a1a');
+  }
+  function heistTick(dt) {
+    if (!HEIST) return;
+    let chased = false;
+    for (const c of HS.cones) {
+      const e = c.userData.e, f = e.userData.foe; c.visible = e.visible && f.alive && f.down <= 0; if (!c.visible) continue;
+      c.position.x = e.position.x; c.position.z = e.position.z; c.rotation.y = e.rotation.y; c.material.color.setHex(CONE_C[f.state] || CONE_C.idle);
+    }
+    for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0 && f.state === 'chase') chased = true; }
+    if (chased) heistAlarm(dt * 22); else if (!HS.loud) HS.alarm = Math.max(0, HS.alarm - dt * 2);
+    if (HS.special && !HS.special.taken) HS.special.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
+    heistHud();
+  }
+  const heistEl = document.createElement('div');
+  heistEl.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:6;display:none;font-family:"Press Start 2P",monospace;font-size:11px;color:#fff;text-shadow:2px 2px 0 #000;text-align:center;pointer-events:none';
+  document.body.appendChild(heistEl);
+  function heistHud() {
+    if (!HEIST || !M.active) { heistEl.style.display = 'none'; return; }
+    const a = Math.round(HS.alarm), col = HS.loud ? '#ff2a3a' : a > 60 ? '#e8862c' : '#f2c14e';
+    heistEl.style.display = 'block';
+    heistEl.innerHTML = `NACHTKLUS · ${HEIST.title || ''}<div style="margin:6px auto 0;width:220px;height:10px;border:2px solid #000;background:#1e140c"><div style="height:100%;width:${a}%;background:${col}"></div></div><div style="margin-top:4px;color:${col}">${HS.loud ? 'ALARM!' : 'ALARM ' + a + '%'}</div><div style="margin-top:6px;color:#ffd23a">BAG ${HS.bag.length}/${HEIST.cap || 3} · IN THE VAN ${HS.banked.length}${HS.cash ? ' · CASH W ' + HS.cash : ''}</div>`;
+  }
+  function heistGrab() { // E near the special item, a crate or the safe
+    const near = (o, r = 1.2) => Math.hypot(o.position.x - player.position.x, o.position.z - player.position.z) < r;
+    const cap = HEIST.cap || 3;
+    if (HS.special && !HS.special.taken && near(HS.special.g, 1.3)) {
+      if (HS.bag.length) { toast('TOO HEAVY', "Dad's grill takes both hands. Take the bag to the Oofmobiel first.", 2.5); return true; }
+      HS.special.taken = true; HS.special.g.visible = false; HS.bag.push('grill'); for (let k = 1; k < cap; k++) HS.bag.push('-');
+      popup(player.position, "DAD'S OLD GRILL!", '#ffd23a', true); sfx('pick'); heistAlarm(8, 'CLANK!'); alertNoise(player.position, 3); return true;
+    }
+    for (const l of lootCrates) if (!l.taken && near(l.c)) {
+      if (HS.bag.length >= cap) { toast('BAG FULL', 'Carry it out to the Oofmobiel, then come back for more.', 2.2); return true; }
+      l.taken = true; l.c.visible = l.glow.visible = false; HS.bag.push('crate'); popup(player.position, '+1 CRATE (HOT)', '#ffd23a'); sfx('pick'); return true;
+    }
+    if (HS.safe && !HS.safe.open && near(HS.safe.g, 1.4)) {
+      HS.pick += HEIST.lockpick ? 34 : 25; alertNoise(player.position, HEIST.lockpick ? 1.2 : 3); beep(1200 + HS.pick * 4, 0.03, 'square', 0.03);
+      if (HS.pick >= 100) { HS.safe.open = true; const cash = 300 + Math.round(Math.random() * 12) * 50; HS.cash += cash; popup(player.position, `SAFE OPEN · W ${cash}`, '#ffd23a', true); sfx('cash'); }
+      else popup(player.position, `CRACKING ${Math.min(99, HS.pick)}%`, '#e8a33d');
+      return true;
+    }
+    return false;
+  }
+  function heistVan() { // at the Oofmobiel: stash the bag, or drive home with the haul
+    const inBag = HS.bag.filter((x) => x !== '-');
+    if (inBag.length) { HS.banked.push(...inBag); HS.bag.length = 0; toast('IN THE VAN', `Stashed. ${HS.banked.length} item(s) in the Oofmobiel. Go back for more, or drive home.`, 2.5); sfx('pick'); heistHud(); return; }
+    const res = { crates: HS.banked.filter((x) => x === 'crate').length, grill: HS.banked.includes('grill'), cash: HS.cash, loud: HS.loud, alarm: Math.round(HS.alarm), kills: R.kills, level: LV.id, title: HEIST.title };
+    const done = HEIST.onEnd; exit(); if (done) setTimeout(() => done(res), 600);
+  }
+
   function rollRemix(opt) {
     const r = rng32(opt.seed ^ 0x9e3779b9), m = REMIX_MODS[opt.mod] || REMIX_MODS.normaal;
     const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -857,6 +948,7 @@ export function initMission(ctx) {
     Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.loadout.vest > 0 ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
+    heistSetup();
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
   }
   function enter(id = 'spekbuurt', opts = {}) {
@@ -864,7 +956,10 @@ export function initMission(ctx) {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
       if (!LV || LV.id !== id) buildLevel(LEVELS[id]);
-      REMIX = opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
+      HEIST = opts.heist || null;
+      REMIX = HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
+      if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
+        if (HEIST.extra) for (const i of enemies.map((e, k) => k).filter((k) => !REMIX.keep.has(k)).slice(0, HEIST.extra)) REMIX.keep.add(i); } // suspicion: more guards
       const mood = LV.mood;
       M.active = true; root.visible = true; clearPlayerSplats();
       saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity; saved.hemiC = [hemi.color.clone(), hemi.groundColor.clone()];
@@ -875,15 +970,15 @@ export function initMission(ctx) {
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
       resetFloor();
       setArea(LV.text.area);
-      $('objective').innerHTML = REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
+      $('objective').innerHTML = HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
-      startArrive(() => { if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
+      startArrive(() => { if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them. E grabs, the van takes the bag.' : 'No floor plan. Stay in the dark, walk, don\'t run. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
   function exit() {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
-      saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
+      saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; HEIST = null; heistSetup(); heistHud(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; if (saved.hemiC) { hemi.color.copy(saved.hemiC[0]); hemi.groundColor.copy(saved.hemiC[1]); } sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
@@ -899,7 +994,7 @@ export function initMission(ctx) {
     }, 480);
   }
   addInteract({ get obj() { const t = nearTask(); return t ? t.obj : van; }, pos: () => (nearTask() || { pos: van.position }).pos, r: 2.5, enabled: () => M.active && !P.dead && !R.results && !ARR && !!nearTask(), label: () => nearTask().label, act: () => doTask(nearTask()) });
-  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: exit });
+  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => HEIST ? (HS.bag.filter((x) => x !== '-').length ? 'Oofmobiel · stash the bag' : HS.banked.length || HS.cash ? 'Oofmobiel · drive home with the haul' : 'Oofmobiel · give up, drive home') : ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: () => (HEIST ? heistVan() : exit()) });
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
   function addKillScore(e, type) {
@@ -1002,7 +1097,7 @@ export function initMission(ctx) {
 
   // ================================================================== RESULTS (Neon Vice grade: score vs. 700 per enemy)
   function results() {
-    if (!M.active) return;
+    if (!M.active || HEIST) return; // a Nachtklus never takes the joint
     R.results = true; setOwned(LV.id); state.lastRaid = { id: LV.id, remix: !!REMIX, grade: null }; state.raids = (state.raids || 0) + 1;
     if (!REMIX) setLootTaken(LV.id, lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0));
     const ratio = R.score / ((R.foes || enemies.length) * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
@@ -1055,6 +1150,7 @@ export function initMission(ctx) {
   function grab() {
     if (P.dead || !M.active) return false;
     if (R.results) { hideScreen(); R.results = false; banner(LV.text.ownedBanner[0], LV.text.ownedBanner[1], 3); return true; }
+    if (HEIST && heistGrab()) return true;
     for (const [i, l] of lootCrates.entries()) if (!l.taken && Math.hypot(l.c.position.x - player.position.x, l.c.position.z - player.position.z) < 1.2) {
       l.taken = true; l.c.visible = l.glow.visible = false; state.loot = (state.loot || 0) + 1;
       if (ownsLevel(LV.id) && !REMIX) setLootTaken(LV.id, [...(state.lootTaken[LV.id] || []), i]);
@@ -1180,6 +1276,7 @@ export function initMission(ctx) {
     vigEl.style.background = `radial-gradient(ellipse at center, rgba(255,0,30,0) 45%, rgba(255,0,30,${vig.toFixed(3)}) 100%)`; vigEl.style.opacity = 1;
     for (const l of lootCrates) if (!l.taken) l.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
     if (levelTick) levelTick(dt);
+    heistTick(dt);
     for (let i = pops.length - 1; i >= 0; i--) {
       const p = pops[i]; p.t += dt; p.p.y += dt * 0.8;
       const v = p.p.clone().project(camera); p.el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; p.el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; p.el.style.opacity = Math.min(1, 2.2 - p.t * 1.6);
@@ -1276,6 +1373,7 @@ export function initMission(ctx) {
     f.laser.material.opacity = 0.35 + (f.react < 0.35 ? 0.4 : 0);
   }
   function spot(e) { // Neon Vice spot(): whoever sees you calls the others within 5 m
+    heistAlarm(35, 'SPOTTED!');
     for (const o of enemies) { const of = o.userData.foe; if (o === e || !of.alive || of.down > 0 || of.state === 'chase') continue;
       if (o.position.distanceTo(e.position) < 5) { of.state = 'search'; of.sx = player.position.x; of.sz = player.position.z; of.searchT = 0; of.path = null; } }
   }
@@ -1486,6 +1584,7 @@ export function initMission(ctx) {
     for (const [x, z] of LV.loot) if (!path(start, L(x, z))) issues.push(`loot ${x},${z} unreachable`);
     return issues;
   }
+  Object.defineProperty(M, 'heist', { get: () => (HEIST ? { ...HEIST, ...HS } : null), enumerable: true });
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,
     canRestart: () => M.active && !!LV && !ownsLevel(LV.id), levelName: () => (LV ? LV.name : ''),
