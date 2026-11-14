@@ -50,8 +50,9 @@ import nootmuskade from './levels/nootmuskade.js';
 import smokkelsloot from './levels/smokkelsloot.js';
 import containerchaos from './levels/containerchaos.js';
 import kardemomdok from './levels/kardemomdok.js';
+import goudenmolen from './levels/goudenmolen.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -551,6 +552,16 @@ export function initMission(ctx) {
   //   zeegaal: STEVEN ZEEGAAL, a 90s action-star parody mini-boss. Unarmed and slow, never picks up guns, takes 4 hits,
   //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
   const FOE_TYPES = {
+    //   gerrit: OOM GERRIT, Eddy Sr.'s old partner who sold him out (the finale, De Gouden Molen). Gold waistcoat, white hair; 6 hits.
+    gerrit: {
+      name: 'OOM GERRIT', hp: 6, speed: 0.8, dodge: 0.25, mass: 2.6, score: 10000,
+      look: { head: { skin: 0xe4b896, hair: '#e8e4d8', brow: '#c8c4b8', hairLine: 40, mouth: 'smile', iris: '#3a3a2a', glasses: true }, front: '#c8a040', shirt: 0xc8a040, pants: 0x3a2a1a, shoes: 0x2a1a12, belt: 0x5a3a20, belly: 1.2, scale: 1.05 },
+      alert: ['Eddy junior. Wat ben je groot geworden.', 'Je vader vertrouwde me. Dat was zijn fout.', 'De Gouden Mix was altijd van mij.', 'Ik heb ze allemaal tegen hem opgezet. En nu tegen jou.'],
+      hurt: ['Net als je vader: koppig.', 'Au! Respect voor je oom!', 'Dat ga je spijten.', 'Mijn vest!'],
+      dodgeSay: ['Oud, maar niet traag.', 'Mis.'],
+      disarm: ['Dit geweer was van je vader.'],
+      down: ['OOM GERRIT IS DOWN', 'Dad’s old partner. The one who sold him out.'],
+    },
     //   abdavis: DE ABDAVIS, boss of the Abdavissies (Act 3 finale, Kardemomdok). Navy greatcoat, captain's cap, grey beard; 5 hits.
     abdavis: {
       name: 'DE ABDAVIS', hp: 5, speed: 0.75, dodge: 0.2, mass: 3.0, score: 7000,
@@ -825,7 +836,7 @@ export function initMission(ctx) {
       const f = e.userData.foe, u = e.userData, i = enemies.indexOf(e);
       let [x, z, r, w] = f.spawn, off = done;
       if (REMIX) { if (REMIX.place[i]) [x, z, r] = REMIX.place[i]; if (i in REMIX.weapons) w = REMIX.weapons[i]; off = !REMIX.keep.has(i); }
-      Object.assign(f, { alive: !off, down: 0, hp: f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 + (LV.foeHp || 1) - 1 : (LV.foeHp || 1), dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
+      Object.assign(f, { alive: !off, down: 0, hp: (f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 + (LV.foeHp || 1) - 1 : (LV.foeHp || 1)) + Math.min(2, state.ngp || 0) /* New Game+: tougher every round */, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
       setFoeWeapon(e, off ? null : w);
       e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !off; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
     }
