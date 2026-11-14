@@ -27,8 +27,9 @@ import sauzenbuurt from './levels/sauzenbuurt.js';
 import knoflooksteeg from './levels/knoflooksteeg.js';
 import mayonaisemarkt from './levels/mayonaisemarkt.js';
 import halvekipplein from './levels/halvekipplein.js';
+import bitterbalbuurt from './levels/bitterbalbuurt.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -549,7 +550,7 @@ export function initMission(ctx) {
   const nearTask = () => { let b = null, bd = 2.5; if (!M.active) return null; for (const t of tasks) if (!t.done) { const d = Math.hypot(player.position.x - t.pos.x, player.position.z - t.pos.z); if (d < bd) { bd = d; b = t; } } return b; };
   function doTask(t) {
     if (!t || t.done) return; t.done = true; if (t.act) t.act();
-    R.score += 750; sfx('thud'); shake(0.35); popup(t.pos, t.doneText || 'SABOTAGED!', '#e8a33d', true);
+    R.score += t.score || 750; sfx('thud'); shake(0.35); popup(t.pos, t.doneText || 'SABOTAGED!', '#e8a33d', true);
     const n = tasksLeft(); if (n) banner(`${n} TO GO`, LV.text.taskHint || '', 1.6);
     else if (!alive().length && !R.cleared) { R.cleared = true; popup(t.pos, 'FLOOR CLEAR', '#e8a33d', true); setTimeout(results, 1500); }
     else banner(LV.text.tasksDone || 'ALL DONE', 'Now finish off the Lampas.', 2);
