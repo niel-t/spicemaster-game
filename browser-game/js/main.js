@@ -13,6 +13,7 @@ import { createEconomy, rankOf } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
 import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
 import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wheel clamps, the tax inspector
+import { createHaggle, createSpiceStall } from './haggle.js'; // haggling with Tristan's cast (Werkplaats clients, Fenna, Oma Zahra)
 import { createWorkshop } from './workshop.js'; // De Werkplaats: build and repair machines, upgrade the Kaasdows
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
@@ -1067,7 +1068,9 @@ const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
-const ws = createWorkshop({ state, econ, addMoney, toast, beep, save: () => writeSave() });
+const haggle = createHaggle({ state, day: () => econ.ensure().day, toast, beep, save: () => writeSave() });
+const stall = createSpiceStall({ state, econ, haggle, addMoney, toast, save: () => writeSave() });
+const ws = createWorkshop({ state, econ, addMoney, toast, beep, haggle, save: () => writeSave() });
 const garage = createGarage({ state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c) });
 const crew = createCrew({ state, econ, ws, addMoney, toast, save: () => writeSave() });
 const heists = createHeists({ state, econ, garage, addMoney, toast, save: () => writeSave(), closePC: () => closePC(),
@@ -1088,6 +1091,7 @@ function renderPC() {
   const body = $('winbody'); const title = $('wintitle');
   const fmt = (n) => 'W ' + n.toLocaleString('nl-NL');
   if (pcMode === 'van') { title.textContent = 'Oofmobiel · Where to?'; body.innerHTML = mapHTML(true); bindMap(); return; }
+  if (haggle.tab() === pcTab) { title.textContent = haggle.title(); body.innerHTML = haggle.html(); body.scrollTop = 0; haggle.bind(body, renderPC); return; } // a negotiation takes over its tab until it ends
   if (pcTab === 'sell') {
     title.textContent = 'Kaasplaats.kl · Second-hand catering gear';
     const rows = junkDefs.filter((d) => state.listed.has(d.id) && !state.sold.has(d.id));
@@ -1120,7 +1124,7 @@ function renderPC() {
     $('tableBtn').onclick = buyTable;
   } else if (pcTab === 'beurs') {
     title.textContent = 'Kruidenbeurs.kl · Spice prices, live-ish';
-    body.innerHTML = (ws.hasPC('modem') ? `<div class="well" style="margin-bottom:8px"><b>56k modem</b> · tomorrow's rumour: <i>${econ.rumour()}.</i></div>` : '') + econ.html(); econ.bind(body, renderPC);
+    body.innerHTML = (ws.hasPC('modem') ? `<div class="well" style="margin-bottom:8px"><b>56k modem</b> · tomorrow's rumour: <i>${econ.rumour()}.</i></div>` : '') + stall.html() + econ.html(); econ.bind(body, renderPC); stall.bind(body, renderPC);
   } else if (pcTab === 'meng') {
     title.textContent = 'Mengkamer · What are the Naknikim mixing?';
     body.innerHTML = econ.mixHTML(); econ.mixBind(body, renderPC);
@@ -1497,7 +1501,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'ngp', 'npcs', 'ws', 'van', 'crew', 'crewDay', 'heists'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'ngp', 'npcs', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
   try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }

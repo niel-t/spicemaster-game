@@ -6,6 +6,7 @@
 // Everything lives in state.ws (saved by main.js). Orders and used-part offers are rolled from the market day,
 // so a reload shows the same day.
 import { MACHINES } from './economy.js';
+import { PEOPLE, CLIENT_IDS, portrait } from './haggle.js';
 
 export const SLOTS = [
   ['frame', 'Frame'], ['burner', 'Burner'], ['motor', 'Motor'], ['core', 'Spit / core'], ['x1', 'Extra'], ['x2', 'Extra'],
@@ -45,7 +46,9 @@ const SYMPTOM = {
   core: 'Something is bent and scrapes every time it turns.',
   x1: 'It clicks off at random, mid-rush.', x2: 'It clicks off at random, mid-rush.',
 };
-const CLIENT_NAMES = ['Kapsalon King', 'Grillroom Ali Baba', 'Shoarma Paleis', 'Snackbar Bij Henk', 'Grillroom Zuid', 'Restaurant De Lepel', 'Frituur Het Gouden Frietje', 'Döner Dirk', 'Pitabar Pieter', 'Lunchroom Tante Gerda'];
+// clients are Tristan's cast (js/haggle.js): the shoarma bosses and Gerrit from the pancake house (ovens and fryers only)
+const clientsFor = (type) => CLIENT_IDS.filter((id) => !PEOPLE[id].types || PEOPLE[id].types.includes(type));
+const whoName = (o) => (o.cid && PEOPLE[o.cid] ? `${PEOPLE[o.cid].name} · ${PEOPLE[o.cid].place}` : o.who);
 // Kaasdows 95 upgrades: each part makes one PC tab better
 export const PC_PARTS = [
   { id: 'ram', name: '32 MB memory', price: 900, text: 'The Klusbord shows one more job every day, from the next market day.' },
@@ -58,8 +61,9 @@ const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul
 const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BOLTS = 4;
+const SYMPTOM_SHORT = { frame: 'cracked weld', burner: 'dead burner', motor: 'stalling motor', core: 'bent spit', x1: 'random cut-out', x2: 'random cut-out' };
 
-// deps: state, econ, addMoney(n, el), toast(title, text, sec), save()
+// deps: state, econ, addMoney(n, el), toast(title, text, sec), save(), haggle (js/haggle.js, optional)
 export function createWorkshop(deps) {
   const { state, econ } = deps;
   const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
@@ -92,13 +96,15 @@ export function createWorkshop(deps) {
       const style = r() < 0.25 + tier * 0.1 ? 1 + Math.floor(r() * 2) : 0;
       const m = MACHINES.find((x) => x.id === type);
       const pay = Math.round((m.sell * (0.45 + 0.8 * cap / (type === 'grill' ? 60 : 30)) + (rel - 70) * 12 + style * 120 + (kind ? 60 : 0)) / 10) * 10;
-      w.orders.push({ n: i, type, cap, rel, kind, style, pay, who: rp(CLIENT_NAMES), done: false });
+      const cid = rp(clientsFor(type));
+      w.orders.push({ n: i, type, cap, rel, kind, style, pay, cid, who: PEOPLE[cid].place, done: false });
     }
     { // one repair job a day: a full machine with one bad part
       const type = rp(['grill', 'grill', 'oven', 'frituur', 'snijder']);
       const set = fullSet(type, r);
       const bad = rp(Object.keys(set).filter((s) => s !== 'x2'));
-      w.orders.push({ n: 2, repair: true, type, set, bad, pay: Math.round((150 + r() * 200) / 10) * 10, who: rp(CLIENT_NAMES), done: false });
+      const cid = rp(clientsFor(type));
+      w.orders.push({ n: 2, repair: true, type, set, bad, pay: Math.round((150 + r() * 200) / 10) * 10, cid, who: PEOPLE[cid].place, done: false });
     }
     const pool = PARTS.filter((p) => p.slot !== 'x' || r() < 0.5);
     for (let i = 0; i < 3; i++) { const p = rp(pool); w.offers.push({ n: i, id: p.id, wear: Math.round((0.1 + r() * 0.15) * 100) / 100, price: Math.round(p.price * (0.4 + r() * 0.2) / 5) * 5, sold: false }); }
@@ -159,7 +165,7 @@ export function createWorkshop(deps) {
     if (p && !fitsSlot(P(p.id), slot)) return;
     if (b.slots[slot]) { if (!b.slots[slot].broken) w.parts.push(b.slots[slot]); else scrap(b.slots[slot]); }
     if (p) { w.parts.splice(idx, 1); b.slots[slot] = p; } else delete b.slots[slot];
-    b.bolts = 0; b.test = null;
+    b.bolts = 0; b.test = null; b.work = (b.work || 0) + 1;
   }
   function scrap(part) { const v = Math.max(5, Math.round(P(part.id).price * 0.08)); deps.addMoney(v); if (deps.toast) deps.toast('SCRAP', `The broken ${P(part.id).name.toLowerCase()} goes to the scrap man: +${fmt(v)}.`, 2.5); }
   function clearBench() {
@@ -170,24 +176,43 @@ export function createWorkshop(deps) {
   }
   function runTest() {
     const w = ensure(), b = w.bench, t = evaluate(b.slots);
-    b.test = t;
+    b.test = t; b.work = (b.work || 0) + 1;
     if (t.ok && t.broken) { b.test.symptom = SYMPTOM[t.broken]; b.test.suspect = t.broken; }
     return t;
   }
-  function deliver(n, el) {
+  function deliver(n, el) { // the machine is done: the client comes round and the haggling starts
     const w = ensure(), o = w.orders[n], b = w.bench;
     if (!o || o.done) return 'That order is gone.';
+    let list, lev = 0;
     if (o.repair) {
       if (b.repair !== n) return 'This repair isn\'t on the bench.';
       const t = b.test; if (!t || !t.ok || t.broken) return 'Run the draaitest first: it has to run clean.';
-      o.done = true; w.repaired++; deps.addMoney(o.pay, el); w.bench = { slots: {}, bolts: 0 };
-      if (deps.toast) deps.toast('REPAIRED', `${o.who} has their ${TYPE_NAME[o.type].toLowerCase()} back: +${fmt(o.pay)}. "Like new, brother!"`, 3.5);
+      list = o.pay;
     } else {
       const t = b.test; if (!meets(t, o)) return 'The machine on the bench doesn\'t meet the spec yet (run the draaitest).';
       const bonus = t.cap >= o.cap * 1.2 && relNow(t) >= o.rel + 5 ? Math.round(o.pay * 0.2 / 10) * 10 : 0;
-      o.done = true; w.built++; deps.addMoney(o.pay + bonus, el); w.bench = { slots: {}, bolts: 0 };
-      if (deps.toast) deps.toast('MACHINE DELIVERED', `${o.who} pays ${fmt(o.pay)}${bonus ? ` + ${fmt(bonus)} bonus for beating the spec` : ''}. The Naknikim carry it over.`, 4);
+      list = o.pay + bonus; lev = bonus ? 1 : t.cap >= o.cap * 1.1 ? 0.5 : 0;
     }
+    if (!deps.haggle || !o.cid || !PEOPLE[o.cid]) return pay(n, list, el); // old saves: a client without a face just pays
+    const work = b.work || 0, effort = clamp((work - (o.repair ? 3 : 6)) / 8, 0, 1), lost = spentToday();
+    const ask = Math.round((list * (1.15 + Math.random() * 0.12) + Math.min(lost * 0.5, list * 0.25)) / 10) * 10;
+    const kind = o.repair ? 'repair' : TYPE_NAME[o.type].toLowerCase();
+    const excuse = o.repair
+      ? `"That ${SYMPTOM_SHORT[o.bad]} took me all night. Three test runs, Mo came by twice, I had to order parts${lost ? `. I'm ${fmt(lost)} down on parts today alone` : ''}."`
+      : `"This took way longer than planned. The ${kind} fought me every bolt of the way${lost ? `, and I'm ${fmt(lost)} down on parts today` : ''}. That's extra hours."`;
+    deps.haggle.open({ key: `ws:${w.day}:${n}`, tab: 'werk', who: o.cid, side: 'sell', list, leverage: lev,
+      what: o.repair ? `Picks up their ${TYPE_NAME[o.type].toLowerCase()}, fixed. Job price ${fmt(o.pay)}.` : `Collects the ${kind} they ordered. Job price ${fmt(o.pay)}${list > o.pay ? ` + ${fmt(list - o.pay)} for beating the spec` : ''}.`,
+      story: { label: o.repair ? '"It took all night..."' : '"It took way longer..."', line: excuse, ask, effort },
+      note: `${work} bench actions on this job${lost ? ` · ${fmt(lost)} spent on parts today` : ''}. A long, honest-looking job makes the "took longer" story easier to believe.`,
+      walk: o.repair ? null : 'Keep the machine', onDeal: (price) => pay(n, price) });
+  }
+  function pay(n, price, el) {
+    const w = ensure(), o = w.orders[n]; if (!o || o.done) return;
+    o.done = true; deps.addMoney(price, el); w.bench = { slots: {}, bolts: 0 };
+    const name = whoName(o), diff = price - o.pay;
+    const d = diff ? ` (${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))} on the job price)` : '';
+    if (o.repair) { w.repaired++; if (deps.toast) deps.toast('REPAIRED', `${name} has their ${TYPE_NAME[o.type].toLowerCase()} back: +${fmt(price)}${d}.`, 3.5); }
+    else { w.built++; if (deps.toast) deps.toast('MACHINE DELIVERED', `${name} pays ${fmt(price)}${d}. The Naknikim carry it over.`, 4); }
     if (deps.save) deps.save();
   }
   function stock(el) { // a finished build goes into the warehouse, for the machine trade (sell to your joints)
@@ -212,13 +237,21 @@ export function createWorkshop(deps) {
     for (const [k, p] of Object.entries(b.slots)) if (p && !(o.set[k] && o.set[k].id === p.id && (o.set[k].wear || 0) === (p.wear || 0))) w.parts.push(p);
     w.bench = { slots: {}, bolts: 0 };
   }
-  function buyNew(id, el) {
-    const p = P(id); if (state.money < p.price) return 'Not enough Wilders.';
-    deps.addMoney(-p.price, el); ensure().parts.push({ id, wear: 0 }); if (deps.save) deps.save();
+  function spend(n) { const w = ensure(), day = econ.ensure().day; if (!w.spent || w.spent.day !== day) w.spent = { day, amt: 0 }; w.spent.amt += n; }
+  const spentToday = () => { const w = ensure(); return w.spent && w.spent.day === econ.ensure().day ? w.spent.amt : 0; };
+  function buyNew(id, el, price) {
+    const p = P(id); price = price == null ? p.price : price; if (state.money < price) return 'Not enough Wilders.';
+    deps.addMoney(-price, el); spend(price); ensure().parts.push({ id, wear: 0 }); if (deps.save) deps.save();
+  }
+  function haggleNew(id) { // Fenna at the Kaasland Auto Parts counter
+    const p = P(id);
+    deps.haggle.open({ key: `part:${id}`, tab: 'werk', who: 'fenna', side: 'buy', list: p.price, what: `New: ${p.name}. ${p.note}.`,
+      story: { label: '"Dad\'s old account..."', line: '"Eddy & Zn always had a trade account here. Dad would want you to honour it. And the Lampas robbed me again."', ask: Math.round(p.price * 0.7 / 5) * 5, effort: 0.2 },
+      walk: 'Leave it', onDeal: (price) => { const m = buyNew(id, null, price); if (m && deps.toast) deps.toast('KAASLAND AUTO PARTS', m, 2.5); } });
   }
   function buyUsed(n, el) {
     const w = ensure(), o = w.offers[n]; if (!o || o.sold) return; if (state.money < o.price) return 'Not enough Wilders.';
-    deps.addMoney(-o.price, el); o.sold = true; w.parts.push({ id: o.id, wear: o.wear }); if (deps.save) deps.save();
+    deps.addMoney(-o.price, el); spend(o.price); o.sold = true; w.parts.push({ id: o.id, wear: o.wear }); if (deps.save) deps.save();
   }
   function sellPart(idx, el) { const w = ensure(), p = w.parts[idx]; if (!p) return; const v = Math.round(P(p.id).price * (0.35 - (p.wear || 0)) / 5) * 5; w.parts.splice(idx, 1); deps.addMoney(Math.max(5, v), el); if (deps.save) deps.save(); }
   function strip(type) { // take a stocked machine apart for used parts
@@ -254,7 +287,8 @@ export function createWorkshop(deps) {
     for (const o of w.orders) {
       const spec = o.repair ? `<i>Repair.</i> ${TYPE_NAME[o.type]}: "${SYMPTOM[o.bad]}"` : `${TYPE_NAME[o.type]} · ≥ <b>${o.cap} kg/h</b> · ≥ <b>${o.rel}%</b> reliable${o.kind ? ` · <b>${o.kind}</b>` : ''}${o.style ? ` · style ≥ <b>${o.style}</b>` : ''}`;
       const act = o.done ? '<b style="color:#070">DONE</b>' : o.repair ? (b.repair === o.n ? `<button class="b95" data-wsdel="${o.n}">Hand it back fixed</button>` : `<button class="b95" data-wsrep="${o.n}">Put on bench</button>`) : `<button class="b95" data-wsdel="${o.n}" ${meets(b.test, o) ? '' : 'disabled'}>Deliver</button>`;
-      h += `<tr><td><b>${o.who}</b></td><td><small>${spec}</small></td><td>${fmt(o.pay)}</td><td>${act}</td></tr>`;
+      const face = portrait(o.cid), pp = PEOPLE[o.cid];
+      h += `<tr><td>${face ? `<img src="${face}" alt="" style="width:34px;height:38px;object-fit:cover;vertical-align:middle;margin-right:6px;border:1px solid #888">` : ''}<b>${pp ? pp.name : o.who}</b>${pp ? `<br><small>${pp.place}</small>` : ''}</td><td><small>${spec}</small></td><td>${fmt(o.pay)}</td><td>${act}</td></tr>`;
     }
     h += '</table>';
     // bench
@@ -277,8 +311,8 @@ export function createWorkshop(deps) {
     if (held.length) h += `<div class="well" style="margin-top:8px"><b>Strip for parts</b> · machines in your warehouse: ${held.map(([id, n]) => `<button class="b95" data-wsstrip="${id}">${TYPE_NAME[id]} (${n})</button>`).join(' ')}</div>`;
     h += '<table class="list" style="margin-top:8px"><tr><th>Used parts on Kaasplaats today</th><th>Price</th><th></th></tr>';
     for (const o of w.offers) h += `<tr><td>${P(o.id).name} <small>(worn ${Math.round(o.wear * 100)}%)</small></td><td>${fmt(o.price)}</td><td>${o.sold ? 'sold' : `<button class="b95" data-wsused="${o.n}">Buy</button>`}</td></tr>`;
-    h += '</table><table class="list" style="margin-top:8px"><tr><th>New parts · Van Kruidenburg</th><th>What it does</th><th>Price</th><th></th></tr>';
-    for (const p of PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td><button class="b95" data-wsnew="${p.id}">Buy</button></td></tr>`;
+    h += `</table><div class="well" style="margin-top:8px"><img src="${portrait('fenna')}" alt="" style="width:40px;height:44px;object-fit:cover;float:left;margin-right:8px;border:1px solid #888"><b>Kaasland Auto Parts</b> · Fenna at the counter${spentToday() ? ` · spent on parts today: <b>${fmt(spentToday())}</b>` : ''}<br><small>Pay the sticker price, or haggle. She has heard every story twice.</small><div style="clear:both"></div></div><table class="list"><tr><th>New parts</th><th>What it does</th><th>Price</th><th></th></tr>`;
+    for (const p of PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap"><button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}</td></tr>`;
     h += '</table><table class="list" style="margin-top:8px"><tr><th>Kaasdows 95 upgrades</th><th>What it does</th><th>Price</th><th></th></tr>';
     for (const p of PC_PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.text}</small></td><td>${fmt(p.price)}</td><td>${w.pc[p.id] ? '<b style="color:#070">installed</b>' : `<button class="b95" data-wspc="${p.id}">Install</button>`}</td></tr>`;
     return h + '</table>';
@@ -298,6 +332,7 @@ export function createWorkshop(deps) {
     body.querySelectorAll('[data-wsstrip]').forEach((b) => b.onclick = () => msg(strip(b.dataset.wsstrip)));
     body.querySelectorAll('[data-wsused]').forEach((b) => b.onclick = () => msg(buyUsed(+b.dataset.wsused, b)));
     body.querySelectorAll('[data-wsnew]').forEach((b) => b.onclick = () => msg(buyNew(b.dataset.wsnew, b)));
+    body.querySelectorAll('[data-wshag]').forEach((b) => b.onclick = () => { haggleNew(b.dataset.wshag); rerender(); });
     body.querySelectorAll('[data-wspc]').forEach((b) => b.onclick = () => msg(buyPC(b.dataset.wspc, b)));
   }
   return { ensure, evaluate, html, bind, hasPC, takePart, runTest, deliver, stock, startRepair, buyNew, buyPC, strip, meets, TYPE_NAME };
