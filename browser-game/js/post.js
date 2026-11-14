@@ -23,6 +23,7 @@ float bayer(vec2 p){ vec2 q = mod(floor(p), 4.0); int i = int(q.x + q.y * 4.0);
 void main(){
   vec3 c = texture2D(tScene, vUv).rgb + texture2D(tBloom, vUv).rgb * uBloom;
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, uSat);
+  c *= vec3(1.05, 1.0, 0.88); c += vec3(0.010, 0.005, 0.0) * (1.0 - l); // Spice Master grade: warm saffron light, cumin shadows
   vec2 d = vUv - 0.5; c *= 1.0 - uVig * dot(d, d) * 1.5;
   gl_FragColor = vec4(c, 1.0);
   #include <tonemapping_fragment>

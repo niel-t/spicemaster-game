@@ -75,7 +75,7 @@ export default {
   floorRep: { brick: 1.4, warm: 1.2, checkbw: 1.0 },
   hallCells: [[23, 10], [23, 11], [23, 12], [23, 13], [0, 17], [0, 18], [0, 19], [0, 20], [0, 21], [0, 22]],
   doorSigns: { '7,16': 'KROKETKADE' },
-  neon: { storeroom: 0xffd8a0, staff: 0xe8f4ff, corridor: 0xe8f4ff, kitchen: 0xc8ffd0, shop: 0xffd27a, garage: 0x9a5aff, quay: 0x3ff0ff },
+  neon: { storeroom: 0xffd8a0, staff: 0xe8f4ff, corridor: 0xe8f4ff, kitchen: 0xc8ffd0, shop: 0xffd27a, garage: 0x9a5aff, quay: 0xf2c14e },
   lights: [[7, 13, 0xffd27a, 2.4], [10, 6.5, 0xc8ffd8, 1.9], [18.5, 7, 0x9a5aff, 1.8], [10, 1.5, 0xe8f4ff, 1.1], [3, 3, 0xffd8a0, 1.0], [3, 8, 0xe8f4ff, 0.9], [8, 20, 0x5a9aff, 1.6], [21, 20, 0x5a9aff, 1.4], [27, 8, 0x5a9aff, 1.5]],
   mood: { bg: 0x050b1a, fogNear: 24, fogFar: 62, hemi: 0.42, sun: 0.55, wall: 0x6a3428, cap: 0xd8c8b8, under: 0x3a3440 },
   van: { park: [21, -2.4], rot: 0, from: -16, exit: [20, -4.6], solid: [18.2, 24.3, -3.55, -1.25] }, // world; arrives along the quay from the west, nose first
@@ -128,7 +128,7 @@ export default {
     skin(15, 1, 22, 15, 0x4a2a5a); skin(7, 4, 13, 9, 0xc8d8c8); skin(1, 11, 13, 15, 0xe8c890);
     // the shop front: neon window signs and the name board
     const neonSign = (t, x, w, c, hex) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.6), new THREE.MeshBasicMaterial({ map: signTex([{ t, size: 64 }], '#0a0a14', hex, 512, 80), transparent: true, opacity: 0.95 })); m.position.set(OX + x, 1.95, Z0 + 17.04); root.add(m); neonRect(root, OX + x, 1.95, w + 0.15, 0.72, Z0 + 17.08, c); };
-    neonSign('SNACKS', 3.5, 3.6, 0x3ff0ff, '#3ff0ff'); neonSign('KROKETKADE', 11, 4.2, 0xff3f6a, '#ff3f6a');
+    neonSign('SNACKS', 3.5, 3.6, 0xf2c14e, '#f2c14e'); neonSign('KROKETKADE', 11, 4.2, 0xff3f6a, '#ff3f6a');
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 0.9), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SNACKBAR KROKETKADE', size: 80 }], '#2a0a10', '#ffd27a', 1024, 110) }));
     sign.position.set(OX + 7.5, 2.75, Z0 + 17.02); root.add(sign);
     // inside the shop: döner, heated display, menu boards, clock

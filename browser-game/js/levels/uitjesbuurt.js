@@ -67,8 +67,8 @@ export default {
   floorRep: { cobble: 1.6, wood: 1.5, cellarbrick: 1.4, steps: 1.0, shoptile: 1.2 },
   hallCells: [[7, 9], [7, 10], [0, 22], [0, 23], [0, 24], [0, 25], [0, 26], [0, 27]],
   doorSigns: { '8,21': 'UITJESBUURT', '25,7': 'KELDER' },
-  neon: { den: 0xffd27a, cellar: 0xff8a3a, shop: 0xff3fa4, hallway: 0x3ff0ff, terrace: 0x3ff0ff },
-  lights: [[8, 18, 0xff3fa4, 2.0], [3, 17, 0x3ff0ff, 1.2], [21, 19, 0xe8f4ff, 1.0], [16, 3, 0xff8a3a, 2.4], [12, 8, 0xffa050, 1.5], [22, 8, 0xffa050, 1.4], [3.5, 4.5, 0xffd27a, 1.7], [21.5, 14, 0xff9a50, 0.8], [9, 25, 0x5a8aff, 1.4], [24, 25, 0x5a8aff, 1.4], [29, 12, 0x5a8aff, 1.2]],
+  neon: { den: 0xffd27a, cellar: 0xff8a3a, shop: 0xe8862c, hallway: 0xf2c14e, terrace: 0xf2c14e },
+  lights: [[8, 18, 0xe8862c, 2.0], [3, 17, 0xf2c14e, 1.2], [21, 19, 0xe8f4ff, 1.0], [16, 3, 0xff8a3a, 2.4], [12, 8, 0xffa050, 1.5], [22, 8, 0xffa050, 1.4], [3.5, 4.5, 0xffd27a, 1.7], [21.5, 14, 0xff9a50, 0.8], [9, 25, 0x5a8aff, 1.4], [24, 25, 0x5a8aff, 1.4], [29, 12, 0x5a8aff, 1.2]],
   mood: { bg: 0x060d1c, fogNear: 26, fogFar: 66, hemi: 0.45, sun: 0.6, wall: 0xe4e0d6, cap: 0xf2f0ea, under: 0x3a3a44 },
   van: { park: [14, 4.6], rot: Math.PI, from: W + 14, exit: [14.6, 3.0], solid: [10.7, 16.8, 3.45, 5.75] }, // world; drives in along the street, nose first
   start: [9, -0.6],              // world: on the pavement in front of the terrace
@@ -122,14 +122,14 @@ export default {
     // the facade: blue name plate, neon in the windows, a round beer sign and a hanging sign (made-up names)
     sign('UITJESBUURT', 4.4, 0.6, '#1a4aa8', '#ffffff', OX + 8.5, 2.6, Z0 + 22.02, 0, 64);
     const neon = (t, x, w, c, hex) => { sign(t, w, 0.55, '#0a0a14', hex, OX + x, 1.9, Z0 + 22.04, 0, 64); neonRect(root, OX + x, 1.9, w + 0.15, 0.68, Z0 + 22.08, c); };
-    neon('DÖNER', 4, 3.2, 0xff3fa4, '#ff3fa4'); neon('SNACKS', 12.5, 3, 0x3ff0ff, '#3ff0ff'); neon('OPEN', 20.5, 2, 0x7dff9a, '#7dff9a');
+    neon('DÖNER', 4, 3.2, 0xe8862c, '#e8862c'); neon('SNACKS', 12.5, 3, 0xf2c14e, '#f2c14e'); neon('OPEN', 20.5, 2, 0x7dff9a, '#7dff9a');
     const disc = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ map: canvasTex(128, 128, (g) => { g.fillStyle = '#c8202a'; g.beginPath(); g.arc(64, 64, 62, 0, 7); g.fill(); g.fillStyle = '#f2efe6'; g.beginPath(); g.arc(64, 64, 48, 0, 7); g.fill(); g.fillStyle = '#c8202a'; g.font = '900 20px Arial'; g.textAlign = 'center'; g.fillText('KAAS', 64, 60); g.fillText('PILS', 64, 84); }) }));
     disc.position.set(OX + 25.6, 2.5, Z0 + 22.3); disc.rotation.y = Math.PI / 4; root.add(disc); box(0.6, 0.05, 0.05, lam({ color: 0x1a1a1a }), OX + 25.4, 2.5, Z0 + 22.1, root, false);
     box(0.05, 0.05, 1.0, lam({ color: 0x1a1a1a }), OX + 25.55, 2.9, Z0 + 18.5, root, false);
     sign('DE ZURE UI', 0.9, 0.55, '#2a1a12', '#ffd27a', OX + 25.58, 2.45, Z0 + 18.8, Math.PI / 2, 40);
     // inside the shop: döner, menu screens
     const doner = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.9, 14), lam({ color: 0x9a5a2a })); doner.position.set(OX + 5, 1.55, Z0 + 16.5); root.add(doner);
-    [['DÖNER W 6', '#ffd27a'], ['UITJES W 1', '#7dff9a'], ['FRIET W 3', '#3ff0ff']].forEach(([t, c], i) => sign(t, 2.4, 0.65, '#0a0a14', c, OX + 5 + i * 3, 1.9, Z0 + 15.03, 0, 46));
+    [['DÖNER W 6', '#ffd27a'], ['UITJES W 1', '#7dff9a'], ['FRIET W 3', '#f2c14e']].forEach(([t, c], i) => sign(t, 2.4, 0.65, '#0a0a14', c, OX + 5 + i * 3, 1.9, Z0 + 15.03, 0, 46));
     // the stairs down: steps getting darker, a rail, a sign
     for (let k = 0; k < 5; k++) box(4, 0.02, 0.9, lam({ color: [0x6a6058, 0x58504a, 0x48403a, 0x38322e, 0x2a2622][k] }), OX + 22, 0.03 + (4 - k) * 0.004, Z0 + 16.5 - k, root, false);
     box(0.06, 0.06, 5, lam({ color: 0xb8b0a0 }), OX + 20.1, 0.95, Z0 + 14.5, root, false); box(0.06, 0.06, 5, lam({ color: 0xb8b0a0 }), OX + 23.9, 0.95, Z0 + 14.5, root, false);

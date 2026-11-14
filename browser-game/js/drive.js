@@ -612,10 +612,10 @@ export function initDrive(ctx) {
   #drv .bar { width: 180px; height: 12px; border: 2px solid #fff; margin-top: 6px; background: rgba(0,0,0,.5); }
   #drv .bar i { display: block; height: 100%; background: #6ed36e; transition: width .2s; }
   #drv canvas { position: absolute; right: 12px; top: 12px; border: 2px solid #ffd36b; border-radius: 6px; background: #1a1a22; opacity: .9; }
-  #drv .banner { position: absolute; left: 0; right: 0; top: 16%; text-align: center; font-family: Bungee, "Arial Black", sans-serif; font-size: clamp(28px, 6vw, 64px); color: #ffd36b; text-shadow: 0 4px 0 #000, 0 0 18px #ff3fa4; display: none; }
+  #drv .banner { position: absolute; left: 0; right: 0; top: 16%; text-align: center; font-family: Bungee, "Arial Black", sans-serif; font-size: clamp(28px, 6vw, 64px); color: #ffd36b; text-shadow: 0 4px 0 #000, 0 0 18px #e8a33d; display: none; }
   #drv .banner small { display: block; font-family: Rubik, Arial, sans-serif; font-size: clamp(14px, 2.4vw, 22px); color: #fff; text-shadow: 0 2px 0 #000; margin-top: 6px; }
   #drv .hint { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 14px; color: #ddd; text-shadow: 0 2px 0 #000; }
-  #drv .res { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(460px, 92vw); background: rgba(12,6,20,.95); border: 3px solid #ffd36b; border-radius: 12px; box-shadow: 0 0 24px #ff3fa4; padding: 18px 20px; display: none; pointer-events: auto; }
+  #drv .res { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(460px, 92vw); background: rgba(30,20,12,.95); border: 3px solid #ffd36b; border-radius: 12px; box-shadow: 0 0 24px #e8a33d; padding: 18px 20px; display: none; pointer-events: auto; }
   #drv .res h2 { margin: 0 0 4px; font-family: Bungee, "Arial Black", sans-serif; color: #ffd36b; font-size: 28px; }
   #drv .res table { width: 100%; font-size: 16px; margin: 10px 0; } #drv .res td:last-child { text-align: right; font-family: VT323, monospace; font-size: 22px; }
   #drv .res .tot td { border-top: 1px solid #555; color: #6ed36e; }

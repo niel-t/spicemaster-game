@@ -53,7 +53,7 @@ export function initMission(ctx) {
   const T = {
     checker: canvasTex(64, 64, (g) => { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#b8202a' : '#f2e8d8'; g.fillRect(x * 32, y * 32, 32, 32); } }),
     shag: canvasTex(64, 64, (g) => { g.fillStyle = '#c8602a'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 500; i++) { g.fillStyle = ['#d8743a', '#a84a1a', '#e08a4a'][i % 3]; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } }),
-    hall: canvasTex(64, 64, (g) => { g.fillStyle = '#3a1a4a'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#ff3fa4'; g.fillRect(0, 28, 64, 3); g.fillStyle = '#5a2a6a'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 2, 64); }),
+    hall: canvasTex(64, 64, (g) => { g.fillStyle = '#3a1a4a'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#e8a33d'; g.fillRect(0, 28, 64, 3); g.fillStyle = '#5a2a6a'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 2, 64); }),
     casino: canvasTex(64, 64, (g) => { g.fillStyle = '#123a2a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#d8b040'; g.lineWidth = 2; g.beginPath(); g.moveTo(32, 4); g.lineTo(60, 32); g.lineTo(32, 60); g.lineTo(4, 32); g.closePath(); g.stroke(); g.fillStyle = '#c8102e'; g.beginPath(); g.arc(32, 32, 5, 0, 7); g.fill(); }),
     parquet: canvasTex(64, 64, (g) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = ['#7a4a22', '#8a5a2a', '#6a3a1a'][(x + y * 3) % 3]; if ((x + y) % 2) g.fillRect(x * 16, y * 16, 16, 16); else { for (let k = 0; k < 4; k++) { g.fillRect(x * 16 + k * 4, y * 16, 3, 16); } } } }),
     rubber: canvasTex(64, 64, (g) => { g.fillStyle = '#2a2c30'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 300; i++) { g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } g.fillStyle = '#ffd23a'; g.fillRect(0, 0, 64, 2); }),
@@ -68,7 +68,7 @@ export function initMission(ctx) {
   // (def.furn: { ch: { h, color, cover: bool, sight: bool, draw(run) to draw it yourself } })
   const FM0 = {
     K: [1.05, 0xc8402e], B: [1.1, 0x6a3a1a], M: [1.7, 0x7a1a3a], F: [1.8, 0xe8e8e0], R: [2.0, 0x3a5aa0], C: [1.0, 0x8a6a3a], w: [0.95, 0xc8ccd0],
-    O: [0.8, 0x3a1a0a], V: [1.2, 0x3a3a40], Q: [1.4, 0xff3fa4], b: [1.4, 0xb8102e], T: [0.76, 0xf2efe6], S: [0.75, 0x6a2a5a], c: [0.78, 0x1f6a3a], P: [0.85, 0x1a6a3a], G: [0.5, 0x1a1a1a], p: [0.9, 0x2f7a2a],
+    O: [0.8, 0x3a1a0a], V: [1.2, 0x3a3a40], Q: [1.4, 0xe8862c], b: [1.4, 0xb8102e], T: [0.76, 0xf2efe6], S: [0.75, 0x6a2a5a], c: [0.78, 0x1f6a3a], P: [0.85, 0x1a6a3a], G: [0.5, 0x1a1a1a], p: [0.9, 0x2f7a2a],
   };
   let FM = FM0;
   const glassM = new THREE.MeshPhongMaterial({ color: 0x9ad8ff, transparent: true, opacity: 0.32, shininess: 120, specular: 0xffffff, depthWrite: false });
@@ -133,7 +133,7 @@ export function initMission(ctx) {
       else if (ch === 'c') { /* card tables: the level draws the round tops */ }
       else if (ch === 'T') { box(n - 0.08, 0.06, 0.92, lam({ color: col }), cx, h, cz, root); for (const ox of [-n / 2 + 0.2, n / 2 - 0.2]) box(0.08, h, 0.08, lam({ color: 0x3a2212 }), cx + ox, h / 2, cz, root, false); }
       else if (ch === 'R') { box(n - 0.04, h, 0.9, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) for (let s = 0; s < 2; s++) box(0.42, 0.42, 0.6, lam({ color: (def.rackGoods || [0xe8a020, 0xc8402e, 0xf2c43a])[(x + k + s + z) % 3] }), OX + x + k + 0.5, 0.45 + s * 0.85, cz + (s ? 0.12 : -0.12), root); }
-      else if (ch === 'M') { box(n - 0.06, h, 0.8, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) { const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.45), new THREE.MeshBasicMaterial({ color: [0xffe14a, 0x3ff0ff, 0xff3fa4][(x + k) % 3] })); sc.rotation.x = -Math.PI / 2.6; sc.position.set(OX + x + k + 0.5, h + 0.01, cz + 0.1); root.add(sc); } }
+      else if (ch === 'M') { box(n - 0.06, h, 0.8, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) { const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.45), new THREE.MeshBasicMaterial({ color: [0xffe14a, 0xf2c14e, 0xe8862c][(x + k) % 3] })); sc.rotation.x = -Math.PI / 2.6; sc.position.set(OX + x + k + 0.5, h + 0.01, cz + 0.1); root.add(sc); } }
       else box(n - 0.06, h, 0.9, lam({ color: col }), cx, h / 2, cz, root);
       if (ch === 'K' || ch === 'w') box(n, 0.06, 1.0, new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.8 }), cx, h + 0.03, cz, root, false);
       solidRun(x, x1 + 1, z, z + 1); x = x1;
@@ -398,13 +398,13 @@ export function initMission(ctx) {
   function reloadInput() {
     if (P.rl) {
       const r = P.rl; if (r.tried) return; r.tried = true;
-      if (r.t >= r.ar0 && r.t <= r.ar1) { popup(player.position, 'PERFECT!', '#7dff9a'); reloadDone(true); }
-      else { r.jam = true; r.dur = r.t + (r.dur - r.t) * AR_JAM; popup(player.position, 'VASTGELOPEN!', '#ff8a95'); sfx('jam'); hud(); }
+      if (r.t >= r.ar0 && r.t <= r.ar1) { popup(player.position, 'PERFECT!', '#b9d46e'); reloadDone(true); }
+      else { r.jam = true; r.dur = r.t + (r.dur - r.t) * AR_JAM; popup(player.position, 'VASTGELOPEN!', '#e46a4c'); sfx('jam'); hud(); }
       return;
     }
     if (reloadStart() || !gunOut()) return;
-    if (P.held.ammo >= WD[P.held.id].mag) popup(player.position, 'AL VOL', '#cbb6e6');
-    else { popup(player.position, 'GEEN ' + CAL[WD[P.held.id].cal].name, '#ff8a95'); sfx('empty'); }
+    if (P.held.ammo >= WD[P.held.id].mag) popup(player.position, 'AL VOL', '#d4bd92');
+    else { popup(player.position, 'GEEN ' + CAL[WD[P.held.id].cal].name, '#e46a4c'); sfx('empty'); }
   }
   function reloadTick(dt) { const r = P.rl; if (!r) return; if (r.h !== P.held || !gunOut()) { P.rl = null; hud(); return; } r.t += dt; if (r.t >= r.dur) reloadDone(false); }
   // pockets the rounds of a dropped gun of the caliber you hold (Neon Vice: same-calibre pickups strip into the pool)
@@ -423,7 +423,7 @@ export function initMission(ctx) {
   const shake = (v) => { FX.shake = Math.max(FX.shake, v); };
   const popLayer = document.createElement('div'); popLayer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:6;overflow:hidden'; document.body.appendChild(popLayer);
   const pops = [];
-  function popup(at, txt, col = '#7dff9a', big) {
+  function popup(at, txt, col = '#b9d46e', big) {
     const el = document.createElement('div'); el.textContent = txt;
     el.style.cssText = `position:absolute;transform:translate(-50%,-50%);font:${big ? 18 : 12}px 'Press Start 2P',monospace;color:${col};text-shadow:2px 2px 0 #000,0 0 8px ${col};white-space:nowrap`;
     popLayer.appendChild(el); pops.push({ el, p: new THREE.Vector3(at.x, 2.2, at.z), t: 0 });
@@ -595,37 +595,37 @@ export function initMission(ctx) {
     #nvHud .hp{font-size:22px;letter-spacing:4px;color:#ff2a3a;text-shadow:2px 2px 0 #000,0 0 10px #ff0030}
     #nvHud .hp i{font-style:normal;color:rgba(255,255,255,.2)}
     #nvHud .w{font-size:11px;margin-top:8px}#nvHud .w span{margin-right:12px}
-    #nvScore{position:fixed;right:24px;top:70px;z-index:5;display:none;text-align:right;color:#ff5fb8;text-shadow:3px 3px 0 #2de2e6,5px 5px 0 #3a0b4f;font-size:20px;font-family:'Press Start 2P',ui-monospace,monospace}
-    #nvScore .c{font-size:14px;color:#ffd36b;text-shadow:2px 2px 0 #000;margin-top:8px}#nvScore .l{font-size:10px;color:#2de2e6;text-shadow:2px 2px 0 #000;margin-top:8px}
+    #nvScore{position:fixed;right:24px;top:70px;z-index:5;display:none;text-align:right;color:#f08a3c;text-shadow:3px 3px 0 #7a2e1a,5px 5px 0 #3b1d0e;font-size:20px;font-family:'Press Start 2P',ui-monospace,monospace}
+    #nvScore .c{font-size:14px;color:#ffd36b;text-shadow:2px 2px 0 #000;margin-top:8px}#nvScore .l{font-size:10px;color:#7a2e1a;text-shadow:2px 2px 0 #000;margin-top:8px}
     #nvGrain{position:fixed;inset:0;pointer-events:none;z-index:4;display:none;opacity:.22;mix-blend-mode:overlay;background-size:160px 160px;animation:nvg .25s steps(4) infinite}
     #nvScan{position:fixed;inset:0;pointer-events:none;z-index:4;display:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
     @keyframes nvg{0%{background-position:0 0}25%{background-position:-40px 30px}50%{background-position:30px -50px}75%{background-position:-60px -20px}100%{background-position:10px 40px}}
     #nvVig,#nvFlash{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0}
-    #nvScreen{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(8,0,16,.72);color:#fff}
+    #nvScreen{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(16,9,4,.72);color:#fff}
     #nvScreen .big{font-family:'Press Start 2P',monospace;font-size:clamp(26px,6vw,56px)}
     #nvScreen .red{color:#ff2a3a;text-shadow:3px 3px 0 #3a0010,0 0 18px #ff0030}
-    #nvScreen .logo2{font-family:'Press Start 2P',monospace;font-size:clamp(14px,3vw,26px);color:#2de2e6;text-shadow:2px 2px 0 #ff3fa4}
-    #nvScreen .hint{font-family:'VT323',monospace;font-size:22px;color:#e9c7ff;margin-top:14px;max-width:720px}
-    #nvScreen .stats{font-family:'VT323',monospace;font-size:24px;line-height:1.25;margin:14px 0;color:#f3e6ff;text-align:left;min-width:min(420px,90vw)}
-    #nvScreen .stats b{color:#7dff9a;float:right;margin-left:30px;font-weight:normal}
-    #nvScreen .grade{font-family:'Press Start 2P',monospace;font-size:clamp(40px,9vw,84px);color:#ffd36b;text-shadow:4px 4px 0 #ff2d95}
-    #nvScreen .btn{font-family:'Press Start 2P',monospace;font-size:13px;background:#ff2d95;color:#fff;padding:13px 20px;margin-top:16px;box-shadow:4px 4px 0 #2de2e6}
+    #nvScreen .logo2{font-family:'Press Start 2P',monospace;font-size:clamp(14px,3vw,26px);color:#7a2e1a;text-shadow:2px 2px 0 #e8a33d}
+    #nvScreen .hint{font-family:'VT323',monospace;font-size:22px;color:#f0dcb4;margin-top:14px;max-width:720px}
+    #nvScreen .stats{font-family:'VT323',monospace;font-size:24px;line-height:1.25;margin:14px 0;color:#f3e6c8;text-align:left;min-width:min(420px,90vw)}
+    #nvScreen .stats b{color:#b9d46e;float:right;margin-left:30px;font-weight:normal}
+    #nvScreen .grade{font-family:'Press Start 2P',monospace;font-size:clamp(40px,9vw,84px);color:#ffd36b;text-shadow:4px 4px 0 #c2412d}
+    #nvScreen .btn{font-family:'Press Start 2P',monospace;font-size:13px;background:#c2412d;color:#fff;padding:13px 20px;margin-top:16px;box-shadow:4px 4px 0 #7a2e1a}
     #nvBanner{position:fixed;left:0;right:0;top:22%;z-index:6;text-align:center;pointer-events:none;opacity:0;transition:opacity .35s}
-    #nvBanner .b1{font-family:'Press Start 2P',monospace;font-size:clamp(18px,4.5vw,38px);color:#ff3fa4;text-shadow:3px 3px 0 #2de2e6}
+    #nvBanner .b1{font-family:'Press Start 2P',monospace;font-size:clamp(18px,4.5vw,38px);color:#e8a33d;text-shadow:3px 3px 0 #7a2e1a}
     #nvBanner .b2{font-family:'VT323',monospace;font-size:24px;color:#fff;margin-top:10px;text-shadow:2px 2px 0 #000}
-    #nvInv{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(8,0,16,.78)}
-    #nvInv .box{width:min(760px,94vw);max-height:86vh;overflow:auto;background:#140722;border:3px solid #ff3fa4;box-shadow:6px 6px 0 #2de2e6;padding:18px 22px;color:#f3e6ff}
-    #nvInv h2{margin:0 0 4px;font:16px 'Press Start 2P',monospace;color:#ff5fb8;text-shadow:2px 2px 0 #2de2e6}
-    #nvInv .sub{font:20px 'VT323',monospace;color:#bfa6d8;margin-bottom:12px}
+    #nvInv{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(16,9,4,.78)}
+    #nvInv .box{width:min(760px,94vw);max-height:86vh;overflow:auto;background:#1e140c;border:3px solid #e8a33d;box-shadow:6px 6px 0 #7a2e1a;padding:18px 22px;color:#f3e6c8}
+    #nvInv h2{margin:0 0 4px;font:16px 'Press Start 2P',monospace;color:#f08a3c;text-shadow:2px 2px 0 #7a2e1a}
+    #nvInv .sub{font:20px 'VT323',monospace;color:#c9ae86;margin-bottom:12px}
     #nvInv .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
-    #nvInv .it{background:#22103a;border:2px solid #3d2260;padding:10px;display:flex;gap:10px;align-items:flex-start}
-    #nvInv .it.eq{border-color:#3ff0ff}
-    #nvInv .ic{width:46px;height:46px;flex:none;background:#0d0418;border:2px solid #5a3a80;display:flex;align-items:center;justify-content:center;font-size:26px}
+    #nvInv .it{background:#2a1a0e;border:2px solid #4a2c16;padding:10px;display:flex;gap:10px;align-items:flex-start}
+    #nvInv .it.eq{border-color:#a9c46a}
+    #nvInv .ic{width:46px;height:46px;flex:none;background:#140c06;border:2px solid #6b4426;display:flex;align-items:center;justify-content:center;font-size:26px}
     #nvInv .nm{font:11px 'Press Start 2P',monospace;color:#fff;line-height:1.4}
-    #nvInv .ds{font:18px 'VT323',monospace;color:#cbb6e6;line-height:1.05;margin-top:4px}
-    #nvInv .tag{font:9px 'Press Start 2P',monospace;color:#3ff0ff;margin-top:6px}
+    #nvInv .ds{font:18px 'VT323',monospace;color:#d4bd92;line-height:1.05;margin-top:4px}
+    #nvInv .tag{font:9px 'Press Start 2P',monospace;color:#a9c46a;margin-top:6px}
     #nvReload{position:fixed;z-index:6;display:none;width:84px;height:9px;margin-left:-42px;background:rgba(255,255,255,.16);outline:2px solid rgba(0,0,0,.8);pointer-events:none}
-    #nvReload .g{position:absolute;top:0;bottom:0;background:#7dff9a}#nvReload .f{position:absolute;left:0;top:0;bottom:0;background:rgba(45,226,230,.5)}
+    #nvReload .g{position:absolute;top:0;bottom:0;background:#b9d46e}#nvReload .f{position:absolute;left:0;top:0;bottom:0;background:rgba(194,65,45,.5)}
     #nvReload .m{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:#fff}#nvReload.jam .f{background:rgba(255,74,90,.65)}
     #nvReload .t{position:absolute;left:50%;top:-17px;transform:translateX(-50%);font:8px 'Press Start 2P',monospace;color:#fff;text-shadow:1px 1px 0 #000;white-space:nowrap}
     @media (max-width:820px),(max-height:500px){#nvHud{left:12px;bottom:10px}#nvHud .hp{font-size:16px}#nvHud .w{font-size:8px;margin-top:5px}#nvScore{font-size:13px;right:12px;top:58px}#nvScore .c{font-size:10px}#nvScore .l{font-size:7px}#nvBanner .b2{font-size:18px;padding:0 12px}#nvInv .box{padding:12px}#nvInv .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
@@ -645,16 +645,16 @@ export function initMission(ctx) {
   function gunLabel(n) {
     const h = P.guns[n - 2]; if (!h) return `[${n}] —`;
     const on = P.slot === n;
-    return `[${n}] ${WD[h.id].name} ${h.ammo}/${WD[h.id].mag} <span style="color:#bfa6d8">+${poolOf(h.id)}</span>` + (on && P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#7dff9a'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : on && h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · ' + glyph('R') : 'LEEG · ' + glyph('F') + ' TO THROW'}</span>` : '');
+    return `[${n}] ${WD[h.id].name} ${h.ammo}/${WD[h.id].mag} <span style="color:#c9ae86">+${poolOf(h.id)}</span>` + (on && P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#b9d46e'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : on && h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · ' + glyph('R') : 'LEEG · ' + glyph('F') + ' TO THROW'}</span>` : '');
   }
   function hud() {
     const wbox = $('weapon');
     if (wbox) wbox.style.visibility = M.active ? 'hidden' : 'visible';
-    if (wbox && state.kit.includes('maboota')) wbox.innerHTML = `<span style="color:${state.armed ? '#ff3fa4' : '#888'}">[1] MABOOTA</span><br><span style="color:#888;font-size:.8em">[I] INVENTORY</span>`;
+    if (wbox && state.kit.includes('maboota')) wbox.innerHTML = `<span style="color:${state.armed ? '#e8a33d' : '#888'}">[1] MABOOTA</span><br><span style="color:#888;font-size:.8em">[I] INVENTORY</span>`;
     const on = M.active; hudEl.style.display = scoreEl.style.display = grainEl.style.display = scanEl.style.display = on ? 'block' : 'none';
     if (!on) return;
     let hp = ''; for (let i = 0; i < P.maxhp; i++) hp += i < P.hp ? '♥' : '<i>♥</i>';
-    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#ff3fa4' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#3ff0ff' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#3ff0ff' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">LAMPAS LEFT: ${alive().length}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
+    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">LAMPAS LEFT: ${alive().length}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
     scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">${LV.text.area}</div>`;
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }
@@ -797,7 +797,7 @@ export function initMission(ctx) {
   function addKillScore(e, type) {
     R.combo++; R.comboT = 3.5; R.maxCombo = Math.max(R.maxCombo, R.combo);
     const pts = (KILLPTS[type] || 300) * Math.min(R.combo, 8);
-    R.score += pts; popup(e.position, '+W ' + pts.toLocaleString('nl-NL') + (R.combo > 1 ? '  ×' + R.combo : ''), R.combo > 2 ? '#ff5fb8' : '#7dff9a');
+    R.score += pts; popup(e.position, '+W ' + pts.toLocaleString('nl-NL') + (R.combo > 1 ? '  ×' + R.combo : ''), R.combo > 2 ? '#f08a3c' : '#b9d46e');
   }
   function poseDown(e, k) { const u = e.userData; u.body.rotation.x = -1.5 * k; u.body.position.y = 0.12 * k; }
   function launch(e, type, dir) { // Neon Vice launchBody: shotguns and blasts lift bodies off the floor and spin them
@@ -823,8 +823,8 @@ export function initMission(ctx) {
     if (f.type) { const FT = FOE_TYPES[f.type]; banner(FT.down[0], FT.down[1], 2.5); shake(0.6); FX.freeze = 0.3; R.score += FT.score; }
     else if (f.boss) { banner(LV.text.bossDown[0], LV.text.bossDown[1], 2.5); shake(0.6); FX.freeze = 0.3; }
     const left = alive().length;
-    if (left === 1 && !R.lastOneShown) { R.lastOneShown = true; popup(alive()[0].position, 'LAST ONE', '#ff3fa4', true); }
-    if (left === 0 && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#ff3fa4', true); shake(0.5); setTimeout(results, 1500); }
+    if (left === 1 && !R.lastOneShown) { R.lastOneShown = true; popup(alive()[0].position, 'LAST ONE', '#e8a33d', true); }
+    if (left === 0 && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#e8a33d', true); shake(0.5); setTimeout(results, 1500); }
     hud();
   }
   function knockdown(e, dir) {
@@ -853,7 +853,7 @@ export function initMission(ctx) {
       dropItem(h.id, player.position, Math.sin(a) * 9, Math.cos(a) * 9, h.ammo, false, h.own);
       P.guns[P.slot - 2] = null; P.slot = 1; P.rl = null; syncHeld();
       P.vx += dir[0] * 4; P.vz += dir[1] * 4; shake(0.35); sfx('throw'); sfx('hit');
-      popup(player.position, 'ONTWAPEND!', '#ff8a95', true); say(e.userData.bubble, pickLine(FT, 'disarm'), '#ffd36b');
+      popup(player.position, 'ONTWAPEND!', '#e46a4c', true); say(e.userData.bubble, pickLine(FT, 'disarm'), '#ffd36b');
       f.cd = 1.4; return;
     }
     hurtPlayer(dir, 'fists'); P.vx += dir[0] * 6; P.vz += dir[1] * 6;
@@ -911,7 +911,7 @@ export function initMission(ctx) {
     const CH = [['S', 'S GRADE'], ['melee', 'NO GUNS FIRED'], ['par', `UNDER ${Math.floor(par / 60)}:${String(par % 60).padStart(2, '0')}`], ['clean', 'NO HITS TAKEN']];
     const chLine = CH.map(([k, t]) => `<span style="color:${ch[k] ? '#ffd36b' : bs.stars[k] ? '#9a8a60' : '#555'}">${ch[k] || bs.stars[k] ? '★' : '☆'} ${t}</span>`).join(' &nbsp; ');
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
-    showScreen(`<div class="logo2">${REMIX ? (REMIX.daily ? 'DAILY CHALLENGE DONE' : REMIX.retake ? `${LV.text.area.split('·').pop().trim()} IS YOURS AGAIN` : 'REMIX CLEARED') : LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#ff5fb8">NEW BEST</span>' : ''}</b><br>${REMIX ? `${REMIX.daily ? 'DAILY' : 'REMIX'}<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint" style="font-size:16px;letter-spacing:1px">${chLine}${newStar ? ' &nbsp; <span style="color:#ff5fb8">NEW STAR</span>' : ''}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
+    showScreen(`<div class="logo2">${REMIX ? (REMIX.daily ? 'DAILY CHALLENGE DONE' : REMIX.retake ? `${LV.text.area.split('·').pop().trim()} IS YOURS AGAIN` : 'REMIX CLEARED') : LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#f08a3c">NEW BEST</span>' : ''}</b><br>${REMIX ? `${REMIX.daily ? 'DAILY' : 'REMIX'}<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint" style="font-size:16px;letter-spacing:1px">${chLine}${newStar ? ' &nbsp; <span style="color:#f08a3c">NEW STAR</span>' : ''}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
     sfx('cash'); addMoney(pay); commitKit();
     if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
     $('objective').innerHTML = LV.text.objectiveCleared;
@@ -1056,7 +1056,7 @@ export function initMission(ctx) {
     const spd = Math.hypot(pv[0], pv[1]); P.sprint = !P.dead && shift.on && spd > 5;
     if (P.sprint) { P.stepT -= dt; if (P.stepT <= 0) { P.stepT = 0.3; alertNoise(player.position, 4.5); beep(70 + Math.random() * 20, 0.04, 'square', 0.02); } } else P.stepT = 0;
     P.fireT -= dt; P.invT -= dt; P.bloom = Math.max(0, P.bloom - dt * 0.45); if (FX.hurtT > 0) FX.hurtT -= dt;
-    if (!P.dead && P.hp < P.maxhp && R.time - P.lastHurt > EASY.regen) { P.hp++; P.lastHurt = R.time; popup(player.position, '+1 HEALTH', '#7dff9a'); sfx('pick'); hud(); }
+    if (!P.dead && P.hp < P.maxhp && R.time - P.lastHurt > EASY.regen) { P.hp++; P.lastHurt = R.time; popup(player.position, '+1 HEALTH', '#b9d46e'); sfx('pick'); hud(); }
     if (!P.dead) for (const it of items) if (!it.flying && it.age > 1 && (isGun(it.id) ? !P.guns[0] || !P.guns[1] : !P.melee) && Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z) < 0.45) { pickUp(it); break; }
     if (R.comboT > 0) { R.comboT -= dt; if (R.comboT <= 0) { R.combo = 0; hud(); } }
     updateDoors(dt);
@@ -1083,7 +1083,7 @@ export function initMission(ctx) {
     const sp = Math.hypot(s.vx, s.vz); if (sp < 0.05) return;
     const fr = (s.y || 0) > 0.02 ? 0.4 : 3.0; s.vx *= Math.exp(-dt * fr); s.vz *= Math.exp(-dt * fr);
     const nx0 = obj.position.x + s.vx * dt, nz0 = obj.position.z + s.vz * dt;
-    if (sp > 4) { const k = Math.floor(nx0 - OX) + ',' + Math.floor(nz0 - Z0); if (glass.has(k)) { breakGlass(k); s.vx *= 0.6; s.vz *= 0.6; popup(obj.position, 'THROUGH THE WINDOW!', '#3ff0ff'); } }
+    if (sp > 4) { const k = Math.floor(nx0 - OX) + ',' + Math.floor(nz0 - Z0); if (glass.has(k)) { breakGlass(k); s.vx *= 0.6; s.vz *= 0.6; popup(obj.position, 'THROUGH THE WINDOW!', '#a9c46a'); } }
     obj.position.x = nx0; obj.position.z = nz0; ctx.collide(obj.position, r);
     const cx = obj.position.x - nx0, cz = obj.position.z - nz0, cl = Math.hypot(cx, cz);
     if (cl > 1e-5) { const nx = cx / cl, nz = cz / cl, vn = s.vx * nx + s.vz * nz;
@@ -1185,7 +1185,7 @@ export function initMission(ctx) {
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }
-    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react; say(u.bubble, FT ? pickLine(FT, 'alert') : ALERT_LINES[Math.floor(Math.random() * ALERT_LINES.length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#ff3fa4', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
+    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react; say(u.bubble, FT ? pickLine(FT, 'alert') : ALERT_LINES[Math.floor(Math.random() * ALERT_LINES.length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
     else f.seeT += dt;
     if (P.dead && f.state === 'chase') f.state = 'idle';
     let tvx = 0, tvz = 0, face = null;
@@ -1268,8 +1268,8 @@ export function initMission(ctx) {
     #nvLbT,#nvLbB{position:fixed;left:0;right:0;height:0;background:#000;z-index:7;transition:height .35s;pointer-events:none;overflow:hidden}
     #nvLbT{top:0}#nvLbB{bottom:0;display:flex;align-items:center;justify-content:flex-end;padding:0 22px;box-sizing:border-box}
     #nvLbT.on,#nvLbB.on{height:11vh}
-    #nvLbB span{font:10px 'Press Start 2P',monospace;color:#bfa6d8;animation:nvblink 1.1s steps(2) infinite}
-    #nvLbT span{display:block;padding:3.5vh 22px 0;font:clamp(12px,2.2vw,18px) 'Press Start 2P',monospace;color:#ff3fa4;text-shadow:2px 2px 0 #2de2e6}
+    #nvLbB span{font:10px 'Press Start 2P',monospace;color:#c9ae86;animation:nvblink 1.1s steps(2) infinite}
+    #nvLbT span{display:block;padding:3.5vh 22px 0;font:clamp(12px,2.2vw,18px) 'Press Start 2P',monospace;color:#e8a33d;text-shadow:2px 2px 0 #7a2e1a}
     @keyframes nvblink{50%{opacity:.25}}`;
   document.head.appendChild(lbCss);
   const lbTop = mk('nvLbT'), lbBot = mk('nvLbB');
@@ -1320,7 +1320,7 @@ export function initMission(ctx) {
   let stashMsg = '';
   function openStash(msg) {
     stashMsg = msg || ''; const L = state.loadout;
-    const row = (ic, nm, ds, act, label, dis) => `<div class="it"><div class="ic">${ICON[ic] || '▪'}</div><div style="flex:1"><div class="nm">${nm}</div><div class="ds">${ds}</div>${act ? `<button data-k="${act}" ${dis ? 'disabled' : ''} style="margin-top:6px;font:9px 'Press Start 2P',monospace;background:${dis ? '#3d2260' : '#ff2d95'};color:#fff;border:0;padding:6px 8px;cursor:${dis ? 'default' : 'pointer'}">${label}</button>` : ''}</div></div>`;
+    const row = (ic, nm, ds, act, label, dis) => `<div class="it"><div class="ic">${ICON[ic] || '▪'}</div><div style="flex:1"><div class="nm">${nm}</div><div class="ds">${ds}</div>${act ? `<button data-k="${act}" ${dis ? 'disabled' : ''} style="margin-top:6px;font:9px 'Press Start 2P',monospace;background:${dis ? '#4a2c16' : '#c2412d'};color:#fff;border:0;padding:6px 8px;cursor:${dis ? 'default' : 'pointer'}">${label}</button>` : ''}</div></div>`;
     const desc = (it) => (isGun(it.id) ? `Loaded ${it.ammo}/${WD[it.id].mag}.` : it.id === 'vest' ? 'Stops one bullet.' : 'Kills in one swing.');
     const full = state.stash.length >= STASH_CAP;
     const kit = [
@@ -1332,8 +1332,8 @@ export function initMission(ctx) {
     const st = state.stash.map((it, i) => row(it.id, gearName(it.id), desc(it), 'take:' + i, 'PAKKEN'));
     for (let i = st.length; i < STASH_CAP; i++) st.push(`<div class="it" style="opacity:.35"><div class="ic"></div><div><div class="nm">—</div><div class="ds">Empty shelf.</div></div></div>`);
     invEl.innerHTML = `<div class="box"><h2>DE KLUIS</h2><div class="sub">Eddy's stash at the warehouse · ${state.stash.length}/${STASH_CAP} · Pockets: 9MM ${state.pool['9mm'] | 0} · HAGEL ${state.pool['12ga'] | 0}${stashMsg ? ` · <span style="color:#ffd36b">${stashMsg}</span>` : ''}</div>
-      <div class="sub" style="color:#3ff0ff;margin:8px 0 6px">WHAT YOU CARRY</div><div class="grid">${kit.join('')}</div>
-      <div class="sub" style="color:#3ff0ff;margin:14px 0 6px">IN DE KLUIS</div><div class="grid">${st.join('')}</div>
+      <div class="sub" style="color:#a9c46a;margin:8px 0 6px">WHAT YOU CARRY</div><div class="grid">${kit.join('')}</div>
+      <div class="sub" style="color:#a9c46a;margin:14px 0 6px">IN DE KLUIS</div><div class="grid">${st.join('')}</div>
       <div class="foot"><span>Take a gun with a full kit and it swaps with slot 2. Everything you carry goes on the next mission.</span><span>[Esc] / [I] close</span></div></div>`;
     invEl.style.display = 'flex'; invOpen = true; invMode = 'stash';
   }

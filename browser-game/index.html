@@ -14,8 +14,8 @@
   html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: "Rubik", "Trebuchet MS", Arial, sans-serif; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
   canvas#game { display: block; width: 100vw; height: 100vh; }
   .hud { position: fixed; pointer-events: none; color: #fff; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; }
-  #money { top: 18px; right: 26px; font: 700 34px "Bungee", "Arial Black", Impact, sans-serif; color: #7ee36b; letter-spacing: 1px; }
-  #income { top: 60px; right: 28px; font: 700 16px "Rubik", Arial, sans-serif; color: #c8f5bd; }
+  #money { top: 18px; right: 26px; font: 700 34px "Bungee", "Arial Black", Impact, sans-serif; color: #f2b84b; letter-spacing: 1px; }
+  #income { top: 60px; right: 28px; font: 700 16px "Rubik", Arial, sans-serif; color: #e9d3a0; }
   #area { top: 18px; left: 24px; font: 700 15px "Rubik", Arial, sans-serif; color: #ffd36b; letter-spacing: 2px; text-transform: uppercase; }
   #objective { top: 42px; left: 24px; max-width: 420px; font: 700 19px "Rubik", Arial, sans-serif; }
   #prompt { bottom: 120px; left: 50%; transform: translateX(-50%); font: 700 20px "Rubik", Arial, sans-serif; background: rgba(0,0,0,.55); padding: 8px 16px; border-radius: 6px; display: none; }
@@ -53,23 +53,23 @@
   .mapwrap img { width: 100%; display: block; border: 2px solid #000; }
   .pin { position: absolute; transform: translate(-50%, -50%); width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #000; }
   .bid { color: #006400; font-weight: 700; }
-  .fly { position: fixed; font: 900 22px "Bungee", "Arial Black", Impact; color: #7ee36b; text-shadow: 2px 2px 0 #000; pointer-events: none; transition: transform 1.2s ease-out, opacity 1.2s; }
+  .fly { position: fixed; font: 900 22px "Bungee", "Arial Black", Impact; color: #f2b84b; text-shadow: 2px 2px 0 #000; pointer-events: none; transition: transform 1.2s ease-out, opacity 1.2s; }
   #shop { position: fixed; inset: 0; display: none; background: radial-gradient(circle at 50% 30%, rgba(60,0,60,.75), rgba(0,0,0,.92)); font-family: "Rubik", Arial, sans-serif; color: #fff; }
-  .shopbox { width: min(760px, 94vw); margin: 5vh auto; border: 3px solid #ff3fa4; border-radius: 12px; background: rgba(12,6,20,.94); box-shadow: 0 0 24px #ff3fa4, inset 0 0 18px rgba(0,230,255,.25); padding: 16px 18px; }
+  .shopbox { width: min(760px, 94vw); margin: 5vh auto; border: 3px solid #e8a33d; border-radius: 12px; background: rgba(30,20,12,.94); box-shadow: 0 0 24px #e8a33d, inset 0 0 18px rgba(242,193,78,.25); padding: 16px 18px; }
   .shophead { display: flex; align-items: center; gap: 14px; }
-  .shophead img { width: 70px; height: 100px; object-fit: cover; border: 2px solid #3ff0ff; border-radius: 6px; }
-  .shophead button { margin-left: auto; background: none; border: 2px solid #ff3fa4; color: #ff3fa4; font: 900 22px "Rubik", Arial; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; }
-  .shopname { font: 900 30px "Bungee", "Arial Black", Impact, sans-serif; color: #ff3fa4; text-shadow: 0 0 10px #ff3fa4; letter-spacing: 1px; }
-  .shopsub { color: #3ff0ff; font-weight: 700; text-shadow: 0 0 6px #3ff0ff; }
-  .item { display: flex; align-items: center; gap: 12px; padding: 10px 6px; border-bottom: 1px solid rgba(255,63,164,.3); }
-  .item .nm { font: 900 18px "Rubik", Arial; } .item .ds { color: #c8b8e0; font-size: 13px; }
-  .item .pr { margin-left: auto; font: 900 18px "Bungee", "Arial Black", Impact; color: #7ee36b; min-width: 90px; text-align: right; }
-  .item button { background: #ff3fa4; color: #fff; border: 0; border-radius: 6px; font: 900 15px "Rubik", Arial; padding: 8px 14px; cursor: pointer; }
+  .shophead img { width: 70px; height: 100px; object-fit: cover; border: 2px solid #a9c46a; border-radius: 6px; }
+  .shophead button { margin-left: auto; background: none; border: 2px solid #e8a33d; color: #e8a33d; font: 900 22px "Rubik", Arial; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; }
+  .shopname { font: 900 30px "Bungee", "Arial Black", Impact, sans-serif; color: #e8a33d; text-shadow: 0 0 10px #e8a33d; letter-spacing: 1px; }
+  .shopsub { color: #a9c46a; font-weight: 700; text-shadow: 0 0 6px #a9c46a; }
+  .item { display: flex; align-items: center; gap: 12px; padding: 10px 6px; border-bottom: 1px solid rgba(232,163,61,.3); }
+  .item .nm { font: 900 18px "Rubik", Arial; } .item .ds { color: #cdb894; font-size: 13px; }
+  .item .pr { margin-left: auto; font: 900 18px "Bungee", "Arial Black", Impact; color: #f2b84b; min-width: 90px; text-align: right; }
+  .item button { background: #e8a33d; color: #fff; border: 0; border-radius: 6px; font: 900 15px "Rubik", Arial; padding: 8px 14px; cursor: pointer; }
   .item button:disabled { background: #444; color: #999; cursor: default; }
   #shopsay { margin-top: 12px; color: #ffd36b; font-style: italic; min-height: 22px; }
   #weapon { bottom: 52px; right: 28px; font: 900 16px "Rubik", Arial, sans-serif; color: #888; background: rgba(10,12,18,.7); border: 2px solid #555; border-radius: 8px; padding: 8px 12px; }
-  #weapon.on { color: #ff3fa4; border-color: #ff3fa4; box-shadow: 0 0 12px #ff3fa4; }
-  #kit { top: 84px; right: 28px; font: 700 15px "Rubik", Arial, sans-serif; color: #ff9ad0; }
+  #weapon.on { color: #e8a33d; border-color: #e8a33d; box-shadow: 0 0 12px #e8a33d; }
+  #kit { top: 84px; right: 28px; font: 700 15px "Rubik", Arial, sans-serif; color: #e9b97a; }
   @keyframes blink { 50% { opacity: 0; } }
   /* ---------- start menu ---------- */
   body.on-title .hud, body.on-title #help, body.on-title #touchUI { visibility: hidden !important; }
@@ -79,31 +79,31 @@
   #title .tbox { position: relative; z-index: 1; width: min(560px, 92vw); padding: 0 12px; }
   #title .logo { font-family: "Bungee", "Arial Black", Impact, sans-serif; line-height: .9; letter-spacing: 2px; text-transform: uppercase; }
   #title .logo span { display: block; }
-  #title .logo .l1 { font-size: clamp(34px, 8vw, 68px); color: #ffd36b; text-shadow: 3px 3px 0 #c2410c, 6px 6px 0 #3a0b1f; }
-  #title .logo .l2 { font-size: clamp(40px, 10vw, 84px); color: #ff3fa4; text-shadow: 3px 3px 0 #2de2e6, 6px 6px 0 #3a0b1f; margin-top: 2px; }
-  #title .tag { margin: 14px 0 22px; font: italic 500 clamp(14px, 2.4vw, 18px) "Rubik", Arial, sans-serif; color: #f3e6ff; text-shadow: 1px 1px 0 #000; }
+  #title .logo .l1 { font-size: clamp(34px, 8vw, 68px); color: #ffd36b; text-shadow: 3px 3px 0 #c2410c, 6px 6px 0 #3b1d0e; }
+  #title .logo .l2 { font-size: clamp(40px, 10vw, 84px); color: #e8a33d; text-shadow: 3px 3px 0 #7a2e1a, 6px 6px 0 #3b1d0e; margin-top: 2px; }
+  #title .tag { margin: 14px 0 22px; font: italic 500 clamp(14px, 2.4vw, 18px) "Rubik", Arial, sans-serif; color: #f3e6c8; text-shadow: 1px 1px 0 #000; }
   #title .menu { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: min(320px, 80vw); margin: 0 auto; }
   #title .mi { cursor: pointer; font: 800 17px "Rubik", Arial, sans-serif; letter-spacing: 2px; text-transform: uppercase; padding: 11px 16px; min-height: 22px; border-radius: 8px;
-    color: #eadcf5; background: rgba(12,6,20,.55); border: 2px solid rgba(255,63,164,.35); transition: background .12s, transform .12s; display: flex; justify-content: space-between; align-items: center; }
-  #title .mi small { font: 600 12px "Rubik", Arial, sans-serif; letter-spacing: 1px; color: #bfa6d8; text-transform: none; }
-  #title .mi.sel, #title .mi:hover { background: #ff3fa4; border-color: #ffd36b; color: #fff; transform: translateX(4px); }
-  #title .mi.sel small, #title .mi:hover small { color: #ffe8f4; }
-  #title .tinfo { margin-top: 12px; min-height: 18px; font: 500 13px "Rubik", Arial, sans-serif; color: #bfa6d8; }
-  #title .tpanel { text-align: left; background: rgba(12,6,20,.92); border: 2px solid #ff3fa4; border-radius: 10px; padding: 14px 16px; margin: 0 auto; width: min(520px, 90vw); max-height: 52vh; overflow: auto; touch-action: pan-y; font: 400 14px/1.45 "Rubik", Arial, sans-serif; }
+    color: #efe0c2; background: rgba(30,20,12,.55); border: 2px solid rgba(232,163,61,.35); transition: background .12s, transform .12s; display: flex; justify-content: space-between; align-items: center; }
+  #title .mi small { font: 600 12px "Rubik", Arial, sans-serif; letter-spacing: 1px; color: #c9ae86; text-transform: none; }
+  #title .mi.sel, #title .mi:hover { background: #e8a33d; border-color: #ffd36b; color: #fff; transform: translateX(4px); }
+  #title .mi.sel small, #title .mi:hover small { color: #fff3dc; }
+  #title .tinfo { margin-top: 12px; min-height: 18px; font: 500 13px "Rubik", Arial, sans-serif; color: #c9ae86; }
+  #title .tpanel { text-align: left; background: rgba(30,20,12,.92); border: 2px solid #e8a33d; border-radius: 10px; padding: 14px 16px; margin: 0 auto; width: min(520px, 90vw); max-height: 52vh; overflow: auto; touch-action: pan-y; font: 400 14px/1.45 "Rubik", Arial, sans-serif; }
   #title .tpanel h3 { margin: 0 0 8px; font: 400 18px "Bungee", Impact, sans-serif; color: #ffd36b; }
-  #title .tpanel table { width: 100%; border-collapse: collapse; font-size: 13px; } #title .tpanel th, #title .tpanel td { text-align: left; padding: 4px 5px; border-bottom: 1px solid rgba(255,63,164,.25); } #title .tpanel th { color: #3ff0ff; }
-  #title .tfoot { margin-top: 20px; font: 400 18px "VT323", monospace; color: #8f7aa8; letter-spacing: 1px; }
+  #title .tpanel table { width: 100%; border-collapse: collapse; font-size: 13px; } #title .tpanel th, #title .tpanel td { text-align: left; padding: 4px 5px; border-bottom: 1px solid rgba(232,163,61,.25); } #title .tpanel th { color: #a9c46a; }
+  #title .tfoot { margin-top: 20px; font: 400 18px "VT323", monospace; color: #9a8060; letter-spacing: 1px; }
   @media (max-height: 420px) { #title .logo .l1 { font-size: 22px !important; } #title .logo .l2 { font-size: 30px !important; } #title .tag { font-size: 12px; margin: 4px 0 8px !important; } #title .mi { padding: 6px 10px !important; font-size: 13px !important; } #title .tfoot { display: none; } #title .tinfo { margin-top: 6px; } }
   @media (max-height: 520px) { #title .logo .l1 { font-size: 30px; } #title .logo .l2 { font-size: 40px; } #title .tag { margin: 6px 0 10px; } #title .mi { padding: 7px 12px; font-size: 14px; } #title .menu { gap: 5px; } #title .tfoot { margin-top: 8px; } }
   /* ---------- controller focus ---------- */
-  .sme-focus { outline: 3px solid #3ff0ff !important; outline-offset: 2px; box-shadow: 0 0 14px #3ff0ff !important; }
+  .sme-focus { outline: 3px solid #a9c46a !important; outline-offset: 2px; box-shadow: 0 0 14px #a9c46a !important; }
   /* ---------- pause ---------- */
-  #smePause { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; background: rgba(8,0,16,.78); }
-  #smePause .pbox { width: min(560px, 92vw); max-height: 90vh; overflow: auto; touch-action: pan-y; background: rgba(12,6,20,.96); border: 3px solid #ff3fa4; border-radius: 12px; box-shadow: 0 0 24px #ff3fa4; padding: 18px; display: flex; flex-direction: column; gap: 10px; color: #fff; font-family: "Rubik", Arial, sans-serif; }
-  #smePause .ph { font: 900 34px "Bungee", "Arial Black", Impact, sans-serif; color: #ff3fa4; text-shadow: 0 0 10px #ff3fa4; text-align: center; letter-spacing: 3px; }
-  #smePause button { background: #ff3fa4; color: #fff; border: 0; border-radius: 8px; font: 900 17px "Rubik", Arial; padding: 12px; min-height: 48px; cursor: pointer; }
+  #smePause { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; background: rgba(16,9,4,.78); }
+  #smePause .pbox { width: min(560px, 92vw); max-height: 90vh; overflow: auto; touch-action: pan-y; background: rgba(30,20,12,.96); border: 3px solid #e8a33d; border-radius: 12px; box-shadow: 0 0 24px #e8a33d; padding: 18px; display: flex; flex-direction: column; gap: 10px; color: #fff; font-family: "Rubik", Arial, sans-serif; }
+  #smePause .ph { font: 900 34px "Bungee", "Arial Black", Impact, sans-serif; color: #e8a33d; text-shadow: 0 0 10px #e8a33d; text-align: center; letter-spacing: 3px; }
+  #smePause button { background: #e8a33d; color: #fff; border: 0; border-radius: 8px; font: 900 17px "Rubik", Arial; padding: 12px; min-height: 48px; cursor: pointer; }
   #smePause button:disabled { background: #444; color: #999; }
-  #smePause table { width: 100%; border-collapse: collapse; font-size: 13px; } #smePause th, #smePause td { text-align: left; padding: 5px 6px; border-bottom: 1px solid rgba(255,63,164,.25); } #smePause th { color: #3ff0ff; }
+  #smePause table { width: 100%; border-collapse: collapse; font-size: 13px; } #smePause th, #smePause td { text-align: left; padding: 5px 6px; border-bottom: 1px solid rgba(232,163,61,.25); } #smePause th { color: #a9c46a; }
   /* ---------- touch controls ---------- */
   #touchUI { position: fixed; inset: 0; z-index: 8; pointer-events: none; display: none; }
   #touchUI .tzone { position: absolute; bottom: 0; height: 58%; pointer-events: auto; touch-action: none; }
@@ -129,7 +129,7 @@
   #touchUI.mission #tbR { display: grid; right: calc(92px + env(safe-area-inset-right)); bottom: calc(58% + 8px); }
   #touchUI.mission #tbW { display: grid; right: calc(166px + env(safe-area-inset-right)); bottom: calc(58% + 8px); }
   #touchUI .tpills { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(8px + env(safe-area-inset-bottom)); display: flex; gap: 8px; pointer-events: auto; }
-  #touchUI .tp { pointer-events: auto; touch-action: none; min-width: 48px; height: 40px; padding: 0 10px; border-radius: 20px; display: grid; place-items: center; font: 900 11px "Rubik", Arial; color: #fff; background: rgba(10,12,18,.7); border: 2px solid rgba(255,63,164,.8); }
+  #touchUI .tp { pointer-events: auto; touch-action: none; min-width: 48px; height: 40px; padding: 0 10px; border-radius: 20px; display: grid; place-items: center; font: 900 11px "Rubik", Arial; color: #fff; background: rgba(10,12,18,.7); border: 2px solid rgba(232,163,61,.8); }
   body.touch #help { display: none; }
   body.touch #prompt { bottom: calc(150px + env(safe-area-inset-bottom)); }
   /* ---------- touch: bigger targets everywhere ---------- */
@@ -140,7 +140,7 @@
   body.touch #dialogue .next { font-size: 13px; }
   .win .body, .shopbox { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
   .shopbox { max-height: 90vh; overflow: auto; box-sizing: border-box; }
-  .shophead { position: sticky; top: -16px; z-index: 1; background: rgba(12,6,20,.98); padding: 6px 0; }
+  .shophead { position: sticky; top: -16px; z-index: 1; background: rgba(30,20,12,.98); padding: 6px 0; }
   /* ---------- small screens (phones, small tablets) ---------- */
   #area, #objective { left: calc(24px + env(safe-area-inset-left)); }
   #money, #income, #kit { right: calc(26px + env(safe-area-inset-right)); }

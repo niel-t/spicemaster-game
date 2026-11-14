@@ -237,7 +237,7 @@ const brickMats = [
 ];
 // Dutch 80s Neon Vice: Zaanse wooden houses (clapboard, white trim, pointed / bell gables, orange tiles) painted in Vice pastels
 const VICE = [0x23a07a, 0x2fb8b0, 0xff8fb8, 0x9a86e0, 0x4f9ee0, 0xffb48a, 0x7ad8b0, 0xffd86a, 0x1f7a5e, 0x6ac0ff];
-const NEON = [0xff3fa4, 0x3ff0ff, 0xffe14a, 0xa86bff];
+const NEON = [0xe8862c, 0xf2c14e, 0xffe14a, 0x8fbf4a];
 const clapTex = canvasTex(64, 256, (g, w, h) => {
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
   for (let y = 0; y < h; y += 16) {
@@ -280,8 +280,8 @@ function bladeSign(g, x, y, z, word, c) {
 }
 // posters and graffiti (generated once, reused)
 const POSTERS = [
-  ['DISCO', 'KAASBAL', '12 MAART · 21:00', '#ff3fa4', '#1a0a24'], ['HOLLANDSE', 'HITS 86', 'MET DE ZINGENDE KAASBOER', '#ffd23a', '#2a1a5a'],
-  ['GEZOCHT', 'JAN v. KAAS', 'BELONING: 500 WILDERS', '#1a1a1a', '#f2e6c8'], ['KOOP NU', 'KAASDOWS 95', 'DE TOEKOMST IS NU', '#3ff0ff', '#0a1a3a'],
+  ['DISCO', 'KAASBAL', '12 MAART · 21:00', '#e8a33d', '#1e120a'], ['HOLLANDSE', 'HITS 86', 'MET DE ZINGENDE KAASBOER', '#ffd23a', '#2a1a5a'],
+  ['GEZOCHT', 'JAN v. KAAS', 'BELONING: 500 WILDERS', '#1a1a1a', '#f2e6c8'], ['KOOP NU', 'KAASDOWS 95', 'DE TOEKOMST IS NU', '#a9c46a', '#0a1a3a'],
   ['CIRCUS', 'FRIKANDEL', 'KINDEREN HALF GELD', '#ff7a1a', '#fff2d8'], ['SPECERIJEN', 'EDDY & ZN', 'SINDS 1987', '#ffd36b', '#6b1410'],
 ].map(([a, b, c, fg, bg]) => canvasTex(128, 180, (g, w, h) => {
   g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; g.fillRect(6, 6, w - 12, 6); g.fillRect(6, h - 12, w - 12, 6);
@@ -290,7 +290,7 @@ const POSTERS = [
 }));
 const TAGS = ['KAAS!', 'EDDY', 'NOSH', 'LAMPAS', 'D00D', 'WOEST', 'ZAAN', 'FRIET'];
 const GRAFFITI = TAGS.map((word, i) => canvasTex(256, 96, (g, w, h) => {
-  const cols = [['#ff3fa4', '#3ff0ff'], ['#ffd23a', '#a86bff'], ['#3ff0ff', '#ff7a1a'], ['#7aff6a', '#ff3fa4']][i % 4];
+  const cols = [['#e8a33d', '#a9c46a'], ['#ffd23a', '#8fbf4a'], ['#a9c46a', '#ff7a1a'], ['#7aff6a', '#e8a33d']][i % 4];
   g.translate(w / 2, h / 2); g.rotate(-0.08 + (i % 3) * 0.06); g.font = '900 64px Arial Black, Impact, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineJoin = 'round'; g.lineWidth = 14; g.strokeStyle = '#111'; g.strokeText(word, 0, 0); g.fillStyle = cols[0]; g.fillText(word, 0, 0);
   g.lineWidth = 3; g.strokeStyle = cols[1]; g.strokeText(word, 0, 0);
@@ -360,7 +360,7 @@ function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
   }
   if (shopSign) {
     box(w * 0.86, 2.2, 0.08, lam({ color: 0x1b2430 }), 0, 1.3, F + 0.03, g, false);
-    const s = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.86, 0.7), lam({ map: signTex([{ t: shopSign, size: 44 }], '#1a0a24', '#' + (neon || 0xff3fa4).toString(16).padStart(6, '0')), emissive: 0x401838 }));
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.86, 0.7), lam({ map: signTex([{ t: shopSign, size: 44 }], '#1e120a', '#' + (neon || 0xe8862c).toString(16).padStart(6, '0')), emissive: 0x401838 }));
     s.position.set(0, 2.75, F + 0.09); g.add(s);
     const awnT = canvasTex(64, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ffffff' : '#' + col.toString(16).padStart(6, '0'); c.fillRect(i * 8, 0, 8, 64); } });
     const awn = box(w * 0.9, 0.12, 1.2, lam({ map: awnT }), 0, 2.45, F + 0.6, g);
@@ -381,11 +381,11 @@ function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
 // Inntel-style stack of houses: a landmark at the west end of the street
 function stackTower(x0, x1, z) {
   const W = x1 - x0, cx = (x0 + x1) / 2;
-  house(cx, z, W, 9, 6.5, 0, 0, null, { gable: 'step', color: 0x1f7a5e, neon: 0xff3fa4 });
-  house(cx - W * 0.24, z + 0.4, W * 0.5, 7, 4.2, 0, 1, null, { y: 6.5, gable: 'point', color: 0x4f9ee0, noDoor: true, neon: 0x3ff0ff });
+  house(cx, z, W, 9, 6.5, 0, 0, null, { gable: 'step', color: 0x1f7a5e, neon: 0xe8862c });
+  house(cx - W * 0.24, z + 0.4, W * 0.5, 7, 4.2, 0, 1, null, { y: 6.5, gable: 'point', color: 0x4f9ee0, noDoor: true, neon: 0xf2c14e });
   house(cx + W * 0.26, z - 0.5, W * 0.48, 7, 5.6, 0, 3, null, { y: 6.5, gable: 'bell', color: 0x2fb8b0, noDoor: true });
   house(cx + 0.3, z + 0.2, W * 0.62, 6, 3.6, 0, 6, null, { y: 12.4, gable: 'point', color: 0x7ad8b0, noDoor: true, neon: 0xffe14a });
-  const hs = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 0.8), lam({ map: signTex([{ t: 'HOTEL KAASLAND', size: 40 }], '#1a0a24', '#3ff0ff'), emissive: 0x204050 }));
+  const hs = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 0.8), lam({ map: signTex([{ t: 'HOTEL KAASLAND', size: 40 }], '#1e120a', '#a9c46a'), emissive: 0x204050 }));
   hs.position.set(cx, 5.6, z + 4.55); scene.add(hs);
   solid(x0, x1, z - 4.5, z + 4.5);
 }
@@ -462,7 +462,7 @@ for (let i = 0; i < 2; i++) box(1.2, 0.5, 1.2, lam({ color: 0x8a8f94 }), WH.x0 +
   for (let i = 0; i < teeth; i++) { ss.lineTo(WH.x0 + i * tw + tw * 0.78, th); ss.lineTo(WH.x0 + (i + 1) * tw, 0); }
   const saw = new THREE.Mesh(new THREE.ExtrudeGeometry(ss, { depth: 0.3, bevelEnabled: false }), new THREE.MeshStandardMaterial({ map: corrTex, color: 0xff7a68, roughness: 0.6 }));
   saw.position.set(0, WH.h, WH.z1 - 0.15); saw.castShadow = true; roof.add(saw);
-  const white = lam({ color: 0xf6f4ee }), pink = new THREE.MeshBasicMaterial({ color: 0xff3fa4 });
+  const white = lam({ color: 0xf6f4ee }), pink = new THREE.MeshBasicMaterial({ color: 0xe8862c });
   for (let i = 0; i < teeth; i++) {
     const a = [WH.x0 + i * tw, WH.h], b = [WH.x0 + i * tw + tw * 0.78, WH.h + th], c = [WH.x0 + (i + 1) * tw, WH.h];
     for (const [p, q, m, t, dz] of [[a, b, white, 0.18, 0.2], [b, c, white, 0.18, 0.2], [a, b, pink, 0.07, 0.3], [b, c, pink, 0.07, 0.3]]) {
@@ -472,7 +472,7 @@ for (let i = 0; i < 2; i++) box(1.2, 0.5, 1.2, lam({ color: 0x8a8f94 }), WH.x0 +
   for (const x of [WH.x0, WH.x1]) box(0.22, WH.h, 0.22, white, x, WH.h / 2, WH.z1 + 0.05, frontLow, false);
   graffiti(frontLow, -9.2, 0.75, WH.z1 + 0.17, 1, 2.6); graffiti(frontLow, -0.7, 0.75, WH.z1 + 0.17, 4, 2.0);
   poster(frontHigh, -10.2, 2.2, WH.z1 + 0.17, 5); poster(frontHigh, -9.4, 2.25, WH.z1 + 0.17, 0, 0.05); poster(frontHigh, 0.2, 2.2, WH.z1 + 0.17, 1, -0.04);
-  neonTube(frontHigh, WH.x0 + 0.3, 3.85, WH.doorX0 - 0.3, 3.85, WH.z1 + 0.22, 0x3ff0ff); neonTube(frontHigh, WH.doorX1 + 0.3, 3.85, WH.x1 - 0.3, 3.85, WH.z1 + 0.22, 0x3ff0ff);
+  neonTube(frontHigh, WH.x0 + 0.3, 3.85, WH.doorX0 - 0.3, 3.85, WH.z1 + 0.22, 0xf2c14e); neonTube(frontHigh, WH.doorX1 + 0.3, 3.85, WH.x1 - 0.3, 3.85, WH.z1 + 0.22, 0xf2c14e);
   box(WH.x1 - WH.x0 + 0.2, 0.2, 0.25, white, (WH.x0 + WH.x1) / 2, WH.h - 0.05, WH.z1 + 0.06, frontHigh, false);
 }
 // interior lights
@@ -871,14 +871,14 @@ let shopDoorOpen = 0, shopDoorTarget = 0, shopDoor, shopDoorSolid;
   cyl(0.05, 0.05, 0.08, lam({ color: 0xd8b040 }), PS.doorX1 - PS.doorX0 - 0.18, 1.1, 0.07, hinge).rotation.x = Math.PI / 2;
   shopDoor = hinge; shopDoorSolid = solid(PS.doorX0, PS.doorX1, Z1 - 0.15, Z1 + 0.15);
   // façade: neon sign, OPEN sign, door mat, pink glow
-  const sg = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 0.95), lam({ map: signTex([{ t: 'PANDJESHUIS SPASIBO', size: 40 }], '#140818', '#ff3fa4'), emissive: 0x401030 }));
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 0.95), lam({ map: signTex([{ t: 'PANDJESHUIS SPASIBO', size: 40 }], '#140818', '#e8a33d'), emissive: 0x401030 }));
   sg.position.set(cx, 3.3, Z1 + 0.18); shopFrontHigh.add(sg);
-  const op = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.35), lam({ map: signTex([{ t: 'OPEN', size: 70 }], '#000000', '#3ff0ff', 256, 100), emissive: 0x206070 }));
+  const op = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.35), lam({ map: signTex([{ t: 'OPEN', size: 70 }], '#000000', '#a9c46a', 256, 100), emissive: 0x206070 }));
   op.position.set(W1 - 1.4, 2.0, Z1 + 0.22); shopFrontHigh.add(op);
-  const neon = new THREE.PointLight(0xff3fa4, 2.5, 7); neon.position.set(cx, 3.0, Z1 + 1.0); scene.add(neon);
+  const neon = new THREE.PointLight(0xe8862c, 2.5, 7); neon.position.set(cx, 3.0, Z1 + 1.0); scene.add(neon);
   box(1.3, 0.02, 0.8, lam({ color: 0x3a2a1a }), (PS.doorX0 + PS.doorX1) / 2, 0.03, Z1 + 0.6, scene, false);
-  neonRect(shopFrontHigh, W0 + 1.8, 1.55, 2.75, 1.65, Z1 + 0.26, 0x3ff0ff); poster(shop, PS.doorX1 + 0.5, 1.5, Z1 + 0.17, 2); graffiti(shop, W1 - 1.6, 0.35, Z1 + 0.17, 0, 1.6);
-  bladeSign(shopFrontHigh, W1 - 0.4, 3.0, Z1, 'GUNS', 0xff3fa4);
+  neonRect(shopFrontHigh, W0 + 1.8, 1.55, 2.75, 1.65, Z1 + 0.26, 0xf2c14e); poster(shop, PS.doorX1 + 0.5, 1.5, Z1 + 0.17, 2); graffiti(shop, W1 - 1.6, 0.35, Z1 + 0.17, 0, 1.6);
+  bladeSign(shopFrontHigh, W1 - 0.4, 3.0, Z1, 'GUNS', 0xe8862c);
   // flat roof with a parapet and an AC unit (hidden while you're inside)
   box(W1 - W0 + 0.4, 0.3, Z1 - Z0 + 0.4, lam({ map: tex('roof_rust.jpg', 3, 3), color: 0x6a6a6a }), cx, H + 0.15, cz, shopRoof);
   box(1.4, 0.8, 1.0, lam({ color: 0x9aa0a4 }), W0 + 2, H + 0.7, Z0 + 2, shopRoof);
@@ -940,9 +940,9 @@ let shopDoorOpen = 0, shopDoorTarget = 0, shopDoor, shopDoorSolid;
   cyl(0.008, 0.008, 1.4, mat.black, cx + 0.8, H - 0.7, Z1 - 2.3, shop);
   const bulbM = lam({ color: 0xffe0a0, emissive: 0x806020 }); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), bulbM); bulb.position.set(cx + 0.8, H - 1.45, Z1 - 2.3); shop.add(bulb);
   const bulbL = new THREE.PointLight(0xffd8a0, 0, 10, 1.4); bulbL.position.copy(bulb.position); shop.add(bulbL); shopLights.push([bulbL, 2.6]);
-  box(W1 - W0 - 1.2, 0.05, 0.05, lam({ color: 0xff3fa4, emissive: 0xff3fa4 }), cx, H - 0.25, Z0 + 0.3, shop, false);
+  box(W1 - W0 - 1.2, 0.05, 0.05, lam({ color: 0xe8862c, emissive: 0xe8862c }), cx, H - 0.25, Z0 + 0.3, shop, false);
   const wallL = new THREE.PointLight(0xffd8a8, 0, 7, 1.4); wallL.position.set(cx, 3.6, Z0 + 1.6); shop.add(wallL); shopLights.push([wallL, 3.2]);
-  const pinkL = new THREE.PointLight(0xff3fa4, 0, 8, 1.6); pinkL.position.set(cx, H - 0.5, Z0 + 1.0); shop.add(pinkL); shopLights.push([pinkL, 1.4]);
+  const pinkL = new THREE.PointLight(0xe8862c, 0, 8, 1.6); pinkL.position.set(cx, H - 0.5, Z0 + 1.0); shop.add(pinkL); shopLights.push([pinkL, 1.4]);
 }
 const isInShop = (p) => p.x > PS.x0 && p.x < PS.x1 && p.z > PS.z0 && p.z < PS.z1 - 0.1;
 function openShopDoor() { shopDoorTarget = 1; shopDoorSolid.off = true; beep(320, 0.12, 'triangle', 0.04); setTimeout(() => beep(1320, 0.25, 'sine', 0.03), 120); }
@@ -1152,7 +1152,7 @@ const PINS = [
 let MAPL = null;
 fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; }).catch(() => {});
 function mapHTML(van) {
-  const col = { lost: '#ff3fa4', m1: '#ff3fa4', m2: '#ff3fa4', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
+  const col = { lost: '#e8a33d', m1: '#e8a33d', m2: '#e8a33d', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
   const kindOf = (n, r) => { const d = D1.find((x) => x[0] === n); if (d && owns(d[1]) && econ.isRetaken(d[1])) return 'lost'; if (n === 'De Natte Worst' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
   let h = `<div class="mapwrap"><img src="./assets/kaasland_map.jpg" alt="Map of Kaasland">`;
   if (MAPL) {
@@ -1551,7 +1551,7 @@ function bubble() {
   sp.scale.set(4.8, 1.2, 1); sp.visible = false; sp.renderOrder = 10; sp.userData = { c, t, life: 0 };
   return sp;
 }
-function say(sp, text, col = '#ff3fa4') {
+function say(sp, text, col = '#e8a33d') {
   const { c, t } = sp.userData, g = c.getContext('2d');
   g.clearRect(0, 0, 512, 128);
   g.fillStyle = '#fff'; g.strokeStyle = col; g.lineWidth = 8;
@@ -1661,7 +1661,7 @@ function passerBy(seed, opt = {}) {
   if (head.bald) head.hairLine = 40;
   if (female) head.mouth = 'smile';
   const shirt = police ? '#1d2a4ap' : SHIRTS[ri(SHIRTS.length, 10)] + (ri(4, 11) === 0 ? 's' : '');
-  const skirt = female && !police && ri(2, 16) === 0 ? [0xff3fa4, 0x2a2a30, 0x3a7ad8, 0xf2e8c8, 0x8a4aa0][ri(5, 17)] : null;
+  const skirt = female && !police && ri(2, 16) === 0 ? [0xe8862c, 0x2a2a30, 0x3a7ad8, 0xf2e8c8, 0x8a4aa0][ri(5, 17)] : null;
   return makePerson({ head, police, front: shirt, pants: police ? 0x1a2238 : skirt ? [0x2a1a1a, skin][ri(2, 18)] : PANTS[ri(PANTS.length, 12)], shoes: police ? 0x111111 : [0x1a1a1a, 0xe8e8e8, 0x5a3a1a, 0xc8102e][ri(4, 13)],
     belly: kid || female ? 0 : [0, 0, 0.4, 0.8][ri(4, 14)], chest: female && !kid ? 1 + Math.abs(r(19)) * 0.35 : 0, skirt, skin,
     scale: kid ? 0.56 + Math.abs(r(15)) * 0.1 : (female ? 0.88 : 0.93) + Math.abs(r(15)) * 0.12 });
@@ -1691,7 +1691,7 @@ function makeDog(seed) {
   g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   scene.add(g); return g;
 }
-const leashMat = new THREE.LineBasicMaterial({ color: 0xff3fa4 });
+const leashMat = new THREE.LineBasicMaterial({ color: 0xe8862c });
 const cyclists = [];
 const BIKE_KINDS = [0, 2, 1, 0, 4, 3, 0, 1, 5, 6, 7, 8, 9, 6, 5, 7];
 BIKE_KINDS.forEach((kind, i) => {
@@ -1769,9 +1769,9 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
   box(0.9, 1.2, 0.09, winMat, (JS.doorX1 - JS.doorX0) / 2, 1.5, 0.01, hinge, false);
   jDoor = hinge; jDoorSolid = solid(JS.doorX0, JS.doorX1, Z1 - 0.15, Z1 + 0.15);
   // façade: big neon sign, awning, blade sign, menu board on the pavement
-  const sg = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.1), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SHOARMA SCHMATZEL', size: 96 }, { t: 'SINDS 1971 · OOK VOOR EDDY', size: 40, color: '#ffffff' }], '#1a0a24', '#ff7a1a', 1024, 150) }));
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.1), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SHOARMA SCHMATZEL', size: 96 }, { t: 'SINDS 1971 · OOK VOOR EDDY', size: 40, color: '#ffffff' }], '#1e120a', '#ff7a1a', 1024, 150) }));
   sg.position.set(cx, 3.35, Z1 + 0.2); jointFront.add(sg);
-  neonRect(jointFront, cx, 3.35, 7.75, 1.25, Z1 + 0.24, 0xff3fa4);
+  neonRect(jointFront, cx, 3.35, 7.75, 1.25, Z1 + 0.24, 0xe8862c);
   const awnT = canvasTex(64, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ffffff' : '#c8402e'; c.fillRect(i * 8, 0, 8, 64); } });
   // awnings only over the two windows, so the door stays visible
   for (const [x, w] of [[W0 + 2.6, 4.4], [W1 - 1.9, 2.8]]) { const awn = box(w, 0.12, 1.1, lam({ map: awnT }), x, 2.65, Z1 + 0.65, jointFront); awn.rotation.x = 0.28; }
@@ -1797,8 +1797,8 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
   doner = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.1, 14), lam({ color: 0x9a5a2a, map: canvasTex(64, 64, (g) => { g.fillStyle = '#9a5a2a'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 90; i++) { g.fillStyle = ['#c8783a', '#6a3a1a', '#e8a050'][i % 3]; g.fillRect(Math.random() * 64, Math.random() * 64, 6, 2); } }) }));
   doner.position.set(W1 - 0.9, 1.85, Z0 + 1.15); joint.add(doner); cyl(0.02, 0.02, 1.6, steel, W1 - 0.9, 1.85, Z0 + 1.15, joint);
   // menu board with neon
-  const menu = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'BROODJE SHOARMA  W 4', size: 26 }, { t: 'SCHOTEL KAASLAND  W 9', size: 26, color: '#ffffff' }, { t: 'KAPSALON EDDY  W 7', size: 26, color: '#ffd36b' }], '#1a0a24', '#3ff0ff', 512, 192) }));
-  menu.position.set(W1 - 3.0, 3.2, Z0 + 0.17); joint.add(menu); neonRect(joint, W1 - 3.0, 3.2, 3.3, 1.3, Z0 + 0.2, 0xff3fa4);
+  const menu = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'BROODJE SHOARMA  W 4', size: 26 }, { t: 'SCHOTEL KAASLAND  W 9', size: 26, color: '#ffffff' }, { t: 'KAPSALON EDDY  W 7', size: 26, color: '#ffd36b' }], '#1e120a', '#a9c46a', 512, 192) }));
+  menu.position.set(W1 - 3.0, 3.2, Z0 + 0.17); joint.add(menu); neonRect(joint, W1 - 3.0, 3.2, 3.3, 1.3, Z0 + 0.2, 0xe8862c);
   // framed photo of young Schmatzel and Eddy Sr.
   const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), lam({ map: canvasTex(128, 96, (g) => { g.fillStyle = '#d8c8a0'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#8a6a4a'; g.fillRect(6, 6, 116, 84); g.fillStyle = '#f2d8b8'; for (const x of [40, 88]) { g.beginPath(); g.arc(x, 40, 13, 0, 7); g.fill(); g.fillRect(x - 15, 55, 30, 30); } g.fillStyle = '#1a1a1a'; g.font = '700 10px Arial'; g.fillText('EDDY & SCHMATZEL 1966', 6, 92); }) }));
   ph.position.set(W0 + 0.17, 2.4, cz); ph.rotation.y = Math.PI / 2; joint.add(ph);
@@ -1813,7 +1813,7 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
   for (const [tx, tz] of [[W1 - 1.5, -8.1], [W1 - 1.5, -10.3], [W0 + 1.3, -7.9]]) { box(1.0, 0.05, 0.7, lam({ color: 0xf2efe6 }), tx, 0.76, tz, joint); cyl(0.05, 0.05, 0.74, mat.dark, tx, 0.37, tz, joint); solid(tx - 0.55, tx + 0.55, tz - 0.4, tz + 0.4); }
   // lights (only while you're inside): warm fluorescent tubes + a pink neon strip
   for (const x of [cx - 2.5, cx + 2.5]) { box(2.0, 0.08, 0.2, lam({ color: 0xffffff, emissive: 0xfff6d8 }), x, H - 0.3, cz, jointRoof, false); const l = new THREE.PointLight(0xfff0d8, 0, 12, 1.4); l.position.set(x, H - 0.6, cz); joint.add(l); jointLights.push([l, 2.6]); }
-  const pl = new THREE.PointLight(0xff3fa4, 0, 6, 1.6); pl.position.set(W1 - 3, 3, Z0 + 1); joint.add(pl); jointLights.push([pl, 1.2]);
+  const pl = new THREE.PointLight(0xe8862c, 0, 6, 1.6); pl.position.set(W1 - 3, 3, Z0 + 1); joint.add(pl); jointLights.push([pl, 1.2]);
 }
 const isInJoint = (p) => p.x > JS.x0 && p.x < JS.x1 && p.z > JS.z0 && p.z < JS.z1 - 0.1;
 function openJointDoor() { jDoorTarget = 1; jDoorSolid.off = true; beep(1480, 0.1, 'sine', 0.03); setTimeout(() => beep(1180, 0.15, 'sine', 0.03), 110); }
@@ -1966,7 +1966,7 @@ function updateMelee(dt) {
     u.body.rotation.x = -1.5 * lying; u.body.position.y = 0.12 * lying;
     if (u.down <= 0) {
       u.body.rotation.x = 0; u.body.position.y = 0;
-      if (u.walk) { u.walk.flee = true; u.walk.dir = Math.sign(p.position.x - player.position.x) || 1; personBubble(p, ['Ik bel de politie!', 'Gek! Gestoorde gek!', 'Mijn moeder hoort hiervan!', 'Dit pik ik niet!', 'Ik ga naar De Telegraaf!'][Math.floor(Math.random() * 5)], '#ff3fa4'); }
+      if (u.walk) { u.walk.flee = true; u.walk.dir = Math.sign(p.position.x - player.position.x) || 1; personBubble(p, ['Ik bel de politie!', 'Gek! Gestoorde gek!', 'Mijn moeder hoort hiervan!', 'Dit pik ik niet!', 'Ik ga naar De Telegraaf!'][Math.floor(Math.random() * 5)], '#e8a33d'); }
     }
   }
 }

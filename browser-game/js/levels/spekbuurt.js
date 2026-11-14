@@ -55,8 +55,8 @@ export default {
   },
   hallCells: [[18, 25], [19, 25], [37, 13], [38, 13], [39, 13], [40, 13], [41, 13]], // doorway floor besides the D cells
   doorSigns: { '19,14': 'PERSONEEL' },
-  neon: { gambling: 0x3ff0ff, office: 0xffd23a, gym: 0x7dff9a, warehouse: 0xffd8a0, landing: 0xff3fa4, corridor: 0x3ff0ff, lounge: 0xff7a1a, restaurant: 0xff3fa4, mixing: 0x3ff0ff, garage: 0xffd23a },
-  lights: [[18, 20, 0xff9a6a, 2.2], [20, 11, 0xff3fa4, 1.6], [7, 6, 0x3ff0ff, 1.8], [39, 7, 0xffd8a0, 2.0], [5, 18, 0xff7a1a, 1.3], [39, 19, 0xffd23a, 1.3]],
+  neon: { gambling: 0xf2c14e, office: 0xffd23a, gym: 0x7dff9a, warehouse: 0xffd8a0, landing: 0xe8862c, corridor: 0xf2c14e, lounge: 0xff7a1a, restaurant: 0xe8862c, mixing: 0xf2c14e, garage: 0xffd23a },
+  lights: [[18, 20, 0xff9a6a, 2.2], [20, 11, 0xe8862c, 1.6], [7, 6, 0xf2c14e, 1.8], [39, 7, 0xffd8a0, 2.0], [5, 18, 0xff7a1a, 1.3], [39, 19, 0xffd23a, 1.3]],
   mood: { bg: 0x1a0e2a, fogNear: 30, fogFar: 70, hemi: 0.55, sun: 0.9, wall: 0x2c2238, cap: 0xf2e6f4, under: 0x554466 },
   van: { park: [12, 4.6], rot: Math.PI, from: 44, exit: [12.8, 3.0], solid: [8.7, 14.8, 3.45, 5.75] }, // world; rot: nose west, the way it drives in
   start: [19, 2.2],              // world: where Eddy stands after the drive in (and on a restart)
@@ -101,7 +101,7 @@ export default {
     sign.position.set(OX + 18.5, 2.75, 0.02); root.add(sign); neonRect(root, OX + 18.5, 2.75, 9.2, 1.25, 0.06, 0xff7a1a);
     box(14, 0.12, 1.2, lam({ color: 0xff7a1a }), OX + 18, 2.15, 0.6, root, false); // awning edge
     const doner = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.1, 14), lam({ color: 0x9a5a2a })); doner.position.set(OX + 14.5, 2.35, Z0 + 15.5); root.add(doner);
-    const menu = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.9), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'LAMPAS SHOARMA  W 5', size: 30 }, { t: 'Lampas spice: 100% echt*', size: 24, color: '#ffffff' }], '#1a0a10', '#3ff0ff', 512, 128) }));
+    const menu = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.9), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'LAMPAS SHOARMA  W 5', size: 30 }, { t: 'Lampas spice: 100% echt*', size: 24, color: '#ffffff' }], '#1a0a10', '#f2c14e', 512, 128) }));
     menu.rotation.x = -Math.PI / 2; menu.position.set(OX + 16.5, WALL_H + 0.08, Z0 + 14.5); root.add(menu);
     const rollT = canvasTex(64, 64, (g) => { for (let y = 0; y < 64; y += 6) { g.fillStyle = y % 12 ? '#8a8a86' : '#6a6a66'; g.fillRect(0, y, 64, 6); } });
     const roll = new THREE.Mesh(new THREE.PlaneGeometry(9, WALL_H), lam({ map: rollT })); roll.position.set(OX + 39.5, WALL_H / 2, 0.03); root.add(roll);
