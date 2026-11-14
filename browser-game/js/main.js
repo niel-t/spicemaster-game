@@ -4,7 +4,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
 import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable } from './input.js';
 import { initMission } from './mission.js';
-import { makePS2Person, ps2Animate, installCharacters, LOOKS } from './characters.js';
+import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats } from './characters.js';
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
 
@@ -757,7 +757,8 @@ const HEADS = {
   nak: { skin: 0xe8b890, hair: '#e8792a', brow: '#5a3a1a', hairLine: 80, sideLine: 100, backLine: 110, mouth: 'laugh', iris: '#2a4a8a' },
 };
 function makePerson(o) {
-  if (o.ps2) return makePS2Person(o.ps2, { scale: o.scale, scene }); // Neon Vice-style model (js/characters.js)
+  // Neon Vice-style model (js/characters.js): a named look, or one derived from these options. ps2: false keeps the old capsule figure
+  if (o.ps2 !== false) return makePS2Person(o.ps2 || lookFromPerson(o, HEADS), { scale: o.scale, scene });
   const s = o.scale || 1, belly = o.belly || 0;
   const root = new THREE.Group();
   const body = new THREE.Group(); body.scale.setScalar(s); root.add(body);
@@ -884,7 +885,7 @@ function animate(p, speed, dt) {
 const player = makePerson({ ps2: LOOKS.eddyJr, headKind: 'jr', shirt: 0x86acdf, front: 'jr', pants: 0xe9e4d8, belt: 0x5a3018, shoes: 0x6a3a1c, belly: 1, skin: 0xe4ab88 });
 const START_POS = new THREE.Vector3(-4.4, 0, -16.3); // a new game starts inside the warehouse (Eddy's place), next to the old PC
 player.position.copy(START_POS); player.rotation.y = 0.5;
-const dad = makePerson({ headKind: 'sr', shirt: 0x232a40, front: 'sr', pants: 0x4a4a52, shoes: 0x2a2018, belly: 0.6, skin: 0xdc9c82, scale: 0.96 });
+const dad = makePerson({ ps2: LOOKS.eddySr, headKind: 'sr', shirt: 0x232a40, front: 'sr', pants: 0x4a4a52, shoes: 0x2a2018, belly: 0.6, skin: 0xdc9c82, scale: 0.96 });
 const DAD_IN = new THREE.Vector3(-2.5, 0, -12.9), DAD_OUT = new THREE.Vector3(-1.6, 0, -6.0); // waits inside, then stands out front
 dad.position.copy(DAD_IN); dad.rotation.y = -2.6;
 const dadSolid = solid(DAD_IN.x - 0.35, DAD_IN.x + 0.35, DAD_IN.z - 0.35, DAD_IN.z + 0.35);
@@ -892,7 +893,7 @@ function placeDadSolid(p) { Object.assign(dadSolid, { minx: p.x - 0.35, maxx: p.
 function dadOutside() { dad.position.copy(DAD_OUT); dad.rotation.y = -Math.PI * 0.75; placeDadSolid(DAD_OUT); dadSolid.off = false; dad.userData.walkTo = null; }
 // The Russian (same look and vibe as Nine of Nine in Neon Vice), behind the counter of his pawnshop like a Stalker trader
 const RU = { x: (PS.x0 + PS.x1) / 2, z: -12.3 };
-const russian = makePerson({ headKind: 'ru', shirt: 0x121216, front: 'ru', pants: 0x2a2c3a, shoes: 0x1e1814, belly: 0.9, skin: 0xf0c4a2, scale: 1.02 });
+const russian = makePerson({ ps2: LOOKS.russian, headKind: 'ru', shirt: 0x121216, front: 'ru', pants: 0x2a2c3a, shoes: 0x1e1814, belly: 0.9, skin: 0xf0c4a2, scale: 1.02 });
 russian.position.set(RU.x, 0, RU.z); russian.rotation.y = 0;
 const shop = new THREE.Group(); scene.add(shop);
 const shopRoof = new THREE.Group(); shop.add(shopRoof);
@@ -1255,7 +1256,7 @@ function hireNaknik() {
 }
 function spawnNaknik(walk) {
   state.naknik++; state.income = state.naknik * NAKNIK_INCOME;
-  const n = makePerson({ headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true });
+  const n = makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true });
   n.position.set((WH.doorX0 + WH.doorX1) / 2, 0, -6.2);
   const spots = [[-4.6, -11.3], [-3.1, -12.6], [-6.1, -12.6]];
   n.userData.target = new THREE.Vector3(spots[state.naknik - 1][0], 0, spots[state.naknik - 1][1]);
@@ -1834,10 +1835,9 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
 const isInJoint = (p) => p.x > JS.x0 && p.x < JS.x1 && p.z > JS.z0 && p.z < JS.z1 - 0.1;
 function openJointDoor() { jDoorTarget = 1; jDoorSolid.off = true; beep(1480, 0.1, 'sine', 0.03); setTimeout(() => beep(1180, 0.15, 'sine', 0.03), 110); }
 // Schmatzel behind the counter
-const schmatzel = makePerson({ head: { skin: 0xe0a882, hair: '#c8c4bc', brow: '#8a8478', hairLine: 70, sideLine: 112, backLine: 150, mouth: 'laugh', squint: true, iris: '#3a2a1a' }, front: '#3a6aa0a', shirt: 0x3a6aa0, pants: 0x3a3a3a, shoes: 0x1a1a1a, belly: 1, skin: 0xe0a882, scale: 0.95, rolled: true });
+const schmatzel = makePerson({ chefHat: true, stache: true, head: { skin: 0xe0a882, hair: '#c8c4bc', brow: '#8a8478', hairLine: 70, sideLine: 112, backLine: 150, mouth: 'laugh', squint: true, iris: '#3a2a1a' }, front: '#3a6aa0a', shirt: 0x3a6aa0, pants: 0x3a3a3a, shoes: 0x1a1a1a, belly: 1, skin: 0xe0a882, scale: 0.95, rolled: true });
 schmatzel.position.set(JS.x1 - 2.6, 0, -14.1); 
-{ const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.22, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 })); m.position.set(0, 2.35, 0); schmatzel.userData.body.add(m); const t = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), m.material); t.scale.set(1, 0.55, 1); t.position.set(0, 2.5, 0); schmatzel.userData.body.add(t); }
-{ const mo = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.03), new THREE.MeshStandardMaterial({ color: 0xd8d4cc })); mo.position.set(0, 0.105, 0.15); schmatzel.userData.head.add(mo); }
+// chef's toque and moustache are part of his look (chefHat / stache)
 // Nabil and the card players (Soprano types)
 const CTp = joint.userData.CT;
 const nabil = makePerson({ head: { skin: 0xc89070, hair: '#1a1410', brow: '#14100c', hairLine: 92, sideLine: 120, backLine: 150, mouth: 'laugh', iris: '#4a2e1a', beard: '#241c16', beard3d: '#241c16' }, feltHat: 0x3e4e36, cigarette: true, front: '#6a3e24', shirt: 0x6a3e24, pants: 0x2a2a30, shoes: 0x111111, belly: 0.5, skin: 0xc89070 });
@@ -2398,5 +2398,5 @@ deviceHints();
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { startLevel, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+window.__sme = { charStats, startLevel, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();

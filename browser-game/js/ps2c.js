@@ -307,7 +307,12 @@ function buildHead(B){const M=newMesh(),X=[1,0,0],Z=[0,0,1],tv=y=>1-(y-HEAD.neck
  /* Spice Master: short dark curls (Eddy Jr.), a bumpy shell hugging the skull, open at the face */
  if(B&&B.hs==='curly')hairShell(M,[[1.895,0.05,0.055,-0.016],[1.875,0.098,0.105,-0.014],[1.835,0.124,0.132,-0.013],[1.79,0.128,0.136,-0.014],[1.745,0.124,0.13,-0.02],[1.7,0.116,0.118,-0.03]],18,{open:1.775,c0:0.3,curl:0.08,top:1});
  if(B&&B.hat){const hu=[88/512,3/512],bu=[116/512,3/512],w=W1(BI.head),R=(y,r,z)=>({c:[0,y,z||-0.006],s:[1,0,0],f:[0,0,1],rx:r,rz:r*1.04,w,v:hu[1]});
-  if(B.hat==='fedora'){loft(M,[R(1.79,0.19),R(1.795,0.195),R(1.8,0.12)],16,{uvf:()=>hu});loft(M,[R(1.79,0.118),R(1.82,0.118)],16,{uvf:()=>bu});loft(M,[R(1.82,0.117),R(1.9,0.108),R(1.925,0.085)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu,lift:-0.01}});}
+  /* Spice Master hats: baseball cap and peaked cap with the visor at the front, a chef's toque */
+  const visor=(z0,len,y,col)=>loft(M,[{c:[0,y,z0],s:[1,0,0],f:[0,1,0],rx:0.088,rz:0.011,w,v:col[1]},{c:[0,y-0.012,z0+len*0.6],s:[1,0,0],f:[0,1,0],rx:0.08,rz:0.009,w,v:col[1]},{c:[0,y-0.02,z0+len],s:[1,0,0],f:[0,1,0],rx:0.055,rz:0.006,w,v:col[1]}],10,{uvf:()=>col,capB:{dir:[0,0,1],uv:col}});
+  if(B.hat==='ballcap'){loft(M,[R(1.758,0.121),R(1.81,0.118),R(1.85,0.096),R(1.872,0.05)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});visor(0.1,0.1,1.772,hu);}
+  else if(B.hat==='peaked'){loft(M,[R(1.76,0.12),R(1.79,0.122)],16,{uvf:()=>bu});loft(M,[R(1.79,0.122),R(1.86,0.138),R(1.872,0.136)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});visor(0.1,0.085,1.768,[160/512,3/512]);}
+  else if(B.hat==='chef'){loft(M,[R(1.76,0.12),R(1.8,0.122),R(1.88,0.135),R(1.95,0.16),R(1.99,0.15),R(2.01,0.09)],16,{uvf:()=>[52/512,3/512],capB:{dir:[0,1,0],uv:[52/512,3/512]}});}
+  else if(B.hat==='fedora'){loft(M,[R(1.79,0.19),R(1.795,0.195),R(1.8,0.12)],16,{uvf:()=>hu});loft(M,[R(1.79,0.118),R(1.82,0.118)],16,{uvf:()=>bu});loft(M,[R(1.82,0.117),R(1.9,0.108),R(1.925,0.085)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu,lift:-0.01}});}
   else if(B.hat==='beanie'){loft(M,[R(1.755,0.118),R(1.79,0.119)],16,{uvf:()=>bu});loft(M,[R(1.79,0.116),R(1.85,0.1),R(1.885,0.06)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});}
   else{loft(M,[R(1.745,0.116),R(1.8,0.112),R(1.84,0.09),R(1.86,0.05)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});loft(M,[{c:[0,1.75,-0.13],s:[1,0,0],f:[0,1,0],rx:0.03,rz:0.012,w,v:hu[1]},{c:[0,1.68,-0.15],s:[1,0,0],f:[0,1,0],rx:0.02,rz:0.01,w,v:hu[1]}],6,{uvf:()=>hu});}}
  /* full fluffy beard + moustache (3D), e.g. Nine of Nine */

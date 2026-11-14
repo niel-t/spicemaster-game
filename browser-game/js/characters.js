@@ -51,6 +51,17 @@ export function paintShirt(cv, S) {
   blob(x, 256, ty(1.3), 120, 50, 'rgba(255,255,255,.12)');
   for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) { x.strokeStyle = rgb(dk, 0.35); x.lineWidth = 2; x.beginPath(); const cx = 256 + sd * (110 + k * 16), cy = ty(1.08 + k * 0.04); x.moveTo(cx - 16, cy); x.quadraticCurveTo(cx, cy + 5, cx + 16, cy - 2); x.stroke(); }
   x.strokeStyle = rgb(dk, 0.45); x.lineWidth = 3; x.beginPath(); x.moveTo(1, 0); x.lineTo(1, ty(tuck)); x.moveTo(511, 0); x.lineTo(511, ty(tuck)); x.stroke();
+  if (S.skirt) { fabric(x, 0, ty(0.92), 512, ROWT - ty(0.92), S.skirt, 0.03); blob(x, 256, ty(0.92) + 3, 240, 5, 'rgba(0,0,0,.3)'); }
+  if (S.stripes) for (let Y = 1.45; Y > tuck + 0.03; Y -= 0.085) { x.fillStyle = 'rgba(255,255,255,.6)'; x.fillRect(0, ty(Y), 512, 9); }
+  if (S.apron) { const ac = [242, 239, 230]; fabric(x, fx(-0.17), ty(1.38), fx(0.17) - fx(-0.17), ROWT - ty(1.38), ac, 0.03); x.strokeStyle = '#d8d2c4'; x.lineWidth = 4; x.beginPath(); x.moveTo(fx(-0.15), ty(1.38)); x.lineTo(fx(-0.1), 0); x.moveTo(fx(0.15), ty(1.38)); x.lineTo(fx(0.1), 0); x.stroke(); x.strokeStyle = '#d8d2c4'; x.lineWidth = 3; x.beginPath(); x.moveTo(0, ty(1.12)); x.lineTo(fx(-0.17), ty(1.12)); x.moveTo(fx(0.17), ty(1.12)); x.lineTo(512, ty(1.12)); x.stroke(); }
+  if (S.police) { x.fillStyle = '#d8b040'; x.beginPath(); x.arc(fx(-0.09), ty(1.33), 7, 0, 7); x.fill(); x.fillStyle = '#fff'; x.font = '900 22px Arial'; x.textAlign = 'center'; x.fillText('POLITIE', 0, ty(1.3)); x.fillText('POLITIE', 512, ty(1.3)); x.fillStyle = '#111'; x.fillRect(0, ty(1.0), 512, 12); }
+  if (S.controle) { x.fillStyle = '#ffd23a'; x.fillRect(0, ty(1.2), 512, 16); x.fillStyle = '#fff'; x.font = '900 20px Arial'; x.textAlign = 'center'; x.fillText('CONTROLE', 0, ty(1.33)); x.fillText('CONTROLE', 512, ty(1.33)); }
+  if (S.badge) S.badge(x, fx, ty);
+  if (S.tracksuit) { // Lampas tracksuit: zip, two white stripes down the sleeves and trouser legs (drawn after the sleeves below)
+    x.strokeStyle = 'rgba(30,30,30,.6)'; x.lineWidth = 3; x.beginPath(); x.moveTo(256, 0); x.lineTo(256, ROWT); x.stroke(); x.fillStyle = '#ddd'; x.fillRect(252, 28, 8, 14);
+    x.fillStyle = 'rgba(255,255,255,.85)'; for (const sx of [124, 380]) x.fillRect(sx, 0, 8, ROWT); }
+  if (S.neck === 'crew') { x.fillStyle = rgb(sk.map((v) => v * 0.9)); x.beginPath(); x.ellipse(256, 0, 40, 24, 0, 0, 7); x.fill(); x.strokeStyle = rgb(dk, 0.7); x.lineWidth = 4; x.beginPath(); x.ellipse(256, 0, 42, 26, 0, 0, Math.PI); x.stroke(); }
+  else {
   // V neck with skin, chest hair and a gold chain
   const vd = S.vDepth || 1.36, half = (Y) => 0.018 + (Y - vd) * 0.42;
   x.fillStyle = rgb(sk.map((v) => v * 0.9)); x.beginPath(); x.moveTo(fx(0), ty(vd)); for (let Y = vd; Y <= 1.52; Y += 0.01) x.lineTo(fx(half(Y)), ty(Y)); for (let Y = 1.52; Y >= vd; Y -= 0.01) x.lineTo(fx(-half(Y)), ty(Y)); x.closePath(); x.fill();
@@ -61,6 +72,8 @@ export function paintShirt(cv, S) {
   for (const sd of [-1, 1]) { x.fillStyle = rgb(sh.map((v) => Math.min(255, v * 1.06))); x.beginPath(); x.moveTo(fx(sd * half(1.5)), ty(1.5)); x.lineTo(fx(sd * (half(1.5) + 0.08)), ty(1.47)); x.lineTo(fx(sd * (half(1.42) + 0.01)), ty(1.4)); x.closePath(); x.fill(); x.strokeStyle = rgb(dk, 0.8); x.lineWidth = 2; x.stroke(); }
   x.strokeStyle = rgb(dk, 0.5); x.lineWidth = 1.5; x.beginPath(); x.moveTo(fx(0.006), ty(vd)); x.lineTo(fx(0.006), ty(tuck)); x.stroke();
   if (S.buttons !== false) for (let Y = vd - 0.07; Y > tuck + 0.02; Y -= 0.085) { x.fillStyle = '#eef3fb'; x.beginPath(); x.arc(fx(0.014), ty(Y), 3, 0, 7); x.fill(); x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 1; x.stroke(); }
+  }
+  if (S.crewChain) { x.strokeStyle = '#f5c64e'; x.lineWidth = 3; x.beginPath(); x.moveTo(fx(-0.06), 0); x.quadraticCurveTo(fx(0), ty(1.4), fx(0.06), 0); x.stroke(); }
   // trousers top + belt
   if (tuck > TY0) {
     fabric(x, 0, ty(tuck), 512, ROWT - ty(tuck), pa);
@@ -78,6 +91,7 @@ export function paintShirt(cv, S) {
   fabric(x, 0, 440, 512, 72, pa, 0.04); x.strokeStyle = 'rgba(255,255,255,.3)'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(256, 440); x.lineTo(256, 512); x.stroke();
   x.strokeStyle = rgb(pa.map((v) => v * 0.6), 0.45); x.lineWidth = 2; for (const sx of [2, 128, 384]) { x.beginPath(); x.moveTo(sx, 440); x.lineTo(sx, 512); x.stroke(); }
   x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(0, 508, 512, 4);
+  if (S.tracksuit) { x.fillStyle = 'rgba(255,255,255,.88)'; for (const sx of [372, 386]) { x.fillRect(sx, 290, 6, 90); } for (const sx of [116, 130, 372, 386]) x.fillRect(sx, 440, 6, 72); }
   // collar band around the neck (sampled from the cuff rows): shirt colour
   if (sl !== 'long') { x.fillStyle = rgb(sh); x.fillRect(0, 381, 512, 3); }
 }
@@ -86,8 +100,11 @@ export function paintShirt(cv, S) {
 // look: Neon Vice look fields (colours 0..1): skin, hair, hs ('normal'|'slick'|'buzz'|'big'|'long'|'mohawk'), beard, stache,
 // stubble, glasses, shades, hat, calm, fem, body ('fat'|'big'|'thin'|'slim'|'stocky'|'boss'), shirt, jacket, pants, shoes, tee, tank ...
 // plus Spice Master extras: smile, shirtPaint (paintShirt options), B (raw geometry flags merged into the build), paintHead(cv), paintBody(cv)
+export const stats = { built: 0, ms: 0, first: 0 };
 export function buildModel(look) {
+  const t0 = performance.now(); if (!stats.first) stats.first = t0;
   const cfg = P.lookCfg(look, look.body);
+  cfg.B.nowatch = !look.watch; // Neon Vice gives everyone a gold watch; here only looks that ask for one
   Object.assign(cfg.B, look.B || {});
   const hc = P.paintHeadP(look);
   if (look.smile) P.paintSmile(hc, {});
@@ -95,18 +112,21 @@ export function buildModel(look) {
   const bc = P.paintBodyP(look);
   if (look.shirtPaint) paintShirt(bc, look.shirtPaint);
   if (look.paintBody) look.paintBody(bc);
+  // extras get 256 px sheets (a quarter of the memory); the named cast keeps 512 (look.tex)
+  const ts = look.tex || 256, shrink = (cv) => { if (cv.width <= ts) return cv; const c = document.createElement('canvas'); c.width = c.height = ts; const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, ts, ts); return c; };
   const mats = [], meshes = [];
   const body = new THREE.Group();
   const bones = [];
   for (let i = 0; i < P.NB; i++) { const b = new THREE.Bone(); b.name = P.BONES[i][0]; b.matrixAutoUpdate = false; body.add(b); bones.push(b); }
   const skeleton = new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4()));
-  for (const [M, cv] of [[P.buildBody(cfg.B), bc], [P.buildHead(cfg.B), hc]]) {
+  for (const [M, cv] of [[P.buildBody(cfg.B), shrink(bc)], [P.buildHead(cfg.B), shrink(hc)]]) {
     const mat = new THREE.MeshStandardMaterial({ map: canvasTex(cv), roughness: 0.82, metalness: 0 });
     const m = new THREE.SkinnedMesh(geometry(M), mat);
     m.bind(skeleton, new THREE.Matrix4());
     m.frustumCulled = false; m.castShadow = true; // no receiveShadow: painted shading, and a belly shouldn't black out the hips
     body.add(m); mats.push(mat); meshes.push(m);
   }
+  stats.built++; stats.ms += performance.now() - t0;
   return { body, bones, skeleton, meshes, mats, cfg, canvases: { body: bc, head: hc } };
 }
 
@@ -216,9 +236,79 @@ export function installCharacters(scene) {
 // track() does the same when only an ancestor was re-added
 export function track(p) { if (p.userData && p.userData.ps2) live.add(p); }
 
+/* ---------- old makePerson options -> look ---------- */
+const h255 = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
+const css = (c) => (typeof c === 'string' ? parseInt(c.slice(1, 7), 16) : c);
+// turns the options passersBy/diners/card players/Lampas were built from into a Neon Vice look, so every caller keeps working
+export function lookFromPerson(o, HEADS = {}) {
+  const hd = o.head || HEADS[o.headKind] || {};
+  const skin = css(o.skin ?? hd.skin ?? 0xe0a882), hair = hd.hair ? css(hd.hair) : null;
+  const fem = !!o.chest, front = typeof o.front === 'string' ? o.front : '';
+  const shirt = front[0] === '#' ? parseInt(front.slice(1, 7), 16) : css(o.shirt ?? 0x888888), fl = front[0] === '#' ? front.slice(7) : '';
+  const pants = css(o.pants ?? 0x2a2a30), shoes = css(o.shoes ?? 0x1a1a1a);
+  const L = {
+    skin: hex01(skin), hair: hair != null && !hd.bald ? hex01(hair) : null, calm: 1, smile: hd.mouth === 'laugh' ? 1 : 0, fem: fem ? 1 : 0,
+    hs: hd.bald ? null : hd.slick ? 'slick' : hd.long ? 'long' : (hd.hairLine || 90) <= 66 ? 'buzz' : 'normal',
+    glasses: hd.glasses ? 1 : 0, shirt: hex01(shirt), jacket: hex01(shirt), pants: hex01(pants), shoes: hex01(shoes), tee: 1,
+    body: o.belly >= 1 ? 'fat' : o.belly >= 0.55 ? 'stocky' : 'normal',
+  };
+  if (hd.beard || hd.beard3d) { L.beard = hex01(css(hd.beard3d || hd.beard)); L.fluff = !!hd.beard3d; }
+  if (o.police || o.capColor) { L.hat = 'peaked'; L.hatC = hex01(css(o.capColor || 0x1a2440)); }
+  else if (o.ballcap) { L.hat = 'ballcap'; L.hatC = hex01(css(o.ballcap)); }
+  else if (o.feltHat) { L.hat = 'fedora'; L.hatC = hex01(css(o.feltHat)); }
+  else if (o.chefHat) L.hat = 'chef';
+  if (o.stache) L.stache = 1;
+  if (L.hat) L.hair = L.hair || null;
+  if (o.cigarette) L.cigar = 1;
+  if (fem && o.skirt) L.skirt = 0.42;
+  L.shirtPaint = {
+    shirt: h255(shirt), pants: h255(pants), skin: h255(skin), belt: o.belt ? h255(css(o.belt)) : [30, 24, 20],
+    tuck: !!o.belt, neck: o.mandarin || fl.includes('p') ? 'crew' : fem || !o.belt ? 'crew' : 'v', sleeves: o.rolled ? 'rolled' : 'long', buttons: !!o.belt,
+    skirt: fem && o.skirt ? h255(css(o.skirt)) : null, stripes: fl.includes('s'), apron: fl.includes('a'), police: fl.includes('p'), controle: fl.includes('c'),
+    crewChain: !!o.chain, chain: !!o.chain,
+  };
+  if (o.mandarin) { const g = h255(css(o.mandarin)); L.shirtPaint.badge = (x, fx, ty) => { x.fillStyle = `rgb(${g})`; x.fillRect(0, 0, 512, 14); for (let k = 0; k < 3; k++) x.fillRect(fx(-0.05), ty(1.4 - k * 0.11), fx(0.05) - fx(-0.05), 6); }; }
+  if (o.suit) { delete L.shirtPaint; L.tee = 0; L.jacket = hex01(shirt); L.shirt = o.suitShirt ? hex01(css(o.suitShirt)) : [0.12, 0.12, 0.15]; L.chain = !!o.chain; L.watch = 1; }
+  if (o.lampas) Object.assign(L.shirtPaint, { tracksuit: true, neck: 'crew', crewChain: !!o.chain, stripes: false });
+  return L;
+}
+
 /* ---------- the cast ---------- */
+const naknikBadge = (x, fx, ty) => { x.fillStyle = '#c45e1a'; x.fillRect(fx(-0.13), 0, 8, ty(0.8)); x.fillRect(fx(0.12), 0, 8, ty(0.8)); x.fillStyle = '#ffd36b'; x.beginPath(); x.roundRect(fx(-0.05), ty(1.36), fx(0.05) - fx(-0.05), 30, 5); x.fill(); x.fillStyle = '#7a3a0a'; x.font = '900 22px Arial'; x.textAlign = 'center'; x.fillText('N', fx(0), ty(1.36) + 23); };
+function dolphinPrint(x, x0, y0, w, h) {
+  const cols = [['#ff5aa0', '#ffb36b'], ['#38c8e8', '#a46bff'], ['#ff8a5a', '#ff4a8a'], ['#5ae0c8', '#3a9aff']];
+  for (let i = 0; i < w * h / 2200; i++) { const px = x0 + Math.random() * w, py = y0 + Math.random() * h, c = cols[i % 4]; const g = x.createLinearGradient(px - 14, py, px + 14, py); g.addColorStop(0, c[0]); g.addColorStop(1, c[1]); x.fillStyle = g; x.save(); x.translate(px, py); x.rotate(Math.random() * 6.3); x.beginPath(); x.ellipse(0, 0, 14, 5, 0, 0, 7); x.fill(); x.beginPath(); x.moveTo(-12, 0); x.lineTo(-20, -6); x.lineTo(-18, 5); x.fill(); x.restore(); }
+}
 export const LOOKS = {
+  eddySr: {
+    tex: 512,
+    skin: hex01(0xdc9c82), hair: hex01(0xeceae4), hs: 'slick', stache: 1, beard: null, calm: 1, smile: 1, body: 'stocky', B: { nowatch: true },
+    shirt: hex01(0x232a40), jacket: hex01(0x232a40), pants: hex01(0x4a4a52), shoes: hex01(0x2a2018), tee: 1,
+    shirtPaint: { shirt: [0x23, 0x2a, 0x40], pants: [0x4a, 0x4a, 0x52], skin: [0xdc, 0x9c, 0x82], belt: [0x2a, 0x20, 0x18], vDepth: 1.42, chain: false, sleeves: 'long', buttons: true,
+      badge: (x, fx, ty) => { x.strokeStyle = '#9a2222'; x.lineWidth = 9; x.beginPath(); x.moveTo(fx(-0.08), 0); x.quadraticCurveTo(fx(0), ty(1.4), fx(0.08), 0); x.stroke(); x.strokeStyle = '#ece6d4'; x.lineWidth = 3; x.stroke(); } },
+  },
+  russian: {
+    tex: 512,
+    skin: hex01(0xf0c4a2), hair: hex01(0xa0602e), hs: 'normal', beard: hex01(0xa85a28), fluff: 1, glasses: 1, calm: 1, smile: 1, body: 'big', B: { nowatch: true },
+    shirt: hex01(0x121216), jacket: hex01(0x121216), pants: hex01(0x2a2c3a), shoes: hex01(0x1e1814), tee: 1,
+    shirtPaint: { shirt: [0x12, 0x12, 0x16], pants: [0x2a, 0x2c, 0x3a], skin: [0xf0, 0xc4, 0xa2], belt: [0x1a, 0x14, 0x10], vDepth: 1.34, chestHair: true, chain: true, sleeves: 'long', print: dolphinPrint,
+      badge: (x, fx, ty) => { x.fillStyle = '#d0682a'; x.fillRect(fx(-0.025), ty(1.34), fx(0.025) - fx(-0.025), ty(0.99) - ty(1.34)); } },
+  },
+  // Steven Zeegaal: a painted 90s action-star parody (never a photo): slicked hair to a ponytail, tinted shades, goatee, black gi with gold collar
+  zeegaal: {
+    tex: 512, skin: hex01(0xe9c2a2), hair: hex01(0x0d0b0a), hs: 'long', shades: 1, calm: 0.3, body: 'stocky', B: { nowatch: true },
+    shirt: hex01(0x1d1a24), jacket: hex01(0x1d1a24), pants: hex01(0x121016), shoes: hex01(0x050505), tee: 1,
+    paintHead: (cv) => { const x = cv.getContext('2d'); x.fillStyle = 'rgba(23,18,14,.9)'; x.beginPath(); x.ellipse(256, 300, 22, 26, 0, 0, 7); x.fill(); x.beginPath(); x.ellipse(256, 262, 30, 7, 0, 0, 7); x.fill(); x.fillStyle = 'rgb(233,194,162)'; x.beginPath(); x.ellipse(256, 280, 14, 6, 0, 0, 7); x.fill(); },
+    shirtPaint: { shirt: [0x1d, 0x1a, 0x24], pants: [0x12, 0x10, 0x16], skin: [0xe9, 0xc2, 0xa2], belt: [0xc8, 0xa0, 0x40], neck: 'crew', buttons: false, sleeves: 'long',
+      badge: (x, fx, ty) => { x.fillStyle = '#d8b04a'; x.fillRect(0, 0, 512, 16); for (let k = 0; k < 3; k++) { x.fillRect(fx(-0.06), ty(1.4 - k * 0.11), fx(0.06) - fx(-0.06), 7); x.beginPath(); x.arc(fx(0), ty(1.4 - k * 0.11) + 3, 6, 0, 7); x.fill(); } } },
+  },
+  naknik: {
+    skin: hex01(0xe8b890), hair: hex01(0xe8792a), hs: 'normal', hat: 'ballcap', hatC: hex01(0xf2c31a), calm: 1, smile: 1, body: 'stocky', B: { nowatch: true },
+    shirt: hex01(0xec7d2c), jacket: hex01(0xec7d2c), pants: hex01(0xc45e1a), shoes: hex01(0x3a2a1a), tee: 1,
+    shirtPaint: { shirt: [0xec, 0x7d, 0x2c], pants: [0xc4, 0x5e, 0x1a], skin: [0xe8, 0xb8, 0x90], tuck: false, neck: 'crew', sleeves: 'rolled', buttons: false, badge: naknikBadge },
+  },
   eddyJr: {
+    tex: 512,
     skin: hex01(0xe4ab88), hair: hex01(0x1d1510), hs: 'curly', glasses: 1, stubble: 1, calm: 1, smile: 1, body: 'fat', neckDrop: 0.03, B: { nowatch: true },
     shirt: hex01(0x86acdf), jacket: hex01(0x86acdf), pants: hex01(0xe9e4d8), shoes: hex01(0x6a3a1c), tee: 1,
     shirtPaint: { shirt: [0x86, 0xac, 0xdf], pants: [0xe9, 0xe4, 0xd8], skin: [0xe4, 0xab, 0x88], belt: [0x5a, 0x30, 0x18], vDepth: 1.38, chestHair: true, chain: true, sleeves: 'long' },

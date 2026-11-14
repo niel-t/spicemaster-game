@@ -5,7 +5,7 @@
 </head><body><div id="ui"></div><canvas id="c"></canvas>
 <script type="module">
 import * as THREE from '../vendor/three.module.min.js';
-import { makePS2Person, ps2Animate, installCharacters, LOOKS } from '../js/characters.js';
+import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS } from '../js/characters.js';
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -17,7 +17,17 @@ const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 10
 scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x3a2a20, 1.1));
 const sun = new THREE.DirectionalLight(0xfff0dc, 2.2); sun.position.set(3, 6, 4); sun.castShadow = true; scene.add(sun);
 const floor = new THREE.Mesh(new THREE.CircleGeometry(4, 48), new THREE.MeshStandardMaterial({ color: 0x55505e, roughness: 0.9 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-const names = (q.get('looks') || Object.keys(LOOKS).join(',')).split(',');
+// ?set=lampas shows mission enemies built the way mission.js builds them (options -> lookFromPerson)
+const SETS = { lampas: [
+  { head: { skin: 0xf0c8a8, hair: '#2a2a2a', hairLine: 40 }, front: '#e8641as', shirt: 0xe8641a, pants: 0x2a2a3a, lampas: true },
+  { head: { skin: 0xe0a882, hair: '#d8c080', hairLine: 96 }, front: '#2a1a12', shirt: 0x2a1a12, pants: 0x1a1a22, belly: 0.4, chain: true, lampas: true },
+  { head: { skin: 0xf4d2bc, hair: '#7a5a30', hairLine: 96 }, ballcap: 0xff7a1a, front: '#f2efe6', shirt: 0xf2efe6, pants: 0xe8641a, belly: 0.8, lampas: true },
+  { head: { skin: 0xd8a080, hair: '#1a1a1a', hairLine: 40 }, front: '#ff7a1a', shirt: 0xff7a1a, pants: 0xf2efe6, lampas: true },
+  { head: { skin: 0xf0c8a8, hair: '#d8c080', glasses: true }, front: '#f2efe6', shirt: 0xf2efe6, pants: 0xf2efe6, belly: 1.2, chain: true, suit: true, scale: 1.08 },
+] };
+const set = SETS[q.get('set')];
+const names = set ? set.map((_, i) => 'set' + i) : (q.get('looks') || Object.keys(LOOKS).join(',')).split(',');
+if (set) set.forEach((o, i) => { LOOKS['set' + i] = lookFromPerson(o); });
 const people = names.map((n, i) => { const p = makePS2Person(LOOKS[n], { scene }); p.position.x = (i - (names.length - 1) / 2) * 1.1; return p; });
 // a pistol where mission.js puts handGun (old arm space), to check props land in the fist
 for (const p of people) { const g = new THREE.Group(); g.position.set(0, -0.68, 0.05); const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.2), new THREE.MeshStandardMaterial({ color: 0x222222 })); m.position.z = 0.06; g.add(m); p.userData.arms[0].add(g); }

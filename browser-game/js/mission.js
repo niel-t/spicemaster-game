@@ -18,6 +18,7 @@
 // A level can add its own furniture letters (def.furn) and recolour the shared ones.
 
 import { virt, inputMode, glyph, controlsLine } from './input.js';
+import { LOOKS } from './characters.js';
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
@@ -501,7 +502,7 @@ export function initMission(ctx) {
   //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
   const FOE_TYPES = {
     zeegaal: {
-      name: 'STEVEN ZEEGAAL', hp: 4, speed: 0.62, dodge: 0.4, grab: true, noWeapons: true, mass: 2.4, score: 2500,
+      name: 'STEVEN ZEEGAAL', ps2: 'zeegaal', hp: 4, speed: 0.62, dodge: 0.4, grab: true, noWeapons: true, mass: 2.4, score: 2500,
       look: { head: { skin: 0xe9c2a2, hair: '#0d0b0a', brow: '#14100c', browW: 5, hairLine: 70, sideLine: 112, backLine: 150, mouth: 'smile', squint: true, glasses: true, tint: 'rgba(70,40,30,.62)', goatee: '#17120e', iris: '#2a1c14', slick: true, ponytail: true },
         front: '#1d1a24', shirt: 0x1d1a24, pants: 0x121016, shoes: 0x050505, skirt: 0x1d1a24, belt: 0xc8a040, mandarin: 0xd8b04a, belly: 0.6, scale: 1.1 },
       alert: ['Ik vecht niet. Ik maak het af.', 'Jij hebt de verkeerde snackbar gekozen.', 'Dit wordt... onaangenaam.', 'Rustig. Ik ben getraind.'],
@@ -523,7 +524,7 @@ export function initMission(ctx) {
       ? { skin, hair: '#d8c080', brow: '#a89060', hairLine: 80, sideLine: 116, backLine: 150, mouth: 'smile', glasses: true, iris: '#3a5a7a', ...(bl.head || {}) }
       : { skin, hair: ['#2a2a2a', '#d8c080', '#7a5a30', '#1a1a1a'][i % 4], brow: '#3a2a1a', hairLine: i % 3 === 0 ? 40 : 96, sideLine: 120, backLine: 150, mouth: 'smile', iris: '#3a3a3a' };
     const shirt = boss ? (bl.shirt ?? 0xf2efe6) : look.shirt;
-    const p = FT ? makePerson({ ...FT.look, skin: FT.look.head.skin }) : makePerson({ head, ballcap: opt && 'cap' in opt ? opt.cap : boss && bl.cap !== undefined ? bl.cap : i % 5 === 2 ? 0xff7a1a : undefined, front: boss ? (bl.front ?? '#f2efe6') : look.front, shirt, pants: boss ? (bl.pants ?? 0xf2efe6) : look.pants, shoes: 0x111111, belly: boss ? (bl.belly ?? 1.2) : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1 });
+    const p = FT ? makePerson({ ...FT.look, skin: FT.look.head.skin, ps2: FT.ps2 && LOOKS[FT.ps2] }) : makePerson({ head, ballcap: opt && 'cap' in opt ? opt.cap : boss && bl.cap !== undefined ? bl.cap : i % 5 === 2 ? 0xff7a1a : undefined, front: boss ? (bl.front ?? '#f2efe6') : look.front, shirt, pants: boss ? (bl.pants ?? 0xf2efe6) : look.pants, shoes: 0x111111, belly: boss ? (bl.belly ?? 1.2) : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1, lampas: !boss, suit: !!boss });
     scene.remove(p); root.add(p);
     const hand = new THREE.Group(); hand.position.set(0, -0.68, 0.05); p.userData.arms[0].add(hand);
     const laser = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 1), laserM.clone()); laser.visible = false; root.add(laser);
