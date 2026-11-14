@@ -1023,7 +1023,7 @@ export function initMission(ctx) {
     }
     if (HS.safe && !HS.safe.open && near(HS.safe.g, 1.4)) {
       HS.pick += HEIST.lockpick ? 34 : 25; alertNoise(player.position, HEIST.lockpick ? 1.2 : 3); beep(1200 + HS.pick * 4, 0.03, 'square', 0.03);
-      if (HS.pick >= 100) { HS.safe.open = true; const cash = 300 + Math.round(Math.random() * 12) * 50; HS.cash += cash; popup(player.position, `SAFE OPEN · W ${cash}`, '#ffd23a', true); sfx('cash'); }
+      if (HS.pick >= 100) { HS.safe.open = true; const cash = (300 + Math.round(Math.random() * 12) * 50) * (HEIST.cashX || 1); HS.cash += cash; popup(player.position, `SAFE OPEN · W ${cash}`, '#ffd23a', true); sfx('cash'); }
       else popup(player.position, `CRACKING ${Math.min(99, HS.pick)}%`, '#e8a33d');
       return true;
     }

@@ -97,6 +97,9 @@ export const IDEAS = [
   { id: 'gouden1', who: 'Ome Joop', name: 'Notitieboek, pagina 3', text: '"Saffraan from the pier, cumin from the dock, and the one thing the Noshgey Kariot grow and never sell." The first clue to De Gouden Mix.', hint: 'The last page is for a Kruidenbaron.' },
   { id: 'opknappen', who: 'Monteur Mo', name: 'Opknappen', text: 'Mo fixes broken machines overnight: buy them for scrap on Kaasplaats, sell them as good as new.', hint: "Dad's old machine man notices when you sell your first machine." },
   { id: 'geruchten', who: 'De Fluisteraar', name: 'Geruchten', text: "For W 50 the Fluisteraar under the bridge tells you tomorrow's spice news before it happens.", hint: 'Someone under the bridge hears things, once the market has been running a few days.' },
+  { id: 'werkplaats', who: 'Monteur Mo', name: 'De Werkplaats', text: "Build and repair shoarma machines yourself from Dad's junk and Kaasplaats parts, and upgrade the Kaasdows.", hint: "Dad's junk pile could be more than junk." },
+  { id: 'nachtklus', who: 'De Fluisteraar', name: 'Nachtklussen', text: 'Rob a rival quietly at night: no war, no heat, if nobody sees you. The Russian buys the hot goods.', hint: 'Not every job needs a fight.' },
+  { id: 'spion', who: 'Monteur Mo', name: 'Spy module', text: 'Hide a little module in a machine you sell: it tells you about the next place you rob (a free floor plan).', hint: 'Mo knows tricks with wires. Steal something back first.' },
   { id: 'lampastips', who: 'Kevin', name: 'Lampas-tips', text: 'Kevin warns you a day before the Lampas strike back, and for W 300 makes your next retake raid a quiet night.', hint: 'Not every Lampas loves his job. Wait till they get angry.' },
 ];
 const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

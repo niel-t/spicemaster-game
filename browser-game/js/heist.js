@@ -23,7 +23,7 @@ export function createHeists(deps) {
   function ensure() {
     const h = state.heists && typeof state.heists === 'object' ? state.heists : (state.heists = {});
     h.done = h.done || {}; h.hot = Array.isArray(h.hot) ? h.hot : []; h.susp = h.susp || {}; h.plans = h.plans || {}; h.tools = h.tools || {};
-    h.runs = +h.runs || 0; h.clean = +h.clean || 0;
+    h.runs = +h.runs || 0; h.clean = +h.clean || 0; h.freePlans = +h.freePlans || 0; h.dailyBest = h.dailyBest || {};
     if ((state.ngp || 0) !== (h.ngpSeen || 0)) { h.ngpSeen = state.ngp || 0; h.susp = {}; h.plans = {}; } // New Game+: the factions forget who robbed them
     if (h.day !== day()) roll(h);
     return h;
@@ -35,7 +35,9 @@ export function createHeists(deps) {
     const lv = (deps.levels ? deps.levels() : []).filter((l) => l.unlocked && (h.done.tutorial || l.id !== 'spekbuurt'));
     const pool = lv.filter((l) => !l.owned).length ? lv.filter((l) => !l.owned) : lv;
     const pick = pool.slice(); for (let i = pick.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pick[i], pick[j]] = [pick[j], pick[i]]; }
-    for (const l of pick.slice(0, 2)) h.targets.push({ id: l.id, title: l.name, faction: l.faction, safe: true, note: `${FNAME[l.faction] || 'Rival'} back rooms at night: spice crates and a safe.${l.owned ? ' (Yours by day, but they sneak stock back in at night.)' : ''}` });
+    const t0 = new Date(), date = `${t0.getFullYear()}-${String(t0.getMonth() + 1).padStart(2, '0')}-${String(t0.getDate()).padStart(2, '0')}`;
+    if (h.done.tutorial && lv.length) { const dl = lv[hashStr(`nachtklus#${date}`) % lv.length]; h.targets.push({ id: dl.id, title: `${dl.name} (daily)`, faction: dl.faction, safe: true, daily: date, note: `Today's daily Nachtklus, the same for everyone: the safe holds double. Your best haul today: ${fmt((h.dailyBest[date] || 0))}.` }); }
+    for (const l of pick.filter((l) => !h.targets.some((t) => t.id === l.id)).slice(0, 2)) h.targets.push({ id: l.id, title: l.name, faction: l.faction, safe: true, note: `${FNAME[l.faction] || 'Rival'} back rooms at night: spice crates and a safe.${l.owned ? ' (Yours by day, but they sneak stock back in at night.)' : ''}` });
   }
   function cap() { const h = ensure(), c = deps.garage ? deps.garage.stats().cargo : 300; return 2 + (h.tools.bag ? 1 : 0) + (c >= 800 ? 2 : c >= 550 ? 1 : 0); }
   function coolDown() { // hot crates older than HOT_DAYS become ordinary crates (sell on Kaasplaats)
@@ -52,8 +54,8 @@ export function createHeists(deps) {
   }
   function buyPlan(n, el) {
     const h = ensure(), t = h.targets[n]; if (!t) return;
-    if (state.money < PLAN_COST) return 'Not enough Wilders.';
-    deps.addMoney(-PLAN_COST, el); h.plans[t.id] = day();
+    if (h.freePlans > 0) h.freePlans--; else { if (state.money < PLAN_COST) return 'Not enough Wilders.'; deps.addMoney(-PLAN_COST, el); }
+    h.plans[t.id] = day();
     if (deps.toast) deps.toast('FLOOR PLAN', `Kevin sketched ${t.title} on a napkin: you'll see the guards' sight cones tonight.`, 3);
     if (deps.save) deps.save();
   }
@@ -66,7 +68,7 @@ export function createHeists(deps) {
     const h = ensure(), t = h.targets[n]; if (!t) return;
     const extra = Math.min(4, h.susp[t.faction] || 0);
     if (deps.closePC) deps.closePC();
-    deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, safe: !!t.safe, special: t.tutorial ? 'grill' : null, extra, onEnd: (res) => ended(t, res) });
+    deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, safe: !!t.safe, special: t.tutorial ? 'grill' : null, cashX: t.daily ? 2 : 1, extra, onEnd: (res) => ended(t, res) });
   }
   function ended(t, res) {
     const h = ensure(), lines = [];
@@ -75,9 +77,12 @@ export function createHeists(deps) {
     if (res.loud && crates && !(deps.garage && deps.garage.has('luik'))) { crates--; lines.push('The Lampas rammed the van on the way home: one crate fell out the back (a hidden compartment would have kept it).'); }
     if (crates) { h.hot.push({ n: crates, day: day() }); lines.push(`${crates} hot crate(s) in the warehouse: The Russian buys them now for ${fmt(FENCE)} each, or wait ${HOT_DAYS} days and sell them for W 150.`); }
     if (res.cash) { deps.addMoney(res.cash); lines.push(`Safe: +${fmt(res.cash)}.`); }
+    if (t.daily) { const haul = res.cash + res.crates * 150; if (haul > (h.dailyBest[t.daily] || 0)) { h.dailyBest[t.daily] = haul; lines.push(`New best daily haul: ${fmt(haul)}.`); } }
+    if (econ.addRep && (res.crates || res.cash || res.grill)) econ.addRep(res.loud ? 60 : 150);
     if (res.grill) {
       h.done.tutorial = true; const e = econ.ensure(); e.machines.grill = (e.machines.grill || 0) + 1;
       lines.push("Dad's old grill is back in the warehouse. Sell it to a joint, or strip it in the Werkplaats.");
+      if (econ.learn) setTimeout(() => econ.learn('spion'), 8000);
     }
     if (res.loud) {
       const e = econ.ensure();
@@ -91,12 +96,13 @@ export function createHeists(deps) {
   }
 
   function html() {
+    if (econ.learn && !(econ.has && econ.has('nachtklus'))) setTimeout(() => econ.learn('nachtklus'), 300);
     const h = ensure(); coolDown();
-    let out = `<div class="well"><b>Plannenbord</b> · tonight's Nachtklussen · bag: <b>${cap()} slots</b> per trip to the van · clean nights: <b>${h.clean}</b> of ${h.runs}<br><small>Sneak in at night, fill the bag, carry it out to the Oofmobiel, drive home. Being seen fills the alarm; a full alarm turns it into a loud raid (heat). A floor plan shows the guards' sight cones. Every hit on a faction makes them more careful next time.</small></div>`;
+    let out = `<div class="well"><b>Plannenbord</b> · tonight's Nachtklussen · bag: <b>${cap()} slots</b> per trip to the van · clean nights: <b>${h.clean}</b> of ${h.runs}${h.freePlans ? ` · free floor plans: <b>${h.freePlans}</b> (from a spy module or a Naknik scout)` : ''}<br><small>Sneak in at night, fill the bag, carry it out to the Oofmobiel, drive home. Being seen fills the alarm; a full alarm turns it into a loud raid (heat). A floor plan shows the guards' sight cones. Every hit on a faction makes them more careful next time.</small></div>`;
     out += '<table class="list" style="margin-top:8px"><tr><th>Target</th><th>What\'s there</th><th>Guards</th><th></th></tr>';
     for (const [n, t] of h.targets.entries()) {
       const planned = h.plans[t.id] === day() || t.tutorial, s = h.susp[t.faction] || 0;
-      out += `<tr><td><b>${t.title}</b><br><small>${FNAME[t.faction] || ''}${t.tutorial ? ' · tutorial' : ''}</small></td><td><small>${t.note}</small></td><td><small>${s ? `on edge (+${Math.min(4, s)})` : 'skeleton crew'}</small></td><td>${planned ? '<small style="color:#070">floor plan ✓</small><br>' : `<button class="b95" data-hplan="${n}">Floor plan ${fmt(PLAN_COST)}</button><br>`}<button class="b95" data-hgo="${n}" style="margin-top:4px">Go tonight</button></td></tr>`;
+      out += `<tr><td><b>${t.title}</b><br><small>${FNAME[t.faction] || ''}${t.tutorial ? ' · tutorial' : ''}</small></td><td><small>${t.note}</small></td><td><small>${s ? `on edge (+${Math.min(4, s)})` : 'skeleton crew'}</small></td><td>${planned ? '<small style="color:#070">floor plan ✓</small><br>' : `<button class="b95" data-hplan="${n}">${h.freePlans ? `Free floor plan (${h.freePlans} left)` : `Floor plan ${fmt(PLAN_COST)}`}</button><br>`}<button class="b95" data-hgo="${n}" style="margin-top:4px">Go tonight</button></td></tr>`;
     }
     out += '</table>';
     const hot = hotCount();

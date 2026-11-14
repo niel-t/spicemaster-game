@@ -33,6 +33,7 @@ export const PARTS = [
   { id: 'e_vetbak', slot: 'x', name: 'Fat tray', price: 30, pw: 0, relB: 0.02, capB: 0.05, rel: 1, note: '+5% capacity, +2 reliability' },
   { id: 'e_chroom', slot: 'x', name: 'Chrome panels', price: 70, pw: 0, styleB: 1, rel: 1, note: '+1 style' },
   { id: 'e_led', slot: 'x', name: 'LED sign "SHOARMA"', price: 90, pw: 1, styleB: 2, rel: 1, note: '+2 style, uses 1 power' },
+  { id: 'e_spy', slot: 'x', name: 'Spy module (Mo)', price: 250, pw: 0, rel: 1, spy: true, idea: 'spion', note: 'Deliver it inside a machine: a free floor plan for a Nachtklus' },
 ];
 const P = (id) => PARTS.find((p) => p.id === id);
 const fitsSlot = (p, slot) => (slot === 'x1' || slot === 'x2' ? p.slot === 'x' : p.slot === slot);
@@ -208,7 +209,9 @@ export function createWorkshop(deps) {
   }
   function pay(n, price, el) {
     const w = ensure(), o = w.orders[n]; if (!o || o.done) return;
-    o.done = true; deps.addMoney(price, el); w.bench = { slots: {}, bolts: 0 };
+    const spy = !o.repair && Object.values((w.bench && w.bench.slots) || {}).some((q) => q && P(q.id) && P(q.id).spy);
+    o.done = true; deps.addMoney(price, el); w.bench = { slots: {}, bolts: 0 }; if (econ.addRep) econ.addRep(o.repair ? 40 : 80);
+    if (spy) { const hs = state.heists || (state.heists = {}); hs.freePlans = (+hs.freePlans || 0) + 1; if (deps.toast) setTimeout(() => deps.toast('SPY MODULE', `The module in ${whoName(o)}'s machine is listening. You have a free floor plan on the Plannenbord.`, 4), 2500); }
     const name = whoName(o), diff = price - o.pay;
     const d = diff ? ` (${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))} on the job price)` : '';
     if (o.repair) { w.repaired++; if (deps.toast) deps.toast('REPAIRED', `${name} has their ${TYPE_NAME[o.type].toLowerCase()} back: +${fmt(price)}${d}.`, 3.5); }
@@ -279,6 +282,7 @@ export function createWorkshop(deps) {
     return `<b>${TYPE_NAME[t.type]}</b> · <b>${t.cap} kg/hour</b> · reliability <b>${relNow(t)}%</b>${loose ? ` <small style="color:#a00">(${loose} loose bolt${loose > 1 ? 's' : ''}: −${loose * 4})</small>` : ''} · style <b>${t.style}</b>${t.kind ? ` · ${t.kind}` : ''}${live ? '' : ` · worth about <b>${fmt(value(t))}</b>`}${t.warns.length ? `<br><small style="color:#a60">${t.warns.join(' ')}</small>` : ''}`;
   }
   function html() {
+    if (econ.learn && !(econ.has && econ.has('werkplaats'))) setTimeout(() => econ.learn('werkplaats'), 300);
     const w = ensure(), b = w.bench, rep = b.repair != null ? w.orders[b.repair] : null;
     let h = `<style>@keyframes wsSpin{to{transform:rotate(360deg)}}.ws-spit{display:inline-block;width:34px;height:34px;border-radius:50%;background:repeating-conic-gradient(#c2412d 0 30deg,#e8a33d 30deg 60deg);vertical-align:middle;margin-right:8px}.ws-spit.on{animation:wsSpin .6s linear infinite}.ws-bolt{width:30px;padding:4px 0}</style>`;
     h += `<div class="well"><b>De Werkplaats</b> · Dad's old junk corner, now a workbench · Built: <b>${w.built}</b> · Repaired: <b>${w.repaired}</b><br><small>Put parts in the slots, tighten the bolts, run the draaitest. A machine that beats an order's spec pays; a spare one goes to the warehouse for your joints. <i>Monteur Mo: "Heavy spit, heavy motor. And never trust a wiper motor."</i></small></div>`;
@@ -312,7 +316,7 @@ export function createWorkshop(deps) {
     h += '<table class="list" style="margin-top:8px"><tr><th>Used parts on Kaasplaats today</th><th>Price</th><th></th></tr>';
     for (const o of w.offers) h += `<tr><td>${P(o.id).name} <small>(worn ${Math.round(o.wear * 100)}%)</small></td><td>${fmt(o.price)}</td><td>${o.sold ? 'sold' : `<button class="b95" data-wsused="${o.n}">Buy</button>`}</td></tr>`;
     h += `</table><div class="well" style="margin-top:8px"><img src="${portrait('fenna')}" alt="" style="width:40px;height:44px;object-fit:cover;float:left;margin-right:8px;border:1px solid #888"><b>Kaasland Auto Parts</b> · Fenna at the counter${spentToday() ? ` · spent on parts today: <b>${fmt(spentToday())}</b>` : ''}<br><small>Pay the sticker price, or haggle. She has heard every story twice.</small><div style="clear:both"></div></div><table class="list"><tr><th>New parts</th><th>What it does</th><th>Price</th><th></th></tr>`;
-    for (const p of PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap"><button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}</td></tr>`;
+    for (const p of PARTS.filter((q) => !q.idea || (econ.has && econ.has(q.idea)))) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap"><button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}</td></tr>`;
     h += '</table><table class="list" style="margin-top:8px"><tr><th>Kaasdows 95 upgrades</th><th>What it does</th><th>Price</th><th></th></tr>';
     for (const p of PC_PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.text}</small></td><td>${fmt(p.price)}</td><td>${w.pc[p.id] ? '<b style="color:#070">installed</b>' : `<button class="b95" data-wspc="${p.id}">Install</button>`}</td></tr>`;
     return h + '</table>';

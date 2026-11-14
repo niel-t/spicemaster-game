@@ -1077,7 +1077,14 @@ const garage = createGarage({ state, econ, addMoney, toast, save: () => writeSav
 const crew = createCrew({ state, econ, ws, addMoney, toast, save: () => writeSave() });
 const heists = createHeists({ state, econ, garage, addMoney, toast, save: () => writeSave(), closePC: () => closePC(),
   levels: () => JOINTS.map(([name, id, , ok]) => ({ id, name, faction: NOSH.some((j) => j[1] === id) ? 'noshgey' : ABD.some((j) => j[1] === id) ? 'abdavissies' : 'lampas', owned: owns(id), unlocked: typeof ok === 'function' ? !!ok() : id === 'spekbuurt' || owns('spekbuurt') })),
-  go: (id, h) => { if (!mission.active) mission.enter(id, { heist: h }); } });
+  go: (id, h) => { // drive there first, park round the corner, then the night begins
+    if (mission.active || oofDrive.active) return; const j = JOINTS.find((x) => x[1] === id);
+    oofDrive.start({ van: garage.stats(), from: 'Kipkruidenkwartier', to: j ? j[0] : id, target: j && j[4], mission: 'Lights off. Park round the corner.', onDone: (res) => {
+      clearPlayerSplats(); clock.getDelta();
+      if (res.arrived) { mission.enter(id, { heist: h }); return; }
+      toast('NACHTKLUS OFF', 'The Oofmobiel never made it. The job is off for tonight.', 3.5); writeSave();
+    } });
+  } });
 function paintVan(c) { oof.traverse((o) => { if (o.userData && o.userData.paint) o.userData.paint.color.setHex(c); }); }
 function openPC(tab = 'sell', mode = 'pc') {
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
@@ -2193,7 +2200,7 @@ function updateSiege() {
   });
 }
 function siegeOver(res) {
-  const m = econ.siegeResult(res.win);
+  const m = econ.siegeResult(res.win); if (res.win && econ.addRep) econ.addRep(200);
   let lost = 0; for (let k = 0; k < res.lost && state.naknik > 0; k++) { state.naknik--; const n = naknikim.pop(); if (n) { n.visible = false; scene.remove(n); } lost++; }
   state.income = (state.naknik || 0) * NAKNIK_INCOME;
   toast(res.win ? 'THE WAREHOUSE HELD' : 'THE WAREHOUSE FELL', `${m}${lost ? ` They dragged off ${lost} Naknik(im). Hire new ones at the Uitzendbureau.` : ''}`, 6);

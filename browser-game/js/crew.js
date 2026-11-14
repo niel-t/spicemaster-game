@@ -7,8 +7,10 @@ const NAMES = ['Knakkie', 'Kees Komijn', 'Bolle Bert', 'Sjaakie', 'Fliep', 'Toos
 export const ERRANDS = [
   { id: 'part', name: 'Scrounge Kaasplaats for a part', text: 'Comes back with a used machine part for the Werkplaats (or something weird).' },
   { id: 'sell', name: 'Sell spice door to door', text: 'Comes back with Wilders. Skill and mood decide how many.' },
+  { id: 'scout', name: "Scout tonight's Nachtklus", text: 'Hangs around a rival joint all day: a free floor plan on the Plannenbord.' },
 ];
 const STORIES = {
+  scout: ['"I counted the guards. Then I counted again. Same number!"', '"Nobody looks at a Naknik. It is our superpower."', '"I drew the map. It is also a horse."'],
   part: ['"The man said it is a motor. It goes vroem. Mostly."', '"I traded my lunch for it. Good deal, boss?"', '"It was just lying there. Next to a man. Sleeping."'],
   sell: ['"A lady bought three bags and gave me soup."', '"A dog chased me. I sold him nothing."', '"I said it was De Gouden Mix. Is ok?"'],
   flop: ['"I got lost. Kaasland is very big, boss."', '"I sat in the park. The ducks needed me."', '"I forgot what I was doing. Then I came back."'],
@@ -53,7 +55,8 @@ export function createCrew(deps) {
         const k = m.away.kind, odds = 0.45 + m.skill * 0.1 + (m.mood - 50) / 250; m.away = null;
         if (k === 'off') { m.mood = Math.min(100, m.mood + 35); out.push(`${m.name} is back from a day off, smiling.`); continue; }
         if (Math.random() > odds) { m.mood = Math.max(0, m.mood - 5); out.push(`${m.name}: ${rnd(STORIES.flop)}`); continue; }
-        if (k === 'part' && deps.ws) {
+        if (k === 'scout') { const hs = state.heists || (state.heists = {}); hs.freePlans = (+hs.freePlans || 0) + 1; out.push(`${m.name} scouted a rival joint: a free floor plan on the Plannenbord. ${rnd(STORIES.scout)}`); }
+        else if (k === 'part' && deps.ws) {
           const ids = ['m_goedkoop', 'm_std', 'b_gas', 'c_spit15', 'c_spit30', 'f_klein', 'e_timer', 'e_vetbak', 'e_chroom'];
           const id = rnd(ids); deps.ws.ensure().parts.push({ id, wear: Math.round((0.1 + Math.random() * 0.2) * 100) / 100 });
           out.push(`${m.name} brought a part for the Werkplaats. ${rnd(STORIES.part)}`);
