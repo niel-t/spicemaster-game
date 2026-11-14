@@ -168,7 +168,7 @@ export function createEconomy(deps) {
     for (const g of INGREDIENTS) { e.hist[g.id].push(effMult(g.id)); if (e.hist[g.id].length > HISTORY) e.hist[g.id].shift(); }
     const mixLine = made ? (made.kg ? `Naknikim mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
     const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
-    if (strikes.length && deps.toast) { deps.toast('THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
+    if (strikes.length && deps.toast) { deps.toast(state.act1 ? 'THEY STRIKE BACK' : 'THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
     if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + payLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine ? 5 : 3);
     return e.day;
   }
@@ -246,7 +246,7 @@ export function createEconomy(deps) {
   const addTrust = (id, d) => { const e = ensure(); e.trust[id] = clamp(trustOf(id) + d, 0, 100); };
   const controlOf = (id) => { const e = ensure(); if (NOT_TURF.includes(id)) return 100; if (e.control[id] === undefined) e.control[id] = 60; return e.control[id]; };
   const ctlMult = (id) => (NOT_TURF.includes(id) ? 1.1 : 0.5 + 0.7 * controlOf(id) / 100); // 0 control: half pay, 100: x1.2
-  const clientPrice = (blendId, q, cid) => { const b = BLENDS.find((x) => x.id === blendId); return Math.round(b.value * (0.6 + 0.15 * q) * (cid ? ctlMult(cid) : 1) * 10) / 10; };
+  const clientPrice = (blendId, q, cid) => { const b = BLENDS.find((x) => x.id === blendId), bomb = cid && ensure().bombed && ensure().bombed[cid] ? 0.6 : 1; return Math.round(b.value * (0.6 + 0.15 * q) * (cid ? ctlMult(cid) : 1) * bomb * 10) / 10; };
   function deliver() {
     const e = ensure(), rows = []; let paid = 0, missed = 0;
     // late payments from earlier days come in first
@@ -295,9 +295,45 @@ export function createEconomy(deps) {
   }
   // ---- turf: Lampas heat (0-100) rises with every joint you hold and every raid, and cools a little each day.
   // 40: price war and pressure on control · 60: they lean on a client · 80: they retake a joint · 100: they raid the warehouse
-  function turf() {
+  // ---- the other factions' heat (Acts 2 and 3), mirroring the Lampas: it rises with every one of their joints you hold
+  // (+25 when you take one, +2 a day each, -4 a day) and ends for good when their act is won (state.act2 / state.act3).
+  // Noshgey Kariot: review-bombing (a client joint pays 40% less for 4 days, or until you raid it). Abdavissies:
+  // smuggler tolls (stock goes missing from the warehouse; at 80+ they also take a cut of your cash).
+  const RIVALS = [
+    { id: 'noshgey', name: 'Noshgey Kariot', done: 'act2', joints: ['joppiehaven', 'frikandelhaven', 'havermelkhaven', 'kombuchakwartier', 'gembergracht', 'avocadoakkers', 'glutenvrijegaarde', 'quinoaplantage', 'oatoase', 'speltpolder'] },
+    { id: 'abdavissies', name: 'Abdavissies', done: 'act3', joints: ['komijnkade', 'kaneelsilos', 'paprikapakhuis', 'kruidnagelkade', 'peperhaven', 'kurkumaloods', 'saffraanpier', 'nootmuskade', 'smokkelsloot', 'containerchaos', 'kardemomdok'] },
+  ];
+  const REVIEWS = ['"Zero stars. The spice is not oat-based."', '"My kombucha tasted of garlic after. Disgusting. One star."', '"Not artisanal. I could smell capitalism."', '"Where is the gluten-free döner? Unfollowing."'];
+  function rivalsHeld(f) { const own = deps.joints ? deps.joints() : []; return own.filter((id) => f.joints.includes(id)); }
+  function rivals() {
     const e = ensure(), out = [], L = e.heat;
-    if (state.act1) { L.lampas = 0; e.retaken = {}; return out; } // Fort Pindasaus fell (js/levels/pindasausplein.js): the Lampas are finished
+    if ((state.ngp || 0) !== (e.ngpSeen || 0)) { // New Game+: every faction starts fresh
+      e.ngpSeen = state.ngp || 0; for (const k of Object.keys(L)) L[k] = 0; e.retaken = {}; e.known = null; e.rivalKnown = {}; e.bombed = {};
+    }
+    e.rivalKnown = e.rivalKnown || {}; e.bombed = e.bombed || {};
+    for (const id of Object.keys(e.bombed)) { e.bombed[id]--; if (e.bombed[id] <= 0) delete e.bombed[id]; }
+    const name = (id) => (CLIENTS.find((c) => c.id === id) || { name: id }).name;
+    for (const f of RIVALS) {
+      if (state[f.done]) { L[f.id] = 0; continue; }
+      const held = rivalsHeld(f), known = e.rivalKnown[f.id] || (e.rivalKnown[f.id] = []);
+      for (const id of held) if (!known.includes(id)) { known.push(id); L[f.id] = (L[f.id] || 0) + 25; }
+      L[f.id] = clamp((L[f.id] || 0) + 2 * held.length - 4, 0, 100);
+      if (!held.length) continue;
+      if (f.id === 'noshgey' && L.noshgey >= 50 && !Object.keys(e.bombed).length && Math.random() < 0.4) { // one campaign at a time
+        const pool = activeClients().filter((c) => !e.bombed[c.id] && c.id !== 'schmatzel');
+        if (pool.length) { const c = pick(pool); e.bombed[c.id] = 4; out.push(`Noshgey influencers review-bombed ${c.name}: ${pick(REVIEWS)} They pay 40% less for 4 days, or until you raid there.`); }
+      }
+      if (f.id === 'abdavissies' && L.abdavissies >= 50 && Math.random() < 0.35) {
+        const big = Object.entries(e.stock).sort((a, b) => b[1] - a[1])[0];
+        if (big) { const take = Math.max(1, Math.floor(big[1] * 0.2)); e.stock[big[0]] = +(big[1] - take).toFixed(2); if (e.stock[big[0]] <= 0.001) delete e.stock[big[0]]; out.push(`Smuggler toll: the Abdavissies helped themselves to ${take} kg of your ${INGREDIENTS.find((g) => g.id === big[0].split(':')[0])?.name.toLowerCase() || 'stock'}.`); }
+        if (L.abdavissies >= 80 && state.money > 500) { const cut = Math.min(1000, Math.round(state.money * 0.05 / 10) * 10); deps.addMoney(-cut); out.push(`An Abdavissies "harbour fee" collector took W ${cut} from your till.`); }
+      }
+    }
+    return out;
+  }
+  function turf() {
+    const e = ensure(), out = rivals(), L = e.heat;
+    if (state.act1) { L.lampas = 0; e.retaken = {}; e.turfNews = out; return out; } // Fort Pindasaus fell (js/levels/pindasausplein.js): the Lampas are finished
     const owned = ownedClients().map((c) => c.id).filter((id) => !NOT_TURF.includes(id));
     if (!e.known) { e.known = owned.slice(); L.lampas = clamp(L.lampas + 15 * owned.length, 0, 100); } // first look at an older save
     for (const id of owned) if (!e.known.includes(id)) { e.known.push(id); e.control[id] = 60; L.lampas += 25; }
@@ -323,23 +359,25 @@ export function createEconomy(deps) {
   }
   function bribeKevin(el) { const e = ensure(); if (e.kevinBribe) return 'Already paid, bro.'; if (state.money < 300) return 'W 300, bro. Not less.'; deps.addMoney(-300, el); e.kevinBribe = true; if (deps.save) deps.save(); return null; }
   function retakeMod() { const e = ensure(); if (!e.kevinBribe) return null; e.kevinBribe = false; return 'rustig'; }
-  function tribute(el) {
-    const e = ensure(), cost = Math.round(e.heat.lampas * 40 / 10) * 10;
-    if (e.heat.lampas < 10) return 'The Lampas are calm. Keep your Wilders.';
+  function tribute(el, f = 'lampas') {
+    const e = ensure(), h = e.heat[f] || 0, cost = Math.round(h * 40 / 10) * 10, who = f === 'lampas' ? 'The Lampas are' : `The ${(RIVALS.find((r) => r.id === f) || {}).name} are`;
+    if (h < 10) return `${who} calm. Keep your Wilders.`;
     if (state.money < cost) return `Tribute costs ${fmt(cost)}.`;
-    deps.addMoney(-cost, el); e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.save) deps.save();
+    deps.addMoney(-cost, el); e.heat[f] = clamp(h - 30, 0, 100); if (deps.save) deps.save();
     return null;
   }
   function turfHTML(short) {
     const e = ensure(), h0 = e.heat.lampas, owned = ownedClients().filter((c) => !NOT_TURF.includes(c.id));
     const bar = (v, c) => `<span style="display:inline-block;width:120px;height:10px;border:1px solid #808080;background:#fff;vertical-align:middle"><span style="display:block;height:100%;width:${v}%;background:${c}"></span></span>`;
     const stage = h0 >= 80 ? 'retaking joints' : h0 >= 60 ? 'leaning on your clients' : h0 >= 40 ? 'price war' : h0 >= 20 ? 'grumbling' : 'calm';
-    let h = `<b>Lampas heat</b> ${bar(h0, h0 >= 60 ? '#c00000' : h0 >= 40 ? '#e08000' : '#60a060')} <b>${h0}</b>/100 · ${stage}`;
+    let h = state.act1 ? '<b>Lampas</b>: finished' : `<b>Lampas heat</b> ${bar(h0, h0 >= 60 ? '#c00000' : h0 >= 40 ? '#e08000' : '#60a060')} <b>${h0}</b>/100 · ${stage}`;
+    for (const f of RIVALS) { const v = e.heat[f.id] || 0; if (state[f.done] || (!v && !rivalsHeld(f).length)) continue; const st = f.id === 'noshgey' ? (v >= 50 ? 'review-bombing your joints' : 'posting angrily') : (v >= 80 ? 'tolls on stock and cash' : v >= 50 ? 'tolls on your stock' : 'watching'); h += `<br><b>${f.name} heat</b> ${bar(v, v >= 50 ? '#c00000' : '#60a060')} <b>${v}</b>/100 · ${st}${short ? '' : ` <button class="b95" data-tribute="${f.id}" ${v < 10 ? 'disabled' : ''}>Tribute (${fmt(Math.round(v * 40 / 10) * 10)}, -30)</button>`}`; }
+    if (e.bombed && Object.keys(e.bombed).length) h += `<br><small style="color:#a00">Review-bombed: ${Object.entries(e.bombed).map(([id, d]) => `${(CLIENTS.find((c) => c.id === id) || { name: id }).name} (${d} day${d > 1 ? 's' : ''})`).join(', ')}</small>`;
     if (short) return h + (owned.length ? ` · Control: ${owned.map((c) => `${c.name.replace(/^Snack(paleis|bar) /, '')} ${e.retaken[c.id] ? '<b style="color:#a00">LOST</b>' : controlOf(c.id)}`).join(', ')}` : '');
     h += '<br><small>Heat rises with every joint you hold (+2 a day each) and every raid (+5), and cools 4 a day. 40: price war · 60: they lean on clients · 80: they retake a joint · 100: they raid your warehouse.</small>';
     if (owned.length) h += '<table class="list" style="margin-top:4px"><tr><th>Territory</th><th>Control</th><th>Pay</th></tr>' + owned.map((c) => `<tr><td>${c.name}</td><td>${e.retaken[c.id] ? '<b style="color:#a00">Taken back by the Lampas</b>' : bar(controlOf(c.id), '#2e8b2e') + ' ' + controlOf(c.id)}</td><td>x${ctlMult(c.id).toFixed(2)}</td></tr>`).join('') + '</table>';
     if (has('lampastips')) h += `<div style="margin-top:4px;background:#fff0e0;padding:3px"><b>Kevin:</b> "${kevinTip()}"${e.kevinBribe ? ' <i>(your next retake will be a quiet night)</i>' : ''}</div>`;
-    h += `<div style="margin-top:6px"><button class="b95" id="tribute" ${h0 < 10 ? 'disabled' : ''}>Pay tribute to the Lampas (${fmt(Math.round(h0 * 40 / 10) * 10)}, heat -30)</button> <small>Winning a joint back also drops heat by 30.</small></div>`;
+    if (!state.act1) h += `<div style="margin-top:6px"><button class="b95" id="tribute" ${h0 < 10 ? 'disabled' : ''}>Pay tribute to the Lampas (${fmt(Math.round(h0 * 40 / 10) * 10)}, heat -30)</button> <small>Winning a joint back also drops heat by 30.</small></div>`;
     return h;
   }
   const machineVol = (cid) => 1 + (ensure().installed[cid] || []).reduce((a, id) => a + MACHINES.find((m) => m.id === id).vol, 0);
@@ -434,6 +472,7 @@ export function createEconomy(deps) {
     const e = ensure();
     addRep(raid.grade === 'S' ? 250 : 100);
     if (raid.remix) e.heat.lampas = clamp(e.heat.lampas + 5, 0, 100);
+    if (e.bombed && e.bombed[raid.id]) { delete e.bombed[raid.id]; if (deps.toast) deps.toast('REVIEWS FIXED', `After tonight, ${CLIENTS.find((c) => c.id === raid.id)?.name || 'the joint'} trends for the right reasons again: full pay.`, 3.5); }
     if (e.retaken[raid.id]) { delete e.retaken[raid.id]; e.control[raid.id] = 60; e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.toast) deps.toast('TAKEN BACK', `${CLIENTS.find((c) => c.id === raid.id).name} is yours again. Lampas heat -30.`, 4); addRep(150); }
     for (const j of e.jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }
   function driveDone(arrived) {
@@ -504,7 +543,7 @@ export function createEconomy(deps) {
         <button class="b95" data-card="${i}:discount">Give 20% off</button>${(e.installed[c.id] || []).length ? ` <button class="b95" data-card="${i}:repo">Repo their ${MACHINES.find((m) => m.id === e.installed[c.id].at(-1)).name.toLowerCase()}</button>` : ''} <button class="b95" data-card="${i}:insist">Insist on full pay</button> <button class="b95" data-card="${i}:cut">Cut off their supply</button></div>`;
     }
     const r = e.report;
-    h += `<div class="well" style="margin-bottom:8px">${e.turfNews.length ? `<b style="color:#a00">THE LAMPAS STRUCK BACK:</b> ${e.turfNews.join(' ')}<br>` : ''}${turfHTML(false)}</div>`;
+    h += `<div class="well" style="margin-bottom:8px">${e.turfNews.length ? `<b style="color:#a00">YOUR RIVALS STRUCK BACK:</b> ${e.turfNews.join(' ')}<br>` : ''}${turfHTML(false)}</div>`;
     if (e.event) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>TODAY:</b> ${e.event.text}.</div>`;
     h += `<div class="well" style="margin-bottom:8px"><b>${r ? `Day ${r.day}` : 'No report yet'}</b>${r ? ` · Paid today <b>${fmt(r.paid)}</b>${r.missed ? ` · <span style="color:#a00">${r.missed} missed</span>` : ''}` : ''}`;
     h += r && r.rows.length ? '<table class="list" style="margin-top:4px"><tr><th>Client</th><th>Order</th><th>Delivered</th><th>Paid</th><th></th></tr>' + r.rows.map((x) => `<tr><td>${x.name}</td><td>${x.want || ''}</td><td>${x.kg ? `${x.kg} kg ${stars(Math.round(x.q))}` : '-'}</td><td>${x.pay ? fmt(x.pay) : '-'}</td><td><small>${x.note}</small></td></tr>`).join('') + '</table>' : '<br>Go on an outing (a mission or a drive) to end the day.';
@@ -520,6 +559,7 @@ export function createEconomy(deps) {
     return h;
   }
   function reportBind(body, rerender) {
+    body.querySelectorAll('[data-tribute]').forEach((b) => b.onclick = () => { const m = tribute(b, b.dataset.tribute); if (deps.toast) deps.toast('TRIBUTE', m || 'Paid. They calm down a little (heat -30).', 3); if (rerender) rerender(); });
     const tb = body.querySelector('#tribute'); if (tb) tb.onclick = () => { const m = tribute(tb); if (deps.toast) deps.toast('TRIBUTE', m || 'The Lampas count the money and back off. For now.', 3); rerender(); };
     body.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { const [i, ch] = b.dataset.card.split(':'); const m = settle(+i, ch, b); if (m && deps.toast) deps.toast('DEAL', m, 3); rerender(); });
   }
