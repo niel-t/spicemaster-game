@@ -22,6 +22,21 @@ const DISTRICTS = [
 ];
 // spice palette (project memory): saffron, kurkuma, paprika, cardamom, cream, cumin brown
 const FACTION = { start: '#f3e6c8', lampas: '#c2412d', nosh: '#8fae4f', abd: '#4f86a3', fin: '#f2c14e' };
+// three looks to choose from (Tristan picks one): a 90s CD-ROM atlas, a dark radar map, the painted map with overlays
+const THEMES = {
+  atlas: { water: '#a9cbe8', wave: '#93bbdf', land: '#efe7cf', shadow: false, own: '#e8a33d', lost: ['#c2412d', '#f4b9a3'],
+    fill: { start: '#fbf8ee', lampas: '#f4bda6', nosh: '#d3e5ae', abd: '#bcd3e6', fin: '#fdf0b8' },
+    edge: { start: '#77706a', lampas: '#b23a22', nosh: '#5f8a2a', abd: '#2f6690', fin: '#b08a1a' },
+    street: ['#ffffff', 0.85, 1.1], cell: '#8b8170', bridge: ['#ffffff', '#b8ad96'], district: '#6b5a48' },
+  radar: { water: '#0f1922', wave: '#16242f', land: '#3f4144', shadow: true, own: '#ddd2bb', lost: ['#ff6a4d', '#5a2a22'],
+    fill: { start: '#55514c', lampas: '#6a3a32', nosh: '#46573a', abd: '#33505e', fin: '#6e6130' },
+    edge: { start: '#f3e6c8', lampas: '#ff6a4d', nosh: '#a6dc66', abd: '#5cc6ee', fin: '#ffd34d' },
+    street: ['#9a9da1', 0.5, 1.3], cell: '#1b1c1e', bridge: ['#9a9da1', '#55585c'], district: '#ffffff' },
+  painted: { water: '#17282d', wave: '#22383e', land: 'none', shadow: false, own: 'rgba(243,230,200,.42)', lost: ['#c2412d', 'rgba(0,0,0,.35)'],
+    fill: { start: 'rgba(0,0,0,.4)', lampas: 'rgba(0,0,0,.4)', nosh: 'rgba(0,0,0,.4)', abd: 'rgba(0,0,0,.4)', fin: 'rgba(0,0,0,.4)' },
+    edge: { start: '#f3e6c8', lampas: '#e8862c', nosh: '#8fd16a', abd: '#4fc0ee', fin: '#f2c14e' },
+    street: null, cell: 'rgba(20,12,6,.6)', bridge: null, district: '#ffffff', photo: true },
+};
 const FNAME = { start: 'Kipkruidenkwartier', lampas: 'Lampas', nosh: 'Noshgey Kariot', abd: 'Abdavissies', fin: 'De Gouden Molen' };
 const HOME = [240, 442]; // Eddy & Zn warehouse
 // the street around the warehouse (the hub): people you can visit
@@ -66,8 +81,9 @@ const ICON = {
 export function createKaasMap() {
   let view = { cx: W / 2, cy: H / 2, z: 1 };
   let layers = { photo: false, labels: true, icons: true, people: true };
-  try { const s = JSON.parse(localStorage.getItem('sme.kmap') || 'null'); if (s) { view = { ...view, ...s.view }; layers = { ...layers, ...s.layers }; } } catch (e) { /* private window */ }
-  const save = () => { try { localStorage.setItem('sme.kmap', JSON.stringify({ view, layers })); } catch (e) { /* ignore */ } };
+  let theme = 'atlas';
+  try { const s = JSON.parse(localStorage.getItem('sme.kmap') || 'null'); if (s) { view = { ...view, ...s.view }; layers = { ...layers, ...s.layers }; if (THEMES[s.theme]) theme = s.theme; } } catch (e) { /* private window */ }
+  const save = () => { try { localStorage.setItem('sme.kmap', JSON.stringify({ view, layers, theme })); } catch (e) { /* ignore */ } };
   let cur = null; // the data of the last html() call
   let sel = null;
 
@@ -85,29 +101,29 @@ export function createKaasMap() {
     for (const t of o.terr) if (t.region === 'fin') t.dot = [MOLEN.cx, MOLEN.cy];
     cur = o;
     const { terr, van } = o, cp = cells(terr);
-    const own = terr.filter((t) => statusOf(t.k) === 'own').length;
+    const own = terr.filter((t) => statusOf(t.k) === 'own').length, T = THEMES[theme], photo = T.photo || layers.photo;
     let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
 <defs>
-  <pattern id="kmWave" width="22" height="12" patternUnits="userSpaceOnUse"><path d="M0,8 q5.5,-4 11,0 t11,0" fill="none" stroke="#2a4248" stroke-width="1"/></pattern>
-  <pattern id="kmHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#7a2e1a"/><rect width="3" height="6" fill="#c2412d"/></pattern>
-  ${[['lampas', 13, 9, -8], ['start', 12, 9, 10], ['nosh', 22, 14, 4], ['abd', 20, 11, 0]].map(([r, w, h, a]) => `<pattern id="kmB-${r}" width="${w}" height="${h}" patternUnits="userSpaceOnUse" patternTransform="rotate(${a})"><path d="M0,0H${w}M0,0V${h}" stroke="#1e140c" stroke-opacity=".28" stroke-width=".7" fill="none"/></pattern>`).join('')}
+  <pattern id="kmWave" width="22" height="12" patternUnits="userSpaceOnUse"><path d="M0,8 q5.5,-4 11,0 t11,0" fill="none" stroke="${T.wave}" stroke-width="1"/></pattern>
+  <pattern id="kmHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${T.lost[1]}"/><rect width="3" height="6" fill="${T.lost[0]}"/></pattern>
+  ${[['lampas', 13, 9, -8], ['start', 12, 9, 10], ['nosh', 22, 14, 4], ['abd', 20, 11, 0]].map(([r, w, h, a]) => `<pattern id="kmB-${r}" width="${w}" height="${h}" patternUnits="userSpaceOnUse" patternTransform="rotate(${a})">${T.street ? `<path d="M0,0H${w}M0,0V${h}" stroke="${T.street[0]}" stroke-opacity="${T.street[1]}" stroke-width="${T.street[2]}" fill="none"/>` : ''}</pattern>`).join('')}
   <filter id="kmShadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity=".6"/></filter>
 </defs>
-<rect x="-2000" y="-2000" width="${W + 4000}" height="${H + 4000}" fill="#17282d"/><rect x="-2000" y="-2000" width="${W + 4000}" height="${H + 4000}" fill="url(#kmWave)"/>
-<image class="km-photo" href="./assets/kaasland_map.jpg" width="${W}" height="${H}" ${layers.photo ? '' : 'style="display:none"'}/>
-<g class="km-land" filter="url(#kmShadow)">${Object.values(REGIONS).map((p) => `<path d="${path(p)}" fill="#2b2118"/>`).join('')}<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}" fill="#2b2118"/></g>
-<g class="km-bridges">${BRIDGES.map(([a, b]) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#8a8172" stroke-width="5"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#4a443b" stroke-width="2.4" stroke-dasharray="3 3"/>`).join('')}</g>
+<rect x="-2000" y="-2000" width="${W + 4000}" height="${H + 4000}" fill="${T.water}"/><rect x="-2000" y="-2000" width="${W + 4000}" height="${H + 4000}" fill="url(#kmWave)"/>
+<image class="km-photo" href="./assets/kaasland_map.jpg" width="${W}" height="${H}" ${photo ? '' : 'style="display:none"'}/>
+<g class="km-land" ${T.shadow ? 'filter="url(#kmShadow)"' : ''}>${Object.values(REGIONS).map((p) => `<path d="${path(p)}" fill="${T.land}"/>`).join('')}<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}" fill="${T.land}"/></g>
+<g class="km-bridges">${T.bridge ? BRIDGES.map(([a, b]) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${T.bridge[1]}" stroke-width="5.5"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${T.bridge[0]}" stroke-width="3"/>`).join('') : ''}</g>
 <g class="km-cells">`;
     for (const t of terr) {
-      const st = statusOf(t.k), f = FACTION[t.region], fill = st === 'own' ? FACTION.start : st === 'lost' ? 'url(#kmHatch)' : f;
+      const st = statusOf(t.k), fill = st === 'own' ? T.own : st === 'lost' ? 'url(#kmHatch)' : st === 'open' && theme === 'painted' ? 'rgba(242,193,78,.12)' : T.fill[t.region];
       const shape = t.region === 'fin' ? `<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}"` : `<path d="${path(cp[t.n] || [])}"`;
-      s += `${shape} class="km-cell km-${st}${sel === t.n ? ' km-sel' : ''}" data-pin="${esc(t.n)}" data-k="${t.k}" fill="${fill}"><title>${esc(t.n)} · ${st === 'own' ? 'yours' : st === 'lost' ? 'retaken by the Lampas' : st === 'open' ? 'mission open' : FNAME[t.region]}</title>${t.region === 'fin' ? '</ellipse>' : '</path>'}`;
+      s += `${shape} class="km-cell km-${st}${sel === t.n ? ' km-sel' : ''}" data-pin="${esc(t.n)}" data-k="${t.k}" fill="${fill}" stroke="${T.cell}"><title>${esc(t.n)} · ${st === 'own' ? 'yours' : st === 'lost' ? 'retaken by the Lampas' : st === 'open' ? 'mission open' : FNAME[t.region]}</title>${t.region === 'fin' ? '</ellipse>' : '</path>'}`;
     }
-    s += `</g><g class="km-streets" pointer-events="none">${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="url(#kmB-${r})"/>`).join('')}</g><g class="km-borders">${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="none" stroke="${FACTION[r]}" stroke-width="2.4" stroke-linejoin="round"/>`).join('')}<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}" fill="none" stroke="${FACTION.fin}" stroke-width="2.4"/></g>`;
-    s += `<g class="km-districts">${DISTRICTS.map(([r, n, sub, x, y]) => `<text x="${x * S}" y="${y * S}" text-anchor="middle" fill="${r === 'start' ? '#f3e6c8' : FACTION[r]}"><tspan class="km-dn">${n}</tspan><tspan class="km-ds" x="${x * S}" dy="13">${sub}</tspan></text>`).join('')}</g>`;
+    s += `</g><g class="km-streets" pointer-events="none" ${T.street ? '' : 'style="display:none"'}>${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="url(#kmB-${r})"/>`).join('')}</g><g class="km-borders">${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="none" stroke="${T.edge[r]}" stroke-width="2.4" stroke-linejoin="round"/>`).join('')}<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}" fill="none" stroke="${T.edge.fin}" stroke-width="2.4"/></g>`;
+    s += `<g class="km-districts">${DISTRICTS.map(([r, n, sub, x, y]) => `<text x="${x * S}" y="${y * S}" text-anchor="middle" fill="${T.district}"><tspan class="km-dn">${n}</tspan><tspan class="km-ds" x="${x * S}" dy="13">${sub}</tspan></text>`).join('')}</g>`;
     s += `<path class="km-route" d="" fill="none"/>`;
     // labels and icons get their size from zoom() so they stay readable at every zoom level
-    s += `<g class="km-labels" ${layers.labels ? '' : 'style="display:none"'}>`;
+    s += `<g class="km-labels" ${layers.labels && theme !== 'painted' ? '' : 'style="display:none"'}>`;
     for (const t of terr) {
       const cx = (t.box[0] + t.box[2]) / 2, cy = (t.box[1] + t.box[3]) / 2;
       s += `<text class="km-lab km-l-${statusOf(t.k)}" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${cx}" data-y="${cy}" x="${cx}" y="${cy}" text-anchor="middle">${esc(SHOWN[t.n] || t.n)}${t.extra ? ` ${esc(t.extra)}` : ''}</text>`;
@@ -132,11 +148,11 @@ export function createKaasMap() {
     const opts = terr.slice().sort((a, b) => a.n.localeCompare(b.n));
     const grp = (r) => opts.filter((t) => t.region === r).map((t) => `<option value="${esc(t.n)}">${esc(t.n)}${statusOf(t.k) === 'own' ? ' ✓' : statusOf(t.k) === 'open' ? ' !' : ''}</option>`).join('');
     const chk = (id, label) => `<label class="km-chk"><input type="checkbox" data-layer="${id}" ${layers[id] ? 'checked' : ''}>${label}</label>`;
-    const sw = (c, label, cls = '') => `<div class="km-row"><span class="km-sw ${cls}" style="background:${c}"></span>${label}</div>`;
+    const sw = (c, label, cls = '', edge = '') => `<div class="km-row"><span class="km-sw ${cls}" style="background:${c}${edge ? `;border:2px solid ${edge}` : ''}"></span>${label}</div>`;
     const icn = (svg, label) => `<div class="km-row"><svg width="20" height="20" viewBox="-10 -10 20 20">${svg}</svg>${label}</div>`;
     const heat = o.heat || {};
     const bar = (id, name, c, done) => `<div class="km-heat"><span>${name}</span>${done ? '<b style="color:#2e7d2e">beaten</b>' : `<span class="km-bar"><i style="width:${Math.max(0, Math.min(100, Math.round(heat[id] || 0)))}%;background:${c}"></i></span><b>${Math.round(heat[id] || 0)}</b>`}</div>`;
-    return `<div class="kmap">
+    return `<div class="kmap km-t-${theme}">
   <div class="km-main">
     <div class="km-tools">
       <button class="b95 km-btn" data-z="in" title="Zoom in">+</button><button class="b95 km-btn" data-z="out" title="Zoom out">−</button><button class="b95" data-z="fit" title="Show all of Kaasland">Fit</button><button class="b95" data-z="home" title="Back to the warehouse">Home</button>
@@ -145,14 +161,18 @@ export function createKaasMap() {
       <span class="km-sep"></span>
       ${chk('labels', 'Names')}${chk('icons', 'Icons')}${chk('people', 'People')}${chk('photo', 'Luchtfoto')}
     </div>
-    <div class="km-view" tabindex="0">${s}</div>
+    <div class="km-view" tabindex="0">${s}
+      <svg class="km-compass" viewBox="-20 -20 40 40" aria-hidden="true"><circle r="17" class="km-cmp-ring"/><path d="M0,-15 L4,0 L0,3 L-4,0Z" class="km-cmp-n"/><path d="M0,15 L4,0 L0,-3 L-4,0Z" class="km-cmp-s"/><text y="-6" x="8" class="km-cmp-t">N</text></svg>
+      <div class="km-scale"><i></i><span>500 m</span></div>
+      <div class="km-nav" title="Overview: click to jump"><svg viewBox="0 0 ${W} ${H}">${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="${theme === 'painted' ? T.edge[r] : T.fill[r]}" stroke="${T.edge[r]}" stroke-width="6"/>`).join('')}<rect class="km-nav-r" x="0" y="0" width="${W}" height="${H}"/></svg></div>
+    </div>
     <div class="km-status"><span class="km-st km-zoom">100%</span><span class="km-st km-hover">${van ? 'Pick a destination for the Oofmobiel' : 'Drag to move · scroll to zoom'}</span><span class="km-st">${own}/${terr.length} territories yours</span></div>
   </div>
   <div class="km-side">
     <div class="well km-info" id="pininfo">${van ? 'Pick a destination for the Oofmobiel.' : 'Click a territory on the map.'}</div>
     <fieldset class="km-box"><legend>Legend</legend>
-      ${sw('#f3e6c8', 'Yours (Eddy &amp; Zn)')}${sw('transparent', 'Mission open', 'km-sw-open')}${sw('', 'Retaken by a faction', 'km-hatch')}
-      ${sw(FACTION.lampas, 'Lampas')}${sw(FACTION.nosh, 'Noshgey Kariot')}${sw(FACTION.abd, 'Abdavissies')}${sw(FACTION.fin, 'De Gouden Molen')}
+      ${sw(T.own, 'Yours (Eddy &amp; Zn)')}${sw('transparent', 'Mission open', 'km-sw-open')}${sw(`repeating-linear-gradient(45deg, ${T.lost[0]} 0 3px, ${T.lost[1]} 3px 6px)`, 'Retaken by a faction')}
+      ${sw(theme === 'painted' ? 'transparent' : T.fill.lampas, 'Lampas', '', T.edge.lampas)}${sw(theme === 'painted' ? 'transparent' : T.fill.nosh, 'Noshgey Kariot', '', T.edge.nosh)}${sw(theme === 'painted' ? 'transparent' : T.fill.abd, 'Abdavissies', '', T.edge.abd)}${sw(theme === 'painted' ? 'transparent' : T.fill.fin, 'De Gouden Molen', '', T.edge.fin)}${theme === 'painted' ? sw('rgba(0,0,0,.45)', 'Locked (darkened)') : ''}
       <hr>${icn(ICON.here(van), 'You are here')}${icn(ICON.joint('#f2c14e'), 'Shoarma joint')}${icn(ICON.hq('#c2412d'), 'Faction headquarters')}${icn(ICON.wh(), 'Your warehouse')}${icn(ICON.person('P'), 'People on your street')}
     </fieldset>
     <fieldset class="km-box"><legend>Faction heat</legend>
@@ -169,6 +189,8 @@ export function createKaasMap() {
     const ics = [...svg.querySelectorAll('.km-ic')], labs = [...svg.querySelectorAll('.km-lab')];
     const dTxt = svg.querySelector('.km-districts'), route = svg.querySelector('.km-route');
     const ZMAX = 4;
+    const sbar = root.querySelector('.km-scale i'), stxt = root.querySelector('.km-scale span'), nav = root.querySelector('.km-nav'), navR = root.querySelector('.km-nav-r');
+    nav.addEventListener('pointerdown', (e) => { e.stopPropagation(); const r = nav.getBoundingClientRect(); centerOn((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H); });
     let sc = 1;
     function apply() {
       const r = vp.getBoundingClientRect(), vw = r.width || 800, vh = r.height || 450;
@@ -192,6 +214,9 @@ export function createKaasMap() {
       svg.style.setProperty('--k', k);
       svg.classList.toggle('km-near', sc >= 2);
       zl.textContent = Math.round(view.z * 100) + '%';
+      { const mpp = 6.2 / sc, nice = [100, 200, 250, 500, 1000, 2000].find((m) => m / mpp >= 60) || 2000; sbar.style.width = (nice / mpp) + 'px'; stxt.textContent = nice >= 1000 ? String(nice / 1000).replace('.', ',') + ' km' : nice + ' m'; }
+      navR.setAttribute('x', view.cx - bw / 2); navR.setAttribute('y', view.cy - bh / 2); navR.setAttribute('width', bw); navR.setAttribute('height', bh);
+      nav.style.display = view.z > 1.05 ? '' : 'none';
       drawRoute();
     }
     function zoomAt(f, px, py) { // px,py in client coords, keep that map point under the cursor

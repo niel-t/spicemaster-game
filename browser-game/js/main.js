@@ -1274,7 +1274,7 @@ const PINS = [
   ['De Gouden Molen', 640, 204, 'fin'],
 ];
 let MAPL = null;
-fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; }).catch(() => {});
+fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; if (state.inPC && (pcMode === 'van' || pcTab === 'map')) renderPC(); }).catch(() => {});
 const kmap = createKaasMap();
 function mapHTML(van) {
   const kindOf = (n, r) => { const l = ACT_JOINTS.find((x) => x[0] === n); if (l) return owns(l[1]) ? (econ.isRetaken(l[1]) ? 'lost' : 'own') : l[3]() ? 'm3' : FINAL.includes(l) ? (state.act3 ? 'locked' : 'fin') : ABD.includes(l) ? (state.act2 ? 'locked' : 'a3') : NOSH.includes(l) ? (state.act1 ? 'locked' : 'a2') : state.district1 ? 'locked' : 'a1'; const d = D1.find((x) => x[0] === n); if (d && owns(d[1]) && econ.isRetaken(d[1])) return 'lost'; if (n === 'Kipkruidenkwartier' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
