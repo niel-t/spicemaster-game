@@ -63,6 +63,9 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 | `js/mission.js` | Mission engine (Neon Vice rules): builds the chosen level on a 1 m cell grid, Lampas AI, weapons, kit, kluis, HUD, results. Only one level is in the scene at a time |
 | `js/levels/*.js` | One file per mission: grid layout, rooms + floors, doors, glass, furniture, spawns (incl. boss), loot, entry point, van arrival, texts, bounds, mood lighting and unique props (`decorate`). `spekbuurt.js`, `kroketkade.js`, `uitjesbuurt.js` |
 | `js/levels/props.js` | Shared level dressing: rain, puddles, canal water, glow sprites and street furniture letters (lamps, bollards, bikes, planters, benches, bistro tables) |
+| `js/characters.js` | Neon Vice-style characters for three.js: skinned low-poly models with painted faces and clothes, idle/walk poses, the cast's looks (`LOOKS`). Keeps the old `makePerson()` contract (`userData.arms/legs/head/body`); pass `ps2: LOOKS.x` to `makePerson` to use it |
+| `js/ps2c.js` | The character builder ported from Neon Vice's `models.js`: skeleton, mesh lofting, face/body painters, `pose()`. Spice Master additions are marked |
+| `dev/characters.html` | Turntable test page for the character models (idle / walk / aim, front / top view); not deployed |
 | `js/input.js` | Controller (Gamepad API) and touch input, pause menu, device-aware hints; turns both into the same key events the keyboard sends |
 | `js/music.js` | Procedural upbeat WebAudio soundtrack |
 | `vendor/three.module.min.js` | three.js r170 (MIT, see `three-LICENSE.txt`) |

@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Character turntable</title>
+<style>html,body{margin:0;height:100%;background:#1b1820;color:#eee;font:14px system-ui}#ui{position:fixed;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap}button{background:#333;color:#eee;border:1px solid #555;padding:6px 10px;border-radius:4px;cursor:pointer}button.on{background:#7a4ec0}</style>
+</head><body><div id="ui"></div><canvas id="c"></canvas>
+<script type="module">
+import * as THREE from '../vendor/three.module.min.js';
+import { makePS2Person, ps2Animate, installCharacters, LOOKS } from '../js/characters.js';
+const q = new URLSearchParams(location.search);
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2633);
+installCharacters(scene);
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100);
+scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x3a2a20, 1.1));
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.2); sun.position.set(3, 6, 4); sun.castShadow = true; scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(4, 48), new THREE.MeshStandardMaterial({ color: 0x55505e, roughness: 0.9 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const names = (q.get('looks') || Object.keys(LOOKS).join(',')).split(',');
+const people = names.map((n, i) => { const p = makePS2Person(LOOKS[n], { scene }); p.position.x = (i - (names.length - 1) / 2) * 1.1; return p; });
+// a pistol where mission.js puts handGun (old arm space), to check props land in the fist
+for (const p of people) { const g = new THREE.Group(); g.position.set(0, -0.68, 0.05); const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.2), new THREE.MeshStandardMaterial({ color: 0x222222 })); m.position.z = 0.06; g.add(m); p.userData.arms[0].add(g); }
+let mode = q.get('mode') || 'idle', spin = q.get('spin') !== '0', angle = +(q.get('angle') || 0), view = q.get('view') || 'front';
+const ui = document.getElementById('ui');
+for (const [k, v] of [['mode', 'idle'], ['mode', 'walk'], ['mode', 'aim'], ['view', 'front'], ['view', 'top']]) { const b = document.createElement('button'); b.textContent = v; b.onclick = () => { if (k === 'mode') mode = v; else view = v; }; ui.appendChild(b); }
+const spinB = document.createElement('button'); spinB.textContent = 'spin'; spinB.onclick = () => (spin = !spin); ui.appendChild(spinB);
+const clock = new THREE.Clock();
+function tick() {
+  const dt = Math.min(0.05, clock.getDelta());
+  if (spin) angle += dt * 0.6;
+  for (const p of people) {
+    p.rotation.y = angle;
+    ps2Animate(p, mode === 'walk' ? 3 : 0, dt);
+    if (mode === 'aim') p.userData.arms[0].rotation.x += (-1.45 - p.userData.arms[0].rotation.x) * 0.3;
+  }
+  const w = Math.max(2.4, names.length * 1.2);
+  if (view === 'top') { camera.position.set(0, 9, 4.5); camera.lookAt(0, 0.6, 0); }
+  else { camera.position.set(0, 1.25, w * 1.9); camera.lookAt(0, 0.95, 0); }
+  renderer.render(scene, camera); requestAnimationFrame(tick);
+}
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+tick(); window.ready = true;
+</script></body></html>

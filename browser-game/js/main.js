@@ -4,6 +4,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
 import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable } from './input.js';
 import { initMission } from './mission.js';
+import { makePS2Person, ps2Animate, installCharacters, LOOKS } from './characters.js';
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
 
@@ -20,6 +21,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
+installCharacters(scene); // Neon Vice-style skinned characters pose themselves right before each render
 scene.background = new THREE.Color(0xf0b4b8);
 scene.fog = new THREE.Fog(0xf0b4b8, 70, 140);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.5, 300);
@@ -755,6 +757,7 @@ const HEADS = {
   nak: { skin: 0xe8b890, hair: '#e8792a', brow: '#5a3a1a', hairLine: 80, sideLine: 100, backLine: 110, mouth: 'laugh', iris: '#2a4a8a' },
 };
 function makePerson(o) {
+  if (o.ps2) return makePS2Person(o.ps2, { scale: o.scale, scene }); // Neon Vice-style model (js/characters.js)
   const s = o.scale || 1, belly = o.belly || 0;
   const root = new THREE.Group();
   const body = new THREE.Group(); body.scale.setScalar(s); root.add(body);
@@ -863,6 +866,7 @@ function makePerson(o) {
 }
 function animate(p, speed, dt) {
   const u = p.userData;
+  if (u.ps2) { ps2Animate(p, speed, dt); return; }
   if (speed > 0.05) {
     u.phase += dt * (5 + speed * 1.2);
     const sw = Math.sin(u.phase) * Math.min(0.7, 0.25 + speed * 0.12);
@@ -877,7 +881,7 @@ function animate(p, speed, dt) {
   }
 }
 
-const player = makePerson({ headKind: 'jr', shirt: 0x86acdf, front: 'jr', pants: 0xe9e4d8, belt: 0x5a3018, shoes: 0x6a3a1c, belly: 1, skin: 0xe4ab88 });
+const player = makePerson({ ps2: LOOKS.eddyJr, headKind: 'jr', shirt: 0x86acdf, front: 'jr', pants: 0xe9e4d8, belt: 0x5a3018, shoes: 0x6a3a1c, belly: 1, skin: 0xe4ab88 });
 const START_POS = new THREE.Vector3(-4.4, 0, -16.3); // a new game starts inside the warehouse (Eddy's place), next to the old PC
 player.position.copy(START_POS); player.rotation.y = 0.5;
 const dad = makePerson({ headKind: 'sr', shirt: 0x232a40, front: 'sr', pants: 0x4a4a52, shoes: 0x2a2018, belly: 0.6, skin: 0xdc9c82, scale: 0.96 });
