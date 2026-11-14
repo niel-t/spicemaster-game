@@ -45,8 +45,13 @@ import paprikapakhuis from './levels/paprikapakhuis.js';
 import kruidnagelkade from './levels/kruidnagelkade.js';
 import peperhaven from './levels/peperhaven.js';
 import kurkumaloods from './levels/kurkumaloods.js';
+import saffraanpier from './levels/saffraanpier.js';
+import nootmuskade from './levels/nootmuskade.js';
+import smokkelsloot from './levels/smokkelsloot.js';
+import containerchaos from './levels/containerchaos.js';
+import kardemomdok from './levels/kardemomdok.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -546,6 +551,16 @@ export function initMission(ctx) {
   //   zeegaal: STEVEN ZEEGAAL, a 90s action-star parody mini-boss. Unarmed and slow, never picks up guns, takes 4 hits,
   //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
   const FOE_TYPES = {
+    //   abdavis: DE ABDAVIS, boss of the Abdavissies (Act 3 finale, Kardemomdok). Navy greatcoat, captain's cap, grey beard; 5 hits.
+    abdavis: {
+      name: 'DE ABDAVIS', hp: 5, speed: 0.75, dodge: 0.2, mass: 3.0, score: 7000,
+      look: { head: { skin: 0xd8a888, hair: '#7a7a7a', brow: '#4a4a4a', hairLine: 44, mouth: 'smile', iris: '#2a3a4a', goatee: '#8a8a8a' }, front: '#1a2a3a', shirt: 0x1a2a3a, pants: 0x1a1a24, shoes: 0x1a1a1a, belt: 0xc8a040, belly: 1.4, scale: 1.12 },
+      alert: ['Eddy junior. Je vader stond precies daar.', 'Welkom aan boord. Je gaat niet meer van boord.', 'Ik heb zijn imperium gekocht voor een appel en een ei.', 'De Gouden Mix? Die krijg je nooit.'],
+      hurt: ['Je hebt zijn koppigheid.', 'Mijn jas!', 'Dat was dom, jongen.', 'Bemanning!'],
+      dodgeSay: ['Mis, matroos.', 'Te traag.'],
+      disarm: ['Niemand neemt mijn geweer.'],
+      down: ['DE ABDAVIS IS DOWN', 'The Abdavissies are finished.'],
+    },
     //   goeroe: GOEROE GRANOLA, leader of the Noshgey Kariot (Act 2 finale, Speltpolder). White linen, bald, beads; 5 hits.
     goeroe: {
       name: 'GOEROE GRANOLA', hp: 5, speed: 0.8, dodge: 0.3, mass: 2.2, score: 6000,

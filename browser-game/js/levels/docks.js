@@ -54,7 +54,7 @@ export function dock(cfg) {
     furn: {
       ...STREET_FURN,
       K: { h: 1.05, cover: true, draw: ({ box, lam, root, n, cx, cz }) => { box(n - 0.06, 1.0, 0.9, lam({ color: 0x3a2a1a }), cx, 0.5, cz, root); box(n, 0.06, 1.0, lam({ color: 0xd8ccb0 }), cx, 1.03, cz, root, false); } },
-      S: { color: 0x7a1a1a }, O: { color: 0x3a2010 }, R: { color: 0x3a3e44 }, C: { color: 0x6a5032 },
+      S: { color: 0x7a1a1a }, O: { color: 0x3a2010 }, R: { color: 0x3a3e44 }, C: { color: 0x6a5032 }, w: { color: 0x6a6a64 },
       ...(cfg.furn || {}),
     },
     rackGoods: cfg.rackGoods || [0x7a2e1a, 0xd8a83a, 0x5a4a3a],
