@@ -1087,7 +1087,8 @@ function renderPC() {
     if (state.loot) h += `<table class="list" style="margin-top:8px"><tr><th>Listing</th><th>Asking</th><th>Best bid</th><th></th></tr><tr><td>Lampas spice, crate (×${state.loot})<br><small>"slightly borrowed"</small></td><td>${fmt(LOOT_PRICE)}</td><td class="bid">${fmt(LOOT_PRICE)}<br><small>Kees from Spekbuurt</small></td><td><button class="b95" id="sellLoot">Sell all</button></td></tr></table>`;
     const unl = junkDefs.length - state.listed.size;
     if (unl > 0 && state.step !== 'talk') h += `<p>${unl} more item(s) in the warehouse aren't listed yet.</p>`;
-    body.innerHTML = h;
+    if (state.table) h += econ.machinesHTML(); // Dad's old trade: machines for the joints
+    body.innerHTML = h; econ.machinesBind(body, renderPC);
     body.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => sellItem(b.dataset.sell, b));
     const sl = $('sellLoot'); if (sl) sl.onclick = () => { addMoney(state.loot * LOOT_PRICE, sl); toast('SOLD', `${state.loot} crate(s) of Lampas spice. Kees doesn't ask questions.`, 2); state.loot = 0; writeSave(); renderPC(); };
   } else if (pcTab === 'hire') {

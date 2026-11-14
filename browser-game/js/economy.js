@@ -45,6 +45,16 @@ const HAGGLES = [
 ];
 const COMPLAINTS = ['This is Lampas quality! I can taste the flour!', 'My grill is crying. Better spice, or I go back to the Lampas.', 'Too much salt, not enough soul.']; // kg the Groothandel buys per day (clients pay better, from step 3)
 const MISTAKES = ['Boss, I sneezed in the komijn.', 'I used the paprika as a pillow. Sorry.', 'I mixed in the dark. It is very... surprise.', 'The bowl fell. The floor is now Kip Shoarma.', 'I tasted to check. Then I tasted more.'];
+// Shoarma machines: Eddy Sr.'s old trade. Buy used (Kaasplaats offers, rolled per day) or new (Van Kruidenburg),
+// sell them to client joints. An installed machine makes that joint sell more shoarma, so it orders more spice.
+export const MACHINES = [
+  { id: 'grill', name: 'D\u00f6ner grill', used: 550, new: 1100, sell: 1400, vol: 0.4 },
+  { id: 'oven', name: 'Pita oven', used: 380, new: 800, sell: 1000, vol: 0.2 },
+  { id: 'frituur', name: 'Frituur', used: 300, new: 650, sell: 850, vol: 0.15 },
+  { id: 'snijder', name: 'Vleessnijmachine', used: 200, new: 450, sell: 600, vol: 0.1 },
+];
+const MACHINE_CAP = 4; // machines the home warehouse can hold besides the spice
+const CONDITION = ['a bit rusty', 'smells of 1994', 'one knob missing', 'like new (allegedly)', 'from a closed-down Lampas joint', 'Dad sold this one in 1998'];
 export const STOCK_CAP = 200; // kg in the home warehouse
 const HISTORY = 8; // days of price history shown in the trend column
 const CRATE_KG = 10; // a Lampas spice crate unpacks into 10 kg of Lampas-grade spice
@@ -90,6 +100,7 @@ export function createEconomy(deps) {
     if (e.wholesaleLeft === undefined) e.wholesaleLeft = WHOLESALE_KG;
     e.trust = e.trust || {}; e.owed = Array.isArray(e.owed) ? e.owed : []; e.cards = Array.isArray(e.cards) ? e.cards : []; e.pause = e.pause || {};
     e.report = e.report || null; e.jobs = Array.isArray(e.jobs) ? e.jobs : null; e.event = e.event || null;
+    e.machines = e.machines || {}; e.installed = e.installed || {}; e.offers = Array.isArray(e.offers) ? e.offers : null;
     e.heat = e.heat || { lampas: 0 }; e.control = e.control || {}; e.retaken = e.retaken || {}; e.turfNews = Array.isArray(e.turfNews) ? e.turfNews : [];
     for (const g of INGREDIENTS) {
       if (!(e.mult[g.id] > 0)) e.mult[g.id] = 1;
@@ -251,7 +262,53 @@ export function createEconomy(deps) {
     h += `<div style="margin-top:6px"><button class="b95" id="tribute" ${h0 < 10 ? 'disabled' : ''}>Pay tribute to the Lampas (${fmt(Math.round(h0 * 40 / 10) * 10)}, heat -30)</button> <small>Winning a joint back also drops heat by 30.</small></div>`;
     return h;
   }
-  const orderKg = (c) => { const ev = ensure().event; return Math.round(c.kg * (ev && ev.vol && (!ev.only || ev.only === c.id) ? ev.vol : 1)); };
+  const machineVol = (cid) => 1 + (ensure().installed[cid] || []).reduce((a, id) => a + MACHINES.find((m) => m.id === id).vol, 0);
+  const orderKg = (c) => { const ev = ensure().event; return Math.round(c.kg * machineVol(c.id) * (ev && ev.vol && (!ev.only || ev.only === c.id) ? ev.vol : 1)); };
+  // ---- machine trade
+  const machineCount = () => Object.values(ensure().machines).reduce((a, b) => a + b, 0);
+  function rollOffers(r) { // two used machines on Kaasplaats per day
+    const e = ensure(), rp = (a) => a[Math.floor(r() * a.length)];
+    e.offers = [0, 1].map((n) => { const m = rp(MACHINES); return { n, id: m.id, price: Math.round(m.used * (0.8 + r() * 0.4) / 10) * 10, cond: rp(CONDITION), sold: false }; });
+  }
+  function buyMachine(id, used, el, offerN) {
+    const e = ensure(), m = MACHINES.find((x) => x.id === id), off = used ? (e.offers || [])[offerN] : null;
+    if (used && (!off || off.sold)) return 'Already sold.';
+    if (machineCount() >= MACHINE_CAP) return `The warehouse holds ${MACHINE_CAP} machines. Sell one first.`;
+    const cost = used ? off.price : m.new;
+    if (state.money < cost) return `Not enough Wilders (${fmt(cost)}).`;
+    deps.addMoney(-cost, el); e.machines[id] = (e.machines[id] || 0) + 1; if (off) off.sold = true;
+    if (deps.save) deps.save(); return null;
+  }
+  function installMachine(id, cid, el) { // sell a machine to a client joint: they pay, order more, and like you more
+    const e = ensure(), m = MACHINES.find((x) => x.id === id);
+    if (!(e.machines[id] > 0)) return 'No such machine in the warehouse.';
+    const inst = e.installed[cid] || []; if (inst.includes(id)) return 'They already have one.';
+    e.machines[id]--; if (!e.machines[id]) delete e.machines[id];
+    e.installed[cid] = [...inst, id]; deps.addMoney(m.sell, el); addTrust(cid, 10); addControl(cid, 10);
+    if (deps.save) deps.save(); return null;
+  }
+  function machinesHTML() {
+    const e = ensure(); if (!e.offers) rollOffers(rng32(hashStr(`offers#${e.day}`)));
+    const cl = activeClients();
+    let h = `<div class="well" style="margin-top:10px"><b>Machinehandel Eddy & Zn</b> · Dad's old trade · Warehouse: <b>${machineCount()} / ${MACHINE_CAP}</b> machines<br><small>Buy grills, ovens and fryers, then sell them to your joints: they pay well, order more spice every day and trust you more. Machine-delivery jobs on the Klusbord pay extra.</small></div>`;
+    h += '<table class="list" style="margin-top:6px"><tr><th>Machine</th><th>Used (today)</th><th>New</th><th>Clients pay</th><th>Orders</th><th>In stock</th></tr>';
+    for (const m of MACHINES) {
+      const offs = (e.offers || []).filter((o) => o.id === m.id && !o.sold);
+      h += `<tr><td><b>${m.name}</b></td><td>${offs.map((o) => `${fmt(o.price)} <small>(${o.cond})</small> <button class="b95" data-mbuy="${m.id}:used:${o.n}">Buy</button>`).join('<br>') || '-'}</td><td>${fmt(m.new)} <button class="b95" data-mbuy="${m.id}:new:0">Buy</button></td><td>${fmt(m.sell)}</td><td>+${Math.round(m.vol * 100)}%</td><td>${e.machines[m.id] || 0}</td></tr>`;
+    }
+    h += '</table>';
+    const have = MACHINES.filter((m) => e.machines[m.id] > 0);
+    if (have.length && cl.length) {
+      h += '<table class="list" style="margin-top:6px"><tr><th>Sell to a client</th><th>Has</th><th></th></tr>';
+      for (const c of cl) h += `<tr><td>${c.name}</td><td><small>${(e.installed[c.id] || []).map((id) => MACHINES.find((m) => m.id === id).name).join(', ') || 'nothing from you yet'}</small></td><td>${have.filter((m) => !(e.installed[c.id] || []).includes(m.id)).map((m) => `<button class="b95" data-minst="${m.id}:${c.id}">${m.name} · ${fmt(m.sell)}</button>`).join(' ') || '-'}</td></tr>`;
+      h += '</table>';
+    }
+    return h;
+  }
+  function machinesBind(body, rerender) {
+    body.querySelectorAll('[data-mbuy]').forEach((b) => b.onclick = () => { const [id, kind, n] = b.dataset.mbuy.split(':'); const m = buyMachine(id, kind === 'used', b, +n); if (m && deps.toast) deps.toast('MACHINEHANDEL', m, 2.5); rerender(); });
+    body.querySelectorAll('[data-minst]').forEach((b) => b.onclick = () => { const [id, cid] = b.dataset.minst.split(':'); const m = installMachine(id, cid, b); if (deps.toast) deps.toast(m ? 'MACHINEHANDEL' : 'SOLD', m || `${CLIENTS.find((c) => c.id === cid).name} bought it. They'll order more spice from now on.`, 3); rerender(); });
+  }
 
   // ---- job board (Klusbord) and daily events: rolled from the market day's seed
   function rollDay() {
@@ -266,9 +323,12 @@ export function createEconomy(deps) {
     cand.push({ kind: 'spoed', blend: b.id, kg, reward: Math.round(b.value * 1.6 * kg), title: `Spoed-order: ${kg} kg ${b.name}`, desc: `${rp(['Grillroom Zuid', 'Restaurant De Lepel', 'Kapsalon King', 'Snackbar Bij Henk'])} is out of spice and pays 60% over the odds, today only.` });
     const g = rp(INGREDIENTS.filter((x) => !x.supply)), dkg = 30;
     cand.push({ kind: 'deal', ing: g.id, kg: dkg, off: 0.4, title: `Supplier deal: ${dkg} kg ${g.name}`, desc: `A truck driver "found" ${dkg} kg of Standaard ${g.name.toLowerCase()}. 40% off, today only.`, reward: 0 });
+    { const m = rp(MACHINES); cand.push({ kind: 'machine', machine: m.id, reward: Math.round(m.sell * 1.25 / 10) * 10, title: `Deliver a ${m.name} to Frietwijk`, desc: `${rp(['Kapsalon King', 'Grillroom Ali Baba', 'Shoarma Paleis'])} in Oud-Vettenburg needs a ${m.name.toLowerCase()} and pays 25% over the odds. Have one in the warehouse, then drive to Oud-Vettenburg. The Lampas won't like it (heat +10).`, needs: 'district1' }); }
     if (state.district1) cand.push({ kind: 'scout', reward: 400, title: 'Scout Oud-Vettenburg', desc: 'Drive the Oofmobiel to Oud-Vettenburg and back. The Lampas will try to ram you.' });
-    for (let i = cand.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [cand[i], cand[j]] = [cand[j], cand[i]]; }
-    e.jobs = cand.slice(0, 3).map((j, i) => ({ ...j, n: i, done: false }));
+    rollOffers(r);
+    const ok = cand.filter((j) => j.needs !== 'district1' || state.district1);
+    for (let i = ok.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ok[i], ok[j]] = [ok[j], ok[i]]; }
+    e.jobs = ok.slice(0, 3).map((j, i) => ({ ...j, n: i, done: false }));
     e.event = null;
     if (r() < 0.35) { const ev = rp(EVENTS), bl = rp(BLENDS.filter((x) => x.mix)); e.event = { id: ev.id, text: ev.text(bl), vol: ev.vol, pay: ev.pay, only: ev.only, blend: ev.pay ? bl.id : null }; }
   }
@@ -283,7 +343,14 @@ export function createEconomy(deps) {
     if (raid.remix) e.heat.lampas = clamp(e.heat.lampas + 5, 0, 100);
     if (e.retaken[raid.id]) { delete e.retaken[raid.id]; e.control[raid.id] = 60; e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.toast) deps.toast('TAKEN BACK', `${CLIENTS.find((c) => c.id === raid.id).name} is yours again. Lampas heat -30.`, 4); }
     for (const j of e.jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }
-  function driveDone(arrived) { for (const j of ensure().jobs || []) if (!j.done && j.kind === 'scout' && arrived) finishJob(j); }
+  function driveDone(arrived) {
+    const e = ensure();
+    for (const j of e.jobs || []) {
+      if (j.done || !arrived) continue;
+      if (j.kind === 'scout') finishJob(j);
+      if (j.kind === 'machine' && e.machines[j.machine] > 0) { e.machines[j.machine]--; if (!e.machines[j.machine]) delete e.machines[j.machine]; e.heat.lampas = clamp(e.heat.lampas + 10, 0, 100); finishJob(j); }
+    }
+  }
   const jobFor = (level) => (ensure().jobs || []).find((j) => !j.done && j.level === level);
   function doJob(n, el) {
     const e = ensure(), j = (e.jobs || [])[n]; if (!j || j.done) return null;
@@ -307,7 +374,7 @@ export function createEconomy(deps) {
     h += '<table class="list"><tr><th>Job</th><th>Pays</th><th></th></tr>';
     for (const j of e.jobs) {
       const cost = j.kind === 'deal' ? Math.round(price(j.ing, 'std') * (1 - j.off)) * j.kg : 0;
-      const act = j.done ? '<b style="color:#070">DONE</b>' : j.kind === 'spoed' ? `<button class="b95" data-job="${j.n}">Deliver (${Math.floor(blendOf(j.blend).kg)}/${j.kg} kg)</button>` : j.kind === 'deal' ? `<button class="b95" data-job="${j.n}">Buy for ${fmt(cost)}</button>` : j.kind === 'scout' ? '<i>Van map: Drive to Oud-Vettenburg</i>' : '<i>Van map: remix raid</i>';
+      const act = j.done ? '<b style="color:#070">DONE</b>' : j.kind === 'spoed' ? `<button class="b95" data-job="${j.n}">Deliver (${Math.floor(blendOf(j.blend).kg)}/${j.kg} kg)</button>` : j.kind === 'deal' ? `<button class="b95" data-job="${j.n}">Buy for ${fmt(cost)}</button>` : j.kind === 'scout' ? '<i>Van map: Drive to Oud-Vettenburg</i>' : j.kind === 'machine' ? `<i>${(e.machines[j.machine] || 0) > 0 ? 'In stock. ' : 'Buy one on Kaasplaats, then '}drive to Oud-Vettenburg</i>` : '<i>Van map: remix raid</i>';
       h += `<tr><td><b>${j.title}</b><br><small>${j.desc}</small></td><td>${j.reward ? fmt(j.reward) : `save ${fmt(cost / (1 - j.off) * j.off)}`}</td><td>${act}</td></tr>`;
     }
     h += '</table>';
@@ -325,6 +392,10 @@ export function createEconomy(deps) {
     else if (choice === 'insist') {
       if (Math.random() < 0.55) { deps.addMoney(c.amount, el); addTrust(c.id, -3); msg = `${c.who} grumbles and pays the full ${fmt(c.amount)}.`; }
       else { addTrust(c.id, -15); msg = `${c.who} brings out his cousins. No money today.`; }
+    } else if (choice === 'repo' && (e.installed[c.id] || []).length) {
+      const id = e.installed[c.id].pop(), m = MACHINES.find((x) => x.id === id);
+      e.machines[id] = (e.machines[id] || 0) + 1; addTrust(c.id, -30); addControl(c.id, -5);
+      msg = `You unbolt their ${m.name.toLowerCase()} and throw it in the Oofmobiel. ${c.who} shouts in three languages. Sell it to someone who pays.`;
     } else { addTrust(c.id, -20); e.pause[c.id] = 2; msg = `You cut off ${c.name}. They'll buy Lampas junk for two days.`; }
     if (deps.save) deps.save();
     return msg;
@@ -335,7 +406,7 @@ export function createEconomy(deps) {
     for (let i = 0; i < e.cards.length; i++) {
       const c = e.cards[i];
       h += `<div class="well" style="margin-bottom:8px;background:#fff0f0"><b>${c.who}, ${c.name}:</b><br><i>"${c.text}"</i><br>They owe you <b>${fmt(c.amount)}</b>.<br>
-        <button class="b95" data-card="${i}:discount">Give 20% off</button> <button class="b95" data-card="${i}:insist">Insist on full pay</button> <button class="b95" data-card="${i}:cut">Cut off their supply</button></div>`;
+        <button class="b95" data-card="${i}:discount">Give 20% off</button>${(e.installed[c.id] || []).length ? ` <button class="b95" data-card="${i}:repo">Repo their ${MACHINES.find((m) => m.id === e.installed[c.id].at(-1)).name.toLowerCase()}</button>` : ''} <button class="b95" data-card="${i}:insist">Insist on full pay</button> <button class="b95" data-card="${i}:cut">Cut off their supply</button></div>`;
     }
     const r = e.report;
     h += `<div class="well" style="margin-bottom:8px">${e.turfNews.length ? `<b style="color:#a00">THE LAMPAS STRUCK BACK:</b> ${e.turfNews.join(' ')}<br>` : ''}${turfHTML(false)}</div>`;
@@ -346,7 +417,7 @@ export function createEconomy(deps) {
     h += '<table class="list"><tr><th>Client</th><th>Wants daily</th><th>Min. quality</th><th>Pays now</th><th>Trust</th></tr>';
     for (const c of cl) {
       const b = BLENDS.find((x) => x.id === c.blend), t = trustOf(c.id);
-      h += `<tr><td><b>${c.name}</b><br><small>${c.who} · ${{ loyal: 'loyal, never complains', haggler: 'haggles', late: 'pays late', picky: 'picky about quality' }[c.kind]}</small></td><td>${c.kg} kg ${b.name}</td><td>${stars(c.minQ)}</td><td>${fmt(clientPrice(c.blend, Math.max(1, blendOf(c.blend).q || 3), c.id))}/kg</td><td>${e.pause[c.id] ? '<span style="color:#a00">with the Lampas</span>' : `<span style="color:${t < 35 ? '#a00' : t > 70 ? '#070' : '#000'}">${t}</span>`}</td></tr>`;
+      h += `<tr><td><b>${c.name}</b><br><small>${c.who} · ${{ loyal: 'loyal, never complains', haggler: 'haggles', late: 'pays late', picky: 'picky about quality' }[c.kind]}</small></td><td>${orderKg(c)} kg ${b.name}${machineVol(c.id) > 1 ? ` <small>(machines +${Math.round((machineVol(c.id) - 1) * 100)}%)</small>` : ''}</td><td>${stars(c.minQ)}</td><td>${fmt(clientPrice(c.blend, Math.max(1, blendOf(c.blend).q || 3), c.id))}/kg</td><td>${e.pause[c.id] ? '<span style="color:#a00">with the Lampas</span>' : `<span style="color:${t < 35 ? '#a00' : t > 70 ? '#070' : '#000'}">${t}</span>`}</td></tr>`;
     }
     h += '</table>';
     if (e.owed.length) h += `<p>Owed to you: ${e.owed.map((o) => `${o.name} ${fmt(o.amount)} (in ${o.days} day${o.days > 1 ? 's' : ''})`).join(', ')}</p>`;
@@ -469,5 +540,5 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }
