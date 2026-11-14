@@ -1837,8 +1837,52 @@ for (let i = 0; i < 16; i++) {
   walkers.push(p);
 }
 const LINES_POLICE = ['Alles in orde hier, meneer?', 'No loitering near the canal.', 'We are watching the Lampas boys. And you.', 'Nice van. Is it registered?'];
-const LINES_NPC = ['Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say the old Eddy had a secret recipe.'];
-walkers.forEach((w, i) => addInteract({ obj: w, pos: () => w.position, r: 1.4, label: () => 'Say hi', act: () => { w.userData.walk.wait = 2.5; w.rotation.y = Math.atan2(player.position.x - w.position.x, player.position.z - w.position.z); const P_ = w.userData.walk.police, L_ = P_ ? LINES_POLICE : LINES_NPC; toast('"' + L_[(i + Math.floor(performance.now() / 5000)) % L_.length] + '"', P_ ? 'Politie' : 'Passer-by', 2.4); } }));
+// Everyday Kaasland grumbling: the weather, Den Haag, petrol, groceries, rent. Generic parody, nobody real named.
+// GRIPES are the longer "Say hi" answers; MUTTERS are short enough for a speech bubble when Eddy walks past.
+const GRIPES = [
+  'Weer regen. Gisteren regen. Morgen? Drie keer raden.',
+  'Buienradar zei droog. Buienradar liegt. Altijd.',
+  'Vier seizoenen op één dag, en ze zijn allemaal herfst.',
+  'Twintig jaar fiets ik hier. Tegenwind. Beide kanten op!',
+  'We hadden ook een zomer, hoor. Op een dinsdag. Moest ik werken.',
+  'Den Haag, hè. Vergaderen tot ze een ons wegen en dan een commissie oprichten.',
+  'Ze gaan het "onderzoeken". Dat zeggen ze al sinds mijn communie.',
+  'Kabinet gevallen? Alweer? M’n vorige stempas ligt nog op het kastje.',
+  'Die lui in Den Haag hebben nog nooit een fietsenstalling van binnen gezien.',
+  'Verkiezingen weer. Andere poppetjes, zelfde toneelstuk.',
+  'Twee euro dertig voor een liter benzine! Ik ga lopen. O wacht, dat doe ik al.',
+  'Ik tank tegenwoordig per tientje. Dan voelt het minder erg.',
+  'Ik zag een benzineprijs en moest even gaan zitten. Op de stoeprand.',
+  'Een komkommer van een euro! Een KOMKOMMER, meneer.',
+  'Vroeger deed ik boodschappen voor een tientje. Nu krijg je daarvoor de tas.',
+  'Kaas is onbetaalbaar geworden. In Kaasland! Het moet niet gekker worden.',
+  'Bonuskaart, app, zegeltjes... en nóg zes euro voor een pak koffie.',
+  'Krimpflatie, noemen ze dat. Zelfde prijs, halve zak chips.',
+  'Huur omhoog, energie omhoog, en mijn salaris? Dat is "in overleg".',
+  'Energierekening binnen. Ik douche voortaan bij m’n schoonmoeder.',
+  'Eigen risico al op in januari. Ik heb één keer geniesd.',
+  'Elf jaar op de wachtlijst voor een huurhuis. M’n kat staat er ook op.',
+  'Blauwe envelop op de mat. M’n hart deed even niks.',
+  'Trein weer vertraagd. Seinstoring. Het is áltijd een seinstoring.',
+  'Hele straat open voor de glasvezel. Derde keer dit jaar. Zelfde stoep.',
+  'Parkeren kost hier meer per uur dan m’n auto waard is.',
+  'Fiets gejat. Weer. Morgen koop ik ’m vast terug op Marktplaats.',
+  'Vier vijftig voor een kopje koffie! Zit er een lening bij?',
+  'De gemeente heeft een rotonde gebouwd. Waar eerst een rotonde stond.',
+  'Mag niet klagen, hoor. Doe ik toch.',
+];
+const MUTTERS = [
+  'Alweer regen...', 'Wat een rotweer.', 'Tegenwind. Altijd tegenwind.', 'Zomer? Was dat dinsdag?',
+  'Die lui in Den Haag, hè...', 'Ze gaan het "onderzoeken".', 'Benzine? Vloeibaar goud!',
+  'Boodschappen? Onbetaalbaar!', 'Een euro voor een komkommer!', 'Kaas te duur. In Kaasland!',
+  'Halve zak chips, hele prijs.', 'Huur omhoog. Alweer.', 'Weer een seinstoring...',
+  'Eigen risico. Pff.', 'Blauwe envelop... zucht.', 'Wéér de straat open.',
+  'Vroeger was alles beter.', 'Mag niet klagen. Doe ik toch.',
+];
+let lastGripe = -1, mutterT = 4;
+function gripe(pool) { let k; do k = Math.floor(Math.random() * pool.length); while (pool.length > 1 && k === lastGripe); lastGripe = k; return pool[k]; }
+const LINES_NPC = [...GRIPES, 'Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say the old Eddy had a secret recipe.'];
+walkers.forEach((w, i) => addInteract({ obj: w, pos: () => w.position, r: 1.4, label: () => 'Say hi', act: () => { w.userData.walk.wait = 2.5; w.rotation.y = Math.atan2(player.position.x - w.position.x, player.position.z - w.position.z); const P_ = w.userData.walk.police, L_ = P_ ? LINES_POLICE : LINES_NPC; toast('"' + gripe(L_) + '"', P_ ? 'Politie' : 'Passer-by', 3.2); } }));
 // ================================================================== SHOARMA SCHMATZEL
 // A small choice menu in the dialogue box (used by Nabil)
 let choiceOpen = false, choiceCb = null;
@@ -2350,11 +2394,15 @@ function updateStreet(dt) {
     u.riders.forEach((r, k) => { const ru = r.userData, ph = u.phase + k * 0.7; const base = ru.squat ? -1.55 : -0.9, amp = ru.squat ? 0.25 : 0.5; ru.legs[0].rotation.x = base + Math.sin(ph * (ru.squat ? 2 : 1)) * amp; ru.legs[1].rotation.x = base - Math.sin(ph * (ru.squat ? 2 : 1)) * amp; });
     const bu = u.bubble.userData; if (bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; }
   }
+  mutterT -= dt; const now = performance.now() / 1000;
   for (const w of walkers) {
     const u = w.userData.walk, cp = u.comp;
     let moving = false;
     const bu = w.userData.bubble && w.userData.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) w.userData.bubble.visible = false; }
     if (w.userData.down > 0) continue;
+    if (!u.police && !u.flee && mutterT <= 0 && !(w.userData.mutterCd > now) && w.position.distanceTo(P) < 3.4 && Math.random() < dt * 1.5) { // grumble as Eddy walks past
+      personBubble(w, gripe(MUTTERS), '#7a8a9a'); mutterT = 6 + Math.random() * 6; w.userData.mutterCd = now + 30;
+    }
     if (u.flee) { // running off the map; comes back later as an ordinary passer-by
       w.position.x += u.dir * 4.6 * dt; w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2; animate(w, 4.6, dt);
       if (Math.abs(w.position.x) > 48) { u.flee = false; w.position.x = -Math.sign(w.position.x) * 44; u.wait = 20 + Math.random() * 30; }
