@@ -728,6 +728,7 @@ export function initMission(ctx) {
     sfx(byPlayer ? sndOf(id) : W2.snd, byPlayer ? 1 : 0.7);
     if (byPlayer) { P.bloom = Math.min(W2.bloomMax || 0.18, P.bloom + W2.bloom); shake(W2.kick * 1.2); FX.kick.set(-sa * W2.kick * 0.6, 0, -ca * W2.kick * 0.6); }
     alertNoise(from, byPlayer ? loudOf(id) : W2.loud);
+    if (byPlayer && HEIST) { const silent = q || id === 'silenced'; if (!silent) heistAlarm(30, 'BANG! THEY HEARD THAT'); else HS.quietShots = (HS.quietShots || 0) + 1; } // a Nachtklus wants a silencer
   }
   function bulletHitsCell(b, px, pz, nx, nz) {
     const ch = cellAt(nx, nz), key = Math.floor(nx - OX) + ',' + Math.floor(nz - Z0);
@@ -956,7 +957,8 @@ export function initMission(ctx) {
   function heistSetup() {
     for (const c of HS.cones) root.remove(c); HS.cones.length = 0;
     if (HS.safe) root.remove(HS.safe.g); if (HS.special) root.remove(HS.special.g);
-    Object.assign(HS, { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, pick: 0 });
+    Object.assign(HS, { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, pick: 0, quietShots: 0 });
+    nightVision(false);
     if (!HEIST) return;
     if (HEIST.cased) for (const e of enemies) {
       const geo = new THREE.CircleGeometry(EASY.vision, 20, -Math.PI / 2 - EASY.cone, EASY.cone * 2); geo.rotateX(-Math.PI / 2);
@@ -980,6 +982,16 @@ export function initMission(ctx) {
       root.add(g); HS.safe = { g, open: false };
     }
   }
+  const nvEl = document.createElement('div');
+  nvEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:4;display:none;background:radial-gradient(ellipse at center, rgba(60,255,90,.10) 35%, rgba(0,30,0,.75) 100%);mix-blend-mode:normal';
+  document.body.appendChild(nvEl);
+  let nvOn = false, nvSave = null;
+  function nightVision(on) {
+    if (on === nvOn) return; nvOn = on; nvEl.style.display = on ? 'block' : 'none';
+    if (on) { nvSave = { hemi: hemi.intensity, sun: sun.intensity, hc: hemi.color.clone(), gc: hemi.groundColor.clone() }; hemi.intensity = Math.max(1.4, hemi.intensity * 4); sun.intensity = Math.max(0.6, sun.intensity * 2); hemi.color.set(0x9aff9a); hemi.groundColor.set(0x1a4a1a); beep(1800, 0.05, 'sine', 0.03); beep(2400, 0.08, 'sine', 0.02); }
+    else if (nvSave) { hemi.intensity = nvSave.hemi; sun.intensity = nvSave.sun; hemi.color.copy(nvSave.hc); hemi.groundColor.copy(nvSave.gc); nvSave = null; }
+  }
+  addEventListener('keydown', (ev) => { if (ev.code === 'KeyN' && M.active && HEIST && HEIST.nv && !state.inPC && !state.inDialogue) { nightVision(!nvOn); popup(player.position, nvOn ? 'NIGHT VISION ON' : 'NIGHT VISION OFF', '#6eff7a'); } });
   function heistAlarm(n, why) {
     if (!HEIST || HS.loud) return;
     HS.alarm = Math.min(100, HS.alarm + n);
@@ -1032,7 +1044,7 @@ export function initMission(ctx) {
   function heistVan() { // at the Oofmobiel: stash the bag, or drive home with the haul
     const inBag = HS.bag.filter((x) => x !== '-');
     if (inBag.length) { HS.banked.push(...inBag); HS.bag.length = 0; toast('IN THE VAN', `Stashed. ${HS.banked.length} item(s) in the Oofmobiel. Go back for more, or drive home.`, 2.5); sfx('pick'); heistHud(); return; }
-    const res = { crates: HS.banked.filter((x) => x === 'crate').length, grill: HS.banked.includes('grill'), cash: HS.cash, loud: HS.loud, alarm: Math.round(HS.alarm), kills: R.kills, level: LV.id, title: HEIST.title };
+    const res = { crates: HS.banked.filter((x) => x === 'crate').length, grill: HS.banked.includes('grill'), cash: HS.cash, loud: HS.loud, alarm: Math.round(HS.alarm), kills: R.kills, ghost: !HS.loud && R.kills === 0 && HS.alarm < 35, level: LV.id, title: HEIST.title };
     const done = HEIST.onEnd; exit(); if (done) setTimeout(() => done(res), 600);
   }
 
@@ -1108,7 +1120,7 @@ export function initMission(ctx) {
       setArea(LV.text.area);
       $('objective').innerHTML = DEF ? '<b>SPICE WAR</b>: hold the warehouse against three waves. Keep them away from the Naknikim under the mixing tables.' : HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
-      startArrive(() => { if (DEF) banner('SPICE WAR', `The ${DEF.faction || 'Lampas'} are coming for the warehouse. Three waves. Keep them off the Naknikim.`, 4.5); else if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them. E grabs, the van takes the bag.' : 'No floor plan. Stay in the dark, walk, don\'t run. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
+      startArrive(() => { if (DEF) banner('SPICE WAR', `The ${DEF.faction || 'Lampas'} are coming for the warehouse. Three waves. Keep them off the Naknikim.`, 4.5); else if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, (HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them.' : 'No floor plan. Stay in the dark, walk, do not run.') + (HEIST.nv ? ' N: night vision.' : '') + ' Only silenced shots stay quiet. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
   function exit() {

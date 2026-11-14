@@ -5,9 +5,9 @@
 
 const NAMES = ['Knakkie', 'Kees Komijn', 'Bolle Bert', 'Sjaakie', 'Fliep', 'Toos', 'Dikkie', 'Henkie', 'Piet Paprika', 'Mientje', 'Joep', 'Kleine Karel'];
 export const ERRANDS = [
-  { id: 'part', name: 'Scrounge Kaasplaats for a part', text: 'Comes back with a used machine part for the Werkplaats (or something weird).' },
-  { id: 'sell', name: 'Sell spice door to door', text: 'Comes back with Wilders. Skill and mood decide how many.' },
-  { id: 'scout', name: "Scout tonight's Nachtklus", text: 'Hangs around a rival joint all day: a free floor plan on the Plannenbord.' },
+  { id: 'part', need: 'werk', name: 'Scrounge Kaasplaats for a part', text: 'Comes back with a used machine part for the Werkplaats (or something weird).' },
+  { id: 'sell', need: 'rank1', name: 'Sell spice door to door', text: 'Comes back with Wilders. Skill and mood decide how many.' },
+  { id: 'scout', need: 'heist', name: "Scout tonight's Nachtklus", text: 'Hangs around a rival joint all day: a free floor plan on the Plannenbord.' },
 ];
 const STORIES = {
   scout: ['"I counted the guards. Then I counted again. Same number!"', '"Nobody looks at a Naknik. It is our superpower."', '"I drew the map. It is also a horse."'],
@@ -81,5 +81,6 @@ export function createCrew(deps) {
     const m = ensure()[i]; if (!m) return null;
     return { ...m, stars: stars(m.skill), moodWord: moodWord(m.mood) };
   }
-  return { ensure, away, napping, send, dayOff, info, dayCheck, ERRANDS };
+  const errands = () => ERRANDS.filter((e) => !e.need || (deps.can ? deps.can(e.need) : true));
+  return { ensure, away, napping, send, dayOff, info, dayCheck, ERRANDS, errands };
 }

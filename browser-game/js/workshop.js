@@ -15,24 +15,24 @@ export const SLOTS = [
 export const PARTS = [
   { id: 'f_klein', slot: 'frame', name: 'Counter frame', price: 120, power: 2, rel: 0.9, style: 0, note: 'Small, fits any snackbar counter' },
   { id: 'f_std', slot: 'frame', name: 'Standard frame', price: 220, power: 3, rel: 0.93, style: 1, note: 'What Dad sold for thirty years' },
-  { id: 'f_dubbel', slot: 'frame', name: 'Double-spit frame, stainless', price: 480, power: 5, rel: 0.95, style: 2, capX: 1.15, note: 'Room and power for everything, +15% capacity' },
+  { id: 'f_dubbel', rank: 2, slot: 'frame', name: 'Double-spit frame, stainless', price: 480, power: 5, rel: 0.95, style: 2, capX: 1.15, note: 'Room and power for everything, +15% capacity' },
   { id: 'b_gas', slot: 'burner', name: 'Gas burner, 3 rings', price: 150, heat: 3, pw: 0, kind: 'gas', rel: 0.9, note: 'Needs no power' },
   { id: 'b_elek', slot: 'burner', name: 'Electric element', price: 180, heat: 3, pw: 2, kind: 'electric', rel: 0.95, note: 'Clean, steady, uses 2 power' },
-  { id: 'b_infra', slot: 'burner', name: 'Infrared panel', price: 420, heat: 5, pw: 3, kind: 'infrared', rel: 0.93, note: 'Fierce heat, only on the double-spit frame' },
+  { id: 'b_infra', rank: 2, slot: 'burner', name: 'Infrared panel', price: 420, heat: 5, pw: 3, kind: 'infrared', rel: 0.93, note: 'Fierce heat, only on the double-spit frame' },
   { id: 'm_goedkoop', slot: 'motor', name: 'Wiper motor (used)', price: 60, torque: 20, pw: 1, rel: 0.75, note: 'Turns 20 kg, on a good day' },
   { id: 'm_std', slot: 'motor', name: 'Standard spit motor', price: 160, torque: 40, pw: 1, rel: 0.9, note: 'Turns up to 40 kg' },
-  { id: 'm_zwaar', slot: 'motor', name: 'Heavy-duty spit motor', price: 340, torque: 70, pw: 2, rel: 0.96, note: 'Turns up to 70 kg' },
+  { id: 'm_zwaar', rank: 2, slot: 'motor', name: 'Heavy-duty spit motor', price: 340, torque: 70, pw: 2, rel: 0.96, note: 'Turns up to 70 kg' },
   { id: 'c_spit15', slot: 'core', type: 'grill', name: 'Spit, 15 kg', price: 80, weight: 15, cap: 15, need: 2, rel: 0.95, note: 'Small döner spit' },
   { id: 'c_spit30', slot: 'core', type: 'grill', name: 'Spit, 30 kg', price: 150, weight: 30, cap: 30, need: 3, rel: 0.95, note: 'The standard döner spit' },
-  { id: 'c_spit60', slot: 'core', type: 'grill', name: 'Spit, 60 kg', price: 320, weight: 60, cap: 60, need: 5, rel: 0.94, note: 'Kebab palace size. Needs big heat and a big motor' },
+  { id: 'c_spit60', rank: 3, slot: 'core', type: 'grill', name: 'Spit, 60 kg', price: 320, weight: 60, cap: 60, need: 5, rel: 0.94, note: 'Kebab palace size. Needs big heat and a big motor' },
   { id: 'c_steen', slot: 'core', type: 'oven', name: 'Pita stone', price: 140, weight: 0, cap: 20, need: 3, rel: 0.97, note: 'Makes it a pita oven' },
   { id: 'c_bak', slot: 'core', type: 'frituur', name: 'Fryer tank, 2 × 8 L', price: 120, weight: 0, cap: 18, need: 3, rel: 0.92, note: 'Makes it a frituur' },
   { id: 'c_mes', slot: 'core', type: 'snijder', name: 'Slicer blade, 30 cm', price: 110, weight: 10, cap: 25, need: 0, rel: 0.95, note: 'Makes it a meat slicer (no burner needed)' },
   { id: 'e_thermo', slot: 'x', name: 'Thermostat', price: 60, pw: 0, relB: 0.05, rel: 1, note: '+5 reliability' },
   { id: 'e_timer', slot: 'x', name: 'Timer switch', price: 40, pw: 0, relB: 0.03, rel: 1, note: '+3 reliability' },
   { id: 'e_vetbak', slot: 'x', name: 'Fat tray', price: 30, pw: 0, relB: 0.02, capB: 0.05, rel: 1, note: '+5% capacity, +2 reliability' },
-  { id: 'e_chroom', slot: 'x', name: 'Chrome panels', price: 70, pw: 0, styleB: 1, rel: 1, note: '+1 style' },
-  { id: 'e_led', slot: 'x', name: 'LED sign "SHOARMA"', price: 90, pw: 1, styleB: 2, rel: 1, note: '+2 style, uses 1 power' },
+  { id: 'e_chroom', rank: 1, slot: 'x', name: 'Chrome panels', price: 70, pw: 0, styleB: 1, rel: 1, note: '+1 style' },
+  { id: 'e_led', rank: 1, slot: 'x', name: 'LED sign "SHOARMA"', price: 90, pw: 1, styleB: 2, rel: 1, note: '+2 style, uses 1 power' },
   { id: 'e_spy', slot: 'x', name: 'Spy module (Mo)', price: 250, pw: 0, rel: 1, spy: true, idea: 'spion', note: 'Deliver it inside a machine: a free floor plan for a Nachtklus' },
 ];
 const P = (id) => PARTS.find((p) => p.id === id);
@@ -52,21 +52,23 @@ const clientsFor = (type) => CLIENT_IDS.filter((id) => !PEOPLE[id].types || PEOP
 const whoName = (o) => (o.cid && PEOPLE[o.cid] ? `${PEOPLE[o.cid].name} · ${PEOPLE[o.cid].place}` : o.who);
 // Kaasdows 95 upgrades: each part makes one PC tab better
 export const PC_PARTS = [
-  { id: 'ram', name: '32 MB memory', price: 900, text: 'The Klusbord shows one more job every day, from the next market day.' },
-  { id: 'modem', name: '56k modem', price: 700, text: "The Kruidenbeurs prints tomorrow's market rumour for free." },
-  { id: 'cpu', name: 'Kruidium II, 300 MHz', price: 1200, text: 'The workbench shows a live draaitest preview while you pick parts.' },
-  { id: 'gpu', name: 'Kaasdows 3D card', price: 1500, text: 'The Map of Kaasland shows your control % on every territory you hold.' },
+  { id: 'ram', rank: 1, name: '32 MB memory', price: 900, text: 'The Klusbord shows one more job every day, from the next market day.' },
+  { id: 'modem', rank: 2, name: '56k modem', price: 700, text: "The Kruidenbeurs prints tomorrow's market rumour for free." },
+  { id: 'cpu', rank: 2, name: 'Kruidium II, 300 MHz', price: 1200, text: 'The workbench shows a live draaitest preview while you pick parts.' },
+  { id: 'gpu', rank: 3, name: 'Kaasdows 3D card', price: 1500, text: 'The Map of Kaasland shows your control % on every territory you hold.' },
 ];
 
 const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BOLTS = 4;
+const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 const SYMPTOM_SHORT = { frame: 'cracked weld', burner: 'dead burner', motor: 'stalling motor', core: 'bent spit', x1: 'random cut-out', x2: 'random cut-out' };
 
 // deps: state, econ, addMoney(n, el), toast(title, text, sec), save(), haggle (js/haggle.js, optional)
 export function createWorkshop(deps) {
   const { state, econ } = deps;
+  const rank = () => (deps.rank ? deps.rank() : 9), locked = (p) => rank() < (p.rank || 0);
   const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
 
   function ensure() {
@@ -243,7 +245,7 @@ export function createWorkshop(deps) {
   function spend(n) { const w = ensure(), day = econ.ensure().day; if (!w.spent || w.spent.day !== day) w.spent = { day, amt: 0 }; w.spent.amt += n; }
   const spentToday = () => { const w = ensure(); return w.spent && w.spent.day === econ.ensure().day ? w.spent.amt : 0; };
   function buyNew(id, el, price) {
-    const p = P(id); price = price == null ? p.price : price; if (state.money < price) return 'Not enough Wilders.';
+    const p = P(id); if (locked(p)) return `Fenna: "That one is for ${RANK_NAMES[p.rank]} and up, sorry."`; price = price == null ? p.price : price; if (state.money < price) return 'Not enough Wilders.';
     deps.addMoney(-price, el); spend(price); ensure().parts.push({ id, wear: 0 }); if (deps.save) deps.save();
   }
   function haggleNew(id) { // Fenna at the Kaasland Auto Parts counter
@@ -266,7 +268,7 @@ export function createWorkshop(deps) {
     return `Stripped: ${got.join(', ')}.`;
   }
   function buyPC(id, el) {
-    const w = ensure(), p = PC_PARTS.find((x) => x.id === id); if (!p || w.pc[id]) return; if (state.money < p.price) return 'Not enough Wilders.';
+    const w = ensure(), p = PC_PARTS.find((x) => x.id === id); if (!p || w.pc[id]) return; if (locked(p)) return `Needs rank ${RANK_NAMES[p.rank]}.`; if (state.money < p.price) return 'Not enough Wilders.';
     deps.addMoney(-p.price, el); w.pc[id] = econ.ensure().day;
     if (deps.toast) deps.toast('KAASDOWS 95', `${p.name} installed. ${p.text}`, 4);
     if (deps.save) deps.save();
@@ -316,9 +318,9 @@ export function createWorkshop(deps) {
     h += '<table class="list" style="margin-top:8px"><tr><th>Used parts on Kaasplaats today</th><th>Price</th><th></th></tr>';
     for (const o of w.offers) h += `<tr><td>${P(o.id).name} <small>(worn ${Math.round(o.wear * 100)}%)</small></td><td>${fmt(o.price)}</td><td>${o.sold ? 'sold' : `<button class="b95" data-wsused="${o.n}">Buy</button>`}</td></tr>`;
     h += `</table><div class="well" style="margin-top:8px"><img src="${portrait('fenna')}" alt="" style="width:40px;height:44px;object-fit:cover;float:left;margin-right:8px;border:1px solid #888"><b>Kaasland Auto Parts</b> · Fenna at the counter${spentToday() ? ` · spent on parts today: <b>${fmt(spentToday())}</b>` : ''}<br><small>Pay the sticker price, or haggle. She has heard every story twice.</small><div style="clear:both"></div></div><table class="list"><tr><th>New parts</th><th>What it does</th><th>Price</th><th></th></tr>`;
-    for (const p of PARTS.filter((q) => !q.idea || (econ.has && econ.has(q.idea)))) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap"><button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}</td></tr>`;
+    for (const p of PARTS.filter((q) => !q.idea || (econ.has && econ.has(q.idea)))) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap">${locked(p) ? `<small style="color:#888">at rank ${RANK_NAMES[p.rank]}</small>` : `<button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}`}</td></tr>`;
     h += '</table><table class="list" style="margin-top:8px"><tr><th>Kaasdows 95 upgrades</th><th>What it does</th><th>Price</th><th></th></tr>';
-    for (const p of PC_PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.text}</small></td><td>${fmt(p.price)}</td><td>${w.pc[p.id] ? '<b style="color:#070">installed</b>' : `<button class="b95" data-wspc="${p.id}">Install</button>`}</td></tr>`;
+    for (const p of PC_PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.text}</small></td><td>${fmt(p.price)}</td><td>${w.pc[p.id] ? '<b style="color:#070">installed</b>' : locked(p) ? `<small style="color:#888">at rank ${RANK_NAMES[p.rank]}</small>` : `<button class="b95" data-wspc="${p.id}">Install</button>`}</td></tr>`;
     return h + '</table>';
   }
   function bind(body, rerender) {

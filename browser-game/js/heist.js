@@ -6,9 +6,11 @@
 // as ordinary Lampas crates on Kaasplaats. Lives in state.heists.
 
 const TOOLS = [
-  { id: 'lockpick', name: 'Lockpick set', price: 400, text: 'Safes open faster and much more quietly.' },
-  { id: 'bag', name: 'Big sports bag', price: 600, text: '+1 bag slot: one more item per trip to the van.' },
+  { id: 'lockpick', name: 'Lockpick set', price: 400, rank: 1, text: 'Safes open faster and much more quietly.' },
+  { id: 'bag', name: 'Big sports bag', price: 600, rank: 2, text: '+1 bag slot: one more item per trip to the van.' },
+  { id: 'nv', name: 'Night-vision goggles', price: 1800, rank: 3, text: 'Press N on a Nachtklus: see in the dark rooms, green and grainy.' },
 ];
+const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 const PLAN_COST = 150, HOT_DAYS = 3, FENCE = 75;
 const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
@@ -59,8 +61,10 @@ export function createHeists(deps) {
     if (deps.toast) deps.toast('FLOOR PLAN', `Kevin sketched ${t.title} on a napkin: you'll see the guards' sight cones tonight.`, 3);
     if (deps.save) deps.save();
   }
+  const rank = () => (deps.rank ? deps.rank() : 9);
   function buyTool(id, el) {
     const h = ensure(), T = TOOLS.find((x) => x.id === id); if (!T || h.tools[id]) return;
+    if (rank() < (T.rank || 0)) return `The Russian: "For ${RANK_NAMES[T.rank]}, not for you. Yet."`;
     if (state.money < T.price) return 'Not enough Wilders.';
     deps.addMoney(-T.price, el); h.tools[id] = day(); if (deps.save) deps.save();
   }
@@ -68,7 +72,7 @@ export function createHeists(deps) {
     const h = ensure(), t = h.targets[n]; if (!t) return;
     const extra = Math.min(4, h.susp[t.faction] || 0);
     if (deps.closePC) deps.closePC();
-    deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, safe: !!t.safe, special: t.tutorial ? 'grill' : null, cashX: t.daily ? 2 : 1, extra, onEnd: (res) => ended(t, res) });
+    deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, nv: !!h.tools.nv, safe: !!t.safe, special: t.tutorial ? 'grill' : null, cashX: t.daily ? 2 : 1, extra, onEnd: (res) => ended(t, res) });
   }
   function ended(t, res) {
     const h = ensure(), lines = [];
@@ -87,7 +91,10 @@ export function createHeists(deps) {
     if (res.loud) {
       const e = econ.ensure();
       if (t.faction === 'lampas' && !state.act1) { e.heat.lampas = Math.min(100, (e.heat.lampas || 0) + 20); lines.push('It got loud: Lampas heat +20.'); } else lines.push('It got loud. They will remember this.');
-    } else if (res.crates || res.cash || res.grill) { h.clean++; lines.push('Clean: nobody saw a thing, no heat.'); }
+    } else if (res.crates || res.cash || res.grill) {
+      h.clean++; lines.push('Clean: nobody saw a thing, no heat.');
+      if (res.ghost) { const g = Math.round(((res.cash || 0) + res.crates * 75) * 0.5 / 10) * 10; h.ghosts = (+h.ghosts || 0) + 1; if (g) deps.addMoney(g); if (econ.addRep) econ.addRep(100); lines.push(`GHOST: no alarm, nobody hurt. Bonus +${fmt(g)} and extra reputation.`); }
+    }
     if (res.crates || res.cash || res.grill) h.susp[t.faction] = (h.susp[t.faction] || 0) + 1;
     if (!lines.length) lines.push('You drove home with nothing. Tomorrow is another night.');
     if (deps.toast) deps.toast(res.loud ? 'NACHTKLUS · LOUD' : 'NACHTKLUS · CLEAN', lines.join('<br>'), 7);
@@ -108,7 +115,8 @@ export function createHeists(deps) {
     const hot = hotCount();
     out += `<div class="well" style="margin-top:8px"><b>Pandjeshuis Spasibo</b> · The Russian fences hot goods · Hot crates: <b>${hot}</b> ${hot ? `<button class="b95" data-hfence>Sell all for ${fmt(hot * FENCE)}</button>` : ''}<br><small>Or wait: a crate cools down after ${HOT_DAYS} market days and sells for W 150 on Kaasplaats.</small></div>`;
     out += '<table class="list" style="margin-top:8px"><tr><th>Tools from The Russian</th><th>What it does</th><th>Price</th><th></th></tr>';
-    for (const T of TOOLS) out += `<tr><td><b>${T.name}</b></td><td><small>${T.text}</small></td><td>${fmt(T.price)}</td><td>${h.tools[T.id] ? '<b style="color:#070">owned</b>' : `<button class="b95" data-htool="${T.id}">Buy</button>`}</td></tr>`;
+    for (const T of TOOLS) out += `<tr><td><b>${T.name}</b></td><td><small>${T.text}</small></td><td>${fmt(T.price)}</td><td>${h.tools[T.id] ? '<b style="color:#070">owned</b>' : rank() < (T.rank || 0) ? `<small style="color:#888">at rank ${RANK_NAMES[T.rank]}</small>` : `<button class="b95" data-htool="${T.id}">Buy</button>`}</td></tr>`;
+    out += '<tr><td colspan="4"><small>Guns are loud on a Nachtklus: any unsilenced shot fills the alarm. The Russian sells a silenced 9mm and a suppressor for the Makarov. No alarm and nobody hurt is a <b>ghost</b> run: +50% on the haul.</small></td></tr>';
     return out + '</table>';
   }
   function bind(body, rerender) {

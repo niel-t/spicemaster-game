@@ -1080,10 +1080,18 @@ let phone = null; // js/phone.js, Hakan's kipkraud calls
 const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const haggle = createHaggle({ state, day: () => econ.ensure().day, toast, beep, save: () => writeSave() });
 const stall = createSpiceStall({ state, econ, haggle, addMoney, toast, save: () => writeSave() });
-const ws = createWorkshop({ state, econ, addMoney, toast, beep, haggle, save: () => writeSave() });
-const garage = createGarage({ state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c) });
-const crew = createCrew({ state, econ, ws, addMoney, toast, save: () => writeSave() });
-const heists = createHeists({ state, econ, garage, addMoney, toast, save: () => writeSave(), closePC: () => closePC(),
+const rankNow = () => rankOf(econ.ensure().rep).i;
+// the slow hustle: the new PC tabs open along the way, not all at the start
+const UNLOCK = {
+  werk: { ok: () => econ.has('opknappen') || !!(state.ws && (state.ws.built || state.ws.repaired)), why: 'Sell your first machine (Kaasplaats), then go and see Monteur Mo under the railway.' },
+  garage: { ok: () => !!(state.drives && Object.keys(state.drives).length) || !!state.district1, why: 'Take the Oofmobiel for a drive first.' },
+  plan: { ok: () => !!state.district1, why: 'Take all of Kipkruidenkwartier first. Then Kevin and the Fluisteraar start talking about night work.' },
+};
+const canDo = (k) => (k === 'rank1' ? rankNow() >= 1 : k === 'heist' ? !!(state.heists && state.heists.done && state.heists.done.tutorial) : UNLOCK[k] ? UNLOCK[k].ok() : true);
+const ws = createWorkshop({ rank: rankNow, state, econ, addMoney, toast, beep, haggle, save: () => writeSave() });
+const garage = createGarage({ rank: rankNow, state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c) });
+const crew = createCrew({ can: canDo, state, econ, ws, addMoney, toast, save: () => writeSave() });
+const heists = createHeists({ rank: rankNow, state, econ, garage, addMoney, toast, save: () => writeSave(), closePC: () => closePC(),
   levels: () => JOINTS.map(([name, id, , ok]) => ({ id, name, faction: NOSH.some((j) => j[1] === id) ? 'noshgey' : ABD.some((j) => j[1] === id) ? 'abdavissies' : 'lampas', owned: owns(id), unlocked: typeof ok === 'function' ? !!ok() : id === 'spekbuurt' || owns('spekbuurt') })),
   go: (id, h) => { // drive there first, park round the corner, then the night begins
     if (mission.active || oofDrive.active) return; const j = JOINTS.find((x) => x[1] === id);
@@ -1154,6 +1162,9 @@ function renderPC() {
   } else if (pcTab === 'ideas') {
     title.textContent = "Ideeënboek · Eddy Jr.'s notebook";
     body.innerHTML = econ.ideasHTML();
+  } else if (UNLOCK[pcTab] && !UNLOCK[pcTab].ok()) {
+    title.textContent = { werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord' }[pcTab] + ' · locked';
+    body.innerHTML = `<div class="well"><b>Not yet.</b><br>${UNLOCK[pcTab].why}<br><br><small>Start small: sell Dad's junk, hire Naknikim, take joints, earn your rank. Kaasland opens up as you grow.</small></div>`;
   } else if (pcTab === 'werk') {
     title.textContent = 'Werkplaats · Build, repair, upgrade';
     body.innerHTML = ws.html(); ws.bind(body, renderPC);
@@ -1373,7 +1384,7 @@ function talkNaknik(n) { // name, skill and mood; send them out on an errand or 
   if (crew.napping(i)) return choice(m.name, `<i>(snoring on a sack of paprika)</i> Mood: <b>${m.moodWord}</b> (${m.mood}). Skill ${m.stars}. A day off would help.`, ['Give a day off', 'Let them sleep'], (k) => { if (k === 0) crew.dayOff(i); });
   choice(m.name, `"${NAK_LINES[Math.floor(Math.random() * NAK_LINES.length)]}" <br><small>Skill ${m.stars} · mood <b>${m.moodWord}</b> (${m.mood}) · an errand takes one market day, and they don't mix meanwhile.</small>`, ['Back to work', 'Send on an errand', 'Give a day off'], (k) => {
     if (k === 2) crew.dayOff(i);
-    if (k === 1) setTimeout(() => choice(m.name, 'Where to, boss?', [...crew.ERRANDS.map((e) => e.name), 'Never mind'], (e) => { if (e < crew.ERRANDS.length) crew.send(i, crew.ERRANDS[e].id); }), 50);
+    if (k === 1) setTimeout(() => choice(m.name, 'Where to, boss?', [...crew.errands().map((e) => e.name), 'Never mind'], (e) => { const list = crew.errands(); if (e < list.length) crew.send(i, list[e].id); }), 50);
   });
 }
 function spiceCloud(at) { // a mixing mistake: a puff of paprika
