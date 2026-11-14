@@ -62,6 +62,7 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 | `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map, district progression |
 | `js/mission.js` | Mission engine (Neon Vice rules): builds the chosen level on a 1 m cell grid, Lampas AI, weapons, kit, kluis, HUD, results. Only one level is in the scene at a time |
 | `js/levels/*.js` | One file per mission: grid layout, rooms + floors, doors, glass, furniture, spawns (incl. boss), loot, entry point, van arrival, texts, bounds, mood lighting and unique props (`decorate`). `spekbuurt.js`, `kroketkade.js`, `uitjesbuurt.js` |
+| `js/drive.js` | The Oofmobiel drive between districts: a top-down city level with its own scene, camera, traffic, pedestrians, Lampas chase cars, HUD and minimap. main.js only starts it and renders it while it runs |
 | `js/levels/props.js` | Shared level dressing: rain, puddles, canal water, glow sprites and street furniture letters (lamps, bollards, bikes, planters, benches, bistro tables) |
 | `js/characters.js` | Neon Vice-style characters for three.js: skinned low-poly models with painted faces and clothes, idle/walk poses, the cast's looks (`LOOKS`). Keeps the old `makePerson()` contract (`userData.arms/legs/head/body`). `makePerson` builds every character with it: a named look (`ps2: LOOKS.eddyJr`) or one derived from the old options by `lookFromPerson` (Lampas get tracksuits, bosses suits); `ps2: false` keeps the old capsule figure |
 | `js/ps2c.js` | The character builder ported from Neon Vice's `models.js`: skeleton, mesh lofting, face/body painters, `pose()`. Spice Master additions are marked |
@@ -88,6 +89,19 @@ Own all three: **DE NATTE WORST IS YOURS**, a W 5.000 bonus, and the Lampas terr
 Progress is saved per level (`state.owned`, `state.lootTaken`); old saves with `state.spekbuurt` are migrated.
 
 To add a mission: copy a file in `js/levels/`, add it to `LEVELS` in `js/mission.js`, and launch it with `mission.enter(id)`.
+
+## Oofmobiel drive (district transitions)
+Once De Natte Worst is yours, open the van map (get in the Oofmobiel), click an Oud-Vettenburg territory and press
+**Drive to Oud-Vettenburg**. The camera goes straight overhead and you drive the blue van from Eddy & Zn across the city:
+- **Controls:** W / ↑ gas, S / ↓ brake and reverse, A D steer, Shift handbrake (drift), **E / Space honk**, Backspace restart.
+  Controller and touch: point the left stick (or left thumb) where you want to go and the van drives there; A / ACTIE honks.
+- **Honking** makes pedestrians press themselves against the wall and cars pull over. Run someone over and it costs W 15 smartengeld.
+- **De Grote Gracht** cuts the city in half. Only some bridges are down ("BRUG OPEN" means take another one) and there are road works.
+  Drive into the canal and a tow truck fishes you out (−20% van health).
+- **Hinderlaag:** cross into Oud-Vettenburg and Lampas cars come to ram you. Slam them into walls (or into them, faster than they hit you) to wreck them: W 50 each.
+- **Arrive** by parking (slowly) in the yellow ring on the Frietwijk plaza. Pay: W 250 delivery fee + an on-time bonus (par 1:00) + Lampas bounties − smartengeld.
+  If the van's health bar hits zero, try again or go home. The best time is saved in `state.drives`.
+- Test hook: `__sme.startDrive()` jumps straight into the drive; `__sme.oofDrive` exposes its state.
 
 ## Start menu & fonts
 The game opens on a start menu (Continue / New Game / Controls / Music / Credits) over a slow dusk drift along the canal street;
