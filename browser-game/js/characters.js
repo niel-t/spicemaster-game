@@ -180,10 +180,19 @@ function poseOf(p, now) {
   const u = p.userData, q = u.ps2;
   const walk = q.moving && !u.seated;
   const t = walk ? u.phase / (TAU * 0.95) : now * 0.001 + q.seed;
-  const W = P.pose(t, walk ? 'walk' : 'idle', undefined, q.arms || null, q.kick || 0, q.gait, (R, rot, lower, hinge) => {
+  // read the old-style arm angles the game sets and play Neon Vice's matching arm pose instead:
+  // right arm raised (-1.45) = aim one-handed, both raised = two-handed / grab, wound back (< -2.2) / swung through (> 0.3) = melee swing
+  const a0 = u.arms[0].rotation.x, a1 = u.arms[1].rotation.x;
+  let arms = q.arms || null, kick = q.kick || 0;
+  if (!arms && !u.seated && u.arms[0].visible) {
+    if (a0 < -2.2) { arms = 'melee'; kick = 0; }
+    else if (a0 > 0.3) { arms = 'melee'; kick = 1; }
+    else if (a0 < -1.2) arms = a1 < -1.0 ? (Math.abs(a0 - a1) < 0.2 ? 'dual' : 'rifle') : 'aim1';
+  }
+  const W = P.pose(t, walk ? 'walk' : 'idle', undefined, arms, kick, q.gait, (R, rot, lower, hinge) => {
     for (let i = 0; i < 2; i++) {
       const a = u.arms[i], A = ARM[i];
-      if (Math.abs(a.rotation.x) > 0.02 || Math.abs(a.rotation.z) > 0.02) {
+      if (!arms && (Math.abs(a.rotation.x) > 0.02 || Math.abs(a.rotation.z) > 0.02)) {
         delete R[A.u]; delete R[A.f]; delete R[A.h];
         lower(A.s, 0.62); rot(A.u, X, a.rotation.x); if (a.rotation.z) rot(A.u, Z, a.rotation.z);
         rot(A.f, hinge(A.s), a.rotation.x < -0.6 ? 0.12 : 0.3);
@@ -235,6 +244,35 @@ export function installCharacters(scene) {
 // characters detached from the scene for ~10 s drop out of the update set; adding the root back re-registers it,
 // track() does the same when only an ancestor was re-added
 export function track(p) { if (p.userData && p.userData.ps2) live.add(p); }
+
+/* ---------- blood on the clothes (Neon Vice bloodify): 1 hurt, 2 dead, 3 executed ---------- */
+const BLOOD = { front: [[150, 30, 212, 250]], all: [[0, 0, 512, 290], [0, 290, 512, 90], [0, 440, 512, 72]], chest: [[150, 0, 212, 140]], face: [[150, 150, 212, 240]] };
+function splat(cv, regions, n, big) {
+  const x = cv.getContext('2d'), k = cv.width / 512;
+  for (let i = 0; i < n; i++) {
+    const r = regions[(Math.random() * regions.length) | 0], px = (r[0] + Math.random() * r[2]) * k, py = (r[1] + Math.random() * r[3]) * k, sz = ((big ? 8 : 4) + Math.random() * (big ? 18 : 10)) * k;
+    x.fillStyle = `rgba(${(100 + Math.random() * 50) | 0},${(Math.random() * 12) | 0},${(10 + Math.random() * 12) | 0},${0.75 + Math.random() * 0.25})`;
+    x.beginPath(); x.ellipse(px, py, sz, sz * (0.6 + Math.random() * 0.6), Math.random() * 3, 0, 7); x.fill();
+    for (let j = 0; j < 5; j++) { x.beginPath(); x.arc(px + (Math.random() - 0.5) * sz * 3, py + (Math.random() - 0.5) * sz * 3, (1 + Math.random() * 3) * k, 0, 7); x.fill(); }
+    if (Math.random() < 0.6) x.fillRect(px - 1.5 * k, py, 3 * k, sz * (1 + Math.random() * 2));
+  }
+}
+export function bloody(p, lvl) {
+  const q = p && p.userData && p.userData.ps2; if (!q || lvl <= (q.bl || 0)) return;
+  const [bm, hm] = q.md.meshes.map((m) => m.material.map);
+  if (!q.clean) q.clean = [bm, hm].map((t) => { const c = document.createElement('canvas'); c.width = t.image.width; c.height = t.image.height; c.getContext('2d').drawImage(t.image, 0, 0); return c; });
+  q.bl = lvl;
+  if (lvl >= 1) splat(bm.image, BLOOD.front, lvl === 1 ? 4 : 10, lvl > 1);
+  if (lvl >= 2) splat(bm.image, BLOOD.all, 8, false);
+  if (lvl >= 3) splat(bm.image, BLOOD.chest, 14, true);
+  if (lvl >= 2) { splat(hm.image, BLOOD.face, lvl >= 3 ? 12 : 4, false); hm.needsUpdate = true; }
+  bm.needsUpdate = true;
+}
+export function cleanBlood(p) {
+  const q = p && p.userData && p.userData.ps2; if (!q || !q.clean) return;
+  q.md.meshes.forEach((m, i) => { const t = m.material.map; t.image.getContext('2d').drawImage(q.clean[i], 0, 0); t.needsUpdate = true; });
+  q.bl = 0;
+}
 
 /* ---------- old makePerson options -> look ---------- */
 const h255 = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];

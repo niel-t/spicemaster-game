@@ -18,7 +18,7 @@
 // A level can add its own furniture letters (def.furn) and recolour the shared ones.
 
 import { virt, inputMode, glyph, controlsLine } from './input.js';
-import { LOOKS } from './characters.js';
+import { LOOKS, bloody, cleanBlood } from './characters.js';
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
@@ -696,7 +696,7 @@ export function initMission(ctx) {
       const f = e.userData.foe, [x, z, r, w] = f.spawn, u = e.userData;
       Object.assign(f, { alive: !done, down: 0, hp: f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 : 1, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
       setFoeWeapon(e, done ? null : w);
-      e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !done; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
+      e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !done; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
     }
     for (const it of items) root.remove(it.g, it.ring); items.length = 0;
     for (const b of bullets) root.remove(b.m); bullets.length = 0;
@@ -711,7 +711,7 @@ export function initMission(ctx) {
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
     Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.loadout.vest > 0 ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
-    const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
+    const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
   }
@@ -744,7 +744,7 @@ export function initMission(ctx) {
       R.lootAtStart = state.loot || 0;
       commitKit(); // guns, rounds and the vest you walk out with come home with you
       holster(); syncHeld(); maboota.visible = true; equip(true);
-      const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
+      const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
       player.position.set(5.3, 0, -5.8); player.rotation.y = Math.PI;
       setArea('KAASLAND · DE NATTE WORST'); hideScreen(); for (const p of pops) p.el.remove(); pops.length = 0;
       vigEl.style.opacity = flashEl.style.opacity = 0; bannerEl.style.opacity = 0; hud();
@@ -771,6 +771,7 @@ export function initMission(ctx) {
     if (f.weapon) { dropItem(f.weapon, e.position, dir[0] * 3, dir[1] * 3); setFoeWeapon(e, null); }
     launch(e, type, dir);
     e.rotation.y = Math.atan2(-dir[0], -dir[1]); poseDown(e, 1);
+    bloody(e, type === 'exec' || type === 'shotgun' || type === 'boom' ? 3 : 2);
     bloodBurst(e.position, dir, type === 'shotgun' || type === 'exec' || type === 'boom' ? 40 : 22, type === 'shotgun' ? 6 : 4);
     floorDecal(e.position.x + dir[0] * 0.3, e.position.z + dir[1] * 0.3, 1.1 + Math.random() * 0.4, Math.random() * 6);
     addPool(e, type === 'shotgun' || type === 'exec' || type === 'boom');
@@ -792,7 +793,7 @@ export function initMission(ctx) {
     if (f.boss) { stagger(e, dir); hitEnemy(e, 'door', dir, 1); return; }
     f.down = 3.0; f.vx = dir[0] * 4; f.vz = dir[1] * 4; f.wind = 0; f.laser.visible = false;
     if (f.weapon) { dropItem(f.weapon, e.position, dir[0] * 3, dir[1] * 3); setFoeWeapon(e, null); }
-    e.rotation.y = Math.atan2(-dir[0], -dir[1]); f.state = 'chase'; sfx('hit'); bloodBurst(e.position, dir, 6, 2);
+    e.rotation.y = Math.atan2(-dir[0], -dir[1]); f.state = 'chase'; sfx('hit'); bloodBurst(e.position, dir, 6, 2); bloody(e, 1);
     say(e.userData.bubble, ['AU!', 'Mijn hoofd!', 'Ooompf!', 'Vuile...'][Math.floor(Math.random() * 4)], '#ff7a1a');
   }
   function stagger(e, dir) { const f = e.userData.foe; f.vx += dir[0] * 3; f.vz += dir[1] * 3; f.cd = Math.max(f.cd, 0.5); f.wind = 0; sfx('hit'); if (f.state !== 'chase') { f.state = 'chase'; f.react = 0.4; } }
@@ -837,6 +838,7 @@ export function initMission(ctx) {
     if (P.dead || P.invT > 0 || R.results) return;
     R.taken++;
     if (P.armor > 0 && cause !== 'boom') { P.armor--; P.invT = 0.9; P.lastHurt = R.time; shake(0.45); FX.flash = 0.35; FX.flashC = '255,255,255'; sfx('vest'); popup(player.position, 'VEST HIT!', '#ffd36b'); bloodBurst(player.position, dir, 8, 2); hud(); return; }
+    bloody(player, R.taken >= 2 ? 2 : 1);
     if (P.hp > 1 && cause !== 'boom') {
       P.hp--; P.invT = 1.1; P.lastHurt = R.time; shake(0.45); FX.flash = 0.45; FX.flashC = '230,0,13'; FX.hurtT = 0.7; sfx('hurt');
       popup(player.position, P.hp === 1 ? 'LAST HIT!' : 'HIT!', '#ff4a5a', true); bloodBurst(player.position, dir, 14, 3); floorDecal(player.position.x, player.position.z, 0.6, Math.random() * 6);

@@ -5,7 +5,7 @@
 </head><body><div id="ui"></div><canvas id="c"></canvas>
 <script type="module">
 import * as THREE from '../vendor/three.module.min.js';
-import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS } from '../js/characters.js';
+import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, bloody, LOOKS } from '../js/characters.js';
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -43,6 +43,10 @@ function tick() {
     p.rotation.y = angle;
     ps2Animate(p, mode === 'walk' ? 3 : 0, dt);
     if (mode === 'aim') p.userData.arms[0].rotation.x += (-1.45 - p.userData.arms[0].rotation.x) * 0.3;
+    if (mode === 'wind') p.userData.arms[0].rotation.x = -2.6;
+    if (mode === 'strike') p.userData.arms[0].rotation.x = 0.6;
+    if (mode === 'rifle') { p.userData.arms[0].rotation.x = -1.45; p.userData.arms[1].rotation.x = -1.2; }
+    if (mode === 'down' && !p.userData.done) { p.userData.done = 1; p.userData.body.rotation.x = -1.5; p.userData.body.position.y = 0.12; bloody(p, 3); p.userData.head.visible = q.get('head') !== '0'; p.userData.arms[1].visible = q.get('arm') !== '0'; }
   }
   const w = Math.max(2.4, names.length * 1.2);
   if (view === 'top') { camera.position.set(0, 9, 4.5); camera.lookAt(0, 0.6, 0); }
