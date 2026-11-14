@@ -59,6 +59,7 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 | `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map, district progression |
 | `js/mission.js` | Mission engine (Neon Vice rules): builds the chosen level on a 1 m cell grid, Lampas AI, weapons, kit, kluis, HUD, results. Only one level is in the scene at a time |
 | `js/levels/*.js` | One file per mission: grid layout, rooms + floors, doors, glass, furniture, spawns (incl. boss), loot, entry point, van arrival, texts, bounds, mood lighting and unique props (`decorate`). `spekbuurt.js`, `kroketkade.js`, `uitjesbuurt.js` |
+| `js/levels/props.js` | Shared level dressing: rain, puddles, canal water, glow sprites and street furniture letters (lamps, bollards, bikes, planters, benches, bistro tables) |
 | `js/input.js` | Controller (Gamepad API) and touch input, pause menu, device-aware hints; turns both into the same key events the keyboard sends |
 | `js/music.js` | Procedural upbeat WebAudio soundtrack |
 | `vendor/three.module.min.js` | three.js r170 (MIT, see `three-LICENSE.txt`) |
@@ -73,8 +74,8 @@ Eddy Sr.'s farewell → visit The Russian (pawnshop, De Natte Worst) → buy a w
 ## Story flow (District 1: De Natte Worst)
 Drive the Oofmobiel to a territory from the map (needs a weapon). Each one is a mission; clear it and it's yours.
 1. **Spekbuurt** (Mission 1): Snackpaleis Spekbuurt, a Lampas shoarma joint. Owning it opens the other two.
-2. **Kroketkade** (Mission 2): the Lampas kroket factory on the quay: glass snack hatches over a long open quay, frying hall with conveyor lines, a one-door freezer, office, packing room, loading dock with a moored boat.
-3. **Uitjesbuurt** (Mission 3): De Zure Ui, the pickled-onion cannery by the bridge, behind a back-alley market where the Lampas collect protection money.
+2. **Kroketkade** (Mission 2): a brick corner snackbar on a rainy quay jutting into the canal: the shop, a checkered kitchen, storeroom, staff room and a purple garage with its roller shutter open onto the quay. 16 Lampas, the frituurbaas in the garage.
+3. **Uitjesbuurt** (Mission 3): a white brick corner snackbar with a terrace on a street of canal houses. Down the stairs: a vaulted onion cellar with a glowing oven and, behind a hidden opening, the lieutenant's gambling den. 16 Lampas.
 
 Own all three: **DE NATTE WORST IS YOURS**, a W 5.000 bonus, and the Lampas territories on the map turn to "next" (Oud-Vettenburg, missions in a later build).
 Progress is saved per level (`state.owned`, `state.lootTaken`); old saves with `state.spekbuurt` are migrated.
