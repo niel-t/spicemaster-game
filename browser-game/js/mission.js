@@ -43,8 +43,10 @@ import komijnkade from './levels/komijnkade.js';
 import kaneelsilos from './levels/kaneelsilos.js';
 import paprikapakhuis from './levels/paprikapakhuis.js';
 import kruidnagelkade from './levels/kruidnagelkade.js';
+import peperhaven from './levels/peperhaven.js';
+import kurkumaloods from './levels/kurkumaloods.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -506,12 +508,14 @@ export function initMission(ctx) {
   // a level prop bursting (decorate's onShot calls spill): knocks down (or kills) everyone near it, Eddy included
   let levelShot = null;
   const spillMs = {};
-  function spill(at, r, { text = 'SPLASH!', color = 0xf3ecdc, kill = false, scorch = false } = {}) {
+  function spill(at, r, { text = 'SPLASH!', color = 0xf3ecdc, kill = false, scorch = false, quiet = false } = {}) {
     const m = spillMs[color] || (spillMs[color] = new THREE.MeshBasicMaterial({ color }));
+    if (quiet) { /* a sweep (crane, waves): just the knockdown below */ } else {
     sfx(kill ? 'boom' : 'splat'); shake(kill ? 0.8 : 0.5); FX.flash = 0.25; FX.flashC = kill ? '255,140,40' : '255,250,235';
     for (let i = 0; i < 36; i++) { const a = rnd(0, 6.28), v = rnd(1.5, 5.5); particle(m, at.x, 0.8, at.z, Math.cos(a) * v, rnd(1, 4), Math.sin(a) * v, rnd(0.06, 0.14), rnd(0.4, 0.8), 'spark'); }
     if (scorch) floorDecal(at.x, at.z, r * 1.2, Math.random() * 6, scorchM);
-    alertNoise(at, 12); popup(at, text, '#' + color.toString(16).padStart(6, '0'), true);
+    alertNoise(at, 12); if (text) popup(at, text, '#' + color.toString(16).padStart(6, '0'), true);
+    }
     for (const e of enemies) { const f = e.userData.foe; if (!f.alive) continue; const d = Math.hypot(e.position.x - at.x, e.position.z - at.z); if (d < r) { const dir = [(e.position.x - at.x) / (d || 1), (e.position.z - at.z) / (d || 1)]; if (kill) killEnemy(e, 'boom', dir); else knockdown(e, dir); } }
     const pd = Math.hypot(player.position.x - at.x, player.position.z - at.z); if (!P.dead && pd < r * 0.8) { const dir = [(player.position.x - at.x) / (pd || 1), (player.position.z - at.z) / (pd || 1)]; if (kill) { P.invT = 0; hurtPlayer(dir, 'boom'); } else { P.vx += dir[0] * 7; P.vz += dir[1] * 7; } }
     for (const [k2, b2] of barrels) if (kill && Math.hypot(OX + b2.x + 0.5 - at.x, Z0 + b2.z + 0.5 - at.z) < r) setTimeout(() => explode(k2), 140);
@@ -600,12 +604,12 @@ export function initMission(ctx) {
   const alive = () => enemies.filter((e) => e.userData.foe.alive);
   // objectives (a level's decorate() returns tasks: [{ pos, obj, label, act(), reset(done) }]): the floor only clears when they are all done
   let tasks = [];
-  const tasksLeft = () => tasks.filter((t) => !t.done).length;
+  const tasksLeft = () => tasks.filter((t) => !t.done && !t.optional).length; // optional tasks (a fuse box) score but don't block the clear
   const nearTask = () => { let b = null, bd = 2.5; if (!M.active) return null; for (const t of tasks) if (!t.done) { const d = Math.hypot(player.position.x - t.pos.x, player.position.z - t.pos.z); if (d < bd) { bd = d; b = t; } } return b; };
   function doTask(t) {
     if (!t || t.done) return; t.done = true; if (t.act) t.act();
     R.score += t.score || 750; sfx('thud'); shake(0.35); popup(t.pos, t.doneText || 'SABOTAGED!', '#e8a33d', true);
-    const n = tasksLeft(); if (n) banner(`${n} TO GO`, LV.text.taskHint || '', 1.6);
+    const n = tasksLeft(); if (t.optional) { /* a bonus: no banner */ } else if (n) banner(`${n} TO GO`, LV.text.taskHint || '', 1.6);
     else if (!alive().length && !R.cleared) { R.cleared = true; popup(t.pos, 'FLOOR CLEAR', '#e8a33d', true); setTimeout(results, 1500); }
     else banner(LV.text.tasksDone || 'ALL DONE', `Now finish off the ${LV.factionName || 'Lampas'}.`, 2);
     hud();
@@ -729,7 +733,7 @@ export function initMission(ctx) {
     const on = M.active; hudEl.style.display = scoreEl.style.display = grainEl.style.display = scanEl.style.display = on ? 'block' : 'none';
     if (!on) return;
     let hp = ''; for (let i = 0; i < P.maxhp; i++) hp += i < P.hp ? '♥' : '<i>♥</i>';
-    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">${LV.faction || 'LAMPAS'} LEFT: ${alive().length}${tasks.length ? ` <span style="color:#e8a33d;margin-left:10px">${(LV.taskName || 'TARGET')}S: ${tasks.length - tasksLeft()}/${tasks.length}</span>` : ''}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
+    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">${LV.faction || 'LAMPAS'} LEFT: ${alive().length}${tasks.some((t) => !t.optional) ? ` <span style="color:#e8a33d;margin-left:10px">${(LV.taskName || 'TARGET')}S: ${tasks.filter((t) => !t.optional && t.done).length}/${tasks.filter((t) => !t.optional).length}</span>` : ''}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
     scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">${LV.text.area}</div>`;
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }

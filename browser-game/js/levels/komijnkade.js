@@ -35,7 +35,7 @@ export default dock({
       const R = run(); if (R.time < last) next = R.time + 6; last = R.time;
       if (R.results) return;
       if (R.time > next - 1 && R.time < next) spray.material.opacity = (R.time - (next - 1)) * 0.5;
-      if (R.time >= next) { next = R.time + 6 + Math.random() * 3; spray.material.opacity = 0.45; for (let x = 4; x < 44; x += 6) spill(new THREE.Vector3(OX + x, 0, Z0 + 30), 2.4, { text: x === 22 ? 'GOLF!' : '', color: 0xd8e8f0 }); }
+      if (R.time >= next) { next = R.time + 6 + Math.random() * 3; spray.material.opacity = 0.45; for (let x = 4; x < 44; x += 6) spill(new THREE.Vector3(OX + x, 0, Z0 + 30), 2.4, { text: 'GOLF!', color: 0xd8e8f0, quiet: x !== 22 }); }
       spray.material.opacity = Math.max(0, spray.material.opacity - dt * 0.6);
     } };
   },
