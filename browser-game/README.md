@@ -12,12 +12,27 @@ python -m http.server 8765
 Then open http://localhost:8765
 
 ## Controls
-WASD / arrows move · E interact · Esc close windows · N music on/off
+| | Keyboard / mouse | Xbox controller | Touch (phone / tablet) |
+|---|---|---|---|
+| Move | WASD / arrows | Left stick | Left thumb (anywhere on the left half) |
+| Aim (missions) | Mouse | Right stick (idle: aims where you walk) | Right thumb |
+| Attack / execute downed Lampas / Maboota swing | Click / F | RT (hold to repeat) | SLAAN on the street · push the right thumb past the ring in missions |
+| Interact / grab / throw · advance dialogue · skip the drive in | E / Space | A | ACTIE, or tap the dialogue box |
+| Reload (again in the green window = instant, a miss jams) | R | X / LT | RELOAD |
+| Switch weapon (1 melee, 2 + 3 guns) | Wheel / Tab / 1-3 | Y (D-pad ◀ ▲ ▶ for slots) | WISSEL |
+| Sprint (loud in missions) | Shift | LB / L3 | SPRINT (toggle) |
+| Map | M | RB | KAART |
+| Inventory | I | D-pad ▼ | INV |
+| Back / close windows | Esc | B | ✕ buttons |
+| Restart mission | Backspace | Back | OPNIEUW |
+| Pause menu (resume, inventory, map, music, restart, controls) | P / Esc | Start | II |
+| Music on / off | N | pause menu | pause menu |
+| Menus (PC, shop, kluis, choices, title) | Mouse | D-pad / left stick + A, B back | Tap |
 
-Mission (Spekbuurt): mouse aim · click / F attack · E grab / throw · 1 melee · 2 / 3 guns · wheel or Tab cycle · R reload · Shift sprint · I inventory · Backspace restart
+The game switches hints and on-screen controls to the device you used last: a controller shows `[A]`-style prompts,
+touch shows the thumbsticks and buttons (auto-on for phones and tablets), and keyboard / mouse hides both again.
+On phones the page can't zoom or scroll, it respects notches (safe areas) and the HUD scales down; landscape plays best.
 
-- **Loadout:** slot 1 is melee (the Maboota; press 1 again to switch to the honkbalknuppel if you have one), slots 2 and 3 hold guns.
-  A picked-up gun fills an empty slot, otherwise it swaps with the gun in your hands. Pocket ammo is shared per calibre.
 - **Your kit carries over:** whatever you walk out of a mission with (guns incl. ones taken off the Lampas, their loaded rounds,
   pocket ammo, the vest if it wasn't shot through) goes home with you and into the next mission. Backspace restores the kit you came in with.
 - **De Kluis (stash):** a green locker in the warehouse (E) with 6 shelves to store and swap gear. Purchases from The Russian go
@@ -34,6 +49,7 @@ Mission (Spekbuurt): mouse aim · click / F attack · E grab / throw · 1 melee 
 |---|---|
 | `index.html` | HUD, dialogue box, Kaasdows 95 PC window, the Russian's gun shop, title screen (HTML/CSS overlays) |
 | `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map |
+| `js/input.js` | Controller (Gamepad API) and touch input, pause menu, device-aware hints; turns both into the same key events the keyboard sends |
 | `js/music.js` | Procedural upbeat WebAudio soundtrack |
 | `vendor/three.module.min.js` | three.js r170 (MIT, see `three-LICENSE.txt`) |
 | `assets/*.jpg` | CC0 PBR textures (ambientCG) + `_n` normal maps, dialogue face photos |
