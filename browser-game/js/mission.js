@@ -284,7 +284,7 @@ export function initMission(ctx) {
   const KILLPTS = { maboota: 450, bat: 450, fists: 500, exec: 800, door: 600, throw: 550, makarov: 300, shotgun: 300, boom: 700 };
   const FORCE = { makarov: 4.5, shotgun: 9.5, bat: 6.5, maboota: 5.5, fists: 5.5, exec: 1, throw: 5, door: 6, boom: 10 };
   const EASY = { hp: 3, react: 1.9, espr: 0.17, ebSpd: 15, vision: 9, cone: 0.85, ecd: 1.5, regen: 7 };
-  const TIPS = ['Red laser = a Lampas is aiming at you. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
+  const TIPS = ['A Lampas who stops and raises his gun is about to fire. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
   function weaponMesh(id) {
     const g = new THREE.Group();
     if (id === 'bat') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.025, 0.85, 8), lam({ color: 0xc8a06a })); b.position.y = -0.4; g.add(b); }
@@ -517,6 +517,7 @@ export function initMission(ctx) {
     },
   };
   const enemies = [];
+  const SHOW_LASERS = false;
   const laserM = new THREE.MeshBasicMaterial({ color: 0xff1030, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
   // spawn entry: [cell x, cell z, weapon, facing, room, boss, extra]; extra is an enemy type name (FOE_TYPES) or { type, cap }
   function spawnEnemies(def) { def.spawns.forEach(([x, z, w, rot, room, boss, opt], i) => {
@@ -706,7 +707,7 @@ export function initMission(ctx) {
   // home, loot crates sit at a random few of the level's spots, and one modifier changes the night.
   const REMIX_MODS = {
     normaal: { name: 'GEWONE AVOND', line: 'The Lampas restocked. Business as usual.', keep: [0.7, 0.9], pay: 1, w: 35 },
-    stroom: { name: 'STROOMSTORING', line: 'Power cut. Watch for the red lasers. Pay x1.3.', keep: [0.7, 0.9], pay: 1.3, dark: true, w: 20 },
+    stroom: { name: 'STROOMSTORING', line: 'Power cut. Listen for footsteps. Pay x1.3.', keep: [0.7, 0.9], pay: 1.3, dark: true, w: 20 },
     spits: { name: 'SPITSUUR', line: 'Rush hour: the whole crew is in. Pay x1.5.', keep: [1, 1], pay: 1.5, guns: 0.15, w: 20 },
     kassa: { name: 'KASSA VOL', line: 'The till is full and they are armed for it. Pay x2.', keep: [0.8, 1], pay: 2, guns: 0.5, w: 10 },
     rustig: { name: 'RUSTIGE AVOND', line: 'A quiet night. Fewer Lampas, half pay.', keep: [0.45, 0.55], pay: 0.5, w: 15 },
@@ -1176,7 +1177,8 @@ export function initMission(ctx) {
 
   // ================================================================== ENEMY AI (Neon Vice's updateEnemy, Easy numbers)
   const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
-  function laserTo(e, a) {
+  function laserTo(e, a) { // aim lasers are switched off (Tristan, 2026-11-14): the Lampas still aim and wind up, you just don't see a red line
+    if (!SHOW_LASERS) return;
     const f = e.userData.foe, from = e.position.clone().add(new THREE.Vector3(Math.sin(a) * 0.5, 0, Math.cos(a) * 0.5));
     let len = 0.2; const q = from.clone();
     while (len < 16) { q.set(from.x + Math.sin(a) * len, 0, from.z + Math.cos(a) * len); const ch = cellAt(q.x, q.z); if ((isCover(ch) && ch !== 'X') || Math.hypot(q.x - player.position.x, q.z - player.position.z) < 0.35) break; len += 0.25; }
