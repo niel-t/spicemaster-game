@@ -1,93 +1,51 @@
-// Spice Master Eddy: Mission 1, Spekbuurt.
-// A Lampas shoarma joint with a back of house full of enemies, built the way Neon Vice builds its levels:
-// a 1 m cell grid (walls, glass, doors, furniture) that drives collision, cover, line of sight and pathing.
+// Spice Master Eddy: the mission engine. Each level (js/levels/*.js) is data plus a decorate() hook; this file builds it and runs it.
+// Levels are built the way Neon Vice builds its levels: a 1 m cell grid (walls, glass, doors, furniture) that drives collision,
+// cover, line of sight and pathing.
 //   - walls and tall furniture (counters, bars, slot machines, racks, crates, cars) stop bullets: that's cover
 //   - low furniture (tables, sofas, card tables, gym benches) blocks walking but bullets fly over it
 //   - glass panes block walking, you can see through them, and any bullet shatters them
 //   - red barrels explode when shot
 // Rules: 3 lives (Neon Vice Easy), mouse aim, click / F attack, E grab / throw, 1 melee / 2 + 3 guns (wheel / Tab cycle), R reload (active reload), Shift sprint (loud), Backspace restart.
 //
-// The level is built once, 300 m east of De Natte Worst, in the same scene. initMission(ctx) gets the engine
-// helpers from main.js.
+// Only one level lives in the scene at a time: it is built 300 m east of De Natte Worst when a mission starts (enter(id)) and
+// the previous one is torn down (meshes and collision solids). initMission(ctx) gets the engine helpers from main.js.
+//
+// Grid legend (shared by all levels):
+//   # wall · % glass · D swing door (runs of 2) · . floor
+//   cover (stops bullets): K counter, B bar, M slot machine, F fridge/vending, R rack (also blocks sight), C crates, w workbench / steel table,
+//                          O desk, V safe, Q pinball, b punching bag, X explosive barrel, A car / boat (model placed by the level)
+//   low (bullets fly over): T table, S sofa, c card table, P pool table, G gym bench, p plant
+// A level can add its own furniture letters (def.furn) and recolour the shared ones.
 
 import { virt, inputMode, glyph, controlsLine } from './input.js';
+import spekbuurt from './levels/spekbuurt.js';
+
+export const LEVELS = { spekbuurt };
 
 export function initMission(ctx) {
-  const { THREE, scene, camera, player, state, box, cyl, lam, solid, makePerson, animate, toast, beep, addMoney,
-    neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, bubble, say, addInteract, clearPlayerSplats, sun, hemi,
+  const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
+    neonTube, neonRect, signTex, canvasTex, $, maboota, equip, bubble, say, addInteract, clearPlayerSplats, sun, hemi,
     setBounds, updateObjective, setArea } = ctx;
-  const OX = 300, Z0 = -26; // grid cell (x, z) covers world [OX + x, OX + x + 1] × [Z0 + z, Z0 + z + 1]
+  const OX = 300; // grid cell (x, z) covers world [OX + x, OX + x + 1] × [Z0 + z, Z0 + z + 1]; Z0 = -H puts the level front on world z = 0
+  let LV = null, W = 0, H = 0, Z0 = 0, G = [], root = null; // the level that is built right now
   const L = (x, z, y = 0) => new THREE.Vector3(OX + x, y, Z0 + z);
-  const root = new THREE.Group(); root.visible = false; scene.add(root); // only drawn while the mission is on
   const rnd = (a, b) => a + Math.random() * (b - a);
+  const WALL_H = 2.3;
 
-  // ================================================================== THE MAP
-  // Rooms connect in loops (Neon Vice style), so there is always more than one way in:
-  //   restaurant → lounge → gambling room → landing → office / back corridor
-  //   restaurant → landing → back corridor → gym / warehouse → garage → mixing room → restaurant
-  const W = 46, H = 26;
-  const G = Array.from({ length: H }, () => Array(W).fill('#'));
-  const carve = (x0, z0, x1, z1, ch = '.') => { for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) G[z][x] = ch; };
-  const put = (x, z, ch) => { G[z][x] = ch; };
-  const putR = (x0, z0, x1, z1, ch) => carve(x0, z0, x1, z1, ch);
-  const ROOMS = [ // name, x0, z0, x1, z1 (interior cells), floor
-    ['gambling', 1, 1, 14, 10, 'casino'], ['office', 16, 1, 24, 7, 'parquet'], ['gym', 26, 1, 32, 8, 'rubber'], ['warehouse', 34, 1, 44, 12, 'concrete'],
-    ['landing', 16, 9, 24, 13, 'hall'], ['corridor', 26, 10, 32, 13, 'hall'],
-    ['lounge', 1, 12, 9, 24, 'shag'], ['restaurant', 11, 15, 24, 24, 'checker'], ['mixing', 26, 15, 32, 24, 'tiles'], ['garage', 34, 14, 44, 24, 'garage'],
-  ];
-  for (const [, x0, z0, x1, z1] of ROOMS) carve(x0, z0, x1, z1);
-  // doors (2 cells wide, swing doors are added below on every D run)
-  putR(4, 11, 5, 11, 'D');   // gambling ↔ lounge
-  putR(15, 9, 15, 10, 'D');  // gambling ↔ landing
-  putR(19, 8, 20, 8, 'D');   // landing ↔ office
-  putR(19, 14, 20, 14, 'D'); // restaurant ↔ landing (PERSONEEL)
-  putR(25, 11, 25, 12, 'D'); // landing ↔ corridor
-  putR(29, 9, 30, 9, 'D');   // corridor ↔ gym
-  putR(33, 11, 33, 12, 'D'); // corridor ↔ warehouse
-  putR(29, 14, 30, 14, 'D'); // corridor ↔ mixing room
-  putR(10, 20, 10, 21, 'D'); // lounge ↔ restaurant
-  putR(25, 22, 25, 23, 'D'); // restaurant ↔ mixing room (behind the counter)
-  putR(33, 18, 33, 19, 'D'); // mixing room ↔ garage
-  carve(37, 13, 41, 13);     // warehouse ↔ garage: wide open loading bay (no door)
-  carve(18, 25, 19, 25);     // the front door of the snackbar (open)
-  // glass: storefront, office window onto the gambling room, gym window onto the corridor
-  putR(11, 25, 17, 25, '%'); putR(20, 25, 24, 25, '%');
-  putR(15, 2, 15, 6, '%');
-  putR(26, 9, 28, 9, '%'); putR(31, 9, 32, 9, '%');
-  // pillars in the landing (cover in the middle of the room)
-  put(18, 11, '#'); put(21, 11, '#');
-  // furniture. K counter, B bar, M slot machine, F fridge/vending, R rack, C crates, w workbench / steel table,
-  // O desk, V safe, Q pinball, b punching bag, X explosive barrel  (all cover)
-  // T table, S sofa, c card table, P pool table, G gym bench, p plant  (low: bullets fly over)
-  putR(13, 17, 18, 17, 'K'); put(14, 15, 'F'); putR(24, 15, 24, 16, 'F');                       // restaurant: counter, döner, drinks fridge
-  putR(13, 20, 14, 21, 'T'); putR(16, 20, 17, 21, 'T'); putR(21, 20, 22, 21, 'T'); putR(13, 23, 14, 23, 'T'); putR(22, 23, 23, 23, 'T');
-  put(11, 24, 'p'); put(24, 24, 'p');
-  putR(2, 18, 5, 18, 'S'); putR(3, 20, 4, 20, 'T'); putR(7, 12, 8, 12, 'F'); putR(8, 15, 9, 16, 'Q'); putR(1, 23, 4, 24, 'S'); put(9, 24, 'p'); // lounge
-  putR(3, 3, 4, 4, 'c'); putR(8, 3, 9, 4, 'c'); putR(8, 7, 9, 8, 'c'); putR(2, 7, 3, 9, 'P');          // gambling: card tables, pool table
-  putR(1, 1, 1, 5, 'M'); putR(12, 2, 12, 6, 'B'); put(14, 1, 'F');                                    // slot machines, bar, fridge
-  putR(18, 3, 21, 3, 'O'); putR(23, 1, 24, 1, 'V'); putR(16, 1, 16, 1, 'F'); put(24, 7, 'p');          // office
-  put(23, 9, 'F'); put(24, 9, 'F'); put(16, 13, 'p');                                                  // landing: vending machines
-  putR(27, 13, 28, 13, 'C'); put(31, 10, 'C');                                                         // corridor crates
-  putR(27, 3, 28, 3, 'G'); putR(30, 3, 31, 3, 'G'); put(29, 6, 'b'); putR(32, 1, 32, 2, 'C');           // gym
-  putR(36, 2, 36, 8, 'R'); putR(39, 2, 39, 8, 'R'); putR(42, 2, 42, 8, 'R'); putR(43, 11, 44, 12, 'C'); put(35, 10, 'C'); // warehouse
-  putR(28, 18, 30, 19, 'w'); putR(31, 23, 32, 24, 'C'); put(32, 15, 'F'); put(26, 24, 'C');            // mixing room
-  putR(36, 17, 37, 20, 'A'); putR(41, 17, 42, 20, 'A'); putR(44, 15, 44, 17, 'w'); put(35, 23, 'X'); put(44, 23, 'X'); put(34, 15, 'X'); // garage
-  put(44, 1, 'X'); put(13, 10, 'X');
+  // ================================================================== GRID QUERIES (Neon Vice: los / rayWall / pathing on cells)
+  const BASE_BLOCK = '#%KBMFRCwOVQbXATScPGp', BASE_COVER = '#KBMFRCwOVQbXA', BASE_SIGHT = '#R';
+  let BLOCK = new Set(BASE_BLOCK), COVER = new Set(BASE_COVER), SIGHT = new Set(BASE_SIGHT);
   const cellAt = (wx, wz) => { const x = Math.floor(wx - OX), z = Math.floor(wz - Z0); if (z >= H) return '.'; if (x < 0 || x >= W || z < 0) return '#'; return G[z][x]; };
-  const BLOCK = new Set('#%KBMFRCwOVQbXATScPGp');
-  const COVER = new Set('#KBMFRCwOVQbXA');
-  const SIGHT = new Set('#R');
   const isBlock = (c) => BLOCK.has(c), isCover = (c) => COVER.has(c);
 
-  // ================================================================== GEOMETRY
-  const WALL_H = 2.3;
-  const wallM = lam({ color: 0x2c2238 }), capM = lam({ color: 0xf2e6f4 });
-  const cellSolids = new Map(); // "x,z" -> solid (for glass and barrels that can go away)
+  // ================================================================== GEOMETRY (shared materials and floor textures)
+  let levelSolids = [];
+  const solid = (...a) => { const s = ctx.solid(...a); levelSolids.push(s); return s; }; // level collision, removed on teardown
   const solidRun = (x0, x1, z0, z1) => solid(OX + x0, OX + x1, Z0 + z0, Z0 + z1);
   function floorW(x0, x1, z0, z1, tex, rep = 1, color = 0xffffff, y = 0.02) {
     const t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set((x1 - x0) / rep, (z1 - z0) / rep);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), lam({ map: t, color }));
-    m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); m.receiveShadow = true; root.add(m);
+    m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); m.receiveShadow = true; root.add(m); return m;
   }
   const T = {
     checker: canvasTex(64, 64, (g) => { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#b8202a' : '#f2e8d8'; g.fillRect(x * 32, y * 32, 32, 32); } }),
@@ -102,86 +60,116 @@ export function initMission(ctx) {
     asphalt: canvasTex(64, 64, (g) => { g.fillStyle = '#3a3a40'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * 0.06})`; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } }),
     paving: canvasTex(64, 64, (g) => { g.fillStyle = '#a89a8a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#7a6e62'; g.lineWidth = 2; for (let y = 0; y < 64; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); for (let x = (y / 16) % 2 ? 0 : 16; x < 64; x += 32) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 16); g.stroke(); } } }),
   };
-  // street, pavement, neighbours
-  floorW(OX - 10, OX + 58, 2.6, 12, T.asphalt, 4); floorW(OX - 10, OX + 58, 0, 2.6, T.paving, 1.5);
-  for (let x = -8; x < 58; x += 4) box(2, 0.01, 0.14, lam({ color: 0xf2f2f2 }), OX + x, 0.03, 7.3, root, false);
-  for (const [x0, x1, c] of [[-10, 0, 0x2a3a5a], [W, W + 12, 0x3a2a4a]]) { box(x1 - x0, 7, 26, lam({ color: c }), OX + (x0 + x1) / 2, 3.5, -13, root); solid(OX + x0, OX + x1, -26, 0); }
-  floorW(OX, OX + W, Z0, 0, T.concrete, 3, 0x554466, 0.01); // under walls and doorways
-  for (const [, x0, z0, x1, z1, f] of ROOMS) floorW(OX + x0, OX + x1 + 1, Z0 + z0, Z0 + z1 + 1, T[f], f === 'checker' ? 1 : f === 'garage' || f === 'concrete' ? 3 : 1.4);
-  for (const [x, z] of [[18, 25], [19, 25], [4, 11], [5, 11], [15, 9], [15, 10], [19, 8], [20, 8], [19, 14], [20, 14], [25, 11], [25, 12], [29, 9], [30, 9], [33, 11], [33, 12], [29, 14], [30, 14], [10, 20], [10, 21], [25, 22], [25, 23], [33, 18], [33, 19], [37, 13], [38, 13], [39, 13], [40, 13], [41, 13]])
-    floorW(OX + x, OX + x + 1, Z0 + z, Z0 + z + 1, T.hall, 1, 0xffffff, 0.021);
-  // walls: one box per horizontal run of '#'
-  for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
-    if (G[z][x] !== '#') continue; let x1 = x; while (x1 + 1 < W && G[z][x1 + 1] === '#') x1++;
-    const n = x1 - x + 1; box(n, WALL_H, 1, wallM, OX + x + n / 2, WALL_H / 2, Z0 + z + 0.5, root);
-    box(n + 0.02, 0.06, 1.02, capM, OX + x + n / 2, WALL_H + 0.03, Z0 + z + 0.5, root, false);
-    solidRun(x, x1 + 1, z, z + 1); x = x1;
-  }
-  // glass panes: one pane per cell, oriented along its wall line
-  const glassM = new THREE.MeshPhongMaterial({ color: 0x9ad8ff, transparent: true, opacity: 0.32, shininess: 120, specular: 0xffffff, depthWrite: false });
-  const frameM = lam({ color: 0xe8e8f0 });
-  const glass = new Map();
-  for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (G[z][x] === '%') {
-    const horiz = (x > 0 && '#%'.includes(G[z][x - 1])) || (x < W - 1 && '#%'.includes(G[z][x + 1]));
-    const g = new THREE.Group(); g.position.set(OX + x + 0.5, 0, Z0 + z + 0.5); if (!horiz) g.rotation.y = Math.PI / 2; root.add(g);
-    box(1, 0.5, 0.3, wallM, 0, 0.25, 0, g); box(1, 0.06, 0.32, capM, 0, 0.52, 0, g, false);
-    const pane = new THREE.Mesh(new THREE.BoxGeometry(1, 1.7, 0.06), glassM); pane.position.y = 1.4; g.add(pane);
-    box(1, 0.06, 0.1, frameM, 0, 2.27, 0, g, false); box(0.06, 1.75, 0.1, frameM, 0.47, 1.4, 0, g, false);
-    glass.set(x + ',' + z, { g, pane, s: solidRun(x, x + 1, z, z + 1), x, z, horiz });
-  }
-  // furniture: merged runs per type, with a look per type
-  const FM = {
+  const FLOOR_REP = { checker: 1, garage: 3, concrete: 3 }; // texture repeat size in metres (default 1.4)
+  // furniture looks: [height, colour]; a level can recolour these and add its own letters
+  // (def.furn: { ch: { h, color, cover: bool, sight: bool, draw(run) to draw it yourself } })
+  const FM0 = {
     K: [1.05, 0xc8402e], B: [1.1, 0x6a3a1a], M: [1.7, 0x7a1a3a], F: [1.8, 0xe8e8e0], R: [2.0, 0x3a5aa0], C: [1.0, 0x8a6a3a], w: [0.95, 0xc8ccd0],
     O: [0.8, 0x3a1a0a], V: [1.2, 0x3a3a40], Q: [1.4, 0xff3fa4], b: [1.4, 0xb8102e], T: [0.76, 0xf2efe6], S: [0.75, 0x6a2a5a], c: [0.78, 0x1f6a3a], P: [0.85, 0x1a6a3a], G: [0.5, 0x1a1a1a], p: [0.9, 0x2f7a2a],
   };
-  const furnMeshes = [];
-  for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
-    const ch = G[z][x]; if (!FM[ch] && ch !== 'A') continue;
-    let x1 = x; while (x1 + 1 < W && G[z][x1 + 1] === ch) x1++;
-    if (ch === 'A') { solidRun(x, x1 + 1, z, z + 1); x = x1; continue; } // cars: the model is placed below
-    const n = x1 - x + 1, [h, col] = FM[ch], cx = OX + x + n / 2, cz = Z0 + z + 0.5;
-    if (ch === 'p') { for (let k = 0; k < n; k++) { cyl(0.22, 0.18, 0.4, lam({ color: 0x8a4a2a }), OX + x + k + 0.5, 0.2, cz, root, 10); const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), lam({ color: col })); b.position.set(OX + x + k + 0.5, 0.8, cz); b.castShadow = true; root.add(b); } }
-    else if (ch === 'c') { /* card tables are drawn per 2×2 block below */ }
-    else if (ch === 'T') { box(n - 0.08, 0.06, 0.92, lam({ color: col }), cx, h, cz, root); for (const ox of [-n / 2 + 0.2, n / 2 - 0.2]) box(0.08, h, 0.08, lam({ color: 0x3a2212 }), cx + ox, h / 2, cz, root, false); }
-    else if (ch === 'R') { box(n - 0.04, h, 0.9, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) for (let s = 0; s < 2; s++) box(0.42, 0.42, 0.6, lam({ color: [0xe8a020, 0xc8402e, 0xf2c43a][(x + k + s + z) % 3] }), OX + x + k + 0.5, 0.45 + s * 0.85, cz + (s ? 0.12 : -0.12), root); }
-    else if (ch === 'M') { box(n - 0.06, h, 0.8, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) { const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.45), new THREE.MeshBasicMaterial({ color: [0xffe14a, 0x3ff0ff, 0xff3fa4][(x + k) % 3] })); sc.rotation.x = -Math.PI / 2.6; sc.position.set(OX + x + k + 0.5, h + 0.01, cz + 0.1); root.add(sc); } }
-    else box(n - 0.06, h, 0.9, lam({ color: col }), cx, h / 2, cz, root);
-    if (ch === 'K' || ch === 'w') box(n, 0.06, 1.0, new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.8 }), cx, h + 0.03, cz, root, false);
-    solidRun(x, x1 + 1, z, z + 1); x = x1;
+  let FM = FM0;
+  const glassM = new THREE.MeshPhongMaterial({ color: 0x9ad8ff, transparent: true, opacity: 0.32, shininess: 120, specular: 0xffffff, depthWrite: false });
+  const frameM = lam({ color: 0xe8e8f0 }), barrelM = lam({ color: 0xc81e1e });
+  let wallM = null, capM = null, pristine = null;
+  let glass = new Map(), barrels = new Map(), lights = [], van = null, levelTick = null, START = null, VAN_PARK = 0;
+
+  // builds a level into a fresh root group; the previous level is torn down first
+  function buildLevel(def) {
+    teardown();
+    LV = def; W = def.W; H = def.H; Z0 = -H;
+    G = Array.from({ length: H }, () => Array(W).fill('#'));
+    root = new THREE.Group(); root.visible = false; scene.add(root); // only drawn while the mission is on
+    const carve = (x0, z0, x1, z1, ch = '.') => { for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) G[z][x] = ch; };
+    const put = (x, z, ch) => { G[z][x] = ch; };
+    const putR = (x0, z0, x1, z1, ch) => carve(x0, z0, x1, z1, ch);
+    for (const [, x0, z0, x1, z1] of def.rooms) carve(x0, z0, x1, z1);
+    def.layout({ carve, put, putR, G, W, H });
+    // furniture rules: the shared letters plus the level's own
+    FM = { ...FM0 }; BLOCK = new Set(BASE_BLOCK); COVER = new Set(BASE_COVER); SIGHT = new Set(BASE_SIGHT);
+    for (const [ch, f] of Object.entries(def.furn || {})) {
+      FM[ch] = [f.h ?? (FM0[ch] ? FM0[ch][0] : 1), f.color ?? (FM0[ch] ? FM0[ch][1] : 0x888888), f];
+      BLOCK.add(ch);
+      if (f.cover === true) COVER.add(ch); else if (f.cover === false) COVER.delete(ch); else if (!FM0[ch]) COVER.add(ch);
+      if (f.sight) SIGHT.add(ch);
+    }
+    const mood = def.mood;
+    wallM = lam({ color: mood.wall }); capM = lam({ color: mood.cap });
+    const floorT = { ...T }; for (const [k, draw] of Object.entries(def.floors || {})) floorT[k] = canvasTex(64, 64, draw);
+    const rep = { ...FLOOR_REP, ...(def.floorRep || {}) };
+    floorW(OX, OX + W, Z0, 0, T.concrete, 3, mood.under, 0.01); // under walls and doorways
+    for (const [, x0, z0, x1, z1, f] of def.rooms) floorW(OX + x0, OX + x1 + 1, Z0 + z0, Z0 + z1 + 1, floorT[f], rep[f] ?? 1.4);
+    const hallCells = [];
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (G[z][x] === 'D') hallCells.push([x, z]);
+    for (const c of def.hallCells || []) hallCells.push(c);
+    for (const [x, z] of hallCells) floorW(OX + x, OX + x + 1, Z0 + z, Z0 + z + 1, floorT[def.doorFloor || 'hall'], 1, 0xffffff, 0.021);
+    // walls: one box per horizontal run of '#'
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      if (G[z][x] !== '#') continue; let x1 = x; while (x1 + 1 < W && G[z][x1 + 1] === '#') x1++;
+      const n = x1 - x + 1; box(n, WALL_H, 1, wallM, OX + x + n / 2, WALL_H / 2, Z0 + z + 0.5, root);
+      box(n + 0.02, 0.06, 1.02, capM, OX + x + n / 2, WALL_H + 0.03, Z0 + z + 0.5, root, false);
+      solidRun(x, x1 + 1, z, z + 1); x = x1;
+    }
+    // glass panes: one pane per cell, oriented along its wall line
+    glass = new Map();
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (G[z][x] === '%') {
+      const horiz = (x > 0 && '#%'.includes(G[z][x - 1])) || (x < W - 1 && '#%'.includes(G[z][x + 1]));
+      const g = new THREE.Group(); g.position.set(OX + x + 0.5, 0, Z0 + z + 0.5); if (!horiz) g.rotation.y = Math.PI / 2; root.add(g);
+      box(1, 0.5, 0.3, wallM, 0, 0.25, 0, g); box(1, 0.06, 0.32, capM, 0, 0.52, 0, g, false);
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(1, 1.7, 0.06), glassM); pane.position.y = 1.4; g.add(pane);
+      box(1, 0.06, 0.1, frameM, 0, 2.27, 0, g, false); box(0.06, 1.75, 0.1, frameM, 0.47, 1.4, 0, g, false);
+      glass.set(x + ',' + z, { g, pane, s: solidRun(x, x + 1, z, z + 1), x, z, horiz });
+    }
+    // furniture: merged runs per type, with a look per type
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      const ch = G[z][x]; if (!FM[ch] && ch !== 'A') continue;
+      let x1 = x; while (x1 + 1 < W && G[z][x1 + 1] === ch) x1++;
+      if (ch === 'A') { solidRun(x, x1 + 1, z, z + 1); x = x1; continue; } // cars and boats: the level places the model
+      const n = x1 - x + 1, [h, col, own] = FM[ch], cx = OX + x + n / 2, cz = Z0 + z + 0.5;
+      if (own && own.draw) own.draw({ THREE, root, box, cyl, lam, x, x1, z, n, h, col, cx, cz, OX, Z0 });
+      else if (ch === 'p') { for (let k = 0; k < n; k++) { cyl(0.22, 0.18, 0.4, lam({ color: 0x8a4a2a }), OX + x + k + 0.5, 0.2, cz, root, 10); const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), lam({ color: col })); b.position.set(OX + x + k + 0.5, 0.8, cz); b.castShadow = true; root.add(b); } }
+      else if (ch === 'c') { /* card tables: the level draws the round tops */ }
+      else if (ch === 'T') { box(n - 0.08, 0.06, 0.92, lam({ color: col }), cx, h, cz, root); for (const ox of [-n / 2 + 0.2, n / 2 - 0.2]) box(0.08, h, 0.08, lam({ color: 0x3a2212 }), cx + ox, h / 2, cz, root, false); }
+      else if (ch === 'R') { box(n - 0.04, h, 0.9, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) for (let s = 0; s < 2; s++) box(0.42, 0.42, 0.6, lam({ color: (def.rackGoods || [0xe8a020, 0xc8402e, 0xf2c43a])[(x + k + s + z) % 3] }), OX + x + k + 0.5, 0.45 + s * 0.85, cz + (s ? 0.12 : -0.12), root); }
+      else if (ch === 'M') { box(n - 0.06, h, 0.8, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) { const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.45), new THREE.MeshBasicMaterial({ color: [0xffe14a, 0x3ff0ff, 0xff3fa4][(x + k) % 3] })); sc.rotation.x = -Math.PI / 2.6; sc.position.set(OX + x + k + 0.5, h + 0.01, cz + 0.1); root.add(sc); } }
+      else box(n - 0.06, h, 0.9, lam({ color: col }), cx, h / 2, cz, root);
+      if (ch === 'K' || ch === 'w') box(n, 0.06, 1.0, new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.8 }), cx, h + 0.03, cz, root, false);
+      solidRun(x, x1 + 1, z, z + 1); x = x1;
+    }
+    // explosive barrels
+    barrels = new Map();
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (G[z][x] === 'X') {
+      const g = new THREE.Group(); g.position.set(OX + x + 0.5, 0, Z0 + z + 0.5); root.add(g);
+      cyl(0.34, 0.34, 1.0, barrelM, 0, 0.5, 0, g, 14); cyl(0.35, 0.35, 0.05, lam({ color: 0xffd23a }), 0, 0.7, 0, g, 14);
+      const lbl = new THREE.Mesh(new THREE.CircleGeometry(0.2, 3), new THREE.MeshBasicMaterial({ color: 0xffd23a })); lbl.rotation.x = -Math.PI / 2; lbl.position.y = 1.01; g.add(lbl);
+      barrels.set(x + ',' + z, { g, s: solidRun(x, x + 1, z, z + 1), x, z });
+    }
+    // the level's own props (street, signs, vehicles, ...)
+    const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM }) || {};
+    levelTick = deco.tick || null;
+    // neon: one strip per room, top of the walls
+    for (const [name, x0, z0, x1] of def.rooms) if (def.neon[name] !== undefined) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, def.neon[name]);
+    lights = [];
+    for (const [x, z, c, k] of def.lights) { const l = new THREE.PointLight(c, 0, 18, 1.3); l.position.set(OX + x, WALL_H + 0.6, Z0 + z); root.add(l); lights.push([l, k]); }
+    // the Oofmobiel, parked outside
+    const V = def.van; van = ctx.makeVan(); van.position.set(OX + V.park[0], 0, V.park[1]); root.add(van);
+    solid(OX + V.solid[0], OX + V.solid[1], V.solid[2], V.solid[3]);
+    VAN_PARK = OX + V.park[0]; START = () => new THREE.Vector3(OX + def.start[0], 0, def.start[1]);
+    root.add(flashL, flashSp);
+    buildDoors(def);
+    spawnEnemies(def);
+    buildLoot(def);
+    pristine = { glass: new Map(glass), barrels: new Map(barrels) };
+    Object.assign(M, { enemies, doors, glass, barrels, lootCrates, L, G, level: def.id, def, W, H, Z0 });
   }
-  // vertical merges of the same furniture make a lot of boxes; that's fine at this size.
-  for (const [x, z] of [[3, 3], [8, 3], [8, 7]]) { cyl(0.95, 0.95, 0.06, lam({ color: 0x1f6a3a }), OX + x + 1, 0.78, Z0 + z + 1, root, 24); cyl(0.1, 0.12, 0.74, lam({ color: 0x1a1a1a }), OX + x + 1, 0.37, Z0 + z + 1, root); }
-  box(1.8, 0.08, 2.8, lam({ color: 0x1a7a3a }), OX + 3, 0.86, Z0 + 8.5, root, false); // pool table felt
-  // explosive barrels
-  const barrels = new Map();
-  const barrelM = lam({ color: 0xc81e1e });
-  for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (G[z][x] === 'X') {
-    const g = new THREE.Group(); g.position.set(OX + x + 0.5, 0, Z0 + z + 0.5); root.add(g);
-    cyl(0.34, 0.34, 1.0, barrelM, 0, 0.5, 0, g, 14); cyl(0.35, 0.35, 0.05, lam({ color: 0xffd23a }), 0, 0.7, 0, g, 14);
-    const lbl = new THREE.Mesh(new THREE.CircleGeometry(0.2, 3), new THREE.MeshBasicMaterial({ color: 0xffd23a })); lbl.rotation.x = -Math.PI / 2; lbl.position.y = 1.01; g.add(lbl);
-    barrels.set(x + ',' + z, { g, s: solidRun(x, x + 1, z, z + 1), x, z });
+  function teardown() {
+    if (!root) return;
+    scene.remove(root);
+    root.traverse((o) => { if (o.geometry && o.geometry !== partGeo && o.geometry !== decalGeo) o.geometry.dispose(); });
+    for (const s of levelSolids) { const i = ctx.solids.indexOf(s); if (i >= 0) ctx.solids.splice(i, 1); }
+    levelSolids = []; doors.length = 0; enemies.length = 0; lootCrates.length = 0; items.length = 0; bullets.length = 0; parts.length = 0; gibs.length = 0; decals.length = 0; pools.length = 0;
+    root = null; LV = null;
   }
-  // the restaurant front
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.1), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'SNACKPALEIS SPEKBUURT', size: 90 }, { t: 'EIGENDOM VAN DE LAMPAS', size: 38, color: '#ffffff' }], '#1a0a10', '#ff7a1a', 1024, 150) }));
-  sign.position.set(OX + 18.5, 2.75, 0.02); root.add(sign); neonRect(root, OX + 18.5, 2.75, 9.2, 1.25, 0.06, 0xff7a1a);
-  box(14, 0.12, 1.2, lam({ color: 0xff7a1a }), OX + 18, 2.15, 0.6, root, false); // awning edge
-  const doner = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.1, 14), lam({ color: 0x9a5a2a })); doner.position.set(OX + 14.5, 2.35, Z0 + 15.5); root.add(doner);
-  const menu = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.9), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'LAMPAS SHOARMA  W 5', size: 30 }, { t: 'Lampas spice: 100% echt*', size: 24, color: '#ffffff' }], '#1a0a10', '#3ff0ff', 512, 128) }));
-  menu.rotation.x = -Math.PI / 2; menu.position.set(OX + 16.5, WALL_H + 0.08, Z0 + 14.5); root.add(menu);
-  const rollT = canvasTex(64, 64, (g) => { for (let y = 0; y < 64; y += 6) { g.fillStyle = y % 12 ? '#8a8a86' : '#6a6a66'; g.fillRect(0, y, 64, 6); } });
-  const roll = new THREE.Mesh(new THREE.PlaneGeometry(9, WALL_H), lam({ map: rollT })); roll.position.set(OX + 39.5, WALL_H / 2, 0.03); root.add(roll);
-  const jvk = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.0), lam({ map: canvasTex(128, 96, (g) => { g.fillStyle = '#d8b040'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#2a1a1a'; g.fillRect(6, 6, 116, 84); g.fillStyle = '#f2c8a0'; g.beginPath(); g.arc(64, 44, 22, 0, 7); g.fill(); g.fillStyle = '#ff7a1a'; g.fillRect(36, 66, 56, 24); g.fillStyle = '#ffd36b'; g.font = '700 10px Arial'; g.textAlign = 'center'; g.fillText('JAN VAN KAAS', 64, 88); }) }));
-  jvk.position.set(OX + 20, 1.7, Z0 + 1.02); root.add(jvk);
-  const spice = cyl(0.42, 0.42, 0.05, lam({ color: 0xd8742a }), OX + 29.5, 1.02, Z0 + 19, root, 16); // the mixing bowl
-  // cars in the garage (their cells are 'A' in the grid)
-  car(OX + 37, Z0 + 19, 0xff7a1a, Math.PI / 2, false, 5); car(OX + 42, Z0 + 19, 0x1a1a1a, Math.PI / 2, false, 0);
-  // neon: one strip per room, top of the walls
-  for (const [name, x0, z0, x1, z1] of ROOMS) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, { gambling: 0x3ff0ff, office: 0xffd23a, gym: 0x7dff9a, warehouse: 0xffd8a0, landing: 0xff3fa4, corridor: 0x3ff0ff, lounge: 0xff7a1a, restaurant: 0xff3fa4, mixing: 0x3ff0ff, garage: 0xffd23a }[name]);
-  const lights = [];
-  for (const [x, z, c, k] of [[18, 20, 0xff9a6a, 2.2], [20, 11, 0xff3fa4, 1.6], [7, 6, 0x3ff0ff, 1.8], [39, 7, 0xffd8a0, 2.0], [5, 18, 0xff7a1a, 1.3], [39, 19, 0xffd23a, 1.3]]) { const l = new THREE.PointLight(c, 0, 18, 1.3); l.position.set(OX + x, WALL_H + 0.6, Z0 + z); root.add(l); lights.push([l, k]); }
-  // the Oofmobiel, parked outside
-  const van = ctx.makeVan(); van.position.set(OX + 12, 0, 4.6); root.add(van);
-  solid(OX + 8.9, OX + 15.2, 3.45, 5.75);
 
   // ================================================================== GRID QUERIES (Neon Vice: los / rayWall / pathing on cells)
   const walkable = (x, z) => x >= 0 && z >= 0 && x < W && z < H && !isBlock(G[z][x]);
@@ -214,10 +202,11 @@ export function initMission(ctx) {
     if (sign) { const s = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.28), lam({ map: signTex([{ t: sign, size: 40 }], '#1a1a1a', '#ffd23a', 256, 64) })); s.position.set(len / 2, 1.9, 0.045); g.add(s); }
     doors.push({ g, hx, hz, base, len, th: 0, w: 0, pusher: '' });
   }
-  { const seen = new Set();
+  function buildDoors(def) {
+    const seen = new Set(), signs = def.doorSigns || {};
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (G[z][x] !== 'D' || seen.has(x + ',' + z)) continue;
-      if (x + 1 < W && G[z][x + 1] === 'D') { let x1 = x; while (G[z][x1 + 1] === 'D') { x1++; } for (let k = x; k <= x1; k++) seen.add(k + ',' + z); addDoor(OX + x, Z0 + z + 0.5, 0, x1 - x + 1, x === 19 && z === 14 ? 'PERSONEEL' : ''); }
-      else { let z1 = z; while (z1 + 1 < H && G[z1 + 1][x] === 'D') z1++; for (let k = z; k <= z1; k++) seen.add(x + ',' + k); addDoor(OX + x + 0.5, Z0 + z, -Math.PI / 2, z1 - z + 1); } } }
+      if (x + 1 < W && G[z][x + 1] === 'D') { let x1 = x; while (G[z][x1 + 1] === 'D') { x1++; } for (let k = x; k <= x1; k++) seen.add(k + ',' + z); addDoor(OX + x, Z0 + z + 0.5, 0, x1 - x + 1, signs[x + ',' + z] || ''); }
+      else { let z1 = z; while (z1 + 1 < H && G[z1 + 1][x] === 'D') z1++; for (let k = z; k <= z1; k++) seen.add(x + ',' + k); addDoor(OX + x + 0.5, Z0 + z, -Math.PI / 2, z1 - z + 1, signs[x + ',' + z] || ''); } } }
   const doorEnd = (d) => { const a = d.base + d.th; return [d.hx + Math.cos(a) * d.len, d.hz - Math.sin(a) * d.len]; };
   function segDist(px, pz, ax, az, bx, bz) { const sx = bx - ax, sz = bz - az; let t = ((px - ax) * sx + (pz - az) * sz) / (sx * sx + sz * sz); t = Math.max(0, Math.min(1, t)); const cx = ax + sx * t, cz = az + sz * t; return [Math.hypot(px - cx, pz - cz), cx, cz]; }
   function segInt(ax, az, bx, bz, cx, cz, dx, dz) { const d = (bx - ax) * (dz - cz) - (bz - az) * (dx - cx); if (Math.abs(d) < 1e-9) return false; const u = ((cx - ax) * (dz - cz) - (cz - az) * (dx - cx)) / d, v = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / d; return u >= 0 && u <= 1 && v >= 0 && v <= 1; }
@@ -288,7 +277,7 @@ export function initMission(ctx) {
   const KILLPTS = { maboota: 450, bat: 450, fists: 500, exec: 800, door: 600, throw: 550, makarov: 300, shotgun: 300, boom: 700 };
   const FORCE = { makarov: 4.5, shotgun: 9.5, bat: 6.5, maboota: 5.5, fists: 5.5, exec: 1, throw: 5, door: 6, boom: 10 };
   const EASY = { hp: 3, react: 1.9, espr: 0.17, ebSpd: 15, vision: 9, cone: 0.85, ecd: 1.5, regen: 7 };
-  const TIPS = ['Red laser = a Lampas is aiming at you. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'There is always another way round. The restaurant, the lounge and the garage all connect.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
+  const TIPS = ['Red laser = a Lampas is aiming at you. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
   function weaponMesh(id) {
     const g = new THREE.Group();
     if (id === 'bat') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.025, 0.85, 8), lam({ color: 0xc8a06a })); b.position.y = -0.4; g.add(b); }
@@ -315,7 +304,25 @@ export function initMission(ctx) {
       state.loadout = { guns: [0, 1].map((i) => (g[i] ? { id: g[i], ammo: state.ammo[g[i]] ?? WD[g[i]].mag } : null)), melee: (state.kit || []).includes('bat') ? 'bat' : null, vest: (state.kit || []).includes('vest') ? 1 : 0 };
     }
     if (!Array.isArray(state.stash)) state.stash = [];
+    migrateLevels();
   }
+  // per-level progress: state.owned = { spekbuurt: true, ... }, state.lootTaken = { spekbuurt: [crate indices], ... }.
+  // Saves from before the level engine had state.spekbuurt / state.spekbuurtLootTaken: those are migrated, and both stay
+  // in sync for Spekbuurt so an older build still reads the save.
+  function migrateLevels() {
+    if (!state.owned || typeof state.owned !== 'object') state.owned = {};
+    if (!state.lootTaken || typeof state.lootTaken !== 'object') state.lootTaken = {};
+    if (state.spekbuurt) state.owned.spekbuurt = true;
+    if (Array.isArray(state.spekbuurtLootTaken) && !state.lootTaken.spekbuurt) state.lootTaken.spekbuurt = state.spekbuurtLootTaken.slice();
+    if (state.owned.spekbuurt) state.spekbuurt = true;
+  }
+  const ownsLevel = (id) => !!(state.owned && state.owned[id]);
+  function setOwned(id, on = true) {
+    migrateLevels(); if (on) state.owned[id] = true; else delete state.owned[id];
+    if (id === 'spekbuurt') state.spekbuurt = on;
+    if (ctx.onOwned) ctx.onOwned(id);
+  }
+  function setLootTaken(id, list) { state.lootTaken[id] = list; if (id === 'spekbuurt') state.spekbuurtLootTaken = list.slice(); }
   migrateKit();
   const P = { slot: 1, held: null, hp: EASY.hp, maxhp: EASY.hp, armor: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, cause: '', vx: 0, vz: 0, last: new THREE.Vector3(), rl: null, sprint: false, stepT: 0, guns: [null, null], melee: null, useBat: false, lastGun: 2 };
   const handGun = new THREE.Group(); handGun.position.set(0, -0.68, 0.05); handGun.visible = false; player.userData.arms[0].add(handGun);
@@ -455,8 +462,8 @@ export function initMission(ctx) {
   function floorDecal(x, z, s, rot, mat = decalM) { if (decals.length > 320) root.remove(decals.shift()); const m = new THREE.Mesh(decalGeo, mat); m.scale.set(s, s, 1); m.rotation.set(-Math.PI / 2, 0, rot); m.position.set(x, 0.03 + (decals.length % 60) * 0.0004, z); root.add(m); decals.push(m); return m; }
   function wallDecal(x, y, z, nx, nz, s, mat = decalM) { if (decals.length > 320) root.remove(decals.shift()); const m = new THREE.Mesh(decalGeo, mat); m.scale.setScalar(s); m.position.set(x + nx * 0.02, y, z + nz * 0.02); m.lookAt(m.position.x + nx, y, m.position.z + nz); root.add(m); decals.push(m); }
   function addPool(e, big) { const m = floorDecal(e.position.x, e.position.z, 0.2, Math.random() * 6, DM(poolTex)); pools.push({ m, e, s: 0.2, max: big ? rnd(1.6, 2.0) : rnd(1.0, 1.4) }); }
-  const flashL = new THREE.PointLight(0xffd080, 0, 9, 1.5); root.add(flashL); let flashT = 0;
-  const flashSp = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffe0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flashSp.scale.setScalar(0.7); flashSp.visible = false; root.add(flashSp);
+  const flashL = new THREE.PointLight(0xffd080, 0, 9, 1.5); let flashT = 0; // added to each level's root in buildLevel
+  const flashSp = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffe0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flashSp.scale.setScalar(0.7); flashSp.visible = false;
   function muzzle(at, k = 4) { flashL.position.set(at.x, 1.3, at.z); flashL.intensity = k; flashSp.position.set(at.x, 1.25, at.z); flashSp.visible = true; flashT = 0.06; }
 
   // ================================================================== BREAKABLES: glass and barrels
@@ -487,28 +494,16 @@ export function initMission(ctx) {
     { front: '#e8641as', shirt: 0xe8641a, pants: 0x2a2a3a }, { front: '#2a1a12', shirt: 0x2a1a12, pants: 0x1a1a22 },
     { front: '#f2efe6', shirt: 0xf2efe6, pants: 0xe8641a }, { front: '#ff7a1a', shirt: 0xff7a1a, pants: 0xf2efe6 },
   ];
-  const SPAWNS = [ // cell x, cell z, weapon, facing (0 = +z/south), room, boss
-    [13, 19, 'bat', Math.PI, 'restaurant'], [22, 18, 'makarov', 0, 'restaurant'], [16, 15.6, 'makarov', 0, 'restaurant'], [23, 22, 'bat', -Math.PI / 2, 'restaurant'],
-    [5, 15, 'makarov', Math.PI / 2, 'lounge'], [3, 21.5, 'bat', 0, 'lounge'], [7, 22, null, -Math.PI / 2, 'lounge'],
-    [6, 5.5, 'makarov', Math.PI / 2, 'gambling'], [10.5, 6, 'bat', -Math.PI / 2, 'gambling'], [13.5, 3.5, 'makarov', -Math.PI / 2, 'gambling'], [5.5, 9, 'bat', Math.PI, 'gambling'],
-    [19.5, 2, 'shotgun', 0, 'office', true], [22.5, 5.5, 'makarov', -Math.PI / 2, 'office'],
-    [20, 10, 'bat', Math.PI / 2, 'landing'], [17, 12.5, 'makarov', Math.PI / 2, 'landing'],
-    [28.5, 5.5, 'bat', Math.PI, 'gym'], [31, 6.5, null, -Math.PI / 2, 'gym'],
-    [31.5, 12.5, 'bat', -Math.PI / 2, 'corridor'],
-    [37.5, 4.5, 'makarov', 0, 'warehouse'], [40.5, 9.5, 'shotgun', Math.PI, 'warehouse'], [43.5, 3.5, 'bat', -Math.PI / 2, 'warehouse'],
-    [27.5, 21.5, 'bat', Math.PI / 2, 'mixing'], [31, 16.5, 'makarov', 0, 'mixing'],
-    [39.5, 22.5, 'makarov', Math.PI, 'garage'], [43.5, 20, 'bat', -Math.PI / 2, 'garage'],
-  ];
   const enemies = [];
   const laserM = new THREE.MeshBasicMaterial({ color: 0xff1030, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
-  SPAWNS.forEach(([x, z, w, rot, room, boss], i) => {
-    const look = LAMPAS_LOOKS[i % LAMPAS_LOOKS.length];
-    const skin = boss ? 0xf0c8a8 : [0xf0c8a8, 0xe0a882, 0xf4d2bc, 0xd8a080][i % 4];
+  function spawnEnemies(def) { def.spawns.forEach(([x, z, w, rot, room, boss], i) => {
+    const look = LAMPAS_LOOKS[i % LAMPAS_LOOKS.length], bl = def.bossLook || {};
+    const skin = boss ? (bl.skin ?? 0xf0c8a8) : [0xf0c8a8, 0xe0a882, 0xf4d2bc, 0xd8a080][i % 4];
     const head = boss
-      ? { skin, hair: '#d8c080', brow: '#a89060', hairLine: 80, sideLine: 116, backLine: 150, mouth: 'smile', glasses: true, iris: '#3a5a7a' }
+      ? { skin, hair: '#d8c080', brow: '#a89060', hairLine: 80, sideLine: 116, backLine: 150, mouth: 'smile', glasses: true, iris: '#3a5a7a', ...(bl.head || {}) }
       : { skin, hair: ['#2a2a2a', '#d8c080', '#7a5a30', '#1a1a1a'][i % 4], brow: '#3a2a1a', hairLine: i % 3 === 0 ? 40 : 96, sideLine: 120, backLine: 150, mouth: 'smile', iris: '#3a3a3a' };
-    const shirt = boss ? 0xf2efe6 : look.shirt;
-    const p = makePerson({ head, ballcap: i % 5 === 2 ? 0xff7a1a : undefined, front: boss ? '#f2efe6' : look.front, shirt, pants: boss ? 0xf2efe6 : look.pants, shoes: 0x111111, belly: boss ? 1.2 : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1 });
+    const shirt = boss ? (bl.shirt ?? 0xf2efe6) : look.shirt;
+    const p = makePerson({ head, ballcap: i % 5 === 2 ? 0xff7a1a : undefined, front: boss ? (bl.front ?? '#f2efe6') : look.front, shirt, pants: boss ? (bl.pants ?? 0xf2efe6) : look.pants, shoes: 0x111111, belly: boss ? (bl.belly ?? 1.2) : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1 });
     scene.remove(p); root.add(p);
     const hand = new THREE.Group(); hand.position.set(0, -0.68, 0.05); p.userData.arms[0].add(hand);
     const laser = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 1), laserM.clone()); laser.visible = false; root.add(laser);
@@ -516,7 +511,7 @@ export function initMission(ctx) {
     p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0);
     p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
-  });
+  }); }
   function setFoeWeapon(e, id) { const f = e.userData.foe; f.weapon = id; f.hand.clear(); if (id) f.hand.add(weaponMesh(id)); }
   const ALERT_LINES = ['Hé! Wie ben jij?!', 'Het is die Eddy!', 'PAK HEM!', 'Lampas forever!', 'Dit is ons gebied!', 'Eddy Junior?! Grijp hem!'];
   const alive = () => enemies.filter((e) => e.userData.foe.alive);
@@ -531,12 +526,11 @@ export function initMission(ctx) {
   }
   const lootCrates = [];
   const crateM = lam({ map: canvasTex(64, 64, (g) => { g.fillStyle = '#8a6a3a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#5a3a1a'; g.lineWidth = 4; g.strokeRect(3, 3, 58, 58); g.beginPath(); g.moveTo(3, 3); g.lineTo(61, 61); g.stroke(); g.fillStyle = '#ff7a1a'; g.font = '900 12px Arial'; g.textAlign = 'center'; g.fillText('LAMPAS', 32, 36); }) });
-  const LOOT = [[37.5, 7.5], [38.5, 3.5], [40.5, 5.5], [43.5, 7.5], [22.5, 2.5], [27.5, 23.5]];
-  for (const [x, z] of LOOT) {
+  function buildLoot(def) { for (const [x, z] of def.loot) {
     const c = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.45, 0.55), crateM); c.position.set(OX + x, 0.23, Z0 + z); c.castShadow = true; root.add(c);
     const glow = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.7 })); glow.rotation.x = -Math.PI / 2; glow.position.set(OX + x, 0.04, Z0 + z); root.add(glow);
     lootCrates.push({ c, glow, taken: false });
-  }
+  } }
 
   // ================================================================== BULLETS (cover stops them, glass shatters, barrels explode, corpses get pushed)
   const bullets = [];
@@ -640,7 +634,7 @@ export function initMission(ctx) {
     if (!on) return;
     let hp = ''; for (let i = 0; i < P.maxhp; i++) hp += i < P.hp ? '♥' : '<i>♥</i>';
     hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#ff3fa4' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#3ff0ff' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#3ff0ff' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">LAMPAS LEFT: ${alive().length}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
-    scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">KAASLAND · SPEKBUURT</div>`;
+    scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">${LV.text.area}</div>`;
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }
   function hideScreen() { screenEl.style.display = 'none'; }
@@ -671,10 +665,9 @@ export function initMission(ctx) {
   const M = { active: false };
   const R = { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: false, results: false, ammoAtStart: {}, poolAtStart: {}, lootAtStart: 0, lastOneShown: false };
   const saved = {};
-  const pristine = { glass: new Map(glass), barrels: new Map(barrels) };
   function resetFloor() {
     cancelArrive(); // a restart never replays the drive in
-    const done = !!state.spekbuurt;
+    const done = ownsLevel(LV.id);
     // glass and barrels come back
     for (const [k, q] of pristine.glass) { glass.set(k, q); G[q.z][q.x] = '%'; q.s.off = false; q.pane.visible = true; }
     for (const [k, b] of pristine.barrels) { if (!barrels.has(k)) root.add(b.g); barrels.set(k, b); G[b.z][b.x] = 'X'; b.s.off = false; }
@@ -691,31 +684,33 @@ export function initMission(ctx) {
     for (const d of decals) root.remove(d); decals.length = 0; pools.length = 0;
     for (const d of doors) { d.th = 0; d.w = 0; d.g.rotation.y = d.base; }
     for (const p of pops) p.el.remove(); pops.length = 0;
-    state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = (state.spekbuurtLootTaken || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
+    state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
     Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.loadout.vest > 0 ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0;
-    player.position.set(OX + 19, 0, 2.2); player.rotation.y = Math.PI; P.last.copy(player.position);
+    player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
   }
-  function enter() {
-    if (M.active) return;
+  function enter(id = 'spekbuurt') {
+    if (M.active || !LEVELS[id]) return;
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
+      if (!LV || LV.id !== id) buildLevel(LEVELS[id]);
+      const mood = LV.mood;
       M.active = true; root.visible = true; clearPlayerSplats();
       saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity;
-      scene.background.set(0x1a0e2a); scene.fog.color.set(0x1a0e2a); scene.fog.near = 30; scene.fog.far = 70; hemi.intensity = 0.55; sun.intensity = 0.9;
+      scene.background.set(mood.bg); scene.fog.color.set(mood.bg); scene.fog.near = mood.fogNear; scene.fog.far = mood.fogFar; hemi.intensity = mood.hemi; sun.intensity = mood.sun;
       lights.forEach(([l, k]) => { l.intensity = k; });
-      setBounds({ x0: OX - 6, x1: OX + W + 6, z0: Z0, z1: 10 });
+      setBounds({ x0: OX + LV.bounds[0], x1: OX + LV.bounds[1], z0: LV.bounds[2], z1: LV.bounds[3] });
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
       resetFloor();
-      setArea('KAASLAND · SPEKBUURT');
-      $('objective').innerHTML = state.spekbuurt ? 'Spekbuurt is <b>yours</b>. Shop setup comes in a later build. Drive home in the <b>Oofmobiel</b>.' : 'Take <b>Snackpaleis Spekbuurt</b> from the Lampas. Clear the restaurant, then the back of house. <span style="color:#ffd36b">Leave nobody standing.</span>';
+      setArea(LV.text.area);
+      $('objective').innerHTML = ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
-      startArrive(() => { if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. ' + controlsLine(), 4.5); });
+      startArrive(() => { if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
   function exit() {
@@ -736,7 +731,7 @@ export function initMission(ctx) {
       fade.style.opacity = '0';
     }, 480);
   }
-  addInteract({ obj: van, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => state.spekbuurt ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to De Natte Worst', act: exit });
+  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to De Natte Worst', act: exit });
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
   function addKillScore(e, type) {
@@ -764,7 +759,7 @@ export function initMission(ctx) {
     else if ((type === 'bat' && Math.random() < 0.2) || (type === 'makarov' && Math.random() < 0.08)) limbOff(e, dir);
     sfx('splat'); FX.freeze = type === 'exec' ? 0.14 : 0.045; shake(type === 'shotgun' ? 0.4 : 0.25);
     R.kills++; if (type === 'exec') R.execs++; addKillScore(e, type);
-    if (f.boss) { banner('THE MANAGER IS DOWN', 'Jan van Kaas won\'t like this.', 2.5); shake(0.6); FX.freeze = 0.3; }
+    if (f.boss) { banner(LV.text.bossDown[0], LV.text.bossDown[1], 2.5); shake(0.6); FX.freeze = 0.3; }
     const left = alive().length;
     if (left === 1 && !R.lastOneShown) { R.lastOneShown = true; popup(alive()[0].position, 'LAST ONE', '#ff3fa4', true); }
     if (left === 0 && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#ff3fa4', true); shake(0.5); setTimeout(results, 1500); }
@@ -808,21 +803,21 @@ export function initMission(ctx) {
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
     const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', fists: 'Punched out by a Lampas.', boom: 'Too close to a red barrel.' }[cause] || 'Killed by the Lampas.';
-    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${TIPS[Math.floor(Math.random() * TIPS.length)]}</div><div class="btn">RETRY · ${glyph('Backspace')}</div>`); }, 900);
+    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${((tl) => tl[Math.floor(Math.random() * tl.length)])([...TIPS, ...(LV.text.tips || [])])}</div><div class="btn">RETRY · ${glyph('Backspace')}</div>`); }, 900);
   }
 
   // ================================================================== RESULTS (Neon Vice grade: score vs. 700 per enemy)
   function results() {
     if (!M.active) return;
-    R.results = true; state.spekbuurt = true; state.raids = (state.raids || 0) + 1;
-    state.spekbuurtLootTaken = lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0);
+    R.results = true; setOwned(LV.id); state.raids = (state.raids || 0) + 1;
+    setLootTaken(LV.id, lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0));
     const ratio = R.score / (enemies.length * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
     const pay = Math.round(R.score / 100) * 10; R.pay = pay; R.grade = gr;
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
-    showScreen(`<div class="logo2">SPEKBUURT UNLOCKED</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}</b><br>WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">The Lampas are out of Spekbuurt. Grab the spice crates (E), then drive home. You'll set up shop here later.</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
+    showScreen(`<div class="logo2">${LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}</b><br>WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
     sfx('cash'); addMoney(pay); commitKit();
     if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
-    $('objective').innerHTML = '<b style="color:#6ed36e">Spekbuurt is yours.</b> Grab any spice crates (E), then drive home in the <b>Oofmobiel</b>.';
+    $('objective').innerHTML = LV.text.objectiveCleared;
   }
 
   // ================================================================== PLAYER ACTIONS
@@ -853,10 +848,10 @@ export function initMission(ctx) {
   }
   function grab() {
     if (P.dead || !M.active) return false;
-    if (R.results) { hideScreen(); R.results = false; banner('SPEKBUURT IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.', 3); return true; }
+    if (R.results) { hideScreen(); R.results = false; banner(LV.text.ownedBanner[0], LV.text.ownedBanner[1], 3); return true; }
     for (const [i, l] of lootCrates.entries()) if (!l.taken && Math.hypot(l.c.position.x - player.position.x, l.c.position.z - player.position.z) < 1.2) {
       l.taken = true; l.c.visible = l.glow.visible = false; state.loot = (state.loot || 0) + 1;
-      if (state.spekbuurt) { state.spekbuurtLootTaken = state.spekbuurtLootTaken || []; state.spekbuurtLootTaken.push(i); }
+      if (ownsLevel(LV.id)) setLootTaken(LV.id, [...(state.lootTaken[LV.id] || []), i]);
       popup(player.position, '+1 CRATE OF LAMPAS SPICE', '#ffd23a'); toast('+1 CRATE OF LAMPAS SPICE', 'Sell it on Kaasplaats (PC) for W 150. Check it with I.', 1.8); sfx('pick'); hud(); return true;
     }
     let best = null, bd = 1.3;
@@ -884,7 +879,7 @@ export function initMission(ctx) {
       return;
     }
     if (ARR) { stop(); if (['KeyE', 'Space', 'Enter', 'Escape', 'Backspace'].includes(e.code) && ARR.t > 0.4) endArrive(); return; }
-    if (e.code === 'Backspace') { stop(); if (!state.spekbuurt) resetFloor(); return; }
+    if (e.code === 'Backspace') { stop(); if (!ownsLevel(LV.id)) resetFloor(); return; }
     if (P.dead) { stop(); return; }
     if (e.code === 'KeyR') { stop(); if (!e.repeat) reloadInput(); return; }
     if (e.code === 'Digit1' || e.code === 'Numpad1') { stop(); selectSlot(1); }
@@ -977,7 +972,7 @@ export function initMission(ctx) {
     const vig = FX.hurtT > 0 ? FX.hurtT / 0.7 * 0.55 : (!P.dead && P.hp === 1 ? 0.18 + Math.sin(R.time * 6) * 0.08 : 0);
     vigEl.style.background = `radial-gradient(ellipse at center, rgba(255,0,30,0) 45%, rgba(255,0,30,${vig.toFixed(3)}) 100%)`; vigEl.style.opacity = 1;
     for (const l of lootCrates) if (!l.taken) l.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
-    doner.rotation.y += dt * 0.8; spice.rotation.y += dt;
+    if (levelTick) levelTick(dt);
     for (let i = pops.length - 1; i >= 0; i--) {
       const p = pops[i]; p.t += dt; p.p.y += dt * 0.8;
       const v = p.p.clone().project(camera); p.el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; p.el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; p.el.style.opacity = Math.min(1, 2.2 - p.t * 1.6);
@@ -1167,7 +1162,6 @@ export function initMission(ctx) {
   }
   // ================================================================== ARRIVAL (Neon Vice: every mission opens with you pulling up)
   // The Oofmobiel drives in along the street, parks out front, Eddy climbs out and walks to the door. E / Space / click skips it.
-  const VAN_PARK = OX + 12, START = () => new THREE.Vector3(OX + 19, 0, 2.2);
   let ARR = null;
   const lbCss = document.createElement('style'); lbCss.textContent = `
     #nvLbT,#nvLbB{position:fixed;left:0;right:0;height:0;background:#000;z-index:7;transition:height .35s;pointer-events:none;overflow:hidden}
@@ -1180,12 +1174,12 @@ export function initMission(ctx) {
   const lbTop = mk('nvLbT'), lbBot = mk('nvLbB');
   
   function letterbox(on) {
-    lbTop.innerHTML = `<span>KAASLAND · SPEKBUURT</span>`; lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`;
+    lbTop.innerHTML = `<span>${LV.text.area}</span>`; lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`;
     lbTop.className = lbBot.className = on ? 'on' : '';
     hudEl.style.opacity = scoreEl.style.opacity = on ? 0 : 1; $('objective').style.opacity = on ? 0 : 1;
   }
   function startArrive(then) {
-    ARR = { ph: 'drive', t: 0, x0: OX + 44, then };
+    ARR = { ph: 'drive', t: 0, x0: OX + LV.van.from, then };
     van.position.set(ARR.x0, 0, van.position.z); player.visible = false; letterbox(true); M.snap = true;
     beep(70, 2.3, 'sawtooth', 0.04); beep(46, 2.3, 'square', 0.03); setTimeout(() => { if (ARR && ARR.ph === 'drive') beep(1900, 0.3, 'triangle', 0.015); }, 2050);
   }
@@ -1205,7 +1199,7 @@ export function initMission(ctx) {
       van.rotation.z = (1 - u) * 0.015 * Math.sin(A.t * 9);
       if (u >= 1) { A.ph = 'park'; A.t = 0; van.position.y = 0; van.rotation.z = 0; beep(415, 0.12, 'square', 0.03); setTimeout(() => beep(349, 0.16, 'square', 0.03), 130); } // a little Oof-Oof
     } else if (A.ph === 'park') {
-      if (A.t > 0.45) { A.ph = 'out'; A.t = 0; player.visible = true; player.position.set(VAN_PARK + 0.8, 0, 3.0); player.rotation.y = Math.PI; sfx('door'); }
+      if (A.t > 0.45) { A.ph = 'out'; A.t = 0; player.visible = true; player.position.set(OX + LV.van.exit[0], 0, LV.van.exit[1]); player.rotation.y = Math.PI; sfx('door'); }
     } else {
       const d = START().sub(player.position); d.y = 0; const L2 = d.length();
       if (L2 > 0.05) { const st = Math.min(L2, 2.6 * dt); player.rotation.y = Math.atan2(d.x, d.z); player.position.addScaledVector(d.normalize(), st); animate(player, 2.6, dt); }
@@ -1266,14 +1260,17 @@ export function initMission(ctx) {
       const horiz = (x > 0 && G[z][x - 1] === 'D') || (x < W - 1 && G[z][x + 1] === 'D');
       for (const [ax, az] of horiz ? [[x, z - 1], [x, z + 1]] : [[x - 1, z], [x + 1, z]]) if (!walkable(ax, az)) issues.push(`door ${x},${z} blocked at ${ax},${az}`);
     }
-    const start = new THREE.Vector3(OX + 18.5, 0, Z0 + 24.5);
+    const start = L(LV.validateFrom[0], LV.validateFrom[1]);
     for (const e of enemies) { const [x, z] = e.userData.foe.spawn; if (isBlock(G[Math.floor(z)][Math.floor(x)])) issues.push(`spawn ${x},${z} inside furniture`); else if (!path(start, L(x, z))) issues.push(`spawn ${x},${z} unreachable`); }
-    for (const [x, z] of LOOT) if (!path(start, L(x, z))) issues.push(`loot ${x},${z} unreachable`);
+    for (const [x, z] of LV.loot) if (!path(start, L(x, z))) issues.push(`loot ${x},${z} unreachable`);
     return issues;
   }
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
-    enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate,
-    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, endArrive, arriving: () => !!ARR, van, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
+    enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,
+    canRestart: () => M.active && !!LV && !ownsLevel(LV.id), levelName: () => (LV ? LV.name : ''),
+    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
+  Object.defineProperty(M, 'van', { get: () => van, enumerable: true });
+  buildLevel(spekbuurt); // Mission 1 is built up front (as before); other levels replace it when they're launched
   hud();
   return M;
 }

@@ -97,7 +97,7 @@ function beepNav() { if (ctx && ctx.beep) ctx.beep(700, 0.03, 'square', 0.02); }
 // ------------------------------------------------------------------ pause menu (Start / P / II)
 const pauseEl = document.createElement('div'); pauseEl.id = 'smePause';
 function pauseHTML(help) {
-  const m = ctx && ctx.getMission(), inM = m && m.active, canRestart = inM && !ctx.state.spekbuurt;
+  const m = ctx && ctx.getMission(), inM = m && m.active, canRestart = inM && (m.canRestart ? m.canRestart() : !ctx.state.spekbuurt);
   const b = (k, t, dis) => `<button data-p="${k}" ${dis ? 'disabled' : ''}>${t}</button>`;
   return `<div class="pbox"><div class="ph">PAUZE</div>${help ? `<div class="pcontrols">${controlsTable()}</div>${b('back', 'TERUG')}` :
     `${b('resume', 'VERDER')}${b('inv', 'INVENTARIS')}${b('map', 'KAART', inM)}${b('music', 'MUZIEK AAN / UIT')}${inM ? b('restart', 'MISSIE OPNIEUW', !canRestart) : ''}${b('help', 'BESTURING')}`}</div>`;
@@ -267,7 +267,7 @@ function updateTouchUI(dt) {
   const inM = !!(m && m.active);
   ui.classList.toggle('mission', inM); ui.classList.toggle('street', !inM);
   ui.classList.toggle('armed', st.kit.includes('maboota'));
-  $('tpRestart').style.display = inM && !st.spekbuurt ? '' : 'none';
+  $('tpRestart').style.display = inM && (m.canRestart ? m.canRestart() : !st.spekbuurt) ? '' : 'none';
   if (fireHeld && inM) { if ((fireT -= dt) <= 0) { press('KeyF'); fireT = 0.12; } } else fireT = 0;
 }
 
