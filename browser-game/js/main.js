@@ -1156,8 +1156,21 @@ function renderPC() {
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Territories: <b>1</b> (De Natte Worst)<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>`;
+    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Territories: <b>${1 + d1Owned()}</b> (De Natte Worst${D1.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>`;
   }
+}
+// ------------------------------------------------------------------ district 1: De Natte Worst (Spekbuurt, Kroketkade, Uitjesbuurt)
+// Each territory is a mission (js/levels/*.js). Spekbuurt opens the other two; owning all three clears the district.
+const D1 = [['Spekbuurt', 'spekbuurt', 1], ['Kroketkade', 'kroketkade', 2], ['Uitjesbuurt', 'uitjesbuurt', 3]];
+const DISTRICT_BONUS = 5000;
+const owns = (id) => !!(state.owned && state.owned[id]) || (id === 'spekbuurt' && !!state.spekbuurt);
+const d1Owned = () => D1.filter(([, id]) => owns(id)).length;
+function checkDistrict() { // all three owned: the district is yours, once
+  if (state.district1 || d1Owned() < D1.length || (mission && mission.active)) return false;
+  state.district1 = true; addMoney(DISTRICT_BONUS);
+  toast('DE NATTE WORST IS YOURS', `All three territories are yours. Bonus: W ${DISTRICT_BONUS.toLocaleString('nl-NL')}. Next: Oud-Vettenburg, Lampas heartland.`, 7);
+  [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.06), i * 120));
+  writeSave(); return true;
 }
 const PINS = [
   ['De Natte Worst', 235, 430, 'own'], ['Spekbuurt', 420, 465, 'next'],
@@ -1172,8 +1185,8 @@ const PINS = [
 let MAPL = null;
 fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; }).catch(() => {});
 function mapHTML(van) {
-  const col = { m1: '#ff3fa4', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
-  const kindOf = (n, r) => n === 'De Natte Worst' || (n === 'Spekbuurt' && state.spekbuurt) ? 'own' : n === 'Spekbuurt' ? 'm1' : ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r];
+  const col = { m1: '#ff3fa4', m2: '#ff3fa4', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
+  const kindOf = (n, r) => { const d = D1.find((x) => x[0] === n); if (n === 'De Natte Worst' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
   let h = `<div class="mapwrap"><img src="./assets/kaasland_map.jpg" alt="Map of Kaasland">`;
   if (MAPL) {
     const [W, H] = MAPL.size;
@@ -1193,10 +1206,14 @@ function mapHTML(van) {
 function bindMap() {
   document.querySelectorAll('[data-pin]').forEach((p) => p.onclick = () => {
     const n = p.dataset.pin, k = p.dataset.k, info = $('pininfo'); beep(600, 0.04);
+    const d1 = D1.find((x) => x[0] === n);
+    const drive = (label) => (pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? `<button class="b95" id="goM">${label}</button>` : '<i>Get a weapon from The Russian first.</i>');
+    const blurb = { Kroketkade: 'A Lampas snackbar on the rainy corner of the quay. The kitchen and the garage behind it are full of Lampas.', Uitjesbuurt: 'De Zure Ui, the corner snackbar with a terrace. Underneath: an onion cellar and a Lampas gambling den.' };
     const t = {
-      own: n === 'Spekbuurt' ? `<b>Spekbuurt</b>: yours now. Snackpaleis Spekbuurt is empty; set up shop here later. ${pcMode === 'van' ? '<button class="b95" id="goM">Drive</button>' : ''}` : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
+      own: d1 ? `<b>${n}</b>: yours now. ${{ Spekbuurt: 'Snackpaleis Spekbuurt is empty', Kroketkade: 'The fryers on the quay are cold', Uitjesbuurt: 'The poker table downstairs is empty' }[n]}; set up shop here later. ${pcMode === 'van' ? '<button class="b95" id="goM">Drive</button>' : ''}` : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
       m1: `<b>Spekbuurt</b>: Lampas turf. Snackpaleis Spekbuurt sells their watered-down spice, and the back of house is full of Lampas. <b>Mission 1.</b> ${pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? '<button class="b95" id="goM">Drive · start mission</button>' : '<i>Get a weapon from The Russian first.</i>'}`,
-      next: `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
+      m2: d1 ? `<b>${n}</b>: Lampas turf in De Natte Worst. ${blurb[n] || ''} <b>Mission ${d1[2]}.</b> ${drive('Drive · start mission')}` : '',
+      next: d1 ? `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>Take Spekbuurt first.</i>` : state.district1 ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. Next on the list. <i>(Missions in a later build.)</i>` : `<b>${n}</b>: part of De Natte Worst, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
       a1: `<b>${n}</b>: Lampas territory. Their watered-down spice, your customers. <i>Locked.</i>`,
       a2: `<b>${n}</b>: Noshgey Kariot territory. Organic, artisanal, wildly overpriced. <i>Locked.</i>`,
       a3: `<b>${n}</b>: Abdavissies territory. Nobody asks questions here. <i>Locked.</i>`,
@@ -1204,7 +1221,7 @@ function bindMap() {
     }[k];
     info.innerHTML = t;
     const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); }; // travelling elsewhere must call clearPlayerSplats()
-    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); mission.enter(); };
+    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); mission.enter(d1 ? d1[1] : 'spekbuurt'); };
   });
 }
 function sellItem(id, btn) {
@@ -1361,7 +1378,7 @@ function talkDad() {
       hire: 'A mixing table and a few Naknikim. Those boys aren\'t smart, but they mix like nobody else.',
       russian: 'Go on, the pawn shop at the east end. The Russian is expecting you.',
       map: 'Have a look at the map. Kaasland is big, and the Lampas are everywhere.',
-      free: 'Spekbuurt is next. Three joints, all selling Lampas rubbish. Start there.',
+      free: state.district1 ? 'De Natte Worst is ours again, jongen. Your old man is proud. Oud-Vettenburg is where the Lampas really live.' : owns('spekbuurt') ? `Spekbuurt is ours. Now ${D1.filter(([, id]) => !owns(id)).map(([n]) => n).join(' and ')}. Then De Natte Worst is ours again.` : 'Spekbuurt is next. Three joints, all selling Lampas rubbish. Start there.',
     };
     dialogue([['Eddy Sr.', lines[state.step] || 'Get to work, jongen.']]);
   }
@@ -1381,17 +1398,18 @@ function updateObjective() {
     map: 'Check the <b>map of Kaasland</b> on the PC or in the Oofmobiel.',
     dad2: 'Talk to <b>Eddy Sr.</b> one last time.',
     russian: 'Visit <b>The Russian</b>: go inside <b>Pandjeshuis Spasibo</b>, east end of the street.',
-    free: state.spekbuurt ? `<b style="color:#6ed36e">Spekbuurt is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">More of Kaasland in the next build.</span>` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
+    free: state.district1 ? `<b style="color:#6ed36e">De Natte Worst is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: Oud-Vettenburg, Lampas heartland (missions in a later build).</span>` : owns('spekbuurt') ? `<b style="color:#6ed36e">${D1.filter(([, id]) => owns(id)).map(([n]) => n).join(' and ')} ${d1Owned() > 1 ? 'are' : 'is'} yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: take ${D1.filter(([, id]) => !owns(id)).map(([n]) => `<b>${n}</b>`).join(' and ')}.</span> Drive there in the <b>Oofmobiel</b>.` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
   }[state.step];
   if (state.step === 'hire' && state.table && state.naknik > 0) state.step = 'dad2';
   setObjective(t || '');
+  if (state.step === 'free' && checkDistrict()) updateObjective();
 }
 
 // ------------------------------------------------------------------ save (localStorage, one versioned key)
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'ammo', 'pool', 'loadout', 'stash'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'ammo', 'pool', 'loadout', 'stash'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -1426,6 +1444,7 @@ function applySave(d) {
 let savedGame = readSave();
 // ---- start menu: Continue / New Game / Controls / Music / Credits (mouse, keyboard, controller and touch)
 let titleView = 'main', titleSel = 0;
+const districtSummary = (st) => (st.district1 ? ' · De Natte Worst is yours' : ((n) => (n ? ` · ${n}/3 of De Natte Worst` : ''))(['spekbuurt', 'kroketkade', 'uitjesbuurt'].filter((id) => (st.owned && st.owned[id]) || (id === 'spekbuurt' && st.spekbuurt)).length));
 const titleItems = () => titleView === 'confirm' ? [['no', 'Nee, terug'], ['yes', 'Ja, opnieuw beginnen']]
   : titleView === 'controls' || titleView === 'credits' ? [['back', 'Terug']]
   : [...(savedGame ? [['cont', 'Continue']] : []), ['new', 'New Game'], ['controls', 'Controls'], ['music', 'Music'], ['credits', 'Credits']];
@@ -1443,7 +1462,7 @@ function titleMenu(confirm) {
   if (titleView === 'confirm') panel = `<div class="tpanel"><h3>Nieuw spel?</h3>Your saved game will be gone for good.</div>`;
   $('tmenu').innerHTML = panel + items.map(([t, label], i) => `<div class="mi${i === titleSel ? ' sel' : ''}" data-t="${t}"><span>${label}</span><small>${sub(t)}</small></div>`).join('');
   const m = inputMode(), info = m === 'pad' ? 'D-pad to choose · A to select · B back' : m === 'touch' ? 'Tap to choose' : '↑ ↓ to choose · Enter to select · Esc back';
-  $('tinfo').textContent = titleView === 'main' && savedGame ? `Saved ${new Date(savedGame.at || Date.now()).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${savedGame.state.spekbuurt ? ' · Spekbuurt is yours' : ''} · ${info}` : info;
+  $('tinfo').textContent = titleView === 'main' && savedGame ? `Saved ${new Date(savedGame.at || Date.now()).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${districtSummary(savedGame.state)} · ${info}` : info;
 }
 let musicPref = !(savedGame && savedGame.settings && savedGame.settings.music === false);
 const musicWanted = () => musicPref;
@@ -2372,5 +2391,8 @@ mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, soli
   makeVan: () => oof.clone(true), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 initInput({ state, getMission: () => mission, canvas, beep, toast });
 deviceHints();
-window.__sme = { writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+// test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
+const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
+const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
+window.__sme = { startLevel, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();
