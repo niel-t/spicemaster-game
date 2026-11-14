@@ -31,8 +31,10 @@ import bitterbalbuurt from './levels/bitterbalbuurt.js';
 import pindasausplein from './levels/pindasausplein.js';
 import joppiehaven from './levels/joppiehaven.js';
 import frikandelhaven from './levels/frikandelhaven.js';
+import havermelkhaven from './levels/havermelkhaven.js';
+import kombuchakwartier from './levels/kombuchakwartier.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -157,7 +159,8 @@ export function initMission(ctx) {
     }
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
-    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup }) || {};
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill }) || {};
+    levelShot = deco.onShot || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;
     // neon: one strip per room, top of the walls
@@ -489,6 +492,20 @@ export function initMission(ctx) {
     sfx('glass'); alertNoise(new THREE.Vector3(cx, 0, cz), 6); R.glass++; return true;
   }
   const shardDecalM = new THREE.MeshBasicMaterial({ color: 0xd8f4ff, transparent: true, opacity: 0.55, depthWrite: false });
+  // a level prop bursting (decorate's onShot calls spill): knocks down (or kills) everyone near it, Eddy included
+  let levelShot = null;
+  const spillMs = {};
+  function spill(at, r, { text = 'SPLASH!', color = 0xf3ecdc, kill = false, scorch = false } = {}) {
+    const m = spillMs[color] || (spillMs[color] = new THREE.MeshBasicMaterial({ color }));
+    sfx(kill ? 'boom' : 'splat'); shake(kill ? 0.8 : 0.5); FX.flash = 0.25; FX.flashC = kill ? '255,140,40' : '255,250,235';
+    for (let i = 0; i < 36; i++) { const a = rnd(0, 6.28), v = rnd(1.5, 5.5); particle(m, at.x, 0.8, at.z, Math.cos(a) * v, rnd(1, 4), Math.sin(a) * v, rnd(0.06, 0.14), rnd(0.4, 0.8), 'spark'); }
+    if (scorch) floorDecal(at.x, at.z, r * 1.2, Math.random() * 6, scorchM);
+    alertNoise(at, 12); popup(at, text, '#' + color.toString(16).padStart(6, '0'), true);
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive) continue; const d = Math.hypot(e.position.x - at.x, e.position.z - at.z); if (d < r) { const dir = [(e.position.x - at.x) / (d || 1), (e.position.z - at.z) / (d || 1)]; if (kill) killEnemy(e, 'boom', dir); else knockdown(e, dir); } }
+    const pd = Math.hypot(player.position.x - at.x, player.position.z - at.z); if (!P.dead && pd < r * 0.8) { const dir = [(player.position.x - at.x) / (pd || 1), (player.position.z - at.z) / (pd || 1)]; if (kill) { P.invT = 0; hurtPlayer(dir, 'boom'); } else { P.vx += dir[0] * 7; P.vz += dir[1] * 7; } }
+    for (const [k2, b2] of barrels) if (kill && Math.hypot(OX + b2.x + 0.5 - at.x, Z0 + b2.z + 0.5 - at.z) < r) setTimeout(() => explode(k2), 140);
+    for (const [k2, q] of glass) if (Math.hypot(OX + q.x + 0.5 - at.x, Z0 + q.z + 0.5 - at.z) < r + 0.6) breakGlass(k2);
+  }
   function explode(key, by) {
     const b = barrels.get(key); if (!b) return; barrels.delete(key); G[b.z][b.x] = '.'; b.s.off = true; root.remove(b.g);
     const at = new THREE.Vector3(OX + b.x + 0.5, 0, Z0 + b.z + 0.5);
@@ -607,6 +624,7 @@ export function initMission(ctx) {
     const ch = cellAt(nx, nz), key = Math.floor(nx - OX) + ',' + Math.floor(nz - Z0);
     if (ch === '%') { breakGlass(key); return false; }   // glass shatters, the bullet keeps going
     if (ch === 'X') { explode(key); return true; }
+    if (levelShot && isCover(ch) && levelShot(ch, Math.floor(nx - OX), Math.floor(nz - Z0))) return true; // the level's own shootable props (tanks)
     if (!isCover(ch) || (cellAt(px, pz) === ch && ch !== '#')) return false;
     // impact point on the cell face
     const ocx = Math.floor(px - OX), ocz = Math.floor(pz - Z0), ncx = Math.floor(nx - OX), ncz = Math.floor(nz - Z0);
