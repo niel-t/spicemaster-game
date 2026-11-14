@@ -344,10 +344,19 @@ export function createEconomy(deps) {
     if (L.lampas >= 60 && held.length && Math.random() < 0.5) { const id = pick(held); addControl(id, -10); out.push(`Lampas thugs leaned on ${name(id)} (control -10).`); }
     const weakest = held.slice().sort((a, b) => controlOf(a) - controlOf(b))[0];
     if (weakest && (L.lampas >= 80 || controlOf(weakest) <= 0) && !Object.keys(e.retaken).length) { e.retaken[weakest] = true; L.lampas = clamp(L.lampas - 15, 0, 100); out.push(`They took ${name(weakest)} back! Raid it from the van map to retake it.`); }
-    if (L.lampas >= 100) { const g = guarded(), keep = g ? 0.9 : 0.7; for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * keep); if (!e.stock[k]) delete e.stock[k]; } L.lampas = 60; out.push(g ? 'They raided your warehouses, but your Naknik guard scared most of them off: 10% of the spice gone.' : 'They raided the warehouse and ran off with 30% of your spice.'); }
+    if (L.lampas >= 100 && deps.siege && !e.siege) { e.siege = { faction: 'lampas', day: e.day }; L.lampas = 95; out.push('The Lampas are massing outside your warehouse. Go home and defend it, or let them take what they want.'); }
+    else if (L.lampas >= 100 && !deps.siege) { const g = guarded(), keep = g ? 0.9 : 0.7; for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * keep); if (!e.stock[k]) delete e.stock[k]; } L.lampas = 60; out.push(g ? 'They raided your warehouses, but your Naknik guard scared most of them off: 10% of the spice gone.' : 'They raided the warehouse and ran off with 30% of your spice.'); }
     e.turfNews = out;
     return out;
   }
+  function siegeResult(win) { // the warehouse defence (mission 'warehouse') is over
+    const e = ensure(), sg = e.siege; if (!sg) return ''; e.siege = null; const f = sg.faction || 'lampas';
+    if (win) { e.heat[f] = clamp((e.heat[f] || 0) - 30, 0, 100); const k = key('paprika', 'lampas'); e.stock[k] = +((e.stock[k] || 0) + 20).toFixed(2); if (deps.save) deps.save(); return 'Heat -30, and they left 20 kg of Lampas paprika behind.'; }
+    const g = guarded(), keep = g ? 0.9 : 0.7; for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * keep); if (!e.stock[k]) delete e.stock[k]; }
+    e.heat[f] = 60; if (deps.save) deps.save();
+    return g ? 'They got in, but your Naknik guard saved most of it: 10% of the spice gone.' : 'They ran off with 30% of your spice.';
+  }
+  const siegeDue = () => ensure().siege;
   function heatTomorrow() { const e = ensure(), held = ownedClients().filter((c) => !NOT_TURF.includes(c.id) && !e.retaken[c.id]).length; return clamp(e.heat.lampas + 2 * held - 4, 0, 100); }
   function kevinTip() {
     const e = ensure(), h0 = e.heat.lampas, h1 = heatTomorrow();
@@ -714,5 +723,5 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }

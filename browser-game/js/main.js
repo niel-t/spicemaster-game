@@ -1065,7 +1065,7 @@ const LOOT_PRICE = 150;
 const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
-const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
+const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const ws = createWorkshop({ state, econ, addMoney, toast, beep, save: () => writeSave() });
 const garage = createGarage({ state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c) });
 const crew = createCrew({ state, econ, ws, addMoney, toast, save: () => writeSave() });
@@ -2186,6 +2186,31 @@ function updateOfficers(dt) {
   for (let i = flying.length - 1; i >= 0; i--) { const c = flying[i], d = c.userData; d.life -= dt; d.vy -= 14 * dt; c.position.x += d.vx * dt; c.position.y = Math.max(0.03, c.position.y + d.vy * dt); c.position.z += d.vz * dt; c.rotation.x += dt * 10; if (d.life <= 0) { scene.remove(c); flying.splice(i, 1); } }
 }
 
+// ================================================================== SPICE WAR at the warehouse (economy.js sets econ siege at Lampas heat 100)
+// Prepare (barricade one entrance, set one oil drum as a trap), then hold three waves in the 'warehouse' mission.
+let siegeAsked = -1;
+function updateSiege() {
+  const sg = econ.siegeDue(); if (!sg || state.step !== 'free' || state.inPC || state.inDialogue || mission.active || oofDrive.active || siegeAsked === sg.day) return;
+  siegeAsked = sg.day;
+  choice('Kevin', '"Bro. Bro! The Lampas are outside your warehouse. Like, all of them. You fight, or you let them take the spice?"', ['Defend the warehouse', 'Let them take it'], (i) => {
+    if (i === 1) { const m = econ.siegeResult(false); toast('THE LAMPAS RAIDED THE WAREHOUSE', m, 5); writeSave(); return; }
+    setTimeout(() => choice('Eddy Jr.', 'Thirty seconds. Barricade one way in with crates?', ['The front shutter', 'The loading bay', 'The side door'], (b) => {
+      const bar = ['front', 'bay', 'side'][b];
+      setTimeout(() => choice('Eddy Jr.', 'And one red oil drum by a door, to shoot when they come through?', ['By the front shutter', 'By the loading bay', 'By the side door'], (t) => {
+        const names = (state.crew || []).map((c) => c && c.name).filter(Boolean);
+        mission.enter('warehouse', { defend: { faction: 'Lampas', barricade: bar, trap: ['front', 'bay', 'side'][t], naknik: state.naknik || 0, names, onEnd: siegeOver } });
+      }), 60);
+    }), 60);
+  });
+}
+function siegeOver(res) {
+  const m = econ.siegeResult(res.win);
+  let lost = 0; for (let k = 0; k < res.lost && state.naknik > 0; k++) { state.naknik--; const n = naknikim.pop(); if (n) { n.visible = false; scene.remove(n); } lost++; }
+  state.income = (state.naknik || 0) * NAKNIK_INCOME;
+  toast(res.win ? 'THE WAREHOUSE HELD' : 'THE WAREHOUSE FELL', `${m}${lost ? ` They dragged off ${lost} Naknik(im). Hire new ones at the Uitzendbureau.` : ''}`, 6);
+  econ.advance('defending the warehouse'); writeSave();
+}
+
 // ================================================================== TAX INSPECTOR Van der Belasting (Garage Mo / js/garage.js rolls when he comes)
 // He walks up to Eddy in the street when Eddy carries a lot of cash: pay a fine, try a bribe, or offer a free garlic sauce.
 let inspector = null;
@@ -2505,7 +2530,7 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); mission.street(dt); } else mission.update(dt);
+  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateSiege(); mission.street(dt); } else mission.update(dt);
   const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then stir
   for (const n of naknikim) {
@@ -2615,5 +2640,5 @@ npcs = initNpcs({ THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; } };
+window.__sme = { startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; } };
 tick();

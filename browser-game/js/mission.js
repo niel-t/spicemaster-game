@@ -51,8 +51,9 @@ import smokkelsloot from './levels/smokkelsloot.js';
 import containerchaos from './levels/containerchaos.js';
 import kardemomdok from './levels/kardemomdok.js';
 import goudenmolen from './levels/goudenmolen.js';
+import warehouse from './levels/warehouse.js'; // the spice war: defend Eddy & Zn's own warehouse
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen };
+export const LEVELS = { warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -813,6 +814,82 @@ export function initMission(ctx) {
   // ================================================================== NACHTKLUS (heist mode): sneak in at night, fill the bag, carry it to the
   // Oofmobiel, drive home with the haul. Being seen fills the alarm; a full alarm turns the night into a loud raid.
   // opts.heist: { title, day, cap (bag slots), cased (show sight cones), lockpick (quieter safe), safe, special: 'grill', onEnd(result) }
+  // ================================================================== SPICE WAR (defend mode, the warehouse level): the attackers come in
+  // waves through the entrances; a barricaded entrance's crew is rerouted and arrives late; only the oil drum you set
+  // as a trap stays by the doors. The Naknikim hide under the mixing tables and get dragged off if a crew reaches them.
+  // opts.defend: { faction, barricade: 'front' | 'bay' | 'side' | null, trap: same, names: [Naknik names], onEnd(result) }
+  let DEF = null;
+  const DS = { waves: [], wave: -1, nextT: 0, pending: [], naks: [], lost: 0, deadT: 0, over: false, barr: [] };
+  const ENTRANCES = { front: { cells: [7, 15, 10, 15], drum: [11, 13] }, bay: { cells: [24, 15, 26, 15], drum: [23, 13] }, side: { cells: [29, 11, 29, 12], drum: [28, 12] } };
+  const defEl = document.createElement('div');
+  defEl.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:6;display:none;font-family:"Press Start 2P",monospace;font-size:11px;color:#fff;text-shadow:2px 2px 0 #000;text-align:center;pointer-events:none';
+  document.body.appendChild(defEl);
+  function defendClear() {
+    for (const b of DS.barr) { if (b.mesh) root.remove(b.mesh); if (b.s) b.s.off = true; if (b.cell) G[b.cell[1]][b.cell[0]] = b.cell[2] || '.'; }
+    for (const n of DS.naks) root.remove(n.p);
+    Object.assign(DS, { waves: [], wave: -1, nextT: 0, pending: [], naks: [], lost: 0, deadT: 0, over: false, barr: [] });
+  }
+  function defendSetup() {
+    defendClear(); if (!DEF) { defEl.style.display = 'none'; return; }
+    for (const e of enemies) { const f = e.userData.foe; f.alive = false; e.visible = false; setFoeWeapon(e, null); }
+    for (const [name, en] of Object.entries(ENTRANCES)) if (DEF.trap !== name) { // only the trapped door keeps its oil drum
+      const k = en.drum[0] + ',' + en.drum[1], b = barrels.get(k); if (b) { barrels.delete(k); G[b.z][b.x] = '.'; b.s.off = true; root.remove(b.g); }
+    }
+    const bar = DEF.barricade && ENTRANCES[DEF.barricade];
+    if (bar) { // stacked crates and pallets across the doorway: they block bullets, feet and pathing
+      const [x0, z0, x1, z1] = bar.cells, m = lam({ color: 0x8a6a3a });
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.3, 0.95), m); mesh.position.set(OX + x + 0.5, 0.65, Z0 + z + 0.5); mesh.castShadow = true; root.add(mesh);
+        DS.barr.push({ mesh, s: solidRun(x, x + 1, z, z + 1), cell: [x, z, G[z][x]] }); G[z][x] = 'C';
+      }
+    }
+    // three waves: each entrance sends part of its crew every wave; the barricaded entrance's crew walks round, late
+    const by = { front: [], bay: [], side: [] };
+    enemies.forEach((e, i) => { const r = e.userData.foe.spawn[4]; if (by[r]) by[r].push(i); });
+    for (let w = 0; w < 3; w++) {
+      const now = [], late = [];
+      for (const [name, list] of Object.entries(by)) list.forEach((i, k) => { if (k % 3 === w) (DEF.barricade === name ? late : now).push(i); });
+      DS.waves.push({ now, late: late.filter((i, k) => k % 2 === 0) }); // half of the barricaded crew gives up
+    }
+    const nakLook = LOOKS.naknik, spots = [[5, 6.9], [10, 6.9], [15, 10.9]], names = DEF.names || [];
+    for (let k = 0; k < Math.min(3, DEF.naknik || 0); k++) {
+      const p = makePerson({ ps2: nakLook, scale: 0.68 }); p.position.set(OX + spots[k][0], 0, Z0 + spots[k][1]); p.rotation.y = Math.PI; root.add(p);
+      if (p.userData.body) p.userData.body.rotation.x = 0.5;
+      DS.naks.push({ p, name: names[k] || 'a Naknik', lost: false, t: Math.random() * 4 });
+    }
+    DS.nextT = 6; // time to get in position
+  }
+  function defendActivate(i) {
+    const e = enemies[i], f = e.userData.foe, sp = f.spawn;
+    f.alive = true; f.down = 0; e.visible = true; setFoeWeapon(e, sp[2]);
+    if (DEF.barricade && sp[4] === DEF.barricade) { const alt = ENTRANCES.front.cells === ENTRANCES[DEF.barricade].cells ? 'bay' : 'front'; const c = ENTRANCES[alt].cells; e.position.set(OX + c[0] + 1, 0, Z0 + c[1] + 3); }
+    f.state = 'search'; f.sx = OX + 10; f.sz = Z0 + 8; f.searchT = -20; f.path = null; f.wary = true;
+  }
+  function defendTick(dt) {
+    if (!DEF || DS.over) return;
+    if (P.dead) { DS.deadT += dt; if (DS.deadT > 2.5) defendEnd(false); return; }
+    if (DS.nextT > 0) { DS.nextT -= dt; if (DS.nextT <= 0) { DS.wave++; const w = DS.waves[DS.wave]; banner(`WAVE ${DS.wave + 1} OF ${DS.waves.length}`, DS.wave === 0 ? 'Here they come.' : 'More of them. Hold on.', 2.5); for (const i of w.now) defendActivate(i); for (const i of w.late) DS.pending.push({ i, t: 8 }); } }
+    for (const p of DS.pending) { p.t -= dt; if (p.t <= 0) { defendActivate(p.i); p.done = true; } }
+    DS.pending = DS.pending.filter((p) => !p.done);
+    for (const n of DS.naks) { // a crew that reaches a hiding Naknik drags him off
+      if (n.lost) continue;
+      n.t -= dt; if (n.t <= 0) { n.t = 5 + Math.random() * 5; if (DS.wave >= 0) popup(n.p.position, ['BOSS! HELP!', 'I AM NOT HERE!', 'MAMA!', '(hides harder)'][Math.floor(Math.random() * 4)], '#a9c46a'); }
+      for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0 || !e.visible) continue;
+        if (Math.hypot(e.position.x - n.p.position.x, e.position.z - n.p.position.z) < 1.1) { n.lost = true; n.p.visible = false; DS.lost++; popup(n.p.position, `THEY GRABBED ${n.name.toUpperCase()}!`, '#ff2a3a', true); sfx('alert'); break; } }
+    }
+    if (DS.wave >= 0 && DS.nextT <= 0 && !DS.pending.length && !enemies.some((e) => e.userData.foe.alive && e.visible)) {
+      if (DS.wave < DS.waves.length - 1) DS.nextT = 4; else defendEnd(true);
+    }
+    const safe = DS.naks.filter((n) => !n.lost).length;
+    defEl.style.display = 'block';
+    defEl.innerHTML = `SPICE WAR · ${DS.wave < 0 ? 'GET READY' : `WAVE ${DS.wave + 1}/${DS.waves.length}`}<div style="margin-top:6px;color:#a9c46a">${DS.naks.length ? `NAKNIKIM SAFE ${safe}/${DS.naks.length}` : 'NO NAKNIKIM TO PROTECT'}</div>`;
+  }
+  function defendEnd(win) {
+    if (DS.over) return; DS.over = true;
+    const res = { win, lost: DS.lost, kills: R.kills, faction: DEF.faction };
+    if (win) { banner('THE WAREHOUSE HELD', DS.lost ? `But they got ${DS.lost} Naknik(im).` : 'Not a single Naknik lost.', 3); sfx('cash'); }
+    const done = DEF.onEnd; setTimeout(() => { exit(); if (done) setTimeout(() => done(res), 600); }, win ? 2200 : 300);
+  }
   let HEIST = null;
   const HS = { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, cones: [], pick: 0 };
   const coneM = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
@@ -948,7 +1025,7 @@ export function initMission(ctx) {
     Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.loadout.vest > 0 ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
-    heistSetup();
+    heistSetup(); defendSetup();
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
   }
   function enter(id = 'spekbuurt', opts = {}) {
@@ -956,8 +1033,8 @@ export function initMission(ctx) {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
       if (!LV || LV.id !== id) buildLevel(LEVELS[id]);
-      HEIST = opts.heist || null;
-      REMIX = HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
+      HEIST = opts.heist || null; DEF = opts.defend || null;
+      REMIX = DEF ? null : HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
       if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
         if (HEIST.extra) for (const i of enemies.map((e, k) => k).filter((k) => !REMIX.keep.has(k)).slice(0, HEIST.extra)) REMIX.keep.add(i); } // suspicion: more guards
       const mood = LV.mood;
@@ -970,15 +1047,15 @@ export function initMission(ctx) {
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
       resetFloor();
       setArea(LV.text.area);
-      $('objective').innerHTML = HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
+      $('objective').innerHTML = DEF ? '<b>SPICE WAR</b>: hold the warehouse against three waves. Keep them away from the Naknikim under the mixing tables.' : HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
-      startArrive(() => { if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them. E grabs, the van takes the bag.' : 'No floor plan. Stay in the dark, walk, don\'t run. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
+      startArrive(() => { if (DEF) banner('SPICE WAR', `The ${DEF.faction || 'Lampas'} are coming for the warehouse. Three waves. Keep them off the Naknikim.`, 4.5); else if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them. E grabs, the van takes the bag.' : 'No floor plan. Stay in the dark, walk, don\'t run. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
   function exit() {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
-      saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; HEIST = null; heistSetup(); heistHud(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
+      saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; HEIST = null; heistSetup(); heistHud(); DEF = null; defendSetup(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; if (saved.hemiC) { hemi.color.copy(saved.hemiC[0]); hemi.groundColor.copy(saved.hemiC[1]); } sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
@@ -994,7 +1071,7 @@ export function initMission(ctx) {
     }, 480);
   }
   addInteract({ get obj() { const t = nearTask(); return t ? t.obj : van; }, pos: () => (nearTask() || { pos: van.position }).pos, r: 2.5, enabled: () => M.active && !P.dead && !R.results && !ARR && !!nearTask(), label: () => nearTask().label, act: () => doTask(nearTask()) });
-  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => HEIST ? (HS.bag.filter((x) => x !== '-').length ? 'Oofmobiel · stash the bag' : HS.banked.length || HS.cash ? 'Oofmobiel · drive home with the haul' : 'Oofmobiel · give up, drive home') : ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: () => (HEIST ? heistVan() : exit()) });
+  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => DEF ? 'Oofmobiel · give up the warehouse' : HEIST ? (HS.bag.filter((x) => x !== '-').length ? 'Oofmobiel · stash the bag' : HS.banked.length || HS.cash ? 'Oofmobiel · drive home with the haul' : 'Oofmobiel · give up, drive home') : ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: () => (DEF ? defendEnd(false) : HEIST ? heistVan() : exit()) });
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
   function addKillScore(e, type) {
@@ -1097,7 +1174,7 @@ export function initMission(ctx) {
 
   // ================================================================== RESULTS (Neon Vice grade: score vs. 700 per enemy)
   function results() {
-    if (!M.active || HEIST) return; // a Nachtklus never takes the joint
+    if (!M.active || HEIST || DEF) return; // a Nachtklus never takes the joint, a defence isn't a raid
     R.results = true; setOwned(LV.id); state.lastRaid = { id: LV.id, remix: !!REMIX, grade: null }; state.raids = (state.raids || 0) + 1;
     if (!REMIX) setLootTaken(LV.id, lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0));
     const ratio = R.score / ((R.foes || enemies.length) * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
@@ -1276,7 +1353,7 @@ export function initMission(ctx) {
     vigEl.style.background = `radial-gradient(ellipse at center, rgba(255,0,30,0) 45%, rgba(255,0,30,${vig.toFixed(3)}) 100%)`; vigEl.style.opacity = 1;
     for (const l of lootCrates) if (!l.taken) l.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
     if (levelTick) levelTick(dt);
-    heistTick(dt);
+    heistTick(dt); defendTick(dt);
     for (let i = pops.length - 1; i >= 0; i--) {
       const p = pops[i]; p.t += dt; p.p.y += dt * 0.8;
       const v = p.p.clone().project(camera); p.el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; p.el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; p.el.style.opacity = Math.min(1, 2.2 - p.t * 1.6);
@@ -1584,10 +1661,11 @@ export function initMission(ctx) {
     for (const [x, z] of LV.loot) if (!path(start, L(x, z))) issues.push(`loot ${x},${z} unreachable`);
     return issues;
   }
+  Object.defineProperty(M, 'defend', { get: () => (DEF ? { ...DEF, wave: DS.wave, nextT: DS.nextT, pending: DS.pending.length, lost: DS.lost, naks: DS.naks.length, over: DS.over } : null), enumerable: true });
   Object.defineProperty(M, 'heist', { get: () => (HEIST ? { ...HEIST, ...HS } : null), enumerable: true });
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,
-    canRestart: () => M.active && !!LV && !ownsLevel(LV.id), levelName: () => (LV ? LV.name : ''),
+    canRestart: () => M.active && !!LV && !ownsLevel(LV.id) && !DEF, levelName: () => (LV ? LV.name : ''),
     _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, FOE_TYPES, _wristLock: wristLock, _tryDodge: tryDodge, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
   Object.defineProperty(M, 'van', { get: () => van, enumerable: true });
   // test hooks: where the Lampas stand, and a forced clear (results screen) for remix/best-score checks
