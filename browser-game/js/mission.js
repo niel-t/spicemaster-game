@@ -25,8 +25,10 @@ import uitjesbuurt from './levels/uitjesbuurt.js';
 import frietwijk from './levels/frietwijk.js';
 import sauzenbuurt from './levels/sauzenbuurt.js';
 import knoflooksteeg from './levels/knoflooksteeg.js';
+import mayonaisemarkt from './levels/mayonaisemarkt.js';
+import halvekipplein from './levels/halvekipplein.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,

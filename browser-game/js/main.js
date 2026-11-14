@@ -1136,7 +1136,8 @@ function renderPC() {
 const D1 = [['Spekbuurt', 'spekbuurt', 1], ['Kroketkade', 'kroketkade', 2], ['Uitjesbuurt', 'uitjesbuurt', 3]];
 // Act 1: Oud-Vettenburg, the Lampas heartland. One mission per territory (plan: Frietwijk first, then the rest, Pindasausplein last).
 // [name, level id, mission number, unlocked(), drive target]; reached by the top-down Oofmobiel drive (js/drive.js), which starts the mission on arrival.
-const LAMPAS = [['Frietwijk', 'frietwijk', 1, () => !!state.district1], ['Sauzenbuurt', 'sauzenbuurt', 2, () => owns('frietwijk'), [0, 6]], ['Knoflooksteeg', 'knoflooksteeg', 3, () => owns('frietwijk'), [2, 7]]]; // 5th: the drive's parking crossing (default: the Frietwijk plaza)
+const LAMPAS = [['Frietwijk', 'frietwijk', 1, () => !!state.district1], ['Sauzenbuurt', 'sauzenbuurt', 2, () => owns('frietwijk'), [0, 6]], ['Knoflooksteeg', 'knoflooksteeg', 3, () => owns('frietwijk'), [2, 7]],
+  ['Mayonaisemarkt', 'mayonaisemarkt', 4, () => owns('frietwijk'), [3, 9]], ['Halve Kip Plein', 'halvekipplein', 5, () => ['sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt'].filter(owns).length >= 2, [3, 6]]]; // 5th: the drive's parking crossing (default: the Frietwijk plaza)
 const JOINTS = [...D1, ...LAMPAS]; // every territory with a mission: remix raids, the daily challenge and clients use all of them
 const lampasOwned = () => LAMPAS.filter(([, id]) => owns(id)).length;
 const DISTRICT_BONUS = 5000;
@@ -1162,8 +1163,8 @@ const PINS = [
 let MAPL = null;
 fetch('./assets/map_labels.json').then((r) => r.json()).then((j) => { MAPL = j; }).catch(() => {});
 function mapHTML(van) {
-  const col = { m3: '#e8a33d', later: '#ff8030', lost: '#e8a33d', m1: '#e8a33d', m2: '#e8a33d', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
-  const kindOf = (n, r) => { const l = LAMPAS.find((x) => x[0] === n); if (l) return owns(l[1]) ? (econ.isRetaken(l[1]) ? 'lost' : 'own') : l[3]() ? 'm3' : state.district1 ? 'later' : 'a1'; const d = D1.find((x) => x[0] === n); if (d && owns(d[1]) && econ.isRetaken(d[1])) return 'lost'; if (n === 'Kipkruidenkwartier' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
+  const col = { m3: '#e8a33d', later: '#ff8030', locked: '#ff8030', lost: '#e8a33d', m1: '#e8a33d', m2: '#e8a33d', own: '#2e8b2e', next: '#ffd36b', a1: '#ff8030', a2: '#6ed36e', a3: '#3cc8ff', fin: '#ffcc33' };
+  const kindOf = (n, r) => { const l = LAMPAS.find((x) => x[0] === n); if (l) return owns(l[1]) ? (econ.isRetaken(l[1]) ? 'lost' : 'own') : l[3]() ? 'm3' : state.district1 ? 'locked' : 'a1'; const d = D1.find((x) => x[0] === n); if (d && owns(d[1]) && econ.isRetaken(d[1])) return 'lost'; if (n === 'Kipkruidenkwartier' || (d && owns(d[1]))) return 'own'; if (d) return d[2] === 1 ? 'm1' : owns('spekbuurt') ? 'm2' : 'next'; if (r === 'lampas' && state.district1) return 'next'; return ({ start: 'next', lampas: 'a1', nosh: 'a2', abd: 'a3', fin: 'fin' })[r]; };
   let h = `<div class="mapwrap"><img src="./assets/kaasland_map.jpg" alt="Map of Kaasland">`;
   if (MAPL) {
     const [W, H] = MAPL.size;
@@ -1203,7 +1204,7 @@ function bindMap() {
     const n = p.dataset.pin, k = p.dataset.k, info = $('pininfo'); beep(600, 0.04);
     const d1 = D1.find((x) => x[0] === n), lj = LAMPAS.find((x) => x[0] === n), jt = d1 || lj;
     const drive = (label) => (pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? `<button class="b95" id="goM">${label}</button>` : '<i>Get a weapon from The Russian first.</i>');
-    const lblurb = { Knoflooksteeg: 'De Knoflookbol, a takeaway hatch in a dark alley. Behind it, three Lampas gambling dens. Go quiet.', Sauzenbuurt: 'Het Dunne Sausje, on the west quay: the Lampas water down the garlic sauce here. Kick over their kettles.', Frietwijk: 'Friettent De Vette Hap: the Lampas’ busiest snack corner. Behind the counter, a kitchen made of glass and a back office full of Wilders.' };
+    const lblurb = { Mayonaisemarkt: 'De Witte Klodder on the market square, and behind it the Lampas wholesale depot: a huge open hall full of pallets and spice crates.', 'Halve Kip Plein': 'De Halve Haan, a chicken grill on the corner. Behind it, the office where every Lampas order is booked. Wipe their PCs.', Knoflooksteeg: 'De Knoflookbol, a takeaway hatch in a dark alley. Behind it, three Lampas gambling dens. Go quiet.', Sauzenbuurt: 'Het Dunne Sausje, on the west quay: the Lampas water down the garlic sauce here. Kick over their kettles.', Frietwijk: 'Friettent De Vette Hap: the Lampas’ busiest snack corner. Behind the counter, a kitchen made of glass and a back office full of Wilders.' };
     const blurb = { Kroketkade: 'A Lampas snackbar on the rainy corner of the quay. The kitchen and the garage behind it are full of Lampas.', Uitjesbuurt: 'De Zure Ui, the corner snackbar with a terrace. Underneath: an onion cellar and a Lampas gambling den.' };
     const t = {
       own: jt ? remixInfo(n, jt[1]) + (pcMode === 'van' ? ' <button class="b95" id="goM">Drive · remix raid</button>' : ' <i>Drive there in the Oofmobiel.</i>') : `<b>${n}</b>: your home base. The Eddy & Zn warehouse. ${pcMode === 'van' ? '<button class="b95" id="go">Drive</button>' : ''}`,
@@ -1212,6 +1213,7 @@ function bindMap() {
       m2: d1 ? `<b>${n}</b>: Lampas turf in Kipkruidenkwartier. ${blurb[n] || ''} <b>Mission ${d1[2]}.</b> ${drive('Drive · start mission')}` : '',
       next: d1 ? `<b>${n}</b>: part of Kipkruidenkwartier, but the shoarma joints here still buy Lampas spice. <i>Take Spekbuurt first.</i>` : state.district1 ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. Next on the list. <i>(Missions in a later build.)</i> ${pcMode === 'van' ? '<button class="b95" id="goD">Drive to Oud-Vettenburg</button>' : '<i>Drive there in the Oofmobiel.</i>'}` : `<b>${n}</b>: part of Kipkruidenkwartier, but the shoarma joints here still buy Lampas spice. <i>(Coming in the next build.)</i>`,
       m3: lj ? `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. ${lblurb[n] || ''} <b>Act 1 · mission ${lj[2]}.</b> ${pcMode !== 'van' ? '<i>Drive there in the Oofmobiel.</i>' : state.kit.includes('maboota') ? `<button class="b95" id="goL">Drive to ${n} · start mission</button>` : '<i>Get a weapon from The Russian first.</i>'}` : '',
+      locked: `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. ${lblurb[n] || ''} <i>${n === 'Halve Kip Plein' ? 'Take two of Sauzenbuurt, Knoflooksteeg and Mayonaisemarkt first.' : 'Take Frietwijk first.'}</i>`,
       later: `<b>${n}</b>: Oud-Vettenburg, the Lampas heartland. ${lampasOwned() ? 'Next on the list.' : '<i>Take Frietwijk first.</i>'} <i>(This mission comes in a later build.)</i>`,
       a1: `<b>${n}</b>: Lampas territory. Their watered-down spice, your customers. <i>Locked.</i>`,
       a2: `<b>${n}</b>: Noshgey Kariot territory. Organic, artisanal, wildly overpriced. <i>Locked.</i>`,
