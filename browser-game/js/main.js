@@ -3,6 +3,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
 import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable } from './input.js';
+import { createGunShop } from './gunshop.js';
 import { initMission } from './mission.js';
 import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats } from './characters.js';
@@ -1402,38 +1403,20 @@ const SHOP = [
   { id: 'goldak', name: 'Golden AK-47', desc: '"For you? Later. When you are big boss."', price: 0, locked: true },
 ];
 const RU_SAY = ['Everything is quality. Everything is cash.', 'No receipts, no questions, no refunds.', 'Your father bought his first knife here. He still owes me for the sharpening.', 'Dolphins are smartest animal. After me.'];
-function openShop() { $('shop').style.display = 'block'; state.inPC = true; renderShop(); beep(660, 0.06, 'triangle'); }
-function closeShop() {
-  $('shop').style.display = 'none'; state.inPC = false;
+// The Russian's shop is Neon Vice's catalogue now (js/gunshop.js): every gun, attachment, ammo, armour, selling back
+let gunShop = null;
+function shopUI() { return gunShop || (gunShop = createGunShop({ mission, state, $, addMoney, beep, save: () => writeSave(), kitText: () => kitText(), onClose: afterShop })); }
+function openShop() { shopUI().open(); }
+function closeShop() { shopUI().close(); }
+function afterShop() {
   if (state.step === 'russian' && state.kit.includes('maboota')) { state.step = 'free'; toast('END OF CHAPTER 0', 'You\'re armed. Next: take Spekbuurt from the Lampas.', 4); }
   updateObjective();
 }
-function kitText() { if (mission && mission.kitSummary) { $('kit').textContent = mission.kitSummary(); return; } const names = state.kit.filter((k, i, a) => a.indexOf(k) === i).map((k) => k === 'maboota' ? 'Maboota' : SHOP.find((x) => x.id === k).name); $('kit').textContent = names.length ? 'Kit: ' + names.join(', ') : ''; }
+function kitText() { if (mission && mission.kitSummary) { $('kit').textContent = mission.kitSummary(); return; } $('kit').textContent = state.kit.includes('maboota') ? 'Kit: Maboota' : ''; }
 function giveMaboota() {
   if (state.kit.includes('maboota')) return;
   state.kit.unshift('maboota'); kitText(); equip(true);
   toast('MABOOTA ACQUIRED', 'Your first weapon. Press 1 to equip / holster, F or click to swing.', 4);
-}
-$('shopclose').onclick = closeShop;
-function renderShop(msg) {
-  const L = $('shoplist'); L.innerHTML = '';
-  for (const it of SHOP) {
-    const owned = !it.multi && (mission && mission.owns && ['makarov', 'shotgun', 'bat', 'vest'].includes(it.id) ? mission.owns(it.id) : state.kit.includes(it.id));
-    const d = document.createElement('div'); d.className = 'item';
-    d.innerHTML = `<div><div class="nm">${it.name}</div><div class="ds">${it.desc}</div></div><div class="pr">${it.locked ? 'LATER' : 'W ' + it.price}</div>`;
-    const b = document.createElement('button'); b.textContent = it.locked ? 'Locked' : owned ? 'Owned' : 'Buy';
-    b.disabled = it.locked || owned || state.money < it.price;
-    b.onclick = () => buyItem(it, b); d.appendChild(b); L.appendChild(d);
-  }
-  $('shopsay').textContent = msg || '"' + RU_SAY[Math.floor(Math.random() * RU_SAY.length)] + '" · The Russian';
-}
-function buyItem(it, btn) {
-  if (it.locked || state.money < it.price) return;
-  if (!mission.canBuy(it.id)) { renderShop('"Your hands are full and your kluis is full. Make room first, my friend." · The Russian'); return; }
-  addMoney(-it.price, btn); state.kit.push(it.id);
-  mission.onBuy(it.id); kitText(); writeSave();
-  renderShop('"Good choice. ' + (it.id === 'bat' ? 'Classic.' : 'Very good choice.') + '" · The Russian');
-
 }
 function talkRussian() {
   if (!['russian', 'free'].includes(state.step)) { dialogue([['The Russian', 'Pandjeshuis is closed for you, my friend. Come back when Eddy sends you.']]); return; }

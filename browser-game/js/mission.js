@@ -19,6 +19,8 @@
 
 import { virt, inputMode, glyph, controlsLine } from './input.js';
 import { LOOKS, bloody, cleanBlood } from './characters.js';
+import { WD, CAL, MODS, ARMOUR, BASE_MAG, KILLPTS as KP, FORCE, isGunId, isMeleeId, SHOT_GUN } from './arsenal.js';
+import { gunAudio } from './gunaudio.js';
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
@@ -273,8 +275,11 @@ export function initMission(ctx) {
   const doorBlocks = (ax, az, bx, bz) => doors.some((d) => { if (Math.abs(d.th) > 0.5) return false; const e = doorEnd(d); return segInt(ax, az, bx, bz, d.hx, d.hz, e[0], e[1]); });
 
   // ================================================================== SOUND (Neon Vice-style synth hits)
-  const sfx = (k) => ({
+  const synth = (k) => ({
     pistol: () => { beep(130, 0.07, 'square', 0.08); beep(70, 0.12, 'sawtooth', 0.06); },
+    silenced: () => { beep(320, 0.04, 'triangle', 0.04); beep(120, 0.05, 'square', 0.02); },
+    revolver: () => { beep(110, 0.1, 'square', 0.09); beep(55, 0.18, 'sawtooth', 0.07); },
+    pump: () => { beep(80, 0.18, 'sawtooth', 0.1); beep(45, 0.25, 'square', 0.08); },
     shotgun: () => { beep(80, 0.18, 'sawtooth', 0.1); beep(45, 0.25, 'square', 0.08); },
     epistol: () => { beep(160, 0.06, 'square', 0.05); beep(90, 0.1, 'sawtooth', 0.04); },
     swing: () => beep(220, 0.06, 'triangle', 0.03),
@@ -297,38 +302,49 @@ export function initMission(ctx) {
     rlPerfect: () => [880, 1175, 1568].forEach((f, i) => setTimeout(() => beep(f, 0.06, 'triangle', 0.045), i * 45)),
     jam: () => { beep(110, 0.18, 'sawtooth', 0.06); beep(330, 0.06, 'square', 0.03); },
     cash: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.06), i * 110)),
-  }[k] || (() => {}))();
+  }[k] || ({ dual: 'pistol', smg: 'pistol', rifle: 'revolver', ak: 'revolver', deagle: 'revolver' }[k] ? () => synth({ dual: 'pistol', smg: 'pistol', rifle: 'revolver', ak: 'revolver', deagle: 'revolver' }[k]) : () => {}))();
+  // gunshots play Neon Vice's real recordings (js/gunaudio.js) once they have loaded; the synth above covers the rest
+  const sfx = (k, v = 1) => { if (gunAudio.fire(k, v)) return; synth(k); };
 
-  // ================================================================== WEAPONS (numbers from Neon Vice's WD table, Easy difficulty)
-  const WD = {
-    maboota: { name: 'MABOOTA', melee: true, knock: true, range: 1.15 },
-    fists: { name: 'FISTS', melee: true, knock: true, range: 1.0 },
-    bat: { name: 'HONKBALKNUPPEL', melee: true, kill: true, range: 1.25 },
-    makarov: { name: 'MAKAROV', ammo: 8, cal: '9mm', mag: 8, rl: 1.3, ar: [0.45, 0.16], spare: 8, cd: 0.2, pel: 1, spr: 0.025, mv: 0.07, bloom: 0.04, ecd: 0.8, loud: 13, kick: 0.1, snd: 'pistol' },
-    shotgun: { name: 'SAWN-OFF', ammo: 2, cal: '12ga', mag: 2, rl: 1.9, ar: [0.4, 0.18], spare: 4, cd: 0.75, pel: 7, spr: 0.26, mv: 0.04, bloom: 0, ecd: 1.2, loud: 16, kick: 0.4, snd: 'shotgun' },
-  };
-  // ammo pools per caliber (Neon Vice CAL): bought boxes and rounds stripped off Lampas guns; a reload tops the magazine up from here
-  const CAL = { '9mm': { name: '9MM', cap: 90 }, '12ga': { name: 'HAGEL', cap: 30 } };
+  // ================================================================== WEAPONS (Neon Vice's WD / CAL / MODS / ARMOUR, in js/arsenal.js)
   const AR_JAM = 1.4; // a mistimed press: the rest of the reload takes 1.4x longer (Neon Vice W6c)
-  const KILLPTS = { maboota: 450, bat: 450, fists: 500, exec: 800, door: 600, throw: 550, makarov: 300, shotgun: 300, boom: 700 };
-  const FORCE = { makarov: 4.5, shotgun: 9.5, bat: 6.5, maboota: 5.5, fists: 5.5, exec: 1, throw: 5, door: 6, boom: 10 };
+  const KILLPTS = new Proxy(KP, { get: (t, k) => t[k] ?? (isGunId(k) ? t.gun : 300) });
+  state.mods = state.mods || {}; state.upg = state.upg || {};
+  const hasMod = (k) => !!state.mods[k];
+  function applyMods() { WD.smg.mag = BASE_MAG.smg + (hasMod('xmag') ? 16 : 0); }
+  applyMods();
+  const capOf = (cal) => (CAL[cal] ? CAL[cal].cap + (state.upg[cal] | 0) * CAL[cal].up : 0);
+  const quiet = (id) => id === 'makarov' && hasMod('supp');
+  const loudOf = (id) => (quiet(id) ? WD.silenced.loud : WD[id].loud);
+  const sndOf = (id) => (quiet(id) ? 'silenced' : WD[id].snd);
   const EASY = { hp: 3, react: 1.9, espr: 0.17, ebSpd: 15, vision: 9, cone: 0.85, ecd: 1.5, regen: 7 };
   const TIPS = ['A Lampas who stops and raises his gun is about to fire. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
+  // low-poly weapon models, Neon Vice proportions (WD.len), gold for The Russian's exclusives
+  const GM = { black: lam({ color: 0x1a1a1c }), steel: lam({ color: 0x8a8c90 }), wood: lam({ color: 0x6a3a1a }), grip: lam({ color: 0x3a2a1a }), gold: lam({ color: 0xe8b830, emissive: 0x3a2a00 }), blade: lam({ color: 0xd8dce0 }), tape: lam({ color: 0x2a2a2a }) };
   function weaponMesh(id) {
-    const g = new THREE.Group();
+    const g = new THREE.Group(), w = WD[id] || {}, m = w.excl ? GM.gold : GM.black;
+    const pistol = (x, mat) => { box(0.05, 0.1, 0.26, mat, x, -0.05, 0.1, g, false); box(0.05, 0.14, 0.07, GM.grip, x, -0.1, 0, g, false); };
     if (id === 'bat') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.025, 0.85, 8), lam({ color: 0xc8a06a })); b.position.y = -0.4; g.add(b); }
-    if (id === 'makarov') { box(0.05, 0.1, 0.26, lam({ color: 0x1a1a1a }), 0, -0.05, 0.1, g, false); box(0.05, 0.14, 0.07, lam({ color: 0x3a2a1a }), 0, -0.1, 0, g, false); }
-    if (id === 'shotgun') { box(0.06, 0.07, 0.8, lam({ color: 0x1a1a1a }), 0, -0.03, 0.3, g, false); box(0.07, 0.11, 0.3, lam({ color: 0x6a3a1a }), 0, -0.06, -0.12, g, false); }
+    else if (id === 'knife' || id === 'tknife') { box(0.03, 0.1, 0.03, GM.grip, 0, -0.05, 0, g, false); box(0.012, 0.22, 0.04, GM.blade, 0, -0.2, 0, g, false); }
+    else if (id === 'machete') { box(0.035, 0.12, 0.035, GM.grip, 0, -0.06, 0, g, false); box(0.012, 0.5, 0.07, GM.blade, 0, -0.36, 0.01, g, false); }
+    else if (id === 'katana') { box(0.035, 0.22, 0.035, GM.tape, 0, -0.1, 0, g, false); box(0.08, 0.015, 0.08, GM.gold, 0, -0.22, 0, g, false); box(0.01, 0.7, 0.035, GM.blade, 0, -0.58, 0, g, false); }
+    else if (id === 'makarov' || id === 'silenced') { pistol(0, GM.black); if (id === 'silenced' || quiet(id)) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 8), GM.steel); c.rotation.x = Math.PI / 2; c.position.set(0, -0.03, 0.31); g.add(c); } }
+    else if (id === 'revolver') { box(0.05, 0.07, 0.3, GM.steel, 0, -0.04, 0.12, g, false); box(0.07, 0.08, 0.08, GM.steel, 0, -0.05, 0.02, g, false); box(0.05, 0.14, 0.07, GM.wood, 0, -0.11, -0.03, g, false); }
+    else if (id === 'dual' || id === 'golddeagle') { pistol(0, m); }
+    else if (id === 'smg') { box(0.05, 0.1, 0.32, GM.black, 0, -0.04, 0.1, g, false); box(0.04, hasMod('xmag') ? 0.26 : 0.18, 0.05, GM.black, 0, -0.16, 0.06, g, false); }
+    else if (id === 'pump') { box(0.06, 0.07, 0.75, GM.black, 0, -0.03, 0.28, g, false); box(0.075, 0.08, 0.2, GM.wood, 0, -0.07, 0.34, g, false); box(0.07, 0.11, 0.26, GM.wood, 0, -0.06, -0.12, g, false); }
+    else if (id === 'shotgun') { box(0.06, 0.07, 0.8, GM.black, 0, -0.03, 0.3, g, false); box(0.07, 0.11, 0.3, GM.wood, 0, -0.06, -0.12, g, false); }
+    else if (id === 'm16' || id === 'goldak') { box(0.05, 0.09, 0.8, m, 0, -0.03, 0.25, g, false); box(0.04, 0.2, 0.06, m, 0, -0.15, 0.2, g, false); box(0.05, 0.12, 0.24, id === 'goldak' ? GM.wood : m, 0, -0.06, -0.16, g, false); }
     return g;
   }
-  const isGun = (id) => !!(id && WD[id] && !WD[id].melee);
+  const isGun = isGunId;
 
   // ================================================================== THE PLAYER'S KIT
   // Neon Vice loadout: slot 1 = melee (the Maboota, always; a honkbalknuppel if you have one: press 1 again to switch),
   // slots 2 and 3 = guns, bought from The Russian or taken off a Lampas. Guns only come out on missions.
   state.ammo = state.ammo || {}; // rounds loaded in each owned gun
   if (!state.pool) { // ammo you carry, per caliber; before this, everything sat in state.ammo: move the overflow into the pool
-    state.pool = { '9mm': 0, '12ga': 0 };
+    state.pool = {};
     for (const id of ['makarov', 'shotgun']) { const w = WD[id], n = state.ammo[id] || 0; if (n > w.mag) { state.pool[w.cal] += n - w.mag; state.ammo[id] = w.mag; } }
   }
   // what you carry between missions (Neon Vice kit): two guns with their loaded rounds, a melee weapon, a vest. Pocket ammo is state.pool.
@@ -360,10 +376,11 @@ export function initMission(ctx) {
   }
   function setLootTaken(id, list) { state.lootTaken[id] = list; if (id === 'spekbuurt') state.spekbuurtLootTaken = list.slice(); }
   migrateKit();
+  for (const c in CAL) state.pool[c] = Math.min(capOf(c), state.pool[c] | 0);
   const P = { slot: 1, held: null, hp: EASY.hp, maxhp: EASY.hp, armor: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, cause: '', vx: 0, vz: 0, last: new THREE.Vector3(), rl: null, sprint: false, stepT: 0, guns: [null, null], melee: null, useBat: false, lastGun: 2 };
   const handGun = new THREE.Group(); handGun.position.set(0, -0.68, 0.05); handGun.visible = false; player.userData.arms[0].add(handGun);
   const owned = () => ['shotgun', 'makarov', 'bat'].filter((k) => state.kit.includes(k));
-  const isMelee = (id) => !!(id && WD[id] && WD[id].melee);
+  const isMelee = isMeleeId;
   function ownWeapon(id) { return { id, ammo: isGun(id) ? (state.ammo[id] || 0) : 0, own: true }; }
   function saveOwnAmmo() { /* loaded rounds live on the gun itself and go home with you (commitKit) */ }
   let meshOf = null;
@@ -380,7 +397,7 @@ export function initMission(ctx) {
     if (!M.active) { if (n >= 2) toast('NOT ON THE STREET', 'Your guns stay in the Oofmobiel. Slots 2 and 3 work on missions only. Press I for your inventory.', 2); return; }
     if (n === 1) { if (P.slot === 1 && P.melee) P.useBat = !P.useBat; P.slot = 1; }
     else { if (!P.guns[n - 2]) { if (!quiet) toast(`SLOT ${n} IS LEEG`, 'Grab a gun from a Lampas (E), or buy one from The Russian.', 1.4); return; } P.slot = n; P.lastGun = n; }
-    $('weapon').className = 'hud on'; syncHeld(); beep(300, 0.05, 'square', 0.03);
+    $('weapon').className = 'hud on'; const was = P.held; syncHeld(); if (P.held !== was) { P.fireT = Math.max(P.fireT, hasMod('sling') ? 0.06 : 0.3); P.burstQ = 0; } beep(300, 0.05, 'square', 0.03);
   }
   function cycleSlot(dir) { // mouse wheel / Tab: 1 → 2 → 3 → 1, skipping empty gun slots
     const order = [1, 2, 3].filter((n) => n === 1 || P.guns[n - 2]); if (order.length < 2) return;
@@ -400,33 +417,35 @@ export function initMission(ctx) {
     P.melee = L.melee ? { id: L.melee, ammo: 0, own: true } : null; P.useBat = false; P.lastGun = 2;
   }
   function commitKit() { // what you carry out of the mission is yours: Lampas guns included
-    state.loadout = { guns: P.guns.map((g) => (g ? { id: g.id, ammo: g.ammo } : null)), melee: P.melee ? P.melee.id : null, vest: P.armor > 0 ? 1 : 0 };
+    state.loadout = { guns: P.guns.map((g) => (g ? { id: g.id, ammo: g.ammo } : null)), melee: P.melee ? P.melee.id : null, vest: Math.max(0, P.armor), armour: P.armor > 0 ? P.armourT : null };
   }
-  const gearName = (id) => (WD[id] ? WD[id].name : id === 'vest' ? 'KEVLAR VEST' : id.toUpperCase());
-  function fitsLoadout(id) { const L = state.loadout; return isGun(id) ? !L.guns[0] || !L.guns[1] : id === 'bat' ? !L.melee : id === 'vest' ? !L.vest : false; }
-  function addToLoadout(it) { const L = state.loadout; if (isGun(it.id)) L.guns[L.guns[0] ? 1 : 0] = { id: it.id, ammo: it.ammo | 0 }; else if (it.id === 'bat') L.melee = 'bat'; else if (it.id === 'vest') L.vest = 1; }
-  const GEAR = ['makarov', 'shotgun', 'bat', 'vest'];
-  const owns = (id) => { const L = state.loadout; return L.guns.some((g) => g && g.id === id) || L.melee === id || (id === 'vest' && L.vest > 0) || state.stash.some((s) => s.id === id); };
+  const gearName = (id) => (WD[id] ? WD[id].name : ARMOUR[id] ? ARMOUR[id].name : id.toUpperCase());
+  // armour in the loadout: L.armour = 'vest' | 'carrier' | null, L.vest = plates left (old saves: vest 1 = a kevlar vest)
+  const armourOf = (L) => (L.vest > 0 ? (ARMOUR[L.armour] ? L.armour : 'vest') : null);
+  function fitsLoadout(id) { const L = state.loadout; return isGun(id) ? !L.guns[0] || !L.guns[1] : isMelee(id) ? !L.melee : ARMOUR[id] ? !armourOf(L) : false; }
+  function addToLoadout(it) { const L = state.loadout; if (isGun(it.id)) L.guns[L.guns[0] ? 1 : 0] = { id: it.id, ammo: it.ammo | 0 }; else if (isMelee(it.id)) L.melee = it.id; else if (ARMOUR[it.id]) { L.armour = it.id; L.vest = it.ammo || ARMOUR[it.id].plates; } }
+  const GEAR = [...Object.keys(WD).filter((k) => isGun(k) || isMelee(k)), ...Object.keys(ARMOUR)];
+  const owns = (id) => { const L = state.loadout; return L.guns.some((g) => g && g.id === id) || L.melee === id || (ARMOUR[id] && armourOf(L) === id) || state.stash.some((s) => s.id === id); };
   const canBuy = (id) => !GEAR.includes(id) || fitsLoadout(id) || state.stash.length < STASH_CAP;
-  function kitSummary() { const L = state.loadout, n = [...(state.kit.includes('maboota') ? ['Maboota'] : []), ...(L.melee ? [WD.bat.name] : []), ...L.guns.filter(Boolean).map((g) => WD[g.id].name), ...(L.vest ? ['Vest'] : [])]; return n.length ? 'Kit: ' + n.join(', ') + (state.stash.length ? ` · Kluis ${state.stash.length}/${STASH_CAP}` : '') : ''; }
+  function kitSummary() { const L = state.loadout, n = [...(state.kit.includes('maboota') ? ['Maboota'] : []), ...(L.melee ? [WD[L.melee].name] : []), ...L.guns.filter(Boolean).map((g) => WD[g.id].name), ...(armourOf(L) ? [ARMOUR[armourOf(L)].name] : [])]; return n.length ? 'Kit: ' + n.join(', ') + (state.stash.length ? ` · Kluis ${state.stash.length}/${STASH_CAP}` : '') : ''; }
   const gunOut = () => M.active && P.slot >= 2 && P.held && isGun(P.held.id);
   function holster() { saveOwnAmmo(); P.slot = 1; P.useBat = false; P.rl = null; handGun.visible = false; }
 
   // ================================================================== ACTIVE RELOAD (Neon Vice W6c: Gears-style window)
   // R starts a reload that tops the magazine up from the caliber pool after WD.rl seconds. One more R inside the green window
   // finishes it at once; a press anywhere else jams the gun (the rest takes AR_JAM x longer) and locks further tries.
-  const poolOf = (id) => state.pool[WD[id].cal] | 0;
+  const poolOf = (id) => (WD[id].cal ? state.pool[WD[id].cal] | 0 : 0);
   const reloadNeed = (h) => (h && isGun(h.id) ? Math.max(0, Math.min(WD[h.id].mag - h.ammo, poolOf(h.id))) : 0);
   function reloadStart() {
     if (!gunOut() || P.rl || P.dead || !reloadNeed(P.held)) return false;
     const w = WD[P.held.id], d = w.rl, a = w.ar;
     P.rl = { t: 0, dur: d, ar0: a[0] * d, ar1: (a[0] + a[1]) * d, tried: false, jam: false, h: P.held };
-    sfx('rlStart'); hud(); return true;
+    if (!gunAudio.ready()) synth('rlStart'); hud(); return true;
   }
   function reloadDone(perfect) {
-    const h = P.rl.h, n = reloadNeed(h); P.rl = null;
+    const h = P.rl.h, n = reloadNeed(h), r0 = P.rl; P.rl = null;
     state.pool[WD[h.id].cal] = poolOf(h.id) - n; h.ammo += n; P.fireT = Math.max(P.fireT, perfect ? 0 : 0.1);
-    sfx(perfect ? 'rlPerfect' : 'rlDone'); saveOwnAmmo(); hud();
+    if (!gunAudio.reloadDone(WD[h.id].snd, r0) || perfect) synth(perfect ? 'rlPerfect' : 'rlDone'); saveOwnAmmo(); hud();
   }
   function reloadInput() {
     if (P.rl) {
@@ -437,13 +456,13 @@ export function initMission(ctx) {
     }
     if (reloadStart() || !gunOut()) return;
     if (P.held.ammo >= WD[P.held.id].mag) popup(player.position, 'AL VOL', '#d4bd92');
-    else { popup(player.position, 'GEEN ' + CAL[WD[P.held.id].cal].name, '#e46a4c'); sfx('empty'); }
+    else if (WD[P.held.id].cal) { popup(player.position, 'GEEN ' + CAL[WD[P.held.id].cal].name, '#e46a4c'); if (!gunAudio.dry(WD[P.held.id].snd)) synth('empty'); }
   }
-  function reloadTick(dt) { const r = P.rl; if (!r) return; if (r.h !== P.held || !gunOut()) { P.rl = null; hud(); return; } r.t += dt; if (r.t >= r.dur) reloadDone(false); }
+  function reloadTick(dt) { const r = P.rl; if (!r) return; if (r.h !== P.held || !gunOut()) { P.rl = null; hud(); return; } r.t += dt; gunAudio.reloadStep(WD[r.h.id].snd, r); if (r.t >= r.dur) reloadDone(false); }
   // pockets the rounds of a dropped gun of the caliber you hold (Neon Vice: same-calibre pickups strip into the pool)
   function stripAmmo(it) {
     if (!isGun(it.id) || !P.guns.some((g) => g && WD[g.id].cal === WD[it.id].cal)) return false;
-    const cal = WD[it.id].cal, room = CAL[cal].cap - (state.pool[cal] | 0), n = Math.min(room, it.ammo + (it.spare || 0));
+    const cal = WD[it.id].cal; if (!cal) return false; const room = capOf(cal) - (state.pool[cal] | 0), n = Math.min(room, it.ammo + (it.spare || 0));
     if (n <= 0) return false;
     const fromSpare = Math.min(it.spare || 0, n); it.spare = (it.spare || 0) - fromSpare; it.ammo -= n - fromSpare;
     state.pool[cal] = (state.pool[cal] | 0) + n; popup(player.position, `+${n} ${CAL[cal].name}`, '#ffd36b'); sfx('pick');
@@ -661,19 +680,29 @@ export function initMission(ctx) {
   // ================================================================== BULLETS (cover stops them, glass shatters, barrels explode, corpses get pushed)
   const bullets = [];
   const tracerM = [new THREE.MeshBasicMaterial({ color: 0xfff0a0 }), new THREE.MeshBasicMaterial({ color: 0xff5a3a })];
+  // Neon Vice fireGun: spread = base + moving + bloom (players) or the Easy enemy spread; dual pistols alternate hands;
+  // .357 / M16 / AK / Deagles go through bodies (pierce) and the rifles through one thin wall (pen); thrown knives fly
   function fireGun(from, a, id, byPlayer, moving) {
-    const W2 = WD[id], muz = new THREE.Vector3(from.x + Math.sin(a) * 0.6, 0, from.z + Math.cos(a) * 0.6);
-    const spr = byPlayer ? W2.spr + (moving ? W2.mv : 0) + P.bloom : EASY.espr * (W2.pel > 1 ? 1.6 : 1);
-    for (let i = 0; i < W2.pel; i++) {
-      const aa = a + (Math.random() - 0.5) * spr * 2, sp = byPlayer ? 40 : EASY.ebSpd;
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, byPlayer ? 0.7 : 0.45), tracerM[byPlayer ? 0 : 1]);
-      m.position.set(from.x + Math.sin(a) * 0.3, 1.25, from.z + Math.cos(a) * 0.3); m.rotation.y = aa; root.add(m);
-      bullets.push({ m, dx: Math.sin(aa), dz: Math.cos(aa), sp, byPlayer, id, life: 1.4, pierce: 1, hit: new Set() });
+    const W2 = WD[id];
+    if (W2.toss) { // throwing knife: a blade that flies and kills whoever it meets; pick it up again afterwards
+      const at = from.clone().add(new THREE.Vector3(Math.sin(a) * 0.4, 0, Math.cos(a) * 0.4));
+      dropItem('tknife', at, Math.sin(a) * 21, Math.cos(a) * 21, 1, true, byPlayer); const it = items[items.length - 1]; it.g.position.y = 1.0; it.blade = true;
+      sfx('throw'); return;
     }
-    muzzle(muz); casing(from, a, id === 'shotgun');
-    sfx(byPlayer ? W2.snd : 'epistol'); if (id === 'shotgun' && !byPlayer) sfx('shotgun');
-    if (byPlayer) { P.bloom = Math.min(0.2, P.bloom + W2.bloom); shake(W2.kick * 1.2); FX.kick.set(-Math.sin(a) * W2.kick * 0.6, 0, -Math.cos(a) * W2.kick * 0.6); }
-    alertNoise(from, W2.loud);
+    const spr = byPlayer ? W2.spr + (moving ? W2.mv : 0) + P.bloom : W2.spr + EASY.espr;
+    let ox = 0; if (W2.dual) { P.alt = !P.alt; ox = P.alt ? -0.17 : 0.17; }
+    const ca = Math.cos(a), sa = Math.sin(a), bx = from.x + ca * ox, bz = from.z - sa * ox;
+    for (let i = 0; i < W2.pel; i++) {
+      const aa = a + (W2.pel > 1 ? rnd(-spr, spr) : (Math.random() + Math.random() - 1) * spr), sp = byPlayer ? 34 : EASY.ebSpd;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, byPlayer ? 0.7 : 0.45), tracerM[byPlayer ? 0 : 1]);
+      m.position.set(bx + sa * 0.3, 1.25, bz + ca * 0.3); m.rotation.y = aa; root.add(m);
+      bullets.push({ m, dx: Math.sin(aa), dz: Math.cos(aa), sp, byPlayer, id, life: 1.2, pierce: byPlayer ? (W2.pierce || 1) : 1, pen: byPlayer ? (W2.pen || 0) : 0, hit: new Set() });
+    }
+    const q = byPlayer && quiet(id);
+    muzzle(new THREE.Vector3(bx + sa * 0.6, 0, bz + ca * 0.6), q ? 1.5 : 4); casing(from, a, W2.pel > 1);
+    sfx(byPlayer ? sndOf(id) : W2.snd, byPlayer ? 1 : 0.5);
+    if (byPlayer) { P.bloom = Math.min(W2.bloomMax || 0.18, P.bloom + W2.bloom); shake(W2.kick * 1.2); FX.kick.set(-sa * W2.kick * 0.6, 0, -ca * W2.kick * 0.6); }
+    alertNoise(from, byPlayer ? loudOf(id) : W2.loud);
   }
   function bulletHitsCell(b, px, pz, nx, nz) {
     const ch = cellAt(nx, nz), key = Math.floor(nx - OX) + ',' + Math.floor(nz - Z0);
@@ -681,6 +710,11 @@ export function initMission(ctx) {
     if (ch === 'X') { explode(key); return true; }
     if (levelShot && isCover(ch) && levelShot(ch, Math.floor(nx - OX), Math.floor(nz - Z0))) return true; // the level's own shootable props (tanks)
     if (!isCover(ch) || (cellAt(px, pz) === ch && ch !== '#')) return false;
+    if (ch === '#' && b.pen > 0 && !b.inWall) { // rifle rounds punch through one thin wall (Neon Vice ballistics), losing a body of pierce
+      const fx = nx + b.dx * 1.0, fz = nz + b.dz * 1.0, cx = Math.floor(fx - OX), cz = Math.floor(fz - Z0);
+      if (cx > 0 && cz > 0 && cx < W - 1 && cz < H - 1 && !isBlock(cellAt(fx, fz))) { b.pen--; b.inWall = 2; sparks(nx - b.dx * 0.1, 1.25, nz - b.dz * 0.1); wallDecal(nx - b.dx * 0.05, 1.25, nz - b.dz * 0.05, -b.dx, -b.dz, 0.12, holeM); return false; }
+    }
+    if (b.inWall) return false;
     // impact point on the cell face
     const ocx = Math.floor(px - OX), ocz = Math.floor(pz - Z0), ncx = Math.floor(nx - OX), ncz = Math.floor(nz - Z0);
     let wx, wz, nrx = 0, nrz = 0;
@@ -751,7 +785,7 @@ export function initMission(ctx) {
   function gunLabel(n) {
     const h = P.guns[n - 2]; if (!h) return `[${n}] —`;
     const on = P.slot === n;
-    return `[${n}] ${WD[h.id].name} ${h.ammo}/${WD[h.id].mag} <span style="color:#c9ae86">+${poolOf(h.id)}</span>` + (on && P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#b9d46e'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : on && h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · ' + glyph('R') : 'LEEG · ' + glyph('F') + ' TO THROW'}</span>` : '');
+    return `[${n}] ${WD[h.id].name}${quiet(h.id) ? ' (S)' : ''} ${h.ammo}/${WD[h.id].mag}${WD[h.id].cal ? ` <span style="color:#c9ae86">+${poolOf(h.id)}</span>` : ''}` + (on && P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#b9d46e'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : on && h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · ' + glyph('R') : 'LEEG · ' + glyph('F') + ' TO THROW'}</span>` : '');
   }
   function hud() {
     const wbox = $('weapon');
@@ -760,26 +794,26 @@ export function initMission(ctx) {
     const on = M.active; hudEl.style.display = scoreEl.style.display = grainEl.style.display = scanEl.style.display = on ? 'block' : 'none';
     if (!on) return;
     let hp = ''; for (let i = 0; i < P.maxhp; i++) hp += i < P.hp ? '♥' : '<i>♥</i>';
-    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ' <span style="color:#ffd23a;font-size:12px">VEST</span>' : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD.bat.name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ' <i style="font-style:normal;color:#777">/ BAT</i>' : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">${LV.faction || 'LAMPAS'} LEFT: ${alive().length}${tasks.some((t) => !t.optional) ? ` <span style="color:#e8a33d;margin-left:10px">${(LV.taskName || 'TARGET')}S: ${tasks.filter((t) => !t.optional && t.done).length}/${tasks.filter((t) => !t.optional).length}</span>` : ''}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
+    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ` <span style="color:#ffd23a;font-size:12px">${P.armourT === 'carrier' ? 'PLATES ' + '▮'.repeat(P.armor) : 'VEST'}</span>` : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD[P.melee.id].name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ` <i style="font-style:normal;color:#777">/ ${WD[P.melee.id].name}</i>` : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">${LV.faction || 'LAMPAS'} LEFT: ${alive().length}${tasks.some((t) => !t.optional) ? ` <span style="color:#e8a33d;margin-left:10px">${(LV.taskName || 'TARGET')}S: ${tasks.filter((t) => !t.optional && t.done).length}/${tasks.filter((t) => !t.optional).length}</span>` : ''}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
     scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">${LV.text.area}</div>`;
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }
   function hideScreen() { screenEl.style.display = 'none'; }
 
   // ================================================================== INVENTORY (I)
-  const ICON = { maboota: '🏏', makarov: '🔫', shotgun: '💥', bat: '⚾', vest: '🦺', ammo: '📦', shells: '🧨', loot: '🌶️', stash: '🗄️', money: '💶', shoarma: '🥙' };
+  const ICON = { maboota: '🏏', makarov: '🔫', silenced: '🔫', revolver: '🔫', dual: '🔫', golddeagle: '🔫', smg: '🔫', m16: '🔫', goldak: '🔫', shotgun: '💥', pump: '💥', bat: '⚾', knife: '🔪', tknife: '🔪', machete: '🔪', katana: '🗡️', vest: '🦺', carrier: '🦺', ammo: '📦', shells: '🧨', loot: '🌶️', stash: '🗄️', money: '💶', shoarma: '🥙', mod: '🔧' };
   const INFO = { maboota: ['Maboota', 'A Russian police truncheon. Knocks people down; hit them again on the floor to finish them.', 'A gift from The Russian'] };
   let invOpen = false, invMode = 'inv';
   function openInv() {
     const shop = ctx.shop || [], row = [];
     const add = (id, name, desc, src, count, eq) => row.push(`<div class="it${eq ? ' eq' : ''}"><div class="ic">${ICON[id] || '▪'}</div><div><div class="nm">${name}${count > 1 ? ' ×' + count : ''}</div><div class="ds">${desc}</div><div class="tag">${src}${eq ? ' · EQUIPPED' : ''}</div></div></div>`);
     if (state.kit.includes('maboota')) add('maboota', ...INFO.maboota, 1, P.slot === 1 && state.armed);
-    const L = state.loadout, gear = M.active ? { guns: P.guns, melee: P.melee && P.melee.id, vest: P.armor > 0 } : { guns: L.guns, melee: L.melee, vest: L.vest > 0 };
-    if (gear.melee) add('bat', WD.bat.name, 'Kills in one swing. On a mission: press 1 again to switch from the Maboota.', 'Slot 1', 1, M.active && P.held && P.held.id === 'bat');
+    const L = state.loadout, gear = M.active ? { guns: P.guns, melee: P.melee && P.melee.id, arm: P.armor > 0 ? P.armourT : null, plates: P.armor } : { guns: L.guns, melee: L.melee, arm: armourOf(L), plates: L.vest };
+    if (gear.melee) add(gear.melee, WD[gear.melee].name, 'Kills in one swing. On a mission: press 1 again to switch from the Maboota.', 'Slot 1', 1, M.active && P.held && P.held.id === gear.melee);
     gear.guns.forEach((g, i) => { if (g) add(g.id, WD[g.id].name, `Loaded ${g.ammo}/${WD[g.id].mag}. Comes along on every mission.`, `Slot ${i + 2}`, 1, M.active && P.held === g); });
-    if (gear.vest) add('vest', 'Kevlar vest', 'Stops one bullet, then it\'s done. Buy a new one from The Russian.', 'Worn', 1);
-    if (state.pool['9mm']) add('ammo', '9mm rounds', 'In your pocket. R reloads the Makarov from here.', 'Pocket', state.pool['9mm']);
-    if (state.pool['12ga']) add('shells', 'Hagel (shells)', 'In your pocket. R reloads the sawn-off from here.', 'Pocket', state.pool['12ga']);
+    if (gear.arm) add(gear.arm, ARMOUR[gear.arm].name, `${gear.plates}/${ARMOUR[gear.arm].plates} plate${ARMOUR[gear.arm].plates > 1 ? 's' : ''} left. Each one stops a bullet. The Russian repairs it.`, 'Worn', 1);
+    for (const m in MODS) if (hasMod(m)) add('mod', MODS[m].name, MODS[m].info, 'Attachment', 1);
+    for (const c in CAL) if (state.pool[c]) add(c === '12ga' ? 'shells' : 'ammo', CAL[c].name + ' rounds', `In your pocket (${state.pool[c]}/${capOf(c)}). R reloads from here.`, 'Pocket', state.pool[c]);
     if (state.stash.length) add('stash', 'De Kluis', state.stash.map((s) => gearName(s.id)).join(', ') + '. Store and swap gear at the kluis in the warehouse.', `Home · ${state.stash.length}/${STASH_CAP}`, 1);
     if (state.loot) add('loot', 'Lampas spice crate', 'Stolen from the Lampas warehouse. Sell it on Kaasplaats (PC) for W 150 each.', 'Loot', state.loot);
     if (state.metSchmatzel) add('shoarma', 'Shoarma broodje', 'Schmatzel\'s, on the house. Your father\'s favourite.', 'From Schmatzel', 1);
@@ -1022,7 +1056,7 @@ export function initMission(ctx) {
     Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, foes: Math.max(1, alive().length) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
-    Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: state.loadout.vest > 0 ? 1 : 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
+    Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: armourOf(state.loadout) ? state.loadout.vest : 0, armourT: armourOf(state.loadout), invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
     heistSetup(); defendSetup();
@@ -1082,7 +1116,7 @@ export function initMission(ctx) {
   function poseDown(e, k) { const u = e.userData; u.body.rotation.x = -1.5 * k; u.body.position.y = 0.12 * k; }
   function launch(e, type, dir) { // Neon Vice launchBody: shotguns and blasts lift bodies off the floor and spin them
     const f = e.userData.foe, kb = (FORCE[type] || 4) * rnd(0.85, 1.15) / f.mass;
-    f.vx = dir[0] * kb; f.vz = dir[1] * kb; f.vy = (type === 'shotgun' || type === 'boom') ? kb * 0.32 : kb * 0.12; f.y = 0.001; f.spin = rnd(-1, 1) * kb * 0.35; f.body = true;
+    f.vx = dir[0] * kb; f.vz = dir[1] * kb; f.vy = (SHOT_GUN(type) || type === 'boom') ? kb * 0.32 : kb * 0.12; f.y = 0.001; f.spin = rnd(-1, 1) * kb * 0.35; f.body = true;
   }
   function killEnemy(e, type, dir) {
     const f = e.userData.foe; if (!f.alive) return;
@@ -1090,15 +1124,17 @@ export function initMission(ctx) {
     if (f.weapon) { dropItem(f.weapon, e.position, dir[0] * 3, dir[1] * 3); setFoeWeapon(e, null); }
     launch(e, type, dir);
     e.rotation.y = Math.atan2(-dir[0], -dir[1]); poseDown(e, 1);
-    bloody(e, type === 'exec' || type === 'shotgun' || type === 'boom' ? 3 : 2);
-    bloodBurst(e.position, dir, type === 'shotgun' || type === 'exec' || type === 'boom' ? 40 : 22, type === 'shotgun' ? 6 : 4);
+    const sg = SHOT_GUN(type);
+    bloody(e, type === 'exec' || sg || type === 'boom' ? 3 : 2);
+    bloodBurst(e.position, dir, sg || type === 'exec' || type === 'boom' ? 40 : 22, sg ? 6 : 4);
     floorDecal(e.position.x + dir[0] * 0.3, e.position.z + dir[1] * 0.3, 1.1 + Math.random() * 0.4, Math.random() * 6);
-    addPool(e, type === 'shotgun' || type === 'exec' || type === 'boom');
+    addPool(e, sg || type === 'exec' || type === 'boom');
     // gore (Neon Vice dismember): shotguns up close take heads and arms, bats sometimes
     const pd = e.position.distanceTo(player.position);
-    if (type === 'shotgun' && pd < 3.2) { if (Math.random() < 0.55) headPop(e, dir); else limbOff(e, dir); }
-    else if ((type === 'bat' && Math.random() < 0.2) || (type === 'makarov' && Math.random() < 0.08)) limbOff(e, dir);
-    sfx('splat'); FX.freeze = type === 'exec' ? 0.14 : 0.045; shake(type === 'shotgun' ? 0.4 : 0.25);
+    if (sg && pd < 3.2) { if (Math.random() < 0.55) headPop(e, dir); else limbOff(e, dir); }
+    else if (['revolver', 'golddeagle'].includes(type) && pd < 5 && Math.random() < 0.35) headPop(e, dir);
+    else if ((['machete', 'katana'].includes(type) && Math.random() < 0.45) || (type === 'bat' && Math.random() < 0.2) || (isGun(type) && Math.random() < 0.08)) limbOff(e, dir);
+    sfx('splat'); FX.freeze = type === 'exec' ? 0.14 : 0.045; shake(sg ? 0.4 : 0.25);
     R.kills++; if (type === 'exec') R.execs++; addKillScore(e, type);
     if (f.type) { const FT = FOE_TYPES[f.type]; banner(FT.down[0], FT.down[1], 2.5); shake(0.6); FX.freeze = 0.3; R.score += FT.score; }
     else if (f.boss) { banner(LV.text.bossDown[0], LV.text.bossDown[1], 2.5); shake(0.6); FX.freeze = 0.3; }
@@ -1148,16 +1184,16 @@ export function initMission(ctx) {
     const dir = [e.position.x - player.position.x, e.position.z - player.position.z], l = Math.hypot(dir[0], dir[1]) || 1; dir[0] /= l; dir[1] /= l;
     P.exec = 0.35; player.rotation.y = Math.atan2(dir[0], dir[1]);
     const gun = gunOut() && P.held.ammo > 0;
-    if (gun) { P.held.ammo--; sfx(WD[P.held.id].snd); muzzle(e.position); alertNoise(player.position, WD[P.held.id].loud); } else { sfx('hit'); setTimeout(() => sfx('hit'), 120); }
+    if (gun) { P.held.ammo--; sfx(sndOf(P.held.id)); muzzle(e.position); alertNoise(player.position, loudOf(P.held.id)); } else { sfx('hit'); setTimeout(() => sfx('hit'), 120); }
     popup(e.position, 'EXECUTION', '#ff3a4a'); bloodBurst(e.position, dir, 30, 3); shake(0.45);
-    killEnemy(e, 'exec', dir); if (gun && P.held.id === 'shotgun') headPop(e, dir);
+    killEnemy(e, 'exec', dir); if (gun && (SHOT_GUN(P.held.id) || ['revolver', 'golddeagle'].includes(P.held.id))) headPop(e, dir);
   }
 
   // ================================================================== THE PLAYER GETS HURT (3 lives, Neon Vice Easy)
   function hurtPlayer(dir, cause) {
     if (P.dead || P.invT > 0 || R.results) return;
     R.taken++;
-    if (P.armor > 0 && cause !== 'boom') { P.armor--; P.invT = 0.9; P.lastHurt = R.time; shake(0.45); FX.flash = 0.35; FX.flashC = '255,255,255'; sfx('vest'); popup(player.position, 'VEST HIT!', '#ffd36b'); bloodBurst(player.position, dir, 8, 2); hud(); return; }
+    if (P.armor > 0 && cause !== 'boom') { P.armor--; P.invT = 0.9; P.lastHurt = R.time; shake(0.45); FX.flash = 0.35; FX.flashC = '255,255,255'; sfx('vest'); popup(player.position, P.armor > 0 ? 'PLATE HIT! ' + P.armor + ' LEFT' : (P.armourT === 'carrier' ? 'CARRIER SPENT!' : 'VEST HIT!'), '#ffd36b'); bloodBurst(player.position, dir, 8, 2); hud(); return; }
     bloody(player, R.taken >= 2 ? 2 : 1);
     if (P.hp > 1 && cause !== 'boom') {
       P.hp--; P.invT = 1.1; P.lastHurt = R.time; shake(0.45); FX.flash = 0.45; FX.flashC = '230,0,13'; FX.hurtT = 0.7; sfx('hurt');
@@ -1168,7 +1204,7 @@ export function initMission(ctx) {
     player.rotation.y = Math.atan2(-dir[0], -dir[1]); P.vx = dir[0] * (FORCE[cause] || 4); P.vz = dir[1] * (FORCE[cause] || 4);
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
-    const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', fists: `Punched out by a ${(LV && LV.factionName) || 'Lampas'}.`, boom: 'Too close to a red barrel.', hazard: (LV && LV.hazard && LV.hazard.death) || 'Burnt.' }[cause] || 'Killed by the Lampas.';
+    const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', pump: 'Blown away by a pump shotgun.', smg: 'Sprayed by an Uzi.', m16: 'Cut down by an M16.', revolver: 'Shot with a .357.', dual: 'Shot by dual 9mms.', goldak: 'Golden AK. Very shiny, very dead.', fists: `Punched out by a ${(LV && LV.factionName) || 'Lampas'}.`, boom: 'Too close to a red barrel.', hazard: (LV && LV.hazard && LV.hazard.death) || 'Burnt.' }[cause] || 'Killed by the Lampas.';
     setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${((tl) => tl[Math.floor(Math.random() * tl.length)])([...TIPS, ...(LV.text.tips || [])])}</div><div class="btn">RETRY · ${glyph('Backspace')}</div>`); }, 900);
   }
 
@@ -1202,6 +1238,12 @@ export function initMission(ctx) {
   const mouseN = new THREE.Vector2(), rc = new THREE.Raycaster(), aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.1), aim = new THREE.Vector3();
   let mouseSeen = false;
   addEventListener('mousemove', (e) => { mouseN.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); mouseSeen = true; });
+  // held fire (mouse button / F / RT): automatics keep firing while it's down (Neon Vice)
+  const held = { mouse: false, key: false };
+  const fireHeld = () => (held.mouse || held.key) && M.active;
+  addEventListener('mouseup', (e) => { if (e.button === 0) held.mouse = false; });
+  addEventListener('keyup', (e) => { if (e.code === 'KeyF') held.key = false; });
+  addEventListener('blur', () => { held.mouse = held.key = false; });
   const moving = () => Math.hypot(player.position.x - P.last.x, player.position.z - P.last.z) > 0.01;
   function nearestDowned() { let best = null, bd = 1.15; for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down > 0) { const d = e.position.distanceTo(player.position); if (d < bd) { bd = d; best = e; } } } return best; }
   function attack() {
@@ -1209,9 +1251,11 @@ export function initMission(ctx) {
     const t = nearestDowned(); if (t && !(gunOut() && P.held.ammo <= 0) && !P.rl) { execute(t); return; }
     if (gunOut()) {
       if (P.fireT > 0 || P.rl) return;
-      if (P.held.ammo <= 0) { if (!reloadStart()) throwHeld(); return; }
+      if (P.held.ammo <= 0) { gunAudio.dry(WD[P.held.id].snd); if (!reloadStart()) throwHeld(); return; }
       const W2 = WD[P.held.id]; P.held.ammo--; P.fireT = W2.cd; R.shots++;
       fireGun(player.position, player.rotation.y, P.held.id, true, moving());
+      if (W2.burst3) { P.burstQ = Math.min(2, P.held.ammo); P.burstT = 0.065; } // M16: three rounds per pull
+      if (W2.toss && P.held.ammo <= 0) { P.guns[P.slot - 2] = null; P.slot = 1; syncHeld(); hud(); return; }
       player.userData.arms[0].rotation.x = -1.2; saveOwnAmmo(); if (P.held.ammo <= 0) reloadStart(); hud(); return;
     }
     if (state.armed) { ctx.swing(); sfx('swing'); alertNoise(player.position, 3); }
@@ -1242,8 +1286,10 @@ export function initMission(ctx) {
     pickUp(best); return true;
   }
   function pickUp(it) {
+    const tk = it.id === 'tknife' && P.guns.find((g) => g && g.id === 'tknife');
+    if (tk) { root.remove(it.g, it.ring); items.splice(items.indexOf(it), 1); tk.ammo = Math.min(WD.tknife.mag, tk.ammo + Math.max(1, it.ammo)); sfx('pick'); popup(player.position, '+1 KNIFE', '#ffd36b'); hud(); return; }
     root.remove(it.g, it.ring); items.splice(items.indexOf(it), 1);
-    if (it.spare && isGun(it.id)) { const c = WD[it.id].cal, n = Math.min(it.spare, CAL[c].cap - (state.pool[c] | 0)); if (n > 0) { state.pool[c] = (state.pool[c] | 0) + n; setTimeout(() => popup(player.position, `+${n} ${CAL[c].name}`, '#ffd36b'), 250); } }
+    if (it.spare && isGun(it.id) && WD[it.id].cal) { const c = WD[it.id].cal, n = Math.min(it.spare, capOf(c) - (state.pool[c] | 0)); if (n > 0) { state.pool[c] = (state.pool[c] | 0) + n; setTimeout(() => popup(player.position, `+${n} ${CAL[c].name}`, '#ffd36b'), 250); } }
     putInHand({ id: it.id, ammo: it.ammo, own: it.own }); sfx('pick'); popup(player.position, WD[it.id].name, '#ffd36b');
   }
 
@@ -1265,7 +1311,7 @@ export function initMission(ctx) {
     else if (e.code === 'Digit2' || e.code === 'Numpad2') { stop(); selectSlot(2); }
     else if (e.code === 'Digit3' || e.code === 'Numpad3') { stop(); selectSlot(3); }
     else if (e.code === 'Tab') { stop(); cycleSlot(e.shiftKey ? -1 : 1); }
-    else if (e.code === 'KeyF') { stop(); attack(); }
+    else if (e.code === 'KeyF') { stop(); held.key = true; if (!e.repeat) attack(); }
     else if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { if (grab()) stop(); }
   }, true);
   addEventListener('pointerdown', (e) => {
@@ -1275,7 +1321,7 @@ export function initMission(ctx) {
     if (e.pointerType === 'touch') { if (ARR && ARR.t > 0.4) endArrive(); return; }
     if (ARR) { if (ARR.t > 0.4) endArrive(); return; }
     if (R.results) { grab(); return; }
-    if (e.button === 2) { grab(); return; } attack();
+    if (e.button === 2) { grab(); return; } held.mouse = true; gunAudio.warm(); attack();
   }, true);
   let wheelT = 0; // mouse wheel cycles weapons on missions (zoom stays on the street)
   addEventListener('wheel', (e) => { if (!M.active || invOpen || state.inPC || P.dead) return; e.stopImmediatePropagation(); const t = performance.now(); if (t - wheelT < 140) return; wheelT = t; cycleSlot(Math.sign(e.deltaY) || 1); }, { capture: true, passive: true });
@@ -1335,6 +1381,8 @@ export function initMission(ctx) {
     const pv = [(player.position.x - P.last.x) / Math.max(dt, 1e-4), (player.position.z - P.last.z) / Math.max(dt, 1e-4)];
     if (!P.dead) collideDoors(player.position, 0.42, pv[0], pv[1], true);
     reloadTick(dt); drawReload();
+    if (P.burstQ > 0 && gunOut() && !P.rl) { if ((P.burstT -= dt) <= 0) { if (P.held.ammo > 0) { P.held.ammo--; R.shots++; fireGun(player.position, player.rotation.y, P.held.id, true, moving()); P.burstT = 0.065; P.burstQ--; if (P.held.ammo <= 0) { P.burstQ = 0; reloadStart(); } hud(); } else P.burstQ = 0; } }
+    if (fireHeld() && gunOut() && WD[P.held.id].burst && P.fireT <= 0 && !P.dead && P.exec <= 0 && !invOpen) attack(); // automatics: hold to fire
     // sprint (Shift, same speed as on the street): loud footsteps, every Lampas within 4.5 m hears them (Neon Vice alertNoise)
     const spd = Math.hypot(pv[0], pv[1]); P.sprint = !P.dead && shift.on && spd > 5;
     if (P.sprint) { P.stepT -= dt; if (P.stepT <= 0) { P.stepT = 0.3; alertNoise(player.position, 4.5); beep(70 + Math.random() * 20, 0.04, 'square', 0.02); } } else P.stepT = 0;
@@ -1407,6 +1455,7 @@ export function initMission(ctx) {
       const dist = b.sp * dt, steps = Math.ceil(dist / 0.2), st = dist / steps;
       for (let s = 0; s < steps && !gone; s++) {
         const px = b.m.position.x, pz = b.m.position.z, nx = px + b.dx * st, nz = pz + b.dz * st;
+        if (b.inWall && cellAt(nx, nz) !== '#') b.inWall = 0;
         if (bulletHitsCell(b, px, pz, nx, nz) || doorBlocks(px, pz, nx, nz)) { gone = true; break; }
         b.m.position.x = nx; b.m.position.z = nz;
         const dir = [b.dx, b.dz];
@@ -1430,7 +1479,8 @@ export function initMission(ctx) {
         if (it.flying) { it.g.rotation.z += dt * 18;
           for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0) continue;
             if (Math.hypot(e.position.x - p.x, e.position.z - p.z) < 0.5) { const l = Math.hypot(it.vx, it.vz) || 1, dir = [it.vx / l, it.vz / l];
-              if (f.boss) stagger(e, dir); else { knockdown(e, dir); popup(e.position, 'DOWN!', '#ffd36b'); } it.flying = false; it.vx *= -0.2; it.vz *= -0.2; break; } } }
+              if (it.blade) { if (f.boss) hitEnemy(e, 'tknife', dir, 1); else killEnemy(e, 'tknife', dir); sfx('hit'); }
+              else if (f.boss) stagger(e, dir); else { knockdown(e, dir); popup(e.position, 'DOWN!', '#ffd36b'); } it.flying = false; it.vx *= -0.2; it.vz *= -0.2; break; } } }
         const fr = it.flying ? 0.6 : 5; it.vx *= Math.exp(-dt * fr); it.vz *= Math.exp(-dt * fr);
         if (it.flying && Math.hypot(it.vx, it.vz) < 6) it.flying = false;
       }
@@ -1529,7 +1579,7 @@ export function initMission(ctx) {
     let tgt = null, bd = W2.range + 0.45 + (sprinting ? 0.4 : 0);
     for (const e of enemies) { const f = e.userData.foe; if (!f.alive) continue;
       const d = e.position.clone().sub(player.position); d.y = 0; const L2 = d.length();
-      if (L2 < bd && Math.abs(angDiff(Math.atan2(fv.x, fv.z), Math.atan2(d.x, d.z))) < 1.0 && los(player.position, e.position)) { bd = L2; tgt = e; } }
+      if (L2 < bd && Math.abs(angDiff(Math.atan2(fv.x, fv.z), Math.atan2(d.x, d.z))) < (W2.arc || 1) && los(player.position, e.position)) { bd = L2; tgt = e; } }
     if (!tgt) return;
     const f = tgt.userData.foe, d = tgt.position.clone().sub(player.position).setY(0), dist = d.length() || 1, dir = [d.x / dist, d.z / dist];
     player.rotation.y = Math.atan2(dir[0], dir[1]);
@@ -1545,17 +1595,38 @@ export function initMission(ctx) {
     const sh = FX.shake; if (sh > 0.01) look.add(new THREE.Vector3((Math.random() - 0.5) * sh, 0, (Math.random() - 0.5) * sh));
     return { pos: look.clone().add(new THREE.Vector3(0, 17 * zoom, 3.6 * zoom)), look };
   }
-  function onBuy(id) {
-    if (id === 'ammo') state.pool['9mm'] = (state.pool['9mm'] | 0) + 50;  // boxes go in your pocket: R reloads from there
-    if (id === 'shells') state.pool['12ga'] = (state.pool['12ga'] | 0) + 12;
-    if (id === 'shotgun') state.pool['12ga'] = (state.pool['12ga'] | 0) + 12 - WD.shotgun.mag; // 12 shells: 2 loaded, 10 spare
-    if (GEAR.includes(id)) {
-      const it = { id, ammo: isGun(id) ? WD[id].mag : 0 };
-      if (fitsLoadout(id)) { addToLoadout(it); toast(gearName(id) + ' · IN YOUR KIT', isGun(id) ? 'A gun slot on missions. On the street it stays in the Oofmobiel. Press I to check your kit.' : 'Press I to check your kit.', 3); }
-      else { state.stash.push(it); toast(gearName(id) + ' · IN DE KLUIS', 'Your hands are full. It\'s waiting in the kluis (stash) at the warehouse.', 3.2); }
-    }
-    hud();
+  // ================================================================== THE RUSSIAN'S COUNTER (js/gunshop.js calls these; Neon Vice kitReceive / kitSell)
+  // a purchase goes into your kit when there is room, otherwise into the kluis: 'kit' | 'kluis' | false (both full)
+  function receive(id) {
+    const it = { id, ammo: isGun(id) ? WD[id].mag : ARMOUR[id] ? ARMOUR[id].plates : 0 };
+    if (isGun(id) && WD[id].cal) state.pool[WD[id].cal] = Math.min(capOf(WD[id].cal), (state.pool[WD[id].cal] | 0) + (WD[id].spare || 0)); // a box of rounds comes with the gun
+    if (fitsLoadout(id)) { addToLoadout(it); hud(); return 'kit'; }
+    if (state.stash.length >= STASH_CAP) return false;
+    state.stash.push(it); hud(); return 'kluis';
   }
+  function onBuy(id) { return receive(id); } // old name, kept for main.js callers
+  // everything you own that The Russian buys: [{ key, id, where, plates }]
+  function sellables() {
+    const L = state.loadout, out = [];
+    L.guns.forEach((g, i) => { if (g) out.push({ key: 'g' + i, id: g.id, where: 'kit' }); });
+    if (L.melee) out.push({ key: 'melee', id: L.melee, where: 'kit' });
+    if (armourOf(L)) out.push({ key: 'arm', id: armourOf(L), where: 'kit', plates: L.vest });
+    state.stash.forEach((it, i) => out.push({ key: 's' + i, id: it.id, where: 'kluis', plates: ARMOUR[it.id] ? it.ammo : 0 }));
+    return out;
+  }
+  function sellKey(key) {
+    const L = state.loadout;
+    if (key[0] === 'g') { const i = +key[1], g = L.guns[i]; if (!g) return null; L.guns[i] = null; const c = WD[g.id].cal; if (c) state.pool[c] = Math.min(capOf(c), (state.pool[c] | 0) + (g.ammo | 0)); return g.id; }
+    if (key === 'melee') { const id = L.melee; L.melee = null; return id; }
+    if (key === 'arm') { const id = armourOf(L); L.vest = 0; L.armour = null; return id; }
+    if (key[0] === 's') { const it = state.stash.splice(+key.slice(1), 1)[0]; return it ? it.id : null; }
+    return null;
+  }
+  const armour = () => ({ type: armourOf(state.loadout), plates: state.loadout.vest | 0 });
+  function setArmour(type, plates) { state.loadout.armour = type; state.loadout.vest = plates; hud(); }
+  function swapGuns() { const L = state.loadout; L.guns = [L.guns[1], L.guns[0]]; }
+  function ownCals() { const L = state.loadout, o = []; for (const g of [...L.guns, ...state.stash]) { const c = g && WD[g.id] && WD[g.id].cal; if (c && !o.includes(c)) o.push(c); } return o; }
+  function setMod(k) { state.mods[k] = 1; applyMods(); meshOf = null; if (M.active) syncHeld(); }
   // ================================================================== ARRIVAL (Neon Vice: every mission opens with you pulling up)
   // The Oofmobiel drives in along the street, parks out front, Eddy climbs out and walks to the door. E / Space / click skips it.
   let ARR = null;
@@ -1616,17 +1687,17 @@ export function initMission(ctx) {
   function openStash(msg) {
     stashMsg = msg || ''; const L = state.loadout;
     const row = (ic, nm, ds, act, label, dis) => `<div class="it"><div class="ic">${ICON[ic] || '▪'}</div><div style="flex:1"><div class="nm">${nm}</div><div class="ds">${ds}</div>${act ? `<button data-k="${act}" ${dis ? 'disabled' : ''} style="margin-top:6px;font:9px 'Press Start 2P',monospace;background:${dis ? '#4a2c16' : '#c2412d'};color:#fff;border:0;padding:6px 8px;cursor:${dis ? 'default' : 'pointer'}">${label}</button>` : ''}</div></div>`;
-    const desc = (it) => (isGun(it.id) ? `Loaded ${it.ammo}/${WD[it.id].mag}.` : it.id === 'vest' ? 'Stops one bullet.' : 'Kills in one swing.');
+    const desc = (it) => (isGun(it.id) ? `Loaded ${it.ammo}/${WD[it.id].mag}.` : ARMOUR[it.id] ? `${it.ammo || ARMOUR[it.id].plates}/${ARMOUR[it.id].plates} plates.` : 'Kills in one swing.');
     const full = state.stash.length >= STASH_CAP;
     const kit = [
       row('maboota', 'Slot 1 · MABOOTA', 'Always with you.', '', ''),
-      L.melee ? row('bat', 'Slot 1 · ' + WD.bat.name, 'Kills in one swing. Press 1 twice on a mission.', 'store:melee', 'IN DE KLUIS', full) : row('bat', 'Slot 1 · —', 'No second melee weapon.', '', ''),
+      L.melee ? row(L.melee, 'Slot 1 · ' + WD[L.melee].name, 'Kills in one swing. Press 1 twice on a mission.', 'store:melee', 'IN DE KLUIS', full) : row('bat', 'Slot 1 · —', 'No second melee weapon.', '', ''),
       ...[0, 1].map((i) => (L.guns[i] ? row(L.guns[i].id, `Slot ${i + 2} · ${WD[L.guns[i].id].name}`, desc(L.guns[i]), 'store:' + i, 'IN DE KLUIS', full) : row('ammo', `Slot ${i + 2} · —`, 'Empty gun slot.', '', ''))),
-      L.vest ? row('vest', 'KEVLAR VEST', 'Worn. Stops one bullet.', 'store:vest', 'IN DE KLUIS', full) : row('vest', 'No vest', 'Buy one from The Russian.', '', ''),
+      armourOf(L) ? row(armourOf(L), ARMOUR[armourOf(L)].name, `Worn. ${L.vest}/${ARMOUR[armourOf(L)].plates} plates.`, 'store:vest', 'IN DE KLUIS', full) : row('vest', 'No armour', 'Buy a vest or a plate carrier from The Russian.', '', ''),
     ];
     const st = state.stash.map((it, i) => row(it.id, gearName(it.id), desc(it), 'take:' + i, 'PAKKEN'));
     for (let i = st.length; i < STASH_CAP; i++) st.push(`<div class="it" style="opacity:.35"><div class="ic"></div><div><div class="nm">—</div><div class="ds">Empty shelf.</div></div></div>`);
-    invEl.innerHTML = `<div class="box"><h2>DE KLUIS</h2><div class="sub">Eddy's stash at the warehouse · ${state.stash.length}/${STASH_CAP} · Pockets: 9MM ${state.pool['9mm'] | 0} · HAGEL ${state.pool['12ga'] | 0}${stashMsg ? ` · <span style="color:#ffd36b">${stashMsg}</span>` : ''}</div>
+    invEl.innerHTML = `<div class="box"><h2>DE KLUIS</h2><div class="sub">Eddy's stash at the warehouse · ${state.stash.length}/${STASH_CAP} · Pockets: ${Object.keys(CAL).filter((c) => state.pool[c]).map((c) => CAL[c].name + ' ' + state.pool[c]).join(' · ') || 'empty'}${stashMsg ? ` · <span style="color:#ffd36b">${stashMsg}</span>` : ''}</div>
       <div class="sub" style="color:#a9c46a;margin:8px 0 6px">WHAT YOU CARRY</div><div class="grid">${kit.join('')}</div>
       <div class="sub" style="color:#a9c46a;margin:14px 0 6px">IN DE KLUIS</div><div class="grid">${st.join('')}</div>
       <div class="foot"><span>Take a gun with a full kit and it swaps with slot 2. Everything you carry goes on the next mission.</span><span>[Esc] / [I] close</span></div></div>`;
@@ -1637,14 +1708,14 @@ export function initMission(ctx) {
     if (act === 'store') {
       if (state.stash.length >= STASH_CAP) return openStash('The kluis is full.');
       if (arg === 'melee') { state.stash.push({ id: L.melee, ammo: 0 }); L.melee = null; }
-      else if (arg === 'vest') { state.stash.push({ id: 'vest', ammo: 0 }); L.vest = 0; }
+      else if (arg === 'vest') { state.stash.push({ id: armourOf(L), ammo: L.vest }); L.vest = 0; L.armour = null; }
       else { const i = +arg; state.stash.push({ id: L.guns[i].id, ammo: L.guns[i].ammo }); L.guns[i] = null; }
     } else if (act === 'take') {
       const i = +arg, it = state.stash[i]; if (!it) return;
       if (fitsLoadout(it.id)) { state.stash.splice(i, 1); addToLoadout(it); }
       else if (isGun(it.id)) { state.stash[i] = { id: L.guns[0].id, ammo: L.guns[0].ammo }; L.guns[0] = { id: it.id, ammo: it.ammo }; }
-      else if (it.id === 'bat') return openStash('You already carry a bat.');
-      else if (it.id === 'vest') return openStash('You\'re already wearing a vest.');
+      else if (isMelee(it.id)) { state.stash[i] = { id: L.melee, ammo: 0 }; L.melee = it.id; }
+      else if (ARMOUR[it.id]) { state.stash[i] = { id: armourOf(L), ammo: L.vest }; L.armour = it.id; L.vest = it.ammo || ARMOUR[it.id].plates; }
     }
     beep(520, 0.05, 'square', 0.03); ctx.kitChanged && ctx.kitChanged(); if (ctx.save) ctx.save(); openStash();
   }
@@ -1666,7 +1737,7 @@ export function initMission(ctx) {
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,
     canRestart: () => M.active && !!LV && !ownsLevel(LV.id) && !DEF, levelName: () => (LV ? LV.name : ''),
-    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, FOE_TYPES, _wristLock: wristLock, _tryDodge: tryDodge, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD });
+    _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, FOE_TYPES, _wristLock: wristLock, _tryDodge: tryDodge, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD, _P: () => P, receive, sellables, sellKey, armour, setArmour, swapGuns, ownCals, setMod, hasMod, capOf, armourOf, STASH_CAP });
   Object.defineProperty(M, 'van', { get: () => van, enumerable: true });
   // test hooks: where the Lampas stand, and a forced clear (results screen) for remix/best-score checks
   M.debugFoes = () => enemies.map((e) => ({ alive: e.userData.foe.alive, x: +e.position.x.toFixed(1), z: +e.position.z.toFixed(1), w: e.userData.foe.weapon }));
