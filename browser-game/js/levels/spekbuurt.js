@@ -58,7 +58,7 @@ export default {
   neon: { gambling: 0x3ff0ff, office: 0xffd23a, gym: 0x7dff9a, warehouse: 0xffd8a0, landing: 0xff3fa4, corridor: 0x3ff0ff, lounge: 0xff7a1a, restaurant: 0xff3fa4, mixing: 0x3ff0ff, garage: 0xffd23a },
   lights: [[18, 20, 0xff9a6a, 2.2], [20, 11, 0xff3fa4, 1.6], [7, 6, 0x3ff0ff, 1.8], [39, 7, 0xffd8a0, 2.0], [5, 18, 0xff7a1a, 1.3], [39, 19, 0xffd23a, 1.3]],
   mood: { bg: 0x1a0e2a, fogNear: 30, fogFar: 70, hemi: 0.55, sun: 0.9, wall: 0x2c2238, cap: 0xf2e6f4, under: 0x554466 },
-  van: { park: [12, 4.6], from: 44, exit: [12.8, 3.0], solid: [8.9, 15.2, 3.45, 5.75] }, // world
+  van: { park: [12, 4.6], rot: Math.PI, from: 44, exit: [12.8, 3.0], solid: [8.7, 14.8, 3.45, 5.75] }, // world; rot: nose west, the way it drives in
   start: [19, 2.2],              // world: where Eddy stands after the drive in (and on a restart)
   bounds: [-6, W + 6, -H, 10],   // world: x0, x1, z0, z1
   validateFrom: [18.5, 24.5],    // cell: the front door
