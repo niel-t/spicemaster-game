@@ -45,7 +45,7 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
   pocket ammo, the vest if it wasn't shot through) goes home with you and into the next mission. Backspace restores the kit you came in with.
 - **De Kluis (stash):** a green locker in the warehouse (E) with 6 shelves to store and swap gear. Purchases from The Russian go
   into your hands if there is room, otherwise into the kluis.
-- **Arrival:** launching Spekbuurt plays a short drive-in: the Oofmobiel pulls up, parks out front and Eddy walks to the door.
+- **Arrival:** launching a mission plays a short drive-in: the Oofmobiel pulls up, parks out front and Eddy walks to the door.
   Skip it with E / Space / click; a restart (Backspace) never replays it.
 - **Active reload:** R starts a reload from your pocket ammo (9mm for the Makarov, shells for the sawn-off). Press R again inside the
   green window on the bar above Eddy for an instant reload; miss it and the gun jams (slower reload). An empty gun reloads by itself when you attack.
@@ -56,7 +56,9 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 | Path | What |
 |---|---|
 | `index.html` | HUD, dialogue box, Kaasdows 95 PC window, the Russian's gun shop, title screen (HTML/CSS overlays) |
-| `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map |
+| `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map, district progression |
+| `js/mission.js` | Mission engine (Neon Vice rules): builds the chosen level on a 1 m cell grid, Lampas AI, weapons, kit, kluis, HUD, results. Only one level is in the scene at a time |
+| `js/levels/*.js` | One file per mission: grid layout, rooms + floors, doors, glass, furniture, spawns (incl. boss), loot, entry point, van arrival, texts, bounds, mood lighting and unique props (`decorate`). `spekbuurt.js`, `kroketkade.js`, `uitjesbuurt.js` |
 | `js/input.js` | Controller (Gamepad API) and touch input, pause menu, device-aware hints; turns both into the same key events the keyboard sends |
 | `js/music.js` | Procedural upbeat WebAudio soundtrack |
 | `vendor/three.module.min.js` | three.js r170 (MIT, see `three-LICENSE.txt`) |
@@ -68,12 +70,24 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 Talk to Eddy Sr. → list the 6 junk items on the PC → sell them on Kaasplaats → buy a mixing table → hire a Naknik →
 Eddy Sr.'s farewell → visit The Russian (pawnshop, De Natte Worst) → buy a weapon → end of Chapter 0.
 
+## Story flow (District 1: De Natte Worst)
+Drive the Oofmobiel to a territory from the map (needs a weapon). Each one is a mission; clear it and it's yours.
+1. **Spekbuurt** (Mission 1): Snackpaleis Spekbuurt, a Lampas shoarma joint. Owning it opens the other two.
+2. **Kroketkade** (Mission 2): the Lampas kroket factory on the quay: glass snack hatches over a long open quay, frying hall with conveyor lines, a one-door freezer, office, packing room, loading dock with a moored boat.
+3. **Uitjesbuurt** (Mission 3): De Zure Ui, the pickled-onion cannery by the bridge, behind a back-alley market where the Lampas collect protection money.
+
+Own all three: **DE NATTE WORST IS YOURS**, a W 5.000 bonus, and the Lampas territories on the map turn to "next" (Oud-Vettenburg, missions in a later build).
+Progress is saved per level (`state.owned`, `state.lootTaken`); old saves with `state.spekbuurt` are migrated.
+
+To add a mission: copy a file in `js/levels/`, add it to `LEVELS` in `js/mission.js`, and launch it with `mission.enter(id)`.
+
 ## Saving
 The game autosaves to `localStorage` (key `spiceMasterEddy.save`, versioned) on every story step, purchase, sale, music toggle,
 mission end and when the tab closes. Mid-mission progress is not saved (it is when the mission ends). The title screen offers
 **[Enter] Continue** or **[N] New Game** (asks to confirm with J). Fields a newer build added to the save are kept untouched.
 
-Testing hooks are exposed on `window.__sme` in the browser console.
+Testing hooks are exposed on `window.__sme` in the browser console, e.g. `__sme.startLevel('kroketkade')` (jump into a mission),
+`__sme.own('spekbuurt', 'kroketkade', 'uitjesbuurt')` (mark territories owned) and `__sme.mission.validate()` (level reachability checks).
 
 ## Naming rules
 Kaasland (never the Netherlands) · currency Wilders · the blue Oofmobiel · factions Lampas, Noshgey Kariot, Abdavissies ·
