@@ -78,7 +78,7 @@ export function createGarage(deps) {
     if (state.money < INSPECTOR_CASH) return;
     if (v.warned === day) { v.inspector = { day }; v.warned = null; return; } // Henk warned yesterday: here he is
     if (Math.random() < 0.25) {
-      if (econ.has && econ.has('prognose')) { v.warned = day + 1; if (deps.toast) deps.toast('HENK CIJFER', '"Eddy. Psst. A tax inspector is coming tomorrow. Van der Belasting. Spend some cash, or hide it."', 5); }
+      if (econ.has && econ.has('prognose')) { v.warned = day + 1; const ph = deps.phone && deps.phone(); if (!(ph && ph.warnHenk()) && deps.toast) deps.toast('HENK CIJFER', '"Eddy. Psst. A tax inspector is coming tomorrow. Van der Belasting. Spend some cash, or hide it."', 5); }
       else v.inspector = { day };
     }
   }
