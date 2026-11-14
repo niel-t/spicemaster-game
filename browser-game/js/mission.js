@@ -894,7 +894,7 @@ export function initMission(ctx) {
   // ================================================================== RESULTS (Neon Vice grade: score vs. 700 per enemy)
   function results() {
     if (!M.active) return;
-    R.results = true; setOwned(LV.id); state.raids = (state.raids || 0) + 1;
+    R.results = true; setOwned(LV.id); state.lastRaid = { id: LV.id, remix: !!REMIX, grade: null }; state.raids = (state.raids || 0) + 1;
     if (!REMIX) setLootTaken(LV.id, lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0));
     const ratio = R.score / ((R.foes || enemies.length) * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
     const pay = Math.round(R.score / 100 * (REMIX ? REMIX.m.pay : 1)) * 10; R.pay = pay; R.grade = gr;

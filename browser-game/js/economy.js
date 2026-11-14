@@ -63,6 +63,15 @@ const NEWS_DOWN = [
   (n) => `Nobody wants ${n} this week, says Kaasplaats`,
 ];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
+// Daily events (one may roll each market day; they change the clients' orders for that day)
+const EVENTS = [
+  { id: 'pricewar', text: (b) => `The Lampas dump cheap ${b.name} on De Natte Worst: clients pay 25% less for it today`, pay: 0.75 },
+  { id: 'kermis', text: () => 'Kermis in De Natte Worst! Every client orders 50% more today', vol: 1.5 },
+  { id: 'feest', text: () => "Nabil throws a party at Schmatzel's: Schmatzel orders double today", vol: 2, only: 'schmatzel' },
+  { id: 'regen', text: () => 'Three days of rain: nobody goes out, clients order 30% less today', vol: 0.7 },
+];
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -80,7 +89,7 @@ export function createEconomy(deps) {
     e.blends = e.blends || {}; e.order = e.order || 'kip'; e.policy = e.policy || 'cheap';
     if (e.wholesaleLeft === undefined) e.wholesaleLeft = WHOLESALE_KG;
     e.trust = e.trust || {}; e.owed = Array.isArray(e.owed) ? e.owed : []; e.cards = Array.isArray(e.cards) ? e.cards : []; e.pause = e.pause || {};
-    e.report = e.report || null;
+    e.report = e.report || null; e.jobs = Array.isArray(e.jobs) ? e.jobs : null; e.event = e.event || null;
     for (const g of INGREDIENTS) {
       if (!(e.mult[g.id] > 0)) e.mult[g.id] = 1;
       if (!Array.isArray(e.hist[g.id])) e.hist[g.id] = [e.mult[g.id]];
@@ -95,6 +104,7 @@ export function createEconomy(deps) {
     const made = mix(); // the Naknikim mix overnight with what's on the shelves
     const rep = deliver(); // then the clients get their orders and pay (the day report)
     e.day++; e.wholesaleLeft = WHOLESALE_KG; e.lastMix = made; e.report = rep;
+    rollDay(); // the new day's job board and event (seeded by the day, so a reload shows the same)
     for (const n of e.news) n.days--;
     e.news = e.news.filter((n) => n.days > 0);
     for (const g of INGREDIENTS) {
@@ -121,6 +131,7 @@ export function createEconomy(deps) {
   // called every frame: a finished mission bumps state.raids, which ends the day
   function update() {
     const e = ensure(), r = state.raids || 0;
+    if (r > e.raidsSeen && state.lastRaid) { raidDone(state.lastRaid); state.lastRaid = null; }
     if (r > e.raidsSeen) { const n = r - e.raidsSeen; e.raidsSeen = r; for (let i = 0; i < n; i++) advance('out raiding'); return true; }
     return false;
   }
@@ -176,24 +187,85 @@ export function createEconomy(deps) {
     e.owed = e.owed.filter((x) => x.days > 0);
     for (const c of activeClients()) {
       if (e.pause[c.id] > 0) { e.pause[c.id]--; if (!e.pause[c.id]) e.trust[c.id] = 30; rows.push({ name: c.name, note: e.pause[c.id] ? 'buying from the Lampas for now' : 'willing to talk again tomorrow', pay: 0 }); continue; }
-      const b = BLENDS.find((x) => x.id === c.blend), have = blendOf(c.blend), kg = Math.min(c.kg, Math.floor(have.kg));
+      const b = BLENDS.find((x) => x.id === c.blend), have = blendOf(c.blend), want = orderKg(c), kg = Math.min(want, Math.floor(have.kg));
       if (kg <= 0) {
         missed++; addTrust(c.id, c.kind === 'loyal' ? -5 : -15);
-        rows.push({ name: c.name, want: `${c.kg} kg ${b.name}`, note: c.kind === 'loyal' ? '"No spice today? Next time, jongen."' : 'MISSED: no stock', pay: 0 });
+        rows.push({ name: c.name, want: `${want} kg ${b.name}`, note: c.kind === 'loyal' ? '"No spice today? Next time, jongen."' : 'MISSED: no stock', pay: 0 });
       } else {
         have.kg -= kg; if (have.kg <= 0) delete e.blends[c.blend]; else e.blends[c.blend] = have;
-        let pay = Math.round(clientPrice(c.blend, have.q) * kg), note = kg < c.kg ? `short ${c.kg - kg} kg` : 'on time';
+        let pay = Math.round(clientPrice(c.blend, have.q) * kg * (e.event && e.event.blend === c.blend ? e.event.pay : 1)), note = kg < want ? `short ${want - kg} kg` : 'on time';
         if (Math.round(have.q) < c.minQ && c.kind !== 'loyal') { pay = Math.round(pay / 2); addTrust(c.id, -10); note = `"${pick(COMPLAINTS)}" paid half`; }
-        else addTrust(c.id, kg < c.kg ? 0 : 4);
+        else addTrust(c.id, kg < want ? 0 : 4);
         if (c.kind === 'haggler' && Math.random() < 0.35 && !e.cards.some((x) => x.id === c.id)) { e.cards.push({ id: c.id, name: c.name, who: c.who, text: pick(HAGGLES), amount: pay }); note += ', wants to haggle'; pay = 0; }
         else if (c.kind === 'late' && Math.random() < 0.5) { const d = 1 + Math.floor(Math.random() * 2); e.owed.push({ name: c.name, amount: pay, days: d }); note += `, pays in ${d} day(s)`; pay = 0; }
-        rows.push({ name: c.name, want: `${c.kg} kg ${b.name}`, kg, q: have.q, note, pay });
+        rows.push({ name: c.name, want: `${want} kg ${b.name}`, kg, q: have.q, note, pay });
         paid += pay;
       }
       if (trustOf(c.id) < 20 && !e.pause[c.id]) { e.pause[c.id] = 2; rows.at(-1).note += '. Fed up: back to the Lampas for 2 days'; }
     }
     if (paid) deps.addMoney(paid);
     return { day: e.day, rows, paid, missed };
+  }
+  const orderKg = (c) => { const ev = ensure().event; return Math.round(c.kg * (ev && ev.vol && (!ev.only || ev.only === c.id) ? ev.vol : 1)); };
+
+  // ---- job board (Klusbord) and daily events: rolled from the market day's seed
+  function rollDay() {
+    const e = ensure(), r = rng32(hashStr(`jobs#${e.day}`)), rp = (a) => a[Math.floor(r() * a.length)];
+    const levels = (deps.joints ? deps.joints() : []).filter((id) => id !== 'schmatzel' && CLIENTS.some((c) => c.id === id));
+    const name = (id) => CLIENTS.find((c) => c.id === id).name;
+    const cand = [];
+    if (levels.length) { const lv = rp(levels); cand.push({ kind: 'stash', level: lv, reward: 300 + Math.round(r() * 8) * 50, title: `Hit the Lampas stash at ${name(lv)}`, desc: `The Lampas moved a fresh stash into ${name(lv)}. Do tonight's remix raid there.` }); }
+    const debtor = e.owed.find((o) => levels.includes(CLIENTS.find((c) => c.name === o.name)?.id));
+    if (debtor) { const id = CLIENTS.find((c) => c.name === debtor.name).id; cand.push({ kind: 'debt', level: id, reward: Math.round(debtor.amount * 1.25), title: `Collect from ${debtor.name}`, desc: `They owe you W ${debtor.amount}. Raid ${name(id)} tonight and they'll pay now, plus 25% for the trouble.` }); }
+    const b = rp(BLENDS.filter((x) => x.mix)), kg = 10 + Math.floor(r() * 3) * 5;
+    cand.push({ kind: 'spoed', blend: b.id, kg, reward: Math.round(b.value * 1.6 * kg), title: `Spoed-order: ${kg} kg ${b.name}`, desc: `${rp(['Grillroom Zuid', 'Restaurant De Lepel', 'Kapsalon King', 'Snackbar Bij Henk'])} is out of spice and pays 60% over the odds, today only.` });
+    const g = rp(INGREDIENTS.filter((x) => !x.supply)), dkg = 30;
+    cand.push({ kind: 'deal', ing: g.id, kg: dkg, off: 0.4, title: `Supplier deal: ${dkg} kg ${g.name}`, desc: `A truck driver "found" ${dkg} kg of Standaard ${g.name.toLowerCase()}. 40% off, today only.`, reward: 0 });
+    if (state.district1) cand.push({ kind: 'scout', reward: 400, title: 'Scout Oud-Vettenburg', desc: 'Drive the Oofmobiel to Oud-Vettenburg and back. The Lampas will try to ram you.' });
+    for (let i = cand.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [cand[i], cand[j]] = [cand[j], cand[i]]; }
+    e.jobs = cand.slice(0, 3).map((j, i) => ({ ...j, n: i, done: false }));
+    e.event = null;
+    if (r() < 0.35) { const ev = rp(EVENTS), bl = rp(BLENDS.filter((x) => x.mix)); e.event = { id: ev.id, text: ev.text(bl), vol: ev.vol, pay: ev.pay, only: ev.only, blend: ev.pay ? bl.id : null }; }
+  }
+  function finishJob(j, el) {
+    j.done = true; if (j.reward) deps.addMoney(j.reward, el);
+    if (j.kind === 'debt') { const e = ensure(), i = e.owed.findIndex((o) => CLIENTS.find((c) => c.id === j.level)?.name === o.name); if (i >= 0) e.owed.splice(i, 1); }
+    if (deps.toast) deps.toast('JOB DONE', `${j.title}${j.reward ? `: +${fmt(j.reward)}` : ''}.`, 3);
+    if (deps.save) deps.save();
+  }
+  function raidDone(raid) { for (const j of ensure().jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }
+  function driveDone(arrived) { for (const j of ensure().jobs || []) if (!j.done && j.kind === 'scout' && arrived) finishJob(j); }
+  const jobFor = (level) => (ensure().jobs || []).find((j) => !j.done && j.level === level);
+  function doJob(n, el) {
+    const e = ensure(), j = (e.jobs || [])[n]; if (!j || j.done) return null;
+    if (j.kind === 'spoed') {
+      const cur = blendOf(j.blend); if (cur.kg < j.kg) return `You need ${j.kg} kg ${BLENDS.find((x) => x.id === j.blend).name} in stock (you have ${Math.floor(cur.kg)}).`;
+      cur.kg -= j.kg; if (cur.kg <= 0) delete e.blends[j.blend]; else e.blends[j.blend] = cur;
+      finishJob(j, el); return null;
+    }
+    if (j.kind === 'deal') {
+      const cost = Math.round(price(j.ing, 'std') * (1 - j.off)) * j.kg;
+      if (space() < j.kg) return 'Not enough room in the warehouse.';
+      if (state.money < cost) return `Not enough Wilders (${fmt(cost)}).`;
+      e.stock[key(j.ing, 'std')] = stockOf(j.ing, 'std') + j.kg; deps.addMoney(-cost, el); j.done = true; if (deps.save) deps.save(); return null;
+    }
+    return null;
+  }
+  function jobsHTML() {
+    const e = ensure(); if (!e.jobs) rollDay();
+    let h = `<div class="well" style="margin-bottom:8px"><b>Klusbord</b> · Market day <b>${e.day}</b> · New jobs after every outing.<br><small>Raids are done from the Oofmobiel map (owned joints show tonight's remix). Order and deal jobs are done right here.</small></div>`;
+    if (e.event) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>TODAY:</b> ${e.event.text}.</div>`;
+    h += '<table class="list"><tr><th>Job</th><th>Pays</th><th></th></tr>';
+    for (const j of e.jobs) {
+      const cost = j.kind === 'deal' ? Math.round(price(j.ing, 'std') * (1 - j.off)) * j.kg : 0;
+      const act = j.done ? '<b style="color:#070">DONE</b>' : j.kind === 'spoed' ? `<button class="b95" data-job="${j.n}">Deliver (${Math.floor(blendOf(j.blend).kg)}/${j.kg} kg)</button>` : j.kind === 'deal' ? `<button class="b95" data-job="${j.n}">Buy for ${fmt(cost)}</button>` : j.kind === 'scout' ? '<i>Van map: Drive to Oud-Vettenburg</i>' : '<i>Van map: remix raid</i>';
+      h += `<tr><td><b>${j.title}</b><br><small>${j.desc}</small></td><td>${j.reward ? fmt(j.reward) : `save ${fmt(cost / (1 - j.off) * j.off)}`}</td><td>${act}</td></tr>`;
+    }
+    h += '</table>';
+    return h;
+  }
+  function jobsBind(body, rerender) {
+    body.querySelectorAll('[data-job]').forEach((b) => b.onclick = () => { const m = doJob(+b.dataset.job, b); if (m && deps.toast) deps.toast('KLUSBORD', m, 2.5); rerender(); });
   }
   // a haggling client: discount (80%, +trust), insist (coin flip: full pay or nothing and -trust), cut them off (nothing, -trust, 2 days paused)
   function settle(cardIdx, choice, el) {
@@ -217,6 +289,7 @@ export function createEconomy(deps) {
         <button class="b95" data-card="${i}:discount">Give 20% off</button> <button class="b95" data-card="${i}:insist">Insist on full pay</button> <button class="b95" data-card="${i}:cut">Cut off their supply</button></div>`;
     }
     const r = e.report;
+    if (e.event) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>TODAY:</b> ${e.event.text}.</div>`;
     h += `<div class="well" style="margin-bottom:8px"><b>${r ? `Day ${r.day}` : 'No report yet'}</b>${r ? ` · Paid today <b>${fmt(r.paid)}</b>${r.missed ? ` · <span style="color:#a00">${r.missed} missed</span>` : ''}` : ''}`;
     h += r && r.rows.length ? '<table class="list" style="margin-top:4px"><tr><th>Client</th><th>Order</th><th>Delivered</th><th>Paid</th><th></th></tr>' + r.rows.map((x) => `<tr><td>${x.name}</td><td>${x.want || ''}</td><td>${x.kg ? `${x.kg} kg ${stars(Math.round(x.q))}` : '-'}</td><td>${x.pay ? fmt(x.pay) : '-'}</td><td><small>${x.note}</small></td></tr>`).join('') + '</table>' : '<br>Go on an outing (a mission or a drive) to end the day.';
     h += '</div>';
@@ -345,5 +418,5 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }

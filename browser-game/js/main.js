@@ -1057,7 +1057,7 @@ function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math
 const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 30;
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
-const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
+const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 const econ = createEconomy({ state, addMoney, toast, save: () => writeSave(), joints: () => ['schmatzel', ...D1.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 function openPC(tab = 'sell', mode = 'pc') {
@@ -1067,7 +1067,7 @@ function closePC() { state.inPC = false; $('pc').style.display = 'none'; afterPC
 $('pcclose').onclick = closePC;
 function renderPC() {
   const ic = $('pcicons'); ic.innerHTML = '';
-  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport'].includes(id) || state.table)) {
+  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport', 'jobs'].includes(id) || state.table)) {
     const d = document.createElement('div'); d.className = 'icon' + (pcTab === id ? ' sel' : '');
     d.innerHTML = `<div class="g">${g}</div><span>${label}</span>`; d.onclick = () => { pcTab = id; beep(700, 0.03); renderPC(); }; ic.appendChild(d);
   }
@@ -1112,6 +1112,9 @@ function renderPC() {
   } else if (pcTab === 'rapport') {
     title.textContent = 'Dagrapport · Clients, orders and who owes what';
     body.innerHTML = econ.reportHTML(); econ.reportBind(body, renderPC);
+  } else if (pcTab === 'jobs') {
+    title.textContent = 'Klusbord · Jobs for today';
+    body.innerHTML = econ.jobsHTML(); econ.jobsBind(body, renderPC);
   } else if (pcTab === 'map') {
     title.textContent = 'Map of Kaasland';
     body.innerHTML = mapHTML(false); bindMap();
@@ -1168,7 +1171,8 @@ function mapHTML(van) {
 // an owned joint: the Lampas move back in every market day, so it can be raided again (a remix: js/mission.js)
 function remixInfo(n, id) {
   const rx = mission.remixFor(id, econ.ensure().day), m = mission.REMIX_MODS[rx.mod], b = state.best && state.best[id];
-  return `<b>${n}</b>: yours, and a client of Eddy & Zn. But the Lampas sneak back in every night. <b>Tonight's remix: ${m.name}</b> (${m.line})${b ? ` Your best: <b>${b.grade}</b> · W ${b.score.toLocaleString('nl-NL')} · ${b.runs || 1} run(s).` : ''}`;
+  const job = econ.jobFor(id);
+  return (job ? `<b style="color:#a00">JOB: ${job.title} (+W ${job.reward.toLocaleString('nl-NL')})</b><br>` : '') + `<b>${n}</b>: yours, and a client of Eddy & Zn. But the Lampas sneak back in every night. <b>Tonight's remix: ${m.name}</b> (${m.line})${b ? ` Your best: <b>${b.grade}</b> · W ${b.score.toLocaleString('nl-NL')} · ${b.runs || 1} run(s).` : ''}`;
 }
 function bindMap() {
   document.querySelectorAll('[data-pin]').forEach((p) => p.onclick = () => {
@@ -2370,6 +2374,7 @@ function afterDrive(res) {
     state.drives.oudvettenburg = Math.min(state.drives.oudvettenburg ?? 1e9, Math.round(res.time));
     toast('BACK AT THE WAREHOUSE', `Oud-Vettenburg scouted. +W ${res.pay}. Lampas missions there come in a later build.`, 4);
   } else toast('BACK AT THE WAREHOUSE', 'The Oofmobiel limps home on three wheels.', 3);
+  econ.driveDone(!!res.arrived); // a scout job pays out
   setTimeout(() => { econ.advance('on the road'); writeSave(); }, 4200); // every outing is a market day
   writeSave(); updateObjective();
 }
