@@ -1031,7 +1031,15 @@ function addMoney(n, fromEl) {
   f.style.left = r.left + 'px'; f.style.top = r.top + 'px'; document.body.appendChild(f);
   requestAnimationFrame(() => { f.style.transform = 'translateY(-60px)'; f.style.opacity = '0'; });
   setTimeout(() => f.remove(), 1300);
-  if (state.inPC) renderPC();
+  // Never rebuild the Kaasdows window here: Wilders also arrive on their own (Naknik income every 6 sec, crew errands),
+  // and a rebuild mid-click swallowed the click, closed open dropdowns and threw away what Eddy was doing in the PC.
+  // PC buttons re-render the window themselves; passive income only updates the balance and what it can now pay for.
+  if (state.inPC) refreshPCMoney();
+}
+function refreshPCMoney() {
+  const pc = $('pc'), w = 'W ' + state.money.toLocaleString('nl-NL');
+  pc.querySelectorAll('[data-bal]').forEach((e) => { e.textContent = w; });
+  pc.querySelectorAll('button[data-need]').forEach((b) => { b.disabled = state.money < +b.dataset.need; });
 }
 let actx = null;
 function beep(freq, dur, type = 'square', vol = 0.05) {
@@ -1104,7 +1112,7 @@ function renderPC() {
   if (pcTab === 'sell') {
     title.textContent = 'Kaasplaats.kl · Second-hand catering gear';
     const rows = junkDefs.filter((d) => state.listed.has(d.id) && !state.sold.has(d.id));
-    let h = `<div class="well" style="margin-bottom:10px"><b>Welcome to Kaasplaats!</b> Your listings and the best bids. Balance: <b>${fmt(state.money)}</b></div>`;
+    let h = `<div class="well" style="margin-bottom:10px"><b>Welcome to Kaasplaats!</b> Your listings and the best bids. Balance: <b data-bal>${fmt(state.money)}</b></div>`;
     if (!rows.length) h += `<div class="well">${state.sold.size === junkDefs.length ? 'Everything sold! Dad would be proud. (Or jealous.)' : 'No listings yet. Walk around the warehouse and list your old junk (E).'}</div>`;
     else {
       h += '<table class="list"><tr><th>Listing</th><th>Asking</th><th>Best bid</th><th></th></tr>';
@@ -1123,13 +1131,13 @@ function renderPC() {
     body.innerHTML = `<div class="well"><b>Naknikim</b>: hard workers, soft heads. They mix, restock and deliver so you don't have to.<br><br>
       Hire: <b>${fmt(NAKNIK_COST)}</b> one-off · Earns about <b>${fmt(NAKNIK_INCOME)}</b> per 6 seconds of mixing.<br>
       Employed: <b>${state.naknik}</b> ${state.table ? '' : '<br><span style="color:#a00">You need a mixing table first (Buy mixing table).</span>'}</div><br>
-      <button class="b95" id="hireBtn" ${state.money < NAKNIK_COST || !state.table || state.naknik >= 3 ? 'disabled' : ''}>Hire a Naknik (${fmt(NAKNIK_COST)})</button>
+      <button class="b95" id="hireBtn" ${!state.table || state.naknik >= 3 ? 'disabled' : `data-need="${NAKNIK_COST}"${state.money < NAKNIK_COST ? ' disabled' : ''}`}>Hire a Naknik (${fmt(NAKNIK_COST)})</button>
       ${state.naknik >= 3 ? '<p>No room for more Naknikim in this warehouse. Buy a second warehouse later.</p>' : ''}`;
     $('hireBtn').onclick = hireNaknik;
   } else if (pcTab === 'shop') {
     title.textContent = 'Van Kruidenburg Wholesale · Mixing tables';
     body.innerHTML = `<div class="well"><b>Mixing table "Basis"</b><br>Steel table, mixing bowl, three sacks of starter spices (paprika, curry, cumin). Fine for beginners.<br><br>Price: <b>${fmt(TABLE_COST)}</b></div><br>
-      <button class="b95" id="tableBtn" ${state.table || state.money < TABLE_COST ? 'disabled' : ''}>${state.table ? 'Bought' : 'Buy (' + fmt(TABLE_COST) + ')'}</button>`;
+      <button class="b95" id="tableBtn" ${state.table ? 'disabled' : `data-need="${TABLE_COST}"${state.money < TABLE_COST ? ' disabled' : ''}`}>${state.table ? 'Bought' : 'Buy (' + fmt(TABLE_COST) + ')'}</button>`;
     $('tableBtn').onclick = buyTable;
   } else if (pcTab === 'beurs') {
     title.textContent = 'Kruidenbeurs.kl · Spice prices, live-ish';
@@ -1161,7 +1169,7 @@ function renderPC() {
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
+    body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
     econ.propertyBind(body, renderPC);
   }
 }

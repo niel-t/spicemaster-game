@@ -560,7 +560,7 @@ export function createEconomy(deps) {
   }
   function reportHTML() {
     const e = ensure(), cl = activeClients();
-    let h = `<div class="well" style="margin-bottom:8px"><b>Dagrapport</b> · Market day <b>${e.day}</b> · Balance <b>${fmt(state.money)}</b><br><small>Every outing ends the day: the Naknikim mix, then each client takes its order from your blend stock and pays. Good quality and full orders build trust; missed orders send them back to the Lampas.</small></div>`;
+    let h = `<div class="well" style="margin-bottom:8px"><b>Dagrapport</b> · Market day <b>${e.day}</b> · Balance <b data-bal>${fmt(state.money)}</b><br><small>Every outing ends the day: the Naknikim mix, then each client takes its order from your blend stock and pays. Good quality and full orders build trust; missed orders send them back to the Lampas.</small></div>`;
     for (let i = 0; i < e.cards.length; i++) {
       const c = e.cards[i];
       h += `<div class="well" style="margin-bottom:8px;background:#fff0f0"><b>${c.who}, ${c.name}:</b><br><i>"${c.text}"</i><br>They owe you <b>${fmt(c.amount)}</b>.<br>
@@ -679,7 +679,7 @@ export function createEconomy(deps) {
   let qty = 5;
   function html() {
     const e = ensure(), disc = deps.discount ? deps.discount() : 0;
-    let h = `<div class="well" style="margin-bottom:8px"><b>Kruidenbeurs Kipkruidenkwartier</b> · Market day <b>${e.day}</b> · Balance <b>${fmt(state.money)}</b><br>
+    let h = `<div class="well" style="margin-bottom:8px"><b>Kruidenbeurs Kipkruidenkwartier</b> · Market day <b>${e.day}</b> · Balance <b data-bal>${fmt(state.money)}</b><br>
       Warehouse stock: <b>${stockTotal()} / ${cap()} kg</b>${disc > 0 ? ` · Home turf discount <b>${Math.round(disc * 100)}%</b>` : ''}<br>
       <small>Prices move after every outing. Lampas grade is cheap and diluted, Bio is the Noshgey Kariot's overpriced best. Dock spices come through the Abdavissies, a few kilos a day.</small></div>`;
     if (e.news.length) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>KAASLAND SPICE NEWS</b><br>${e.news.map((n) => `· ${n.text} <b style="color:${n.f > 1 ? '#b00000' : '#007000'}">${n.f > 1 ? '▲' : '▼'} ${Math.round(Math.abs(n.f - 1) * 100)}%</b>`).join('<br>')}</div>`;
