@@ -61,6 +61,7 @@ export function initDrive(ctx) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z);
     if (shadow) { b.castShadow = true; b.receiveShadow = true; } parent.add(b); return b;
   }
+  const cylMesh = (rt, rb, h, m, seg) => new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m);
   function plane(w, d, m, x, y, z, parent = scene) {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, y, z); p.receiveShadow = true; parent.add(p); return p;
   }
@@ -249,21 +250,55 @@ export function initDrive(ctx) {
 
   // ---------------------------------------------------------------- vehicles
   function makeVan() {
-    // the Oofmobiel, readable from above: blue body, white roof with EDDY & ZN, a pita on the roof
-    const g = new THREE.Group(), blue = new THREE.MeshPhongMaterial({ color: 0x1f5fb8, shininess: 80 });
-    box(2.2, 1.9, 5.0, blue, 0, 1.25, -0.1, g);
-    box(2.1, 0.9, 1.0, blue, 0, 0.75, 2.6, g);                                         // short nose
-    box(2.0, 0.7, 0.2, new THREE.MeshPhongMaterial({ color: 0x1a2a3a, shininess: 120 }), 0, 1.75, 2.38, g, false).rotation.x = -0.5; // windscreen
-    const roof = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 1.9), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'EDDY & ZN', size: 64 }, { t: 'SPECERIJEN', size: 34, color: '#1f5fb8' }], '#f4f0e6', '#c8202a', 256, 160) }));
-    roof.rotation.x = -Math.PI / 2; roof.rotation.z = -Math.PI / 2; roof.position.set(0, 2.21, -0.95); g.add(roof);
-    const pita = new THREE.Mesh(new THREE.SphereGeometry(0.8, 14, 8), lam({ color: 0xe8c080 })); pita.scale.set(1, 0.45, 0.65); pita.position.set(0, 2.55, 1.45); g.add(pita);
-    const fill = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 6), lam({ color: 0x9a5a2a })); fill.scale.set(1, 0.4, 0.5); fill.position.set(0, 2.7, 1.45); g.add(fill);
-    for (const s of [-1, 1]) { const hl = box(0.45, 0.25, 0.08, new THREE.MeshBasicMaterial({ color: 0xfff2c0 }), s * 0.7, 0.85, 3.12, g, false); hl.userData.head = true; }
-    for (const s of [-1, 1]) box(0.4, 0.22, 0.08, new THREE.MeshBasicMaterial({ color: 0xff2020 }), s * 0.8, 1.0, -2.62, g, false);
-    for (const [x, z] of [[1.05, 1.8], [-1.05, 1.8], [1.05, -1.7], [-1.05, -1.7]]) box(0.3, 0.8, 0.8, lam({ color: 0x151515 }), x, 0.4, z, g, false);
+    // the Oofmobiel: a mid-blue panel van (the T5-style reference on the Drive) with a sloped bonnet, a big raked
+    // windscreen, unpainted grey bumpers and steel wheels. EDDY & ZN on the sides and a small decal on the roof.
+    const g = new THREE.Group(), W = 2.0;
+    const blue = new THREE.MeshPhongMaterial({ color: 0x2f55b0, shininess: 70, specular: 0x334466 });
+    const grey = lam({ color: 0x5e6266 }), black = lam({ color: 0x18191b }), glass = new THREE.MeshPhongMaterial({ color: 0x14202c, shininess: 140, specular: 0x8899aa });
+    // body: one side profile (z forward, y up) extruded across the width, so the bonnet and windscreen slope like the real thing
+    const pr = new THREE.Shape();
+    pr.moveTo(-2.45, 0.42); pr.lineTo(-2.45, 1.86); pr.quadraticCurveTo(-2.45, 2.0, -2.3, 2.0); pr.lineTo(0.7, 2.0);
+    pr.quadraticCurveTo(0.86, 2.0, 0.92, 1.9); pr.lineTo(1.78, 1.28); pr.quadraticCurveTo(1.86, 1.22, 1.98, 1.19); pr.lineTo(2.38, 1.08);
+    pr.quadraticCurveTo(2.48, 1.04, 2.48, 0.92); pr.lineTo(2.48, 0.42); pr.closePath();
+    const body = new THREE.Mesh(new THREE.ExtrudeGeometry(pr, { depth: W, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2, curveSegments: 6 }), blue);
+    body.geometry.rotateY(-Math.PI / 2); body.geometry.translate(W / 2, 0, 0); body.castShadow = true; body.receiveShadow = true; g.add(body);
+    // glass: raked windscreen, cab side windows, rear side windows, rear doors
+    const slope = Math.atan2(0.62, 0.86);
+    const ws = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.15, Math.hypot(0.86, 0.62) - 0.08), glass);
+    ws.rotation.x = -(Math.PI / 2 - slope); ws.position.set(0, 1.6, 1.36); ws.translateZ(0.075); g.add(ws);
+    for (const sx of [-1, 1]) {
+      const side = (w, h, z, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glass); m.rotation.y = sx * Math.PI / 2; m.position.set(sx * (W / 2 + 0.065), y, z); g.add(m); };
+      side(0.75, 0.52, 0.42, 1.62); side(1.55, 0.5, -0.75, 1.64); side(0.75, 0.5, -1.95, 1.64);
+      box(0.12, 0.1, 0.34, black, sx * (W / 2 + 0.2), 1.42, 0.92, g, false);           // mirror arm
+      box(0.08, 0.3, 0.24, black, sx * (W / 2 + 0.3), 1.52, 0.95, g, false);           // mirror
+      box(0.04, 0.05, 1.1, black, sx * (W / 2 + 0.07), 1.34, -0.65, g, false);          // sliding door rail
+      box(0.05, 0.42, 0.06, grey, sx * (W / 2 + 0.07), 0.62, 2.0, g, false);           // grey wheel-arch trim
+    }
+    const rw = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.4, 0.5), glass); rw.rotation.y = Math.PI; rw.position.set(0, 1.62, -2.52); g.add(rw);
+    // grey unpainted bumpers and grille, clear headlights with an orange indicator, red tail lights
+    box(W + 0.16, 0.42, 0.3, grey, 0, 0.6, 2.52, g);
+    box(W + 0.16, 0.36, 0.26, grey, 0, 0.58, -2.5, g);
+    box(0.95, 0.24, 0.06, grey, 0, 0.92, 2.53, g, false);
+    for (let k = -1; k <= 1; k++) box(0.85, 0.025, 0.07, black, 0, 0.92 + k * 0.07, 2.54, g, false);
+    for (const sx of [-1, 1]) {
+      box(0.46, 0.2, 0.1, new THREE.MeshBasicMaterial({ color: 0xf2f4f8 }), sx * 0.72, 0.93, 2.5, g, false);
+      box(0.1, 0.12, 0.1, new THREE.MeshBasicMaterial({ color: 0xff9a1a }), sx * 1.0, 0.93, 2.48, g, false);
+      box(0.18, 0.5, 0.06, new THREE.MeshBasicMaterial({ color: 0xd81a1a }), sx * 0.86, 1.25, -2.52, g, false);
+    }
+    // steel wheels
+    for (const [x, z] of [[1.0, 1.62], [-1.0, 1.62], [1.0, -1.6], [-1.0, -1.6]]) {
+      const t = cylMesh(0.38, 0.38, 0.26, black, 14); t.rotation.z = Math.PI / 2; t.position.set(x, 0.38, z); g.add(t);
+      const h = cylMesh(0.24, 0.24, 0.27, lam({ color: 0x9ea2a6 }), 12); h.rotation.z = Math.PI / 2; h.position.set(x, 0.38, z); g.add(h);
+    }
+    // EDDY & ZN on the cargo sides, a small decal and roof seams on top (that's what you see from above)
+    const sideT = signTex([{ t: 'EDDY & ZN', size: 54 }, { t: 'SPECERIJEN · OOFMOBIEL', size: 24, color: '#ffffff' }], '#2a4ea6', '#ffd36b', 512, 160);
+    for (const sx of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.62), lam({ map: sideT })); p.rotation.y = sx * Math.PI / 2; p.position.set(sx * (W / 2 + 0.066), 0.98, -1.25); g.add(p); }
+    for (const z of [-1.7, -0.9, -0.1]) box(W - 0.3, 0.03, 0.06, new THREE.MeshPhongMaterial({ color: 0x284a9e }), 0, 2.075, z, g, false);
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.75), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'EDDY & ZN', size: 70 }], '#2a4ea6', '#ffd36b', 256, 112) }));
+    decal.rotation.x = -Math.PI / 2; decal.rotation.z = -Math.PI / 2; decal.position.set(0, 2.08, -1.3); g.add(decal);
     // headlight beams on the road
     const beamM = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.16, depthWrite: false });
-    for (const s of [-1, 1]) { const bm = new THREE.Mesh(new THREE.CircleGeometry(3, 16, -0.5, 1.0), beamM); bm.rotation.x = -Math.PI / 2; bm.rotation.z = -Math.PI / 2; bm.position.set(s * 0.7, 0.05, 3.2); g.add(bm); }
+    for (const s of [-1, 1]) { const bm = new THREE.Mesh(new THREE.CircleGeometry(3, 16, -0.5, 1.0), beamM); bm.rotation.x = -Math.PI / 2; bm.rotation.z = -Math.PI / 2; bm.position.set(s * 0.72, 0.05, 2.75); g.add(bm); }
     return g;
   }
   const CAR_COLS = [0xb8b2a2, 0x6a1e22, 0x2a4a6a, 0xcfcfc8, 0x2d2d2d, 0x8a8f3a, 0xe0d8c0, 0x3a5a7a, 0x9a2a2a, 0x556b5a, 0xe8b020, 0xff8fb8];
@@ -620,7 +655,7 @@ export function initDrive(ctx) {
   #drv .bar { width: 180px; height: 12px; border: 2px solid #fff; margin-top: 6px; background: rgba(0,0,0,.5); }
   #drv .bar i { display: block; height: 100%; background: #6ed36e; transition: width .2s; }
   #drv canvas { position: absolute; right: 12px; top: 12px; border: 2px solid #ffd36b; border-radius: 6px; background: #1a1a22; opacity: .9; }
-  #drv .banner { position: absolute; left: 0; right: 0; top: 30%; text-align: center; font-family: Bungee, "Arial Black", sans-serif; font-size: clamp(28px, 6vw, 64px); color: #ffd36b; text-shadow: 0 4px 0 #000, 0 0 18px #ff3fa4; display: none; }
+  #drv .banner { position: absolute; left: 0; right: 0; top: 16%; text-align: center; font-family: Bungee, "Arial Black", sans-serif; font-size: clamp(28px, 6vw, 64px); color: #ffd36b; text-shadow: 0 4px 0 #000, 0 0 18px #ff3fa4; display: none; }
   #drv .banner small { display: block; font-family: Rubik, Arial, sans-serif; font-size: clamp(14px, 2.4vw, 22px); color: #fff; text-shadow: 0 2px 0 #000; margin-top: 6px; }
   #drv .hint { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 14px; color: #ddd; text-shadow: 0 2px 0 #000; }
   #drv .res { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(460px, 92vw); background: rgba(12,6,20,.95); border: 3px solid #ffd36b; border-radius: 12px; box-shadow: 0 0 24px #ff3fa4; padding: 18px 20px; display: none; pointer-events: auto; }
