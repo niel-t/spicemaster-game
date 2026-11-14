@@ -87,7 +87,7 @@ Drive the Oofmobiel to a territory from the map (needs a weapon). Each one is a 
 2. **Kroketkade** (Mission 2): a brick corner snackbar on a rainy quay jutting into the canal: the shop, a checkered kitchen, storeroom, staff room and a purple garage with its roller shutter open onto the quay. 16 Lampas, the frituurbaas in the garage.
 3. **Uitjesbuurt** (Mission 3): a white brick corner snackbar with a terrace on a street of canal houses. Down the stairs: a vaulted onion cellar with a glowing oven and, behind a hidden opening, the lieutenant's gambling den. 16 Lampas.
 
-Own all three: **DE NATTE WORST IS YOURS**, a W 5.000 bonus, and the Lampas territories on the map turn to "next" (Oud-Vettenburg, missions in a later build).
+Own all three: **KIPKRUIDENKWARTIER IS YOURS**, a W 5.000 bonus, and the Lampas territories on the map turn to "next" (Oud-Vettenburg; Frietwijk is the first Lampas mission).
 Progress is saved per level (`state.owned`, `state.lootTaken`); old saves with `state.spekbuurt` are migrated.
 
 To add a mission: copy a file in `js/levels/`, add it to `LEVELS` in `js/mission.js`, and launch it with `mission.enter(id)`.
