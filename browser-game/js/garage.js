@@ -80,7 +80,7 @@ export function createGarage(deps) {
       else v.inspector = { day };
     }
   }
-  function dayCheck() { const v = ensure(), d = econ.ensure().day; if (v.seenDay === undefined) { v.seenDay = d; return; } if (v.seenDay !== d) { v.seenDay = d; onMarketDay(); } }
+  function dayCheck() { const v = ensure(), d = econ.ensure().day; if ((state.ngp || 0) !== (v.ngpSeen || 0)) { v.ngpSeen = state.ngp || 0; v.clamp = false; v.inspector = null; } /* New Game+: a clean slate on the street */ if (v.seenDay === undefined) { v.seenDay = d; return; } if (v.seenDay !== d) { v.seenDay = d; onMarketDay(); } }
   const inspectorDue = () => !!ensure().inspector;
   function inspectorFine() { const s = stats(); return Math.min(2500, Math.round(Math.max(0, state.money - s.hidden) * 0.1 / 10) * 10); }
   function settleInspector(how) { // how: 'pay' | 'bribe' | 'saus'; returns the line he says

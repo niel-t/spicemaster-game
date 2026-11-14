@@ -24,6 +24,7 @@ export function createHeists(deps) {
     const h = state.heists && typeof state.heists === 'object' ? state.heists : (state.heists = {});
     h.done = h.done || {}; h.hot = Array.isArray(h.hot) ? h.hot : []; h.susp = h.susp || {}; h.plans = h.plans || {}; h.tools = h.tools || {};
     h.runs = +h.runs || 0; h.clean = +h.clean || 0;
+    if ((state.ngp || 0) !== (h.ngpSeen || 0)) { h.ngpSeen = state.ngp || 0; h.susp = {}; h.plans = {}; } // New Game+: the factions forget who robbed them
     if (h.day !== day()) roll(h);
     return h;
   }
