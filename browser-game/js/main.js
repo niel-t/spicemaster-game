@@ -4,6 +4,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
 import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable } from './input.js';
 import { initMission } from './mission.js';
+import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats } from './characters.js';
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
@@ -19,6 +20,7 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+const post = createPost(renderer); // Neon Vice-style screen pass: bloom, grade, vignette; GRAPHICS in the pause menu (js/post.js)
 
 const scene = new THREE.Scene();
 installCharacters(scene); // Neon Vice-style skinned characters pose themselves right before each render
@@ -2265,7 +2267,7 @@ const occl = new THREE.Raycaster();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let incomeT = 0, lastStep = state.step;
 function tick() {
-  if (isPaused()) { clock.getDelta(); renderer.render(scene, camera); requestAnimationFrame(tick); return; }
+  if (isPaused()) { clock.getDelta(); post.render(scene, camera); requestAnimationFrame(tick); return; }
   if (state.step !== lastStep) { lastStep = state.step; writeSave(); }
   let dt = Math.min(clock.getDelta(), 0.05);
   if (mission && mission.active) dt = mission.hitstop(dt); // Neon Vice hitstop on kills
@@ -2385,7 +2387,7 @@ function tick() {
       g.traverse((c) => { if (c.isMesh) { c.material.opacity = g.userData.fade * (c.material.userData.baseOp ?? 1); c.material.depthWrite = g.userData.fade > 0.95 && c.material.userData.baseOp === undefined; } });
     }
   }
-  renderer.render(scene, camera);
+  post.render(scene, camera);
   requestAnimationFrame(tick);
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
@@ -2393,10 +2395,10 @@ updateObjective();
 mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
   makeVan: () => oof.clone(true), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
-initInput({ state, getMission: () => mission, canvas, beep, toast });
+initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
 deviceHints();
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { charStats, startLevel, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
+window.__sme = { charStats, post, startLevel, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();

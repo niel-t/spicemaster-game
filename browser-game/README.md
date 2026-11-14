@@ -66,6 +66,7 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 | `js/characters.js` | Neon Vice-style characters for three.js: skinned low-poly models with painted faces and clothes, idle/walk poses, the cast's looks (`LOOKS`). Keeps the old `makePerson()` contract (`userData.arms/legs/head/body`). `makePerson` builds every character with it: a named look (`ps2: LOOKS.eddyJr`) or one derived from the old options by `lookFromPerson` (Lampas get tracksuits, bosses suits); `ps2: false` keeps the old capsule figure |
 | `js/ps2c.js` | The character builder ported from Neon Vice's `models.js`: skeleton, mesh lofting, face/body painters, `pose()`. Spice Master additions are marked |
 | `dev/characters.html` | Turntable test page for the character models (idle / walk / aim, front / top view); not deployed |
+| `js/post.js` | Neon Vice-style screen pass: HDR render, bloom on neon and lights, colour grade and vignette, PS1 retro mode. GRAPHICS in the pause menu cycles ENHANCED / PS1 RETRO / SIMPEL (saved in `spiceMasterEddy.gfx`) |
 | `js/input.js` | Controller (Gamepad API) and touch input, pause menu, device-aware hints; turns both into the same key events the keyboard sends |
 | `js/music.js` | Procedural upbeat WebAudio soundtrack |
 | `vendor/three.module.min.js` | three.js r170 (MIT, see `three-LICENSE.txt`) |
