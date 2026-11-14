@@ -888,7 +888,7 @@ export function initMission(ctx) {
     player.rotation.y = Math.atan2(-dir[0], -dir[1]); P.vx = dir[0] * (FORCE[cause] || 4); P.vz = dir[1] * (FORCE[cause] || 4);
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
-    const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', fists: 'Punched out by a Lampas.', boom: 'Too close to a red barrel.' }[cause] || 'Killed by the Lampas.';
+    const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', fists: 'Punched out by a Lampas.', boom: 'Too close to a red barrel.', hazard: (LV && LV.hazard && LV.hazard.death) || 'Burnt.' }[cause] || 'Killed by the Lampas.';
     setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${((tl) => tl[Math.floor(Math.random() * tl.length)])([...TIPS, ...(LV.text.tips || [])])}</div><div class="btn">RETRY · ${glyph('Backspace')}</div>`); }, 900);
   }
 
@@ -1088,11 +1088,20 @@ export function initMission(ctx) {
     obj.position.x = nx0; obj.position.z = nz0; ctx.collide(obj.position, r);
     const cx = obj.position.x - nx0, cz = obj.position.z - nz0, cl = Math.hypot(cx, cz);
     if (cl > 1e-5) { const nx = cx / cl, nz = cz / cl, vn = s.vx * nx + s.vz * nz;
-      if (vn < 0) { if (-vn > 2.2) { wallDecal(obj.position.x - nx * (r + 0.02), rnd(0.3, 0.9), obj.position.z - nz * (r + 0.02), nx, nz, rnd(0.6, 1.0)); sfx('thud'); bloodBurst(obj.position, [-nx, -nz], 10, 2, 0.5); s.spin = (s.spin || 0) + rnd(-3, 3); shake(0.08); }
+      if (vn < 0) { if (-vn > 2.2 && LV.hazard) hazardHit(obj, cellAt(obj.position.x - nx * (r + 0.35), obj.position.z - nz * (r + 0.35)), [-nx, -nz]);
+        if (-vn > 2.2) { wallDecal(obj.position.x - nx * (r + 0.02), rnd(0.3, 0.9), obj.position.z - nz * (r + 0.02), nx, nz, rnd(0.6, 1.0)); sfx('thud'); bloodBurst(obj.position, [-nx, -nz], 10, 2, 0.5); s.spin = (s.spin || 0) + rnd(-3, 3); shake(0.08); }
         s.vx -= 1.5 * vn * nx; s.vz -= 1.5 * vn * nz; s.vx *= 0.55; s.vz *= 0.55; } }
     if (s.spin) { obj.rotation.y += s.spin * dt; s.spin *= Math.exp(-dt * 3); }
     if ((s.y || 0) <= 0.02 && sp > 0.8) { s.smear = (s.smear || 0) + sp * dt; if (s.smear > 0.16) { s.smear = 0; floorDecal(obj.position.x, obj.position.z, 0.55, Math.atan2(s.vz, s.vx), smearM); } }
     if (sp > 5 && obj !== player) for (const o of enemies) { const f = o.userData.foe; if (o === obj || !f.alive || f.down > 0 || f.boss) continue; if (o.position.distanceTo(obj.position) < 0.8) { knockdown(o, [s.vx / sp, s.vz / sp]); popup(o.position, 'BOWLED!', '#ffd36b'); s.vx *= 0.5; s.vz *= 0.5; } }
+  }
+  // level hazards (def.hazard = { ch, text }): a body slammed into that furniture (Frietwijk's fryers) is finished off, and Eddy gets burnt
+  function hazardHit(obj, ch, dir) {
+    const hz = LV.hazard; if (ch !== hz.ch) return;
+    if (obj === player) { hurtPlayer(dir, 'hazard'); return; }
+    const f = obj.userData.foe; if (!f) return;
+    if (f.alive) { killEnemy(obj, 'bat', dir); R.score += 500; }
+    popup(obj.position, hz.text || 'OUCH!', '#e8a33d', true); sparks(obj.position.x, 1, obj.position.z, undefined, 12);
   }
   function bodyPhysics() { // corpses push each other and get shoved by the player walking into them
     const bs = enemies.filter((e) => e.visible && !e.userData.foe.alive);

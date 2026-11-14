@@ -105,6 +105,7 @@ export default {
       for (let k = 0; k < n; k++) box(0.04, 1.7, 0.02, lam({ color: 0x2a3028 }), OX + x + k + 1, 0.95, cz + 0.16, root, false);
     } },
   },
+  hazard: { ch: 'Z', text: 'DEEP FRIED!', death: 'Shoved into the frituur.' }, // knock a Lampas into the fry line and he is done
   rackGoods: [0xd8c8a0, 0xe8a33d, 0xc2412d],
   floors: {
     friettile: (g) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = (x + y) % 2 ? '#f3e6c8' : '#c2412d'; g.fillRect(x * 16, y * 16, 16, 16); } },
@@ -147,7 +148,7 @@ export default {
     resultsHint: 'Your first joint in Oud-Vettenburg. The Lampas heartland just got smaller. Grab the spice crates (E), then drive home.',
     ownedBanner: ['FRIETWIJK IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['FRIET-FRED IS DOWN', 'Fried.'],
-    tips: ['The kitchen is glass: the Lampas see you through every partition. Use the steel islands and the fry line for cover.', 'Three ways in: the front door, the delivery door in the alley, and the PERSONEEL door at the end of the terrace.', 'The office window looks onto the kitchen. Friet-Fred will see you coming.'],
+    tips: ['The kitchen is glass: the Lampas see you through every partition. Use the steel islands and the fry line for cover.', 'Three ways in: the front door, the delivery door in the alley, and the PERSONEEL door at the end of the terrace.', 'The office window looks onto the kitchen. Friet-Fred will see you coming.', 'Knock a Lampas into the fry line: deep fried. Mind your own fingers.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
     const ticks = [];
