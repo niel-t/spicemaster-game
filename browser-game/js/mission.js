@@ -19,8 +19,9 @@
 
 import { virt, inputMode, glyph, controlsLine } from './input.js';
 import spekbuurt from './levels/spekbuurt.js';
+import kroketkade from './levels/kroketkade.js';
 
-export const LEVELS = { spekbuurt };
+export const LEVELS = { spekbuurt, kroketkade };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -152,7 +153,7 @@ export function initMission(ctx) {
     lights = [];
     for (const [x, z, c, k] of def.lights) { const l = new THREE.PointLight(c, 0, 18, 1.3); l.position.set(OX + x, WALL_H + 0.6, Z0 + z); root.add(l); lights.push([l, k]); }
     // the Oofmobiel, parked outside
-    const V = def.van; van = ctx.makeVan(); van.position.set(OX + V.park[0], 0, V.park[1]); root.add(van);
+    const V = def.van; van = ctx.makeVan(); van.position.set(OX + V.park[0], 0, V.park[1]); if (V.rot !== undefined) van.rotation.y = V.rot; root.add(van);
     solid(OX + V.solid[0], OX + V.solid[1], V.solid[2], V.solid[3]);
     VAN_PARK = OX + V.park[0]; START = () => new THREE.Vector3(OX + def.start[0], 0, def.start[1]);
     root.add(flashL, flashSp);
