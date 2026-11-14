@@ -6,6 +6,7 @@ import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable
 import { initMission } from './mission.js';
 import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats } from './characters.js';
+import { makeOofmobiel, makeCar } from './vehicles.js'; // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
@@ -497,66 +498,14 @@ for (let x = -30; x <= 30; x += 12) { lamp(x === 6 ? 10.6 : x, RC - 5.3); lamp(x
 for (let x = -32; x <= 32; x += 2.6) if (Math.abs(x - 14) > 3) bollard(x, ROAD.walk1 + 0.05);
 function bollard(x, z) { cyl(0.09, 0.11, 0.9, lam({ color: 0x5a1a14 }), x, 0.45, z); }
 // 80s Kaasland cars: side profiles with rounded corners, extruded with a bevel, glass greenhouses, chrome bits
-function roundShape(pts, r) {
-  const sh = new THREE.Shape(), n = pts.length;
-  const P = (i) => pts[(i + n) % n];
-  for (let i = 0; i < n; i++) {
-    const [px, py] = P(i - 1), [cx, cy] = P(i), [nx_, ny] = P(i + 1);
-    const d1 = Math.hypot(cx - px, cy - py), d2 = Math.hypot(nx_ - cx, ny - cy), rr = Math.min(r, d1 / 2, d2 / 2);
-    const ax = cx + (px - cx) / d1 * rr, ay = cy + (py - cy) / d1 * rr, bx = cx + (nx_ - cx) / d2 * rr, by = cy + (ny - cy) / d2 * rr;
-    if (i === 0) sh.moveTo(ax, ay); else sh.lineTo(ax, ay);
-    sh.quadraticCurveTo(cx, cy, bx, by);
-  }
-  sh.closePath(); return sh;
-}
-const CAR_MODELS = [
-  { n: 'Volvo 240', W: 1.75, r: 0.12, wr: 0.31, body: [[-2.3, 0.3], [2.3, 0.3], [2.35, 0.85], [1.1, 0.95], [0.6, 1.45], [-0.9, 1.45], [-1.5, 0.98], [-2.3, 0.95]], glass: [[1.05, 0.97], [0.58, 1.39], [-0.86, 1.39], [-1.42, 0.99]], lights: 'rect', rack: true },
-  { n: 'Opel Kadett', W: 1.66, r: 0.16, wr: 0.3, body: [[-1.9, 0.3], [1.9, 0.3], [1.95, 0.8], [0.9, 0.92], [0.3, 1.42], [-1.6, 1.42], [-1.95, 0.95]], glass: [[0.85, 0.94], [0.3, 1.37], [-1.55, 1.37], [-1.86, 0.98]], lights: 'rect' },
-  { n: 'Kever', W: 1.55, r: 0.38, wr: 0.3, body: [[-1.95, 0.32], [1.95, 0.32], [2.0, 0.62], [1.4, 0.9], [0.5, 1.05], [0.1, 1.5], [-0.7, 1.55], [-1.6, 1.1], [-2.0, 0.7]], glass: [[0.45, 1.06], [0.13, 1.44], [-0.68, 1.49], [-1.15, 1.2]], lights: 'round' },
-  { n: 'Lelijke Eend', W: 1.5, r: 0.3, wr: 0.3, body: [[-1.9, 0.4], [1.9, 0.4], [1.95, 0.75], [1.2, 0.95], [0.6, 1.0], [0.35, 1.55], [-0.9, 1.6], [-1.7, 1.1], [-1.95, 0.8]], glass: [[0.55, 1.04], [0.37, 1.5], [-0.85, 1.55], [-1.05, 1.08]], lights: 'round', fenders: true },
-  { n: 'Volvo 245', W: 1.75, r: 0.1, wr: 0.31, body: [[-2.4, 0.3], [2.35, 0.3], [2.4, 0.85], [1.2, 0.95], [0.7, 1.48], [-2.3, 1.5], [-2.4, 0.95]], glass: [[1.15, 0.98], [0.7, 1.43], [-2.2, 1.45], [-2.3, 1.0]], lights: 'rect', rack: true },
-  { n: 'Countach', W: 1.9, r: 0.06, wr: 0.32, body: [[-2.1, 0.25], [2.1, 0.25], [2.2, 0.5], [0.6, 0.82], [-0.2, 1.12], [-1.2, 1.08], [-2.1, 0.82]], glass: [[0.5, 0.86], [-0.18, 1.08], [-1.0, 1.05], [-1.3, 0.88]], lights: 'none', wing: true },
-  { n: 'VW T3', W: 1.85, r: 0.22, wr: 0.33, body: [[-2.25, 0.35], [2.25, 0.35], [2.3, 1.0], [2.15, 1.9], [-2.25, 1.92]], glass: [[2.24, 1.15], [2.12, 1.78], [1.3, 1.8], [1.3, 1.15]], glass2: [[1.1, 1.25], [1.1, 1.78], [-2.05, 1.8], [-2.05, 1.25]], lights: 'round', twoTone: true },
-  { n: 'Daf 33', W: 1.45, r: 0.2, wr: 0.28, body: [[-1.55, 0.3], [1.55, 0.3], [1.6, 0.75], [0.8, 0.85], [0.45, 1.35], [-1.25, 1.35], [-1.55, 0.85]], glass: [[0.75, 0.88], [0.45, 1.3], [-1.2, 1.3], [-1.46, 0.88]], lights: 'round' },
-];
 const CAR_PAINT = [0xc8102e, 0xf2e8c8, 0x1f4fa0, 0x2f6a3a, 0xe8b020, 0x7a2a5a, 0xd8d8d8, 0x1a1a1a, 0xff7a3a, 0x5ac8c0, 0xff8fb8, 0x8a6a4a, 0x3a3a6a];
-const glassM = new THREE.MeshStandardMaterial({ color: 0x2a3a5a, roughness: 0.05, metalness: 0.6, envMapIntensity: 1.6 });
-const chromeM = new THREE.MeshStandardMaterial({ color: 0xe8e8f0, roughness: 0.15, metalness: 0.95 });
 let carSeed = 7;
 const crand = () => { carSeed = (carSeed * 16807) % 2147483647; return (carSeed - 1) / 2147483646; };
-function car(x, z, color, rot = 0, isSolid = true, model = -1) {
-  const M = CAR_MODELS[model >= 0 ? model : Math.floor(crand() * CAR_MODELS.length)];
+function car(x, z, color, rot = 0, isSolid = true, model = -1) { // street cars come from js/vehicles.js
   const paint = crand() < 0.35 && color ? color : CAR_PAINT[Math.floor(crand() * CAR_PAINT.length)];
-  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; scene.add(g);
-  const pm = new THREE.MeshPhongMaterial({ color: paint, shininess: 90, specular: 0x666666 });
-  const ext = (pts, r, depth, m, bevel) => { const geo = new THREE.ExtrudeGeometry(roundShape(pts, r), { depth, bevelEnabled: !!bevel, bevelThickness: 0.07, bevelSize: 0.06, bevelSegments: 3, curveSegments: 6 }); geo.translate(0, 0, -depth / 2); const me = new THREE.Mesh(geo, m); me.castShadow = true; g.add(me); return me; };
-  ext(M.body, M.r, M.W - 0.14, pm, true);
-  ext(M.glass, 0.05, M.W + 0.04, glassM);
-  if (M.glass2) ext(M.glass2, 0.05, M.W + 0.04, glassM);
-  if (M.twoTone || crand() < 0.2) { const lo = M.body.map(([px, py]) => [px, Math.min(py, 0.75)]); ext(lo, M.r * 0.6, M.W - 0.1, new THREE.MeshPhongMaterial({ color: M.twoTone ? 0xf2e8c8 : 0x2a2a2a, shininess: 60 }), false).position.y = 0.001; }
-  const xs = M.body.map((p) => p[0]), L = Math.max(...xs), Lb = -Math.min(...xs);
-  if (crand() < 0.4) box(L + Lb - 0.6, 0.08, M.W + 0.13, lam({ color: [0xffffff, 0xffd23a, 0xff3fa4, 0x1a1a1a][Math.floor(crand() * 4)] }), (L - Lb) / 2, 0.72, 0, g, false);
-  // bumpers, lights
-  const bumpM = crand() < 0.6 ? chromeM : lam({ color: 0x1a1a1a });
-  box(0.12, 0.14, M.W + 0.05, bumpM, L + 0.05, 0.42, 0, g, false); box(0.12, 0.14, M.W + 0.05, bumpM, -Lb - 0.05, 0.42, 0, g, false);
-  const hl = lam({ color: 0xfff6d0, emissive: 0x806a30 });
-  for (const sd of [1, -1]) {
-    if (M.lights === 'round') { const l = cyl(0.11, 0.11, 0.06, hl, L - 0.02, 0.72, sd * (M.W / 2 - 0.28), g, 12); l.rotation.z = Math.PI / 2; }
-    else if (M.lights === 'rect') box(0.06, 0.18, 0.42, hl, L + 0.02, 0.7, sd * (M.W / 2 - 0.32), g, false);
-    box(0.06, 0.16, 0.34, lam({ color: 0xa01010, emissive: 0x500000 }), -Lb - 0.02, 0.72, sd * (M.W / 2 - 0.3), g, false);
-  }
-  if (M.rack && crand() < 0.6) { const top = Math.max(...M.body.map((p) => p[1])); for (const zz of [-0.55, 0.55]) box(1.6, 0.05, 0.05, mat.dark, -0.3, top + 0.12, zz, g, false); if (crand() < 0.5) box(1.2, 0.35, 0.9, lam({ color: [0x2a5aa0, 0xd84a2a, 0xf2e8c8][Math.floor(crand() * 3)] }), -0.3, top + 0.32, 0, g); }
-  if (M.wing) { box(0.5, 0.06, M.W, pm, -Lb + 0.25, 1.1, 0, g, false); for (const zz of [-0.7, 0.7]) box(0.08, 0.25, 0.06, pm, -Lb + 0.25, 0.97, zz, g, false); }
-  // wheels with hubcaps (and 2CV-style fenders)
-  const tyre = mat.black, hub = crand() < 0.5 ? chromeM : lam({ color: 0xf2e8c8 });
-  for (const wx of [L - 0.72, -Lb + 0.72]) for (const sd of [1, -1]) {
-    const w = cyl(M.wr, M.wr, 0.24, tyre, wx, M.wr, sd * (M.W / 2 - 0.12), g, 16); w.rotation.x = Math.PI / 2;
-    const hc = cyl(M.wr * 0.55, M.wr * 0.55, 0.03, hub, wx, M.wr, sd * (M.W / 2), g, 12); hc.rotation.x = Math.PI / 2;
-    if (M.fenders) { const f = new THREE.Mesh(new THREE.CylinderGeometry(M.wr + 0.08, M.wr + 0.08, 0.3, 14, 1, false, -Math.PI / 2, Math.PI), pm); f.rotation.x = Math.PI / 2; f.position.set(wx, M.wr, sd * (M.W / 2 - 0.1)); g.add(f); }
-  }
-  const half = Math.max(L, Lb) + 0.08;
-  if (isSolid) { const c = Math.cos(rot); solid(x - half, x + half, z - M.W / 2 - 0.05, z + M.W / 2 + 0.05); }
-  g.userData.half = half; g.userData.model = M.n;
+  const g = makeCar(THREE, canvasTex, { model, paint, rand: crand }); g.position.set(x, 0, z); g.rotation.y = rot; scene.add(g);
+  const half = g.userData.half, W = g.userData.width;
+  if (isSolid) solid(x - half, x + half, z - W / 2 - 0.05, z + W / 2 + 0.05);
   return g;
 }
 const parkedN = []; // x of cars parked along the north pavement (ticket inspectors work these)
@@ -600,14 +549,7 @@ for (const rx of [-24, 4, 30]) for (let i = 0; i < 5; i++) {
   pw.rotation.x = -Math.PI / 2; pw.position.set((LOT.x0 + LOT.x1) / 2, 0.035, -7.8); scene.add(pw);
 }
 const oof = new THREE.Group(); oof.position.set((LOT.x0 + LOT.x1) / 2, 0, -11.4); oof.rotation.y = -Math.PI / 2; scene.add(oof);
-const vanBlue = new THREE.MeshPhongMaterial({ color: 0x1f5fb8, shininess: 70 });
-box(5.0, 2.1, 2.1, vanBlue, -0.3, 1.45, 0, oof);
-box(1.3, 1.3, 2.05, vanBlue, 2.6, 1.05, 0, oof);
-box(1.0, 0.8, 2.07, mat.glass, 2.3, 2.0, 0, oof, false);
-box(0.06, 0.8, 1.7, mat.glass, 3.27, 1.45, 0, oof, false);
-const vanSide = signTex([{ t: 'EDDY & ZN', size: 54 }, { t: 'SPECERIJEN · OOFMOBIEL', size: 24, color: '#ffffff' }], '#1f5fb8', '#ffd36b', 512, 160);
-for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.3), lam({ map: vanSide, transparent: true })); p.position.set(-0.4, 1.6, s * 1.07); p.rotation.y = s > 0 ? 0 : Math.PI; oof.add(p); }
-for (const [wx, wz] of [[1.8, 1.0], [1.8, -1.0], [-1.9, 1.0], [-1.9, -1.0]]) { const w = cyl(0.42, 0.42, 0.3, mat.black, wx, 0.42, wz, oof, 12); w.rotation.x = Math.PI / 2; }
+{ const v = makeOofmobiel(THREE, canvasTex); v.rotation.y = Math.PI / 2; oof.add(v); } // nose along the group's +x, as before
 solid(oof.position.x - 1.15, oof.position.x + 1.15, oof.position.z - 3.0, oof.position.z + 3.3);
 
 // ------------------------------------------------------------------ characters
