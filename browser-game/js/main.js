@@ -8,7 +8,7 @@ import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats } from './characters.js';
 import { makeOofmobiel, makeCar } from './vehicles.js'; // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
-import { createEconomy } from './economy.js'; // spice market, stock (gang-wars economy layer)
+import { createEconomy, rankOf } from './economy.js'; // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
 
@@ -1059,7 +1059,7 @@ let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
 const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
-const econ = createEconomy({ state, addMoney, toast, save: () => writeSave(), joints: () => ['schmatzel', ...D1.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
+const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: D1.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), joints: () => ['schmatzel', ...D1.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 function openPC(tab = 'sell', mode = 'pc') {
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
 }
@@ -1122,7 +1122,7 @@ function renderPC() {
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + d1Owned()}</b> (De Natte Worst${D1.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${state.table ? econ.propertyHTML() : ''}`;
+    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + d1Owned()}</b> (De Natte Worst${D1.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
     econ.propertyBind(body, renderPC);
   }
 }
@@ -1171,12 +1171,22 @@ function mapHTML(van) {
   h += `</div><div class="well" id="pininfo" style="margin-top:8px">${van ? 'Pick a destination for the Oofmobiel.' : 'Click a territory. Green = yours.'}</div>`;
   return h;
 }
+// the daily challenge: one seeded raid per real day on one of your joints, the same for every player that day
+function dailyChallenge() {
+  const ids = D1.filter(([, id]) => owns(id) && !econ.isRetaken(id)).map(([, id]) => id); if (!ids.length) return null;
+  const t = new Date(), date = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  let h = 0; for (const c of date) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const all = D1.map(([, id]) => id), id = all[h % all.length];
+  const pickId = ids.includes(id) ? id : ids[h % ids.length];
+  return { date, id: pickId, remix: { ...mission.remixFor(pickId, `daily-${date}`), daily: date } };
+}
 // an owned joint: the Lampas move back in every market day, so it can be raided again (a remix: js/mission.js)
 function remixInfo(n, id) {
   const rx = mission.remixFor(id, econ.ensure().day), m = mission.REMIX_MODS[rx.mod], b = state.best && state.best[id];
   const job = econ.jobFor(id);
   if (econ.isRetaken(id)) return `<b style="color:#a00">${n}: the Lampas took it back!</b> No orders until you retake it. <b>Tonight: ${m.name}</b> (${m.line}) Winning it back drops Lampas heat by 30.`;
-  return (job ? `<b style="color:#a00">JOB: ${job.title} (+W ${job.reward.toLocaleString('nl-NL')})</b><br>` : '') + `<b>${n}</b>: yours, and a client of Eddy & Zn. But the Lampas sneak back in every night. <b>Tonight's remix: ${m.name}</b> (${m.line})${b ? ` Your best: <b>${b.grade}</b> · W ${b.score.toLocaleString('nl-NL')} · ${b.runs || 1} run(s).` : ''}`;
+  const dc = dailyChallenge(), st = b && b.stars ? b.stars : {}, stars = ['S', 'melee', 'par', 'clean'].map((k) => (st[k] ? '★' : '☆')).join('');
+  return (job ? `<b style="color:#a00">JOB: ${job.title} (+W ${job.reward.toLocaleString('nl-NL')})</b><br>` : '') + (dc && dc.id === id ? `<b style="color:#000080">DAILY CHALLENGE today: ${mission.REMIX_MODS[dc.remix.mod].name}</b>${pcMode === 'van' ? ' <button class="b95" id="goDaily">Play the daily challenge</button>' : ''}<br>` : '') + `Challenges: <b>${stars}</b> (S grade, no guns, under par, no hits)<br>` + `<b>${n}</b>: yours, and a client of Eddy & Zn. But the Lampas sneak back in every night. <b>Tonight's remix: ${m.name}</b> (${m.line})${b ? ` Your best: <b>${b.grade}</b> · W ${b.score.toLocaleString('nl-NL')} · ${b.runs || 1} run(s).` : ''}`;
 }
 function bindMap() {
   document.querySelectorAll('[data-pin]').forEach((p) => p.onclick = () => {
@@ -1199,6 +1209,7 @@ function bindMap() {
     const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); }; // travelling elsewhere must call clearPlayerSplats()
     const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); const id = d1 ? d1[1] : 'spekbuurt'; mission.enter(id, owns(id) ? { remix: { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } } : {}); };
     const goD = $('goD'); if (goD) goD.onclick = () => { closePC(); startDrive(); };
+    const goDaily = $('goDaily'); if (goDaily) goDaily.onclick = () => { const dc = dailyChallenge(); if (!dc) return; closePC(); mission.enter(dc.id, { remix: dc.remix }); };
   });
 }
 function sellItem(id, btn) {
@@ -1386,7 +1397,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() {
   try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -1421,7 +1432,7 @@ function applySave(d) {
 let savedGame = readSave();
 // ---- start menu: Continue / New Game / Controls / Music / Credits (mouse, keyboard, controller and touch)
 let titleView = 'main', titleSel = 0;
-const districtSummary = (st) => (st.district1 ? ' · De Natte Worst is yours' : ((n) => (n ? ` · ${n}/3 of De Natte Worst` : ''))(['spekbuurt', 'kroketkade', 'uitjesbuurt'].filter((id) => (st.owned && st.owned[id]) || (id === 'spekbuurt' && st.spekbuurt)).length));
+const districtSummary = (st) => (st.econ && st.econ.rep ? ` · ${rankOf(st.econ.rep).name}` : '') + (st.district1 ? ' · De Natte Worst is yours' : ((n) => (n ? ` · ${n}/3 of De Natte Worst` : ''))(['spekbuurt', 'kroketkade', 'uitjesbuurt'].filter((id) => (st.owned && st.owned[id]) || (id === 'spekbuurt' && st.spekbuurt)).length));
 const titleItems = () => titleView === 'confirm' ? [['no', 'Nee, terug'], ['yes', 'Ja, opnieuw beginnen']]
   : titleView === 'controls' || titleView === 'credits' ? [['back', 'Terug']]
   : [...(savedGame ? [['cont', 'Continue']] : []), ['new', 'New Game'], ['controls', 'Controls'], ['music', 'Music'], ['credits', 'Credits']];

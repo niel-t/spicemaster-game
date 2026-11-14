@@ -64,6 +64,9 @@ export const WAREHOUSES = [
   { id: 'spekbuurt', name: 'Opslag Spekbuurt', cost: 5000, kg: 120, slots: 2, desc: "The Snackpaleis' old storeroom, behind the gym." },
 ];
 const WH_NAKNIK_COST = 450;
+// Ranks: reputation (rep) comes from client sales, raids, S grades, jobs and retakes. Shown on the PC and the start menu.
+export const RANKS = [[0, 'Hulpje'], [500, 'Mengmeester'], [1500, 'Kruidenhandelaar'], [4000, 'Kruidenbaron'], [10000, 'Spice Master']];
+export const rankOf = (rep) => { let r = RANKS[0], i = 0; RANKS.forEach((x, k) => { if ((rep || 0) >= x[0]) { r = x; i = k; } }); return { name: r[1], i, next: RANKS[i + 1] || null }; };
 const HISTORY = 8; // days of price history shown in the trend column
 const CRATE_KG = 10; // a Lampas spice crate unpacks into 10 kg of Lampas-grade spice
 
@@ -108,7 +111,7 @@ export function createEconomy(deps) {
     if (e.wholesaleLeft === undefined) e.wholesaleLeft = WHOLESALE_KG;
     e.trust = e.trust || {}; e.owed = Array.isArray(e.owed) ? e.owed : []; e.cards = Array.isArray(e.cards) ? e.cards : []; e.pause = e.pause || {};
     e.report = e.report || null; e.jobs = Array.isArray(e.jobs) ? e.jobs : null; e.event = e.event || null;
-    e.wh = e.wh || {};
+    e.wh = e.wh || {}; e.rep = +e.rep || 0;
     e.machines = e.machines || {}; e.installed = e.installed || {}; e.offers = Array.isArray(e.offers) ? e.offers : null;
     e.heat = e.heat || { lampas: 0 }; e.control = e.control || {}; e.retaken = e.retaken || {}; e.turfNews = Array.isArray(e.turfNews) ? e.turfNews : [];
     for (const g of INGREDIENTS) {
@@ -230,11 +233,19 @@ export function createEconomy(deps) {
       if (trustOf(c.id) < 20 && !e.pause[c.id]) { e.pause[c.id] = 2; rows.at(-1).note += '. Fed up: back to the Lampas for 2 days'; }
     }
     for (const c of ownedClients().filter((x) => e.retaken[x.id])) rows.push({ name: c.name, note: 'TAKEN BACK BY THE LAMPAS: raid it to win it back', pay: 0 });
-    if (paid) deps.addMoney(paid);
+    if (paid) { deps.addMoney(paid); addRep(paid / 20); }
     return { day: e.day, rows, paid, missed };
   }
   const addControl = (id, d) => { const e = ensure(); if (id !== 'schmatzel') e.control[id] = clamp(controlOf(id) + d, 0, 100); };
   const isRetaken = (id) => !!ensure().retaken[id];
+  function addRep(n) {
+    const e = ensure(), before = rankOf(e.rep).i; e.rep += Math.max(0, Math.round(n)); const r = rankOf(e.rep);
+    if (r.i > before && deps.toast) setTimeout(() => deps.toast('NEW RANK', `Eddy Jr. is now <b>${r.name}</b>. Kaasland is starting to talk.`, 4), 5200);
+  }
+  function rankHTML() {
+    const e = ensure(), r = rankOf(e.rep), pct = r.next ? Math.round((e.rep - RANKS[r.i][0]) / (r.next[0] - RANKS[r.i][0]) * 100) : 100;
+    return `<div class="well" style="margin-top:8px"><b>Rank: ${r.name}</b> · reputation <b>${e.rep.toLocaleString('nl-NL')}</b>${r.next ? ` · next: ${r.next[1]} at ${r.next[0].toLocaleString('nl-NL')}` : ' · the top of Kaasland'}<br><span style="display:inline-block;width:240px;height:10px;border:1px solid #808080;background:#fff"><span style="display:block;height:100%;width:${pct}%;background:#000080"></span></span><br><small>Reputation comes from client sales, raids (S grades count double), jobs and retaking joints. ${RANKS.map((x) => x[1]).join(' · ')}</small></div>`;
+  }
   // ---- turf: Lampas heat (0-100) rises with every joint you hold and every raid, and cools a little each day.
   // 40: price war and pressure on control · 60: they lean on a client · 80: they retake a joint · 100: they raid the warehouse
   function turf() {
@@ -342,15 +353,16 @@ export function createEconomy(deps) {
     if (r() < 0.35) { const ev = rp(EVENTS), bl = rp(BLENDS.filter((x) => x.mix)); e.event = { id: ev.id, text: ev.text(bl), vol: ev.vol, pay: ev.pay, only: ev.only, blend: ev.pay ? bl.id : null }; }
   }
   function finishJob(j, el) {
-    j.done = true; if (j.reward) deps.addMoney(j.reward, el);
+    j.done = true; if (j.reward) deps.addMoney(j.reward, el); addRep(60);
     if (j.kind === 'debt') { const e = ensure(), i = e.owed.findIndex((o) => CLIENTS.find((c) => c.id === j.level)?.name === o.name); if (i >= 0) e.owed.splice(i, 1); }
     if (deps.toast) deps.toast('JOB DONE', `${j.title}${j.reward ? `: +${fmt(j.reward)}` : ''}.`, 3);
     if (deps.save) deps.save();
   }
   function raidDone(raid) {
     const e = ensure();
+    addRep(raid.grade === 'S' ? 250 : 100);
     if (raid.remix) e.heat.lampas = clamp(e.heat.lampas + 5, 0, 100);
-    if (e.retaken[raid.id]) { delete e.retaken[raid.id]; e.control[raid.id] = 60; e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.toast) deps.toast('TAKEN BACK', `${CLIENTS.find((c) => c.id === raid.id).name} is yours again. Lampas heat -30.`, 4); }
+    if (e.retaken[raid.id]) { delete e.retaken[raid.id]; e.control[raid.id] = 60; e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.toast) deps.toast('TAKEN BACK', `${CLIENTS.find((c) => c.id === raid.id).name} is yours again. Lampas heat -30.`, 4); addRep(150); }
     for (const j of e.jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }
   function driveDone(arrived) {
     const e = ensure();
@@ -380,6 +392,8 @@ export function createEconomy(deps) {
     const e = ensure(); if (!e.jobs) rollDay();
     let h = `<div class="well" style="margin-bottom:8px"><b>Klusbord</b> · Market day <b>${e.day}</b> · New jobs after every outing.<br><small>Raids are done from the Oofmobiel map (owned joints show tonight's remix). Order and deal jobs are done right here.</small></div>`;
     if (e.event) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>TODAY:</b> ${e.event.text}.</div>`;
+    const dc = deps.daily ? deps.daily() : null;
+    if (dc) h += `<div class="well" style="margin-bottom:8px;background:#f0f0ff"><b>DAGELIJKSE UITDAGING · ${dc.date}</b>: ${dc.name}, ${dc.mod}. The same raid for everyone today, a new one tomorrow. Your best today: <b>${dc.best ? 'W ' + dc.best.toLocaleString('nl-NL') : '-'}</b>. <i>Start it from the van map.</i></div>`;
     h += '<table class="list"><tr><th>Job</th><th>Pays</th><th></th></tr>';
     for (const j of e.jobs) {
       const cost = j.kind === 'deal' ? Math.round(price(j.ing, 'std') * (1 - j.off)) * j.kg : 0;
@@ -588,5 +602,5 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }

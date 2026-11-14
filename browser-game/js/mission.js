@@ -768,9 +768,9 @@ export function initMission(ctx) {
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
       resetFloor();
       setArea(LV.text.area);
-      $('objective').innerHTML = REMIX ? (REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
+      $('objective').innerHTML = REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
-      startArrive(() => { if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
+      startArrive(() => { if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
   function exit() {
@@ -901,9 +901,17 @@ export function initMission(ctx) {
     // personal bests per level (shown on the map); remixes count too
     state.best = state.best && typeof state.best === 'object' ? state.best : {};
     const prev = state.best[LV.id], isBest = !prev || R.score > prev.score;
-    if (isBest) state.best[LV.id] = { score: R.score, grade: gr, time: Math.floor(R.time), runs: ((prev && prev.runs) || 0) + 1 }; else prev.runs = (prev.runs || 0) + 1;
+    if (isBest) state.best[LV.id] = { score: R.score, grade: gr, time: Math.floor(R.time), runs: ((prev && prev.runs) || 0) + 1, stars: (prev && prev.stars) || {} }; else prev.runs = (prev.runs || 0) + 1;
+    // level challenges: four stars per level, kept forever
+    const par = LV.par || 60 + 8 * (R.foes || enemies.length);
+    const ch = { S: gr === 'S', melee: R.shots === 0, par: R.time <= par, clean: R.taken === 0 };
+    const bs = state.best[LV.id]; bs.stars = { ...(bs.stars || {}) }; const newStar = Object.keys(ch).some((k) => ch[k] && !bs.stars[k]); for (const k of Object.keys(ch)) if (ch[k]) bs.stars[k] = true;
+    if (REMIX && REMIX.daily) { const d = state.daily && state.daily.date === REMIX.daily ? state.daily : { date: REMIX.daily, best: 0 }; d.best = Math.max(d.best, R.score); state.daily = d; }
+    Object.assign(state.lastRaid, { grade: gr, score: R.score, daily: !!(REMIX && REMIX.daily) });
+    const CH = [['S', 'S GRADE'], ['melee', 'NO GUNS FIRED'], ['par', `UNDER ${Math.floor(par / 60)}:${String(par % 60).padStart(2, '0')}`], ['clean', 'NO HITS TAKEN']];
+    const chLine = CH.map(([k, t]) => `<span style="color:${ch[k] ? '#ffd36b' : bs.stars[k] ? '#9a8a60' : '#555'}">${ch[k] || bs.stars[k] ? '★' : '☆'} ${t}</span>`).join(' &nbsp; ');
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
-    showScreen(`<div class="logo2">${LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#ff5fb8">NEW BEST</span>' : ''}</b><br>${REMIX ? `REMIX<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
+    showScreen(`<div class="logo2">${REMIX ? (REMIX.daily ? 'DAILY CHALLENGE DONE' : REMIX.retake ? `${LV.text.area.split('·').pop().trim()} IS YOURS AGAIN` : 'REMIX CLEARED') : LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#ff5fb8">NEW BEST</span>' : ''}</b><br>${REMIX ? `${REMIX.daily ? 'DAILY' : 'REMIX'}<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint" style="font-size:16px;letter-spacing:1px">${chLine}${newStar ? ' &nbsp; <span style="color:#ff5fb8">NEW STAR</span>' : ''}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
     sfx('cash'); addMoney(pay); commitKit();
     if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
     $('objective').innerHTML = LV.text.objectiveCleared;
