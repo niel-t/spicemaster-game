@@ -11,10 +11,10 @@ export function initPhone(d) {
 
   const el = document.createElement('div');
   el.id = 'phone';
-  el.innerHTML = '<div class="ph-ico">&#128241;</div><div><b>Hakan Et &amp; Döner</b><small><span class="ph-key">[T]</span> opnemen</small></div>';
+  el.innerHTML = '<div class="ph-face"><img src="./assets/face_hakan.jpg" alt=""><span class="ph-ico">&#128241;</span></div><div><b>Hakan Et &amp; Döner</b><small><span class="ph-key">[T]</span> opnemen</small></div>';
   el.style.cssText = 'position:fixed;right:18px;bottom:110px;display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(30,20,12,.92);border:2px solid #e8a33d;border-radius:12px;color:#f3e6c8;font:400 14px Rubik,Arial,sans-serif;cursor:pointer;z-index:30;box-shadow:0 0 18px rgba(232,163,61,.45)';
   const css = document.createElement('style');
-  css.textContent = '#phone b{display:block;color:#f2c14e;font-weight:700}#phone small{display:block;margin-top:2px}#phone .ph-key{color:#e8a33d;font-weight:700}#phone .ph-ico{font-size:28px;animation:phbuzz .18s infinite alternate}@keyframes phbuzz{from{transform:rotate(-12deg)}to{transform:rotate(12deg)}}body.touch #phone .ph-key{display:none}';
+  css.textContent = '#phone b{display:block;color:#f2c14e;font-weight:700}#phone small{display:block;margin-top:2px}#phone .ph-key{color:#e8a33d;font-weight:700}#phone .ph-face{position:relative;width:46px;height:56px}#phone .ph-face img{width:46px;height:56px;object-fit:cover;border:2px solid #f2c14e;border-radius:6px}#phone .ph-ico{position:absolute;right:-8px;bottom:-6px;font-size:20px;animation:phbuzz .18s infinite alternate}@keyframes phbuzz{from{transform:rotate(-12deg)}to{transform:rotate(12deg)}}body.touch #phone .ph-key{display:none}';
   document.head.appendChild(css); document.body.appendChild(el);
 
   const HELLO = [ // Tristan's line first: it is the one Hakan says most
