@@ -62,6 +62,7 @@ On phones the page can't zoom or scroll, it respects notches (safe areas) and th
 | `js/main.js` | The whole game: renderer, materials, street + warehouse, characters (painted faces), story flow, PC tabs, shop, map, district progression |
 | `js/mission.js` | Mission engine (Neon Vice rules): builds the chosen level on a 1 m cell grid, Lampas AI, weapons, kit, kluis, HUD, results. Only one level is in the scene at a time |
 | `js/levels/*.js` | One file per mission: grid layout, rooms + floors, doors, glass, furniture, spawns (incl. boss), loot, entry point, van arrival, texts, bounds, mood lighting and unique props (`decorate`). `spekbuurt.js`, `kroketkade.js`, `uitjesbuurt.js` |
+| `js/economy.js` | The spice economy: market days, the Kruidenbeurs (prices, news, trends), warehouse stock. main.js creates it (`econ`), shows its PC tab and calls `econ.update()` in the hub loop |
 | `js/drive.js` | The Oofmobiel drive between districts: a top-down city level with its own scene, camera, traffic, pedestrians, Lampas chase cars, HUD and minimap. main.js only starts it and renders it while it runs |
 | `js/vehicles.js` | Shared vehicle models: the Oofmobiel (blue T5-style van) and the eight street cars, with physically based paint, glass, rubber and chrome. Used by the hub (`car()` in main.js, the parked van), the missions (garage cars, the drive-in van) and the Oofmobiel drive |
 | `js/levels/props.js` | Shared level dressing: rain, puddles, canal water, glow sprites and street furniture letters (lamps, bollards, bikes, planters, benches, bistro tables) |
@@ -103,6 +104,15 @@ Once De Natte Worst is yours, open the van map (get in the Oofmobiel), click an 
 - **Arrive** by parking (slowly) in the yellow ring on the Frietwijk plaza. Pay: W 250 delivery fee + an on-time bonus (par 1:00) + Lampas bounties − smartengeld.
   If the van's health bar hits zero, try again or go home. The best time is saved in `state.drives`.
 - Test hook: `__sme.startDrive()` jumps straight into the drive; `__sme.oofDrive` exposes its state.
+
+## Spice economy (gang-wars layer, step 1 of 6)
+Design: the *Gang Wars Economy* proposal (Claude Doc linked from the project). Code: `js/economy.js`, saved in `state.econ`.
+- **Market days:** one passes after every outing (a cleared mission, i.e. `state.raids` going up, or an Oofmobiel drive), the same clock Nabil uses. Idling in the warehouse never costs anything.
+- **Kruidenbeurs** (PC icon `%`, appears once the mixing table is bought): 8 ingredients in 3 grades (Lampas ★, Standaard ★★★, Bio ★★★★★). Prices drift every day (random walk pulled back to base), news events push one spice up or down 25-45% for 2-3 days, and the trend column shows the last 8 days. Dock spices (kurkuma, kaneel, kardemom, saffraan) come through the Abdavissies with a few kilos of supply a day.
+- **Stock:** 200 kg in the home warehouse; sell back at 70%. Lampas spice crates from missions can be unpacked into 10 kg of Lampas-grade stock (or still sold on Kaasplaats).
+- **Home turf discount:** 3% per owned De Natte Worst territory, +6% once the whole district is yours.
+- Next steps: Naknikim mix blends from stock, joints as clients with a day report, machine trade, territory control and faction heat, warehouses and raids.
+- Test hook: `__sme.econ` (`advance()` ends a market day, `buy(id, grade, kg)`, `stockTotal()`).
 
 ## Start menu & fonts
 The game opens on a start menu (Continue / New Game / Controls / Music / Credits) over a slow dusk drift along the canal street;
