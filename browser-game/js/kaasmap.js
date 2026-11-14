@@ -1,7 +1,16 @@
-// Map of Kaasland: a flat, zoomable street-atlas map inside the Kaasdows 95 window (PC and Oofmobiel).
-// Drawn as SVG in the 1024x572 space of assets/kaasland_map.jpg (the painted map stays as the optional
-// "Luchtfoto" layer). Territory cells are a Voronoi split of each district outline around its label.
-// main.js keeps the game logic: it hands over each territory's state (kind) and binds [data-pin] clicks.
+// Map of Kaasland, on the Kaasdows 95 PC and in the Oofmobiel.
+//
+// Design: the map answers four questions, in this order of loudness:
+//   1. Where can I go next?   gold "!" markers, a Next-up list, a route line from the warehouse (van)
+//   2. What is mine?          saffron markers with a tick, solid saffron paths, act progress bars
+//   3. What's locked and why? acts you haven't reached sit under fog with one plaque that says what opens them;
+//                             inside an open act, locked joints are small grey padlocks on a dashed path
+//   4. Where's trouble?       joints a faction took back are red "!" markers, and heat sits next to the act
+// Colour is only spent on meaning (status). The land is quiet parchment; each act gets a faint tint and its
+// faction colour on the coastline. Missions are shown as a path (who unlocks whom), like a campaign map.
+//
+// Drawn as SVG in the 1024x572 space of assets/kaasland_map.jpg. main.js keeps the game logic: it hands over
+// each territory's kind and binds the [data-pin] clicks (bindMap), then calls bind() for pan/zoom/selection.
 
 const W = 1024, H = 572, S = 0.64; // outlines were traced on the 1600 px painted map
 const P = (pts) => pts.map(([x, y]) => [x * S, y * S]);
@@ -13,300 +22,278 @@ const REGIONS = {
 };
 const MOLEN = { cx: 965 * S, cy: 318 * S, rx: 40 * S, ry: 17 * S };
 const BRIDGES = [P([[440, 262], [420, 348]]), P([[735, 270], [735, 348]]), P([[1390, 245], [1392, 338]]), P([[-20, 890], [150, 795]]), P([[1590, 105], [1640, 150]])];
-// district names, GTA-atlas style: big, spaced, under the territory labels
-const DISTRICTS = [
-  ['start', 'KIPKRUIDENKWARTIER', 'Eddy & Zn · home base', 525, 612],
-  ['lampas', 'OUD-VETTENBURG', 'Lampas', 740, 400],
-  ['nosh', 'HIPSTERHEUVEL', 'Noshgey Kariot', 780, 175],
-  ['abd', 'DE DUISTERE DOKKEN', 'Abdavissies', 1175, 600],
-];
-// spice palette (project memory): saffron, kurkuma, paprika, cardamom, cream, cumin brown
-const FACTION = { start: '#f3e6c8', lampas: '#c2412d', nosh: '#8fae4f', abd: '#4f86a3', fin: '#f2c14e' };
-// three looks to choose from (Tristan picks one): a 90s CD-ROM atlas, a dark radar map, the painted map with overlays
-const THEMES = {
-  atlas: { water: '#a9cbe8', wave: '#93bbdf', land: '#efe7cf', shadow: false, own: '#e8a33d', lost: ['#c2412d', '#f4b9a3'],
-    fill: { start: '#fbf8ee', lampas: '#f4bda6', nosh: '#d3e5ae', abd: '#bcd3e6', fin: '#fdf0b8' },
-    edge: { start: '#77706a', lampas: '#b23a22', nosh: '#5f8a2a', abd: '#2f6690', fin: '#b08a1a' },
-    street: ['#ffffff', 0.85, 1.1], cell: '#8b8170', bridge: ['#ffffff', '#b8ad96'], district: '#6b5a48' },
-  radar: { water: '#0f1922', wave: '#16242f', land: '#3f4144', shadow: true, own: '#ddd2bb', lost: ['#ff6a4d', '#5a2a22'],
-    fill: { start: '#55514c', lampas: '#6a3a32', nosh: '#46573a', abd: '#33505e', fin: '#6e6130' },
-    edge: { start: '#f3e6c8', lampas: '#ff6a4d', nosh: '#a6dc66', abd: '#5cc6ee', fin: '#ffd34d' },
-    street: ['#9a9da1', 0.5, 1.3], cell: '#1b1c1e', bridge: ['#9a9da1', '#55585c'], district: '#ffffff' },
-  painted: { water: '#17282d', wave: '#22383e', land: 'none', shadow: false, own: 'rgba(243,230,200,.42)', lost: ['#c2412d', 'rgba(0,0,0,.35)'],
-    fill: { start: 'rgba(0,0,0,.4)', lampas: 'rgba(0,0,0,.4)', nosh: 'rgba(0,0,0,.4)', abd: 'rgba(0,0,0,.4)', fin: 'rgba(0,0,0,.4)' },
-    edge: { start: '#f3e6c8', lampas: '#e8862c', nosh: '#8fd16a', abd: '#4fc0ee', fin: '#f2c14e' },
-    street: null, cell: 'rgba(20,12,6,.6)', bridge: null, district: '#ffffff', photo: true },
-};
-const FNAME = { start: 'Kipkruidenkwartier', lampas: 'Lampas', nosh: 'Noshgey Kariot', abd: 'Abdavissies', fin: 'De Gouden Molen' };
-const HOME = [240, 442]; // Eddy & Zn warehouse
-// the street around the warehouse (the hub): people you can visit
-const PEOPLE = [
-  ['Schmatzel', 'S', 'Shoarma Schmatzel: free broodje, old stories', 262, 434],
-  ['Nabil', 'N', 'Nabil, at the card table in Schmatzel’s', 268, 448],
-  ['The Russian', 'R', 'Pandjeshuis Spasibo, east end of the street: weapons', 290, 430],
-  ['Garage Mo', 'G', 'Garage Mo: Oofmobiel upgrades', 218, 452],
-];
-const SHOWN = { Kipkruidenkwartier: 'Eddy & Zn warehouse' }; // label text where the territory name would repeat the district
-const HQ = ['Pindasausplein', 'Speltpolder', 'Kardemomdok', 'De Gouden Molen'];
 
-// status of a cell from main.js' kinds
+// the acts, in story order
+const ACTS = [
+  { r: 'start', name: 'Kipkruidenkwartier', tag: 'Prologue', faction: 'Lampas', heat: 'lampas', open: () => true, need: '' },
+  { r: 'lampas', name: 'Oud-Vettenburg', tag: 'Act 1', faction: 'Lampas', heat: 'lampas', open: (d) => d.district1, need: 'Take all of Kipkruidenkwartier' },
+  { r: 'nosh', name: 'Hipsterheuvel', tag: 'Act 2', faction: 'Noshgey Kariot', heat: 'noshgey', open: (d) => d.act1, need: 'Beat the Lampas in Oud-Vettenburg' },
+  { r: 'abd', name: 'De Duistere Dokken', tag: 'Act 3', faction: 'Abdavissies', heat: 'abdavissies', open: (d) => d.act2, need: 'Beat the Noshgey Kariot first' },
+  { r: 'fin', name: 'De Gouden Molen', tag: 'Finale', faction: 'everyone', heat: null, open: (d) => d.act3, need: 'Beat the Abdavissies first' },
+];
+const ACT = Object.fromEntries(ACTS.map((a) => [a.r, a]));
+// where each act's name and fog plaque sit (1600 px coords)
+const ACT_AT = { start: [522, 612], lampas: [600, 390], nosh: [800, 120], abd: [1180, 590], fin: [1200, 307] };
+// which joint opens which (drawn as the mission path). One parent each keeps it a readable tree;
+// the real rules ("two of these three") live in main.js and in the locked card's text.
+const PARENT = {
+  Kroketkade: 'Spekbuurt', Uitjesbuurt: 'Spekbuurt',
+  Sauzenbuurt: 'Frietwijk', Knoflooksteeg: 'Frietwijk', Mayonaisemarkt: 'Frietwijk', 'Halve Kip Plein': 'Knoflooksteeg', Bitterbalbuurt: 'Mayonaisemarkt', Pindasausplein: 'Sauzenbuurt',
+  Frikandelhaven: 'Joppiehaven', Havermelkhaven: 'Joppiehaven', 'Kombucha-kwartier': 'Havermelkhaven', Gembergracht: 'Kombucha-kwartier', 'Avocado-akkers': 'Gembergracht', 'Glutenvrije Gaarde': 'Gembergracht', Quinoaplantage: 'Avocado-akkers', 'Oat-oase': 'Glutenvrije Gaarde', Speltpolder: 'Oat-oase',
+  "Kaneelsilo's": 'Komijnkade', Paprikapakhuis: 'Komijnkade', Kruidnagelkade: "Kaneelsilo's", Peperhaven: 'Paprikapakhuis', Kurkumaloods: 'Peperhaven', Smokkelsloot: 'Kurkumaloods', Saffraanpier: 'Kruidnagelkade', Nootmuskade: 'Saffraanpier', Containerchaos: 'Smokkelsloot', Kardemomdok: 'Containerchaos',
+};
+const BOSS = ['Pindasausplein', 'Speltpolder', 'Kardemomdok', 'De Gouden Molen'];
+const HOME = [240, 442]; // the Eddy & Zn warehouse
+const PEOPLE = [ // the street around the warehouse, shown when you zoom in on it
+  ['Schmatzel', 'Shoarma Schmatzel: a free broodje and old stories', 262, 434],
+  ['Nabil', 'at the card table in Schmatzel’s', 270, 449],
+  ['The Russian', 'Pandjeshuis Spasibo, east end of the street', 292, 430],
+  ['Garage Mo', 'Oofmobiel upgrades', 216, 454],
+];
+
+const C = { // quiet land, colour only for meaning (spice palette from project memory)
+  water: '#2a4552', wave: '#33525f', land: '#e4d9c1', street: '#fbf6ea', ink: '#3b2c1f',
+  tint: { start: '#eee4cf', lampas: '#ead0bd', nosh: '#d9e2bf', abd: '#cdd9dc', fin: '#efdf9f' },
+  coast: { start: '#8a7a66', lampas: '#b5482f', nosh: '#6c8b3c', abd: '#3f6f87', fin: '#b8902a' },
+  own: '#e8a33d', open: '#f2c14e', lost: '#cf3b28', locked: '#9b9284', fog: '#3a332d',
+};
 const STATUS = { own: 'own', lost: 'lost', m1: 'open', m2: 'open', m3: 'open' };
 const statusOf = (k) => STATUS[k] || 'locked';
-
-function clip(poly, a, b) { // keep the part of poly closer to a than to b (Voronoi half-plane)
-  const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[0] - a[0], dy = b[1] - a[1];
-  const side = (p) => (p[0] - mx) * dx + (p[1] - my) * dy;
-  const out = [];
-  for (let i = 0; i < poly.length; i++) {
-    const p = poly[i], q = poly[(i + 1) % poly.length], sp = side(p), sq = side(q);
-    if (sp <= 0) out.push(p);
-    if ((sp < 0 && sq > 0) || (sp > 0 && sq < 0)) { const t = sp / (sp - sq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
-  }
-  return out;
-}
 const path = (poly) => 'M' + poly.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L') + 'Z';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const bbox = (r) => (r === 'fin' ? [MOLEN.cx - 70, MOLEN.cy - 40, MOLEN.cx + 120, MOLEN.cy + 40] : REGIONS[r].reduce((b, [x, y]) => [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)], [1e9, 1e9, -1e9, -1e9]));
 
-// icons, drawn in screen pixels around (0,0) and scaled back by 1/zoom so they stay the same size
-const ICON = {
-  joint: (c) => `<circle r="7.5" fill="${c}" stroke="#1e140c" stroke-width="1.5"/><path d="M-2.6,-4.2 L2.6,-4.2 L1.2,3.4 L-1.2,3.4Z" fill="#7a2e1a"/><path d="M0,-6 V5.5" stroke="#1e140c" stroke-width="1.2"/>`,
-  hq: (c) => `<rect x="-8" y="-8" width="16" height="16" rx="2" fill="${c}" stroke="#1e140c" stroke-width="1.5"/><path d="M-5,3.5 L-5,-3 L-2.5,0 L0,-4.5 L2.5,0 L5,-3 L5,3.5Z" fill="#1e140c"/>`,
-  wh: () => `<path d="M-8,-1 L0,-8 L8,-1 L8,7 L-8,7Z" fill="#f3e6c8" stroke="#1e140c" stroke-width="1.5"/><rect x="-3" y="1" width="6" height="6" fill="#7a2e1a"/>`,
-  person: (l) => `<circle r="7" fill="#e8a33d" stroke="#1e140c" stroke-width="1.5"/><text y="3.6" text-anchor="middle" font-size="10" font-weight="900" fill="#1e140c" stroke="none">${l}</text>`,
-  here: (van) => `<circle class="km-ping" r="10" fill="none" stroke="#ff5a3c" stroke-width="2.5"/>${van
-    ? '<rect x="-9" y="-5" width="18" height="10" rx="3" fill="#2f6fb5" stroke="#fff" stroke-width="1.5"/><rect x="2" y="-3.5" width="5" height="7" rx="1" fill="#bfe3ff"/>'
-    : '<path d="M0,-11 L7,7 L0,3 L-7,7Z" fill="#ff5a3c" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>'}`,
-};
+// markers, in screen pixels around (0,0); apply() scales them by 1/zoom so they keep their size
+function marker(st, boss) {
+  const fill = C[st], big = st === 'open' || st === 'lost', r = boss ? 9 : big ? 8 : st === 'own' ? 6.5 : 5.5;
+  const body = boss ? `<rect x="${-r}" y="${-r}" width="${2 * r}" height="${2 * r}" rx="2.5" fill="${fill}" stroke="${C.ink}" stroke-width="1.6"/>` : `<circle r="${r}" fill="${fill}" stroke="${C.ink}" stroke-width="1.6"/>`;
+  const glyph = st === 'own' ? `<path d="M${-r * 0.5},0 L${-r * 0.1},${r * 0.42} L${r * 0.55},${-r * 0.45}" fill="none" stroke="${C.ink}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+    : big ? `<text y="4.2" text-anchor="middle" font-size="12" font-weight="900" font-family="Arial Black, Arial" fill="${st === 'lost' ? '#fff' : C.ink}">!</text>`
+    : boss ? '<path d="M-5,3 L-5,-2.5 L-2.5,0 L0,-4.5 L2.5,0 L5,-2.5 L5,3Z" fill="#fff"/>'
+    : '<path d="M-2.4,-0.6 V-2 a2.4,2.4 0 0 1 4.8,0 V-0.6 M-3.2,-0.6 H3.2 V3.4 H-3.2Z" fill="#fff" stroke="#fff" stroke-width=".8"/>';
+  const ring = big ? `<circle class="km-ring" r="${r + 3}" fill="none" stroke="${fill}" stroke-width="2.2"/>` : '';
+  return ring + body + glyph;
+}
+const ICON_HERE = (van) => `<circle class="km-ring" r="11" fill="none" stroke="#e8432a" stroke-width="2.4"/>${van
+  ? '<rect x="-9" y="-5.5" width="18" height="11" rx="3" fill="#2f6fb5" stroke="#fff" stroke-width="1.6"/><rect x="2" y="-3.5" width="5" height="7" rx="1" fill="#bfe3ff"/>'
+  : '<path d="M0,-11 L7.5,7 L0,3 L-7.5,7Z" fill="#e8432a" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/>'}`;
+const ICON_WH = '<path d="M-7,-0.5 L0,-7 L7,-0.5 L7,6.5 L-7,6.5Z" fill="#fbf6ea" stroke="#3b2c1f" stroke-width="1.5"/><rect x="-2.6" y="1.2" width="5.2" height="5.3" fill="#7a2e1a"/>';
 
 export function createKaasMap() {
   let view = { cx: W / 2, cy: H / 2, z: 1 };
-  let layers = { photo: false, labels: true, icons: true, people: true };
-  let theme = 'atlas';
-  try { const s = JSON.parse(localStorage.getItem('sme.kmap') || 'null'); if (s) { view = { ...view, ...s.view }; layers = { ...layers, ...s.layers }; if (THEMES[s.theme]) theme = s.theme; } } catch (e) { /* private window */ }
-  const save = () => { try { localStorage.setItem('sme.kmap', JSON.stringify({ view, layers, theme })); } catch (e) { /* ignore */ } };
-  let cur = null; // the data of the last html() call
-  let sel = null;
+  let showAll = false; // names of your own and locked joints at every zoom level
+  try { const s = JSON.parse(localStorage.getItem('sme.kmap2') || 'null'); if (s) { view = { ...view, ...s.view }; showAll = !!s.showAll; } } catch (e) { /* private window */ }
+  const save = () => { try { localStorage.setItem('sme.kmap2', JSON.stringify({ view, showAll })); } catch (e) { /* ignore */ } };
+  let cur = null, sel = null, opened = false;
 
-  // territories come in as [{ n, k, region, box:[x0,y0,x1,y1], dot:[x,y], extra }]
-  function cells(terr) {
-    const out = {};
-    for (const r of Object.keys(REGIONS)) {
-      const ts = terr.filter((t) => t.region === r), seed = (t) => [(t.box[0] + t.box[2]) / 2, (t.box[1] + t.box[3]) / 2];
-      for (const t of ts) { let poly = REGIONS[r]; for (const o of ts) if (o !== t) poly = clip(poly, seed(t), seed(o)); out[t.n] = poly; }
-    }
-    return out;
-  }
-
+  // o: { van, terr: [{ n, k, region, box, extra }], warehouses: [{ n, name }], heat, done: { district1, act1, act2, act3 }, turf }
   function html(o) {
-    for (const t of o.terr) if (t.region === 'fin') t.dot = [MOLEN.cx, MOLEN.cy];
-    cur = o;
-    const { terr, van } = o, cp = cells(terr);
-    const own = terr.filter((t) => statusOf(t.k) === 'own').length, T = THEMES[theme], photo = T.photo || layers.photo;
-    let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
-<defs>
-  <pattern id="kmWave" width="22" height="12" patternUnits="userSpaceOnUse"><path d="M0,8 q5.5,-4 11,0 t11,0" fill="none" stroke="${T.wave}" stroke-width="1"/></pattern>
-  <pattern id="kmHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${T.lost[1]}"/><rect width="3" height="6" fill="${T.lost[0]}"/></pattern>
-  ${[['lampas', 13, 9, -8], ['start', 12, 9, 10], ['nosh', 22, 14, 4], ['abd', 20, 11, 0]].map(([r, w, h, a]) => `<pattern id="kmB-${r}" width="${w}" height="${h}" patternUnits="userSpaceOnUse" patternTransform="rotate(${a})">${T.street ? `<path d="M0,0H${w}M0,0V${h}" stroke="${T.street[0]}" stroke-opacity="${T.street[1]}" stroke-width="${T.street[2]}" fill="none"/>` : ''}</pattern>`).join('')}
-  <filter id="kmShadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity=".6"/></filter>
-</defs>
-<rect x="-2000" y="-2000" width="${W + 4000}" height="${H + 4000}" fill="${T.water}"/><rect x="-2000" y="-2000" width="${W + 4000}" height="${H + 4000}" fill="url(#kmWave)"/>
-<image class="km-photo" href="./assets/kaasland_map.jpg" width="${W}" height="${H}" ${photo ? '' : 'style="display:none"'}/>
-<g class="km-land" ${T.shadow ? 'filter="url(#kmShadow)"' : ''}>${Object.values(REGIONS).map((p) => `<path d="${path(p)}" fill="${T.land}"/>`).join('')}<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}" fill="${T.land}"/></g>
-<g class="km-bridges">${T.bridge ? BRIDGES.map(([a, b]) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${T.bridge[1]}" stroke-width="5.5"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${T.bridge[0]}" stroke-width="3"/>`).join('') : ''}</g>
-<g class="km-cells">`;
-    for (const t of terr) {
-      const st = statusOf(t.k), fill = st === 'own' ? T.own : st === 'lost' ? 'url(#kmHatch)' : st === 'open' && theme === 'painted' ? 'rgba(242,193,78,.12)' : T.fill[t.region];
-      const shape = t.region === 'fin' ? `<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}"` : `<path d="${path(cp[t.n] || [])}"`;
-      s += `${shape} class="km-cell km-${st}${sel === t.n ? ' km-sel' : ''}" data-pin="${esc(t.n)}" data-k="${t.k}" fill="${fill}" stroke="${T.cell}"><title>${esc(t.n)} · ${st === 'own' ? 'yours' : st === 'lost' ? 'retaken by the Lampas' : st === 'open' ? 'mission open' : FNAME[t.region]}</title>${t.region === 'fin' ? '</ellipse>' : '</path>'}`;
-    }
-    s += `</g><g class="km-streets" pointer-events="none" ${T.street ? '' : 'style="display:none"'}>${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="url(#kmB-${r})"/>`).join('')}</g><g class="km-borders">${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="none" stroke="${T.edge[r]}" stroke-width="2.4" stroke-linejoin="round"/>`).join('')}<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}" fill="none" stroke="${T.edge.fin}" stroke-width="2.4"/></g>`;
-    s += `<g class="km-districts">${DISTRICTS.map(([r, n, sub, x, y]) => `<text x="${x * S}" y="${y * S}" text-anchor="middle" fill="${T.district}"><tspan class="km-dn">${n}</tspan><tspan class="km-ds" x="${x * S}" dy="13">${sub}</tspan></text>`).join('')}</g>`;
-    s += `<path class="km-route" d="" fill="none"/>`;
-    // labels and icons get their size from zoom() so they stay readable at every zoom level
-    s += `<g class="km-labels" ${layers.labels && theme !== 'painted' ? '' : 'style="display:none"'}>`;
-    for (const t of terr) {
-      const cx = (t.box[0] + t.box[2]) / 2, cy = (t.box[1] + t.box[3]) / 2;
-      s += `<text class="km-lab km-l-${statusOf(t.k)}" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${cx}" data-y="${cy}" x="${cx}" y="${cy}" text-anchor="middle">${esc(SHOWN[t.n] || t.n)}${t.extra ? ` ${esc(t.extra)}` : ''}</text>`;
-    }
-    s += `</g><g class="km-icons" ${layers.icons ? '' : 'style="display:none"'}>`;
-    for (const t of terr) {
-      if (t.n === 'Kipkruidenkwartier') continue;
-      const st = statusOf(t.k), c = st === 'own' ? '#f3e6c8' : st === 'lost' ? '#c2412d' : st === 'open' ? '#f2c14e' : '#8a8172';
-      const kind = HQ.includes(t.n) ? 'hq' : 'joint';
-      const lx = t.region === 'fin' ? '' : `data-lx="${(t.box[0] + t.box[2]) / 2}"`;
-      s += `<g class="km-ic km-i-${st}" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${t.dot[0]}" data-y="${t.region === 'fin' ? t.dot[1] : (t.box[1] + t.box[3]) / 2}" ${lx}><title>${esc(t.n)} · ${kind === 'hq' ? 'faction headquarters' : 'shoarma joint'}</title>${ICON[kind](c)}</g>`;
-    }
-    for (const w of o.warehouses || []) {
-      const t = terr.find((x) => x.n === w.n); if (!t) continue;
-      s += `<g class="km-ic" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${t.dot[0]}" data-y="${t.dot[1] - 16}"><title>${esc(w.name)} · your warehouse</title>${ICON.wh()}</g>`;
-    }
-    s += `<g class="km-ic" data-pin="Kipkruidenkwartier" data-k="own" data-x="${HOME[0] - 18}" data-y="${HOME[1] + 2}"><title>Eddy &amp; Zn warehouse · home</title>${ICON.wh()}</g>`;
-    s += `<g class="km-people" ${layers.people ? '' : 'style="display:none"'}>${PEOPLE.map(([n, l, d, x, y]) => `<g class="km-ic km-person" data-x="${x}" data-y="${y}"><title>${esc(n)} · ${esc(d)}</title>${ICON.person(l)}<text class="km-plab" x="10" y="3.5">${esc(n)}</text></g>`).join('')}</g>`;
-    s += `</g><g class="km-ic km-here" data-x="${HOME[0]}" data-y="${HOME[1]}"><title>You are here${van ? ' · the Oofmobiel' : ' · the warehouse PC'}</title>${ICON.here(van)}<text class="km-herelab" y="-15" text-anchor="middle">YOU ARE HERE</text></g>`;
-    s += `</svg>`;
+    const d = o.done || {};
+    const terr = o.terr.map((t) => ({ ...t, st: statusOf(t.k), x: t.region === 'fin' ? MOLEN.cx : (t.box[0] + t.box[2]) / 2, y: t.region === 'fin' ? MOLEN.cy : (t.box[1] + t.box[3]) / 2 }))
+      .filter((t) => t.n !== 'Kipkruidenkwartier'); // home is the warehouse marker
+    const openAct = (r) => !!ACT[r].open(d);
+    cur = { ...o, terr };
+    const by = Object.fromEntries(terr.map((t) => [t.n, t]));
 
-    const opts = terr.slice().sort((a, b) => a.n.localeCompare(b.n));
-    const grp = (r) => opts.filter((t) => t.region === r).map((t) => `<option value="${esc(t.n)}">${esc(t.n)}${statusOf(t.k) === 'own' ? ' ✓' : statusOf(t.k) === 'open' ? ' !' : ''}</option>`).join('');
-    const chk = (id, label) => `<label class="km-chk"><input type="checkbox" data-layer="${id}" ${layers[id] ? 'checked' : ''}>${label}</label>`;
-    const sw = (c, label, cls = '', edge = '') => `<div class="km-row"><span class="km-sw ${cls}" style="background:${c}${edge ? `;border:2px solid ${edge}` : ''}"></span>${label}</div>`;
-    const icn = (svg, label) => `<div class="km-row"><svg width="20" height="20" viewBox="-10 -10 20 20">${svg}</svg>${label}</div>`;
+    const few = terr.filter((t) => openAct(t.region)).length <= 12; // early game: show every name
+    let s = `<svg class="km-svg${few ? ' km-few' : ''}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+<defs>
+  <pattern id="kmWave" width="26" height="14" patternUnits="userSpaceOnUse"><path d="M0,9 q6.5,-4.5 13,0 t13,0" fill="none" stroke="${C.wave}" stroke-width="1.1"/></pattern>
+  <pattern id="kmFog" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="${C.fog}"/><rect width="2" height="8" fill="#2c2621"/></pattern>
+  ${[['lampas', 12, 9, -8], ['start', 12, 9, 10], ['nosh', 22, 14, 4], ['abd', 20, 11, 0]].map(([r, w, h, a]) => `<pattern id="kmB-${r}" width="${w}" height="${h}" patternUnits="userSpaceOnUse" patternTransform="rotate(${a})"><path d="M0,0H${w}M0,0V${h}" stroke="${C.street}" stroke-width="1.2" fill="none"/></pattern>`).join('')}
+  <filter id="kmSh" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#0b1418" flood-opacity=".55"/></filter>
+</defs>
+<rect x="-3000" y="-3000" width="${W + 6000}" height="${H + 6000}" fill="${C.water}"/><rect x="-3000" y="-3000" width="${W + 6000}" height="${H + 6000}" fill="url(#kmWave)"/>
+<g filter="url(#kmSh)">${Object.values(REGIONS).map((p) => `<path d="${path(p)}" fill="${C.land}"/>`).join('')}<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}" fill="${C.land}"/></g>
+<g>${BRIDGES.map(([a, b]) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#a89c86" stroke-width="6"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${C.street}" stroke-width="3.4"/>`).join('')}</g>
+<g class="km-acts">`;
+    for (const a of ACTS) {
+      const shape = a.r === 'fin' ? `<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}"` : `<path d="${path(REGIONS[a.r])}"`;
+      s += `${shape} class="km-act" data-act="${a.r}" fill="${C.tint[a.r]}" stroke="${C.coast[a.r]}" stroke-width="2.6" stroke-linejoin="round"/>`;
+      if (a.r !== 'fin') s += `<path d="${path(REGIONS[a.r])}" fill="url(#kmB-${a.r})" opacity=".9" pointer-events="none"/>`;
+    }
+    s += '</g>';
+    // act names: big, quiet, under everything that matters
+    s += `<g class="km-actnames">${ACTS.filter((a) => a.r !== 'fin' && openAct(a.r)).map((a) => `<text x="${ACT_AT[a.r][0] * S}" y="${ACT_AT[a.r][1] * S}" text-anchor="middle" fill="${C.coast[a.r]}"${a.r === 'start' ? ' class="km-small"' : ''}>${a.name.toUpperCase()}</text>`).join('')}</g>`;
+    // mission paths: solid saffron once both ends are yours, dashed otherwise
+    s += '<g class="km-paths">';
+    for (const t of terr) {
+      const p = by[PARENT[t.n]]; if (!p || !openAct(t.region)) continue;
+      s += `<line x1="${p.x}" y1="${p.y}" x2="${t.x}" y2="${t.y}" class="${t.st === 'own' && p.st === 'own' ? 'km-p-done' : 'km-p-todo'}"/>`;
+    }
+    s += '</g><path class="km-route" d="" fill="none"/>';
+    // fog over the acts you haven't reached
+    s += '<g class="km-fogs">';
+    for (const a of ACTS) {
+      if (openAct(a.r)) continue;
+      const shape = a.r === 'fin' ? `<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx + 1}" ry="${MOLEN.ry + 1}"` : `<path d="${path(REGIONS[a.r])}"`;
+      s += `<g class="km-fog" data-act="${a.r}">${shape} fill="url(#kmFog)" fill-opacity=".88" stroke="${C.coast[a.r]}" stroke-width="2.6"/></g>`;
+    }
+    s += '</g>';
+    // fog plaques, under the markers so they never hide a mission
+    s += `<g class="km-plaques">${ACTS.filter((a) => !openAct(a.r)).map((a) => `<g class="km-plaque" data-x="${ACT_AT[a.r][0] * S}" data-y="${ACT_AT[a.r][1] * S}" data-act="${a.r}"><rect x="-110" y="-24" width="220" height="48" rx="3"/><text y="-6" class="km-pq1">${a.tag.toUpperCase()} · ${esc(a.name.toUpperCase())}</text><text y="11" class="km-pq2">Locked: ${esc(a.need)}</text></g>`).join('')}</g>`;
+    // markers and their names: sized in apply()
+    s += '<g class="km-pins">';
+    for (const t of terr) {
+      if (!openAct(t.region)) continue;
+      s += `<g class="km-pin km-${t.st}${BOSS.includes(t.n) ? ' km-boss' : ''}${sel === t.n ? ' km-sel' : ''}" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}"><title>${esc(t.n)}</title>`
+        + `<circle class="km-hit" r="13" fill="transparent"/><circle class="km-selring" r="15" fill="none"/>${marker(t.st, BOSS.includes(t.n))}`
+        + `<g class="km-name"><rect class="km-plate" x="11" y="-9" height="18" rx="2"/><text x="16" y="4.3">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
+    }
+    for (const w of o.warehouses || []) { const t = by[w.n]; if (t) s += `<g class="km-pin km-wh" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-dy="-17"><title>${esc(w.name)}</title>${ICON_WH}</g>`; }
+    s += `<g class="km-people">${PEOPLE.map(([n, dsc, x, y]) => `<g class="km-pin km-person" data-x="${x}" data-y="${y}"><title>${esc(n)}: ${esc(dsc)}</title><circle r="4.5" fill="#fbf6ea" stroke="${C.ink}" stroke-width="1.4"/><text x="8" y="4" class="km-ptext">${esc(n)}</text></g>`).join('')}</g>`;
+    s += `<g class="km-pin km-home" data-pin="Kipkruidenkwartier" data-k="own" data-x="${HOME[0]}" data-y="${HOME[1]}"><title>Eddy &amp; Zn warehouse: you are here</title><circle class="km-hit" r="14" fill="transparent"/>${ICON_HERE(o.van)}<g class="km-name"><rect class="km-plate km-plate-here" x="12" y="-9" height="18" rx="2"/><text x="17" y="4.3">YOU ARE HERE</text></g></g>`;
+    s += '</g>';
+    s += '</svg>';
+
+    // ---- side panel
+    const own = terr.filter((t) => t.st === 'own').length + 1, total = terr.length + 1;
+    const ord = (r) => ACTS.findIndex((x) => x.r === r);
+    const next = terr.filter((t) => (t.st === 'open' || t.st === 'lost') && openAct(t.region)).sort((a, b) => (b.st === 'lost') - (a.st === 'lost') || ord(a.region) - ord(b.region));
+    const nextHTML = next.length ? next.slice(0, 5).map((t) => `<button class="km-next km-n-${t.st}" data-go="${esc(t.n)}"><svg width="20" height="20" viewBox="-10 -10 20 20">${marker(t.st, BOSS.includes(t.n))}</svg><span><b>${esc(t.n)}</b><small>${t.st === 'lost' ? 'Retaken! Win it back' : `${ACT[t.region].tag} · ${ACT[t.region].name}${BOSS.includes(t.n) ? ' · boss' : ''}`}</small></span></button>`).join('') + (next.length > 5 ? `<div class="km-more">+${next.length - 5} more on the map</div>` : '')
+      : '<div class="km-more">No missions open right now.</div>';
     const heat = o.heat || {};
-    const bar = (id, name, c, done) => `<div class="km-heat"><span>${name}</span>${done ? '<b style="color:#2e7d2e">beaten</b>' : `<span class="km-bar"><i style="width:${Math.max(0, Math.min(100, Math.round(heat[id] || 0)))}%;background:${c}"></i></span><b>${Math.round(heat[id] || 0)}</b>`}</div>`;
-    return `<div class="kmap km-t-${theme}">
+    const actRow = (a) => {
+      const ts = terr.filter((t) => t.region === a.r), extra = a.r === 'start' ? 1 : 0, mine = ts.filter((t) => t.st === 'own').length + extra, all = ts.length + extra;
+      const isOpen = openAct(a.r), done = mine === all, h = a.heat && isOpen && !done && a.r !== 'start' ? Math.round(heat[a.heat] || 0) : null;
+      return `<button class="km-actrow${isOpen ? '' : ' km-shut'}" data-frame="${a.r}" title="Show on the map"><span class="km-sw" style="background:${isOpen ? C.tint[a.r] : C.fog};border-color:${C.coast[a.r]}"></span><span class="km-an"><span><b>${a.tag}</b> · ${esc(a.name)}</span><small>${isOpen ? (done ? 'All yours' : `${esc(a.faction)}${h !== null ? ` · heat ${h}` : ''}`) : 'Locked: ' + esc(a.need)}</small></span><span class="km-prog"><i style="width:${Math.round(mine / all * 100)}%"></i><em>${mine}/${all}</em></span></button>`;
+    };
+    const lg = (svg, label) => `<div class="km-lg"><svg width="22" height="22" viewBox="-11 -11 22 22">${svg}</svg>${label}</div>`;
+    return `<div class="kmap">
   <div class="km-main">
     <div class="km-tools">
-      <button class="b95 km-btn" data-z="in" title="Zoom in">+</button><button class="b95 km-btn" data-z="out" title="Zoom out">−</button><button class="b95" data-z="fit" title="Show all of Kaasland">Fit</button><button class="b95" data-z="home" title="Back to the warehouse">Home</button>
-      <span class="km-sep"></span>
-      <select class="km-find" title="Find a territory"><option value="">Find territory…</option><optgroup label="Kipkruidenkwartier">${grp('start')}</optgroup><optgroup label="Oud-Vettenburg (Lampas)">${grp('lampas')}</optgroup><optgroup label="Hipsterheuvel (Noshgey)">${grp('nosh')}</optgroup><optgroup label="De Duistere Dokken (Abdavissies)">${grp('abd')}</optgroup><optgroup label="The island">${grp('fin')}</optgroup></select>
-      <span class="km-sep"></span>
-      ${chk('labels', 'Names')}${chk('icons', 'Icons')}${chk('people', 'People')}${chk('photo', 'Luchtfoto')}
+      <button class="b95 km-btn" data-z="in" title="Zoom in">+</button><button class="b95 km-btn" data-z="out" title="Zoom out">−</button><button class="b95" data-z="fit">All of Kaasland</button><button class="b95" data-z="home">You are here</button>
+      <span class="km-sep"></span><label class="km-chk"><input type="checkbox" class="km-all" ${showAll ? 'checked' : ''}>Show all names</label>
+      <span class="km-tip">Drag to move · scroll to zoom</span>
     </div>
     <div class="km-view" tabindex="0">${s}
-      <svg class="km-compass" viewBox="-20 -20 40 40" aria-hidden="true"><circle r="17" class="km-cmp-ring"/><path d="M0,-15 L4,0 L0,3 L-4,0Z" class="km-cmp-n"/><path d="M0,15 L4,0 L0,-3 L-4,0Z" class="km-cmp-s"/><text y="-6" x="8" class="km-cmp-t">N</text></svg>
-      <div class="km-scale"><i></i><span>500 m</span></div>
-      <div class="km-nav" title="Overview: click to jump"><svg viewBox="0 0 ${W} ${H}">${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="${theme === 'painted' ? T.edge[r] : T.fill[r]}" stroke="${T.edge[r]}" stroke-width="6"/>`).join('')}<rect class="km-nav-r" x="0" y="0" width="${W}" height="${H}"/></svg></div>
+      <svg class="km-compass" viewBox="-20 -20 40 40" aria-hidden="true"><circle r="16" fill="rgba(251,246,234,.92)" stroke="#3b2c1f" stroke-width="1.2"/><path d="M0,-14 L4,0 L0,3 L-4,0Z" fill="#cf3b28" stroke="#3b2c1f" stroke-width=".8"/><path d="M0,14 L4,0 L0,-3 L-4,0Z" fill="#fff" stroke="#3b2c1f" stroke-width=".8"/><text y="-5" x="7" font-size="8" font-weight="700" fill="#3b2c1f">N</text></svg>
+      <div class="km-nav" title="Overview: click to jump"><svg viewBox="0 0 ${W} ${H}">${Object.entries(REGIONS).map(([r, p]) => `<path d="${path(p)}" fill="${openAct(r) ? C.tint[r] : C.fog}" stroke="${C.coast[r]}" stroke-width="7"/>`).join('')}<rect class="km-nav-r" x="0" y="0" width="${W}" height="${H}"/></svg></div>
     </div>
-    <div class="km-status"><span class="km-st km-zoom">100%</span><span class="km-st km-hover">${van ? 'Pick a destination for the Oofmobiel' : 'Drag to move · scroll to zoom'}</span><span class="km-st">${own}/${terr.length} territories yours</span></div>
+    <div class="km-status"><span class="km-st km-zoom">100%</span><span class="km-st km-hover">${o.van ? 'Where to? Pick a gold marker.' : 'Click a marker for details.'}</span><span class="km-st">${own}/${total} territories yours</span></div>
   </div>
   <div class="km-side">
-    <div class="well km-info" id="pininfo">${van ? 'Pick a destination for the Oofmobiel.' : 'Click a territory on the map.'}</div>
+    <fieldset class="km-box"><legend>Next up</legend>${nextHTML}</fieldset>
+    <div class="well km-info" id="pininfo">${o.van ? 'Pick a destination for the Oofmobiel.' : 'Click a marker on the map.'}</div>
+    <fieldset class="km-box"><legend>Kaasland</legend>${ACTS.map(actRow).join('')}</fieldset>
+    ${o.turf ? `<fieldset class="km-box"><legend>Faction heat</legend><div class="km-turf">${o.turf}</div></fieldset>` : ''}
     <fieldset class="km-box"><legend>Legend</legend>
-      ${sw(T.own, 'Yours (Eddy &amp; Zn)')}${sw('transparent', 'Mission open', 'km-sw-open')}${sw(`repeating-linear-gradient(45deg, ${T.lost[0]} 0 3px, ${T.lost[1]} 3px 6px)`, 'Retaken by a faction')}
-      ${sw(theme === 'painted' ? 'transparent' : T.fill.lampas, 'Lampas', '', T.edge.lampas)}${sw(theme === 'painted' ? 'transparent' : T.fill.nosh, 'Noshgey Kariot', '', T.edge.nosh)}${sw(theme === 'painted' ? 'transparent' : T.fill.abd, 'Abdavissies', '', T.edge.abd)}${sw(theme === 'painted' ? 'transparent' : T.fill.fin, 'De Gouden Molen', '', T.edge.fin)}${theme === 'painted' ? sw('rgba(0,0,0,.45)', 'Locked (darkened)') : ''}
-      <hr>${icn(ICON.here(van), 'You are here')}${icn(ICON.joint('#f2c14e'), 'Shoarma joint')}${icn(ICON.hq('#c2412d'), 'Faction headquarters')}${icn(ICON.wh(), 'Your warehouse')}${icn(ICON.person('P'), 'People on your street')}
-    </fieldset>
-    <fieldset class="km-box"><legend>Faction heat</legend>
-      ${o.turf ? `<div class="km-turf">${o.turf}</div>` : `${bar('lampas', 'Lampas', FACTION.lampas, o.done && o.done.act1)}${bar('noshgey', 'Noshgey', FACTION.nosh, o.done && o.done.act2)}${bar('abdavissies', 'Abdavissies', FACTION.abd, o.done && o.done.act3)}`}
+      ${lg(marker('open'), 'Mission open')}${lg(marker('own'), 'Yours')}${lg(marker('lost'), 'Retaken by a faction')}${lg(marker('locked'), 'Locked: take the one before it')}${lg(marker('locked', true), 'Faction boss (act finale)')}${lg(ICON_HERE(o.van), 'You are here')}${lg(ICON_WH, 'Your warehouse')}
     </fieldset>
   </div>
 </div>`;
   }
 
-  // ---- interaction: pan, zoom, select
+  // ---- pan, zoom, select
   function bind(root) {
-    const vp = root.querySelector('.km-view'), svg = vp && vp.querySelector('svg'); if (!svg) return;
+    const vp = root.querySelector('.km-view'), svg = vp && vp.querySelector('.km-svg'); if (!svg) return;
     const zl = root.querySelector('.km-zoom'), hov = root.querySelector('.km-hover'), hovIdle = hov.textContent;
-    const ics = [...svg.querySelectorAll('.km-ic')], labs = [...svg.querySelectorAll('.km-lab')];
-    const dTxt = svg.querySelector('.km-districts'), route = svg.querySelector('.km-route');
-    const ZMAX = 4;
-    const sbar = root.querySelector('.km-scale i'), stxt = root.querySelector('.km-scale span'), nav = root.querySelector('.km-nav'), navR = root.querySelector('.km-nav-r');
-    nav.addEventListener('pointerdown', (e) => { e.stopPropagation(); const r = nav.getBoundingClientRect(); centerOn((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H); });
-    let sc = 1;
+    const pins = [...svg.querySelectorAll('.km-pin')], plaques = [...svg.querySelectorAll('.km-plaque')];
+    const names = svg.querySelector('.km-actnames'), route = svg.querySelector('.km-route');
+    const nav = root.querySelector('.km-nav'), navR = root.querySelector('.km-nav-r');
+    const ZMAX = 4; let sc = 1, s0 = 1, vw = 800, vh = 450;
     function apply() {
-      const r = vp.getBoundingClientRect(), vw = r.width || 800, vh = r.height || 450;
-      const s0 = Math.min(vw / W, vh / H); view.z = Math.max(1, Math.min(ZMAX, view.z)); sc = s0 * view.z;
+      const r = vp.getBoundingClientRect(); vw = r.width || 800; vh = r.height || 450;
+      s0 = Math.min(vw / W, vh / H); view.z = Math.max(1, Math.min(ZMAX, view.z)); sc = s0 * view.z;
       const bw = vw / sc, bh = vh / sc;
       view.cx = bw >= W ? W / 2 : Math.max(bw / 2, Math.min(W - bw / 2, view.cx));
       view.cy = bh >= H ? H / 2 : Math.max(bh / 2, Math.min(H - bh / 2, view.cy));
       svg.setAttribute('viewBox', `${view.cx - bw / 2} ${view.cy - bh / 2} ${bw} ${bh}`);
-      const k = 1 / sc, big = Math.min(1.25, 0.85 + view.z * 0.1); // icons grow a little when you zoom in
-      for (const g of ics) g.setAttribute('transform', `translate(${g.dataset.x},${g.dataset.y}) scale(${k * big})`);
-      const fs = (11.5 + Math.min(3, view.z - 1)) * k;
-      const lw = {};
-      for (const t of labs) { t.setAttribute('font-size', fs); t.setAttribute('y', +t.dataset.y + fs * 0.35); if (layers.labels) try { lw[t.dataset.pin] = t.getComputedTextLength(); } catch (e) { /* hidden */ } }
-      for (const g of ics) {
-        if (!g.dataset.lx) continue; // a territory icon: just left of its name, or on the spot when names are off
-        const w = lw[g.dataset.pin], x = w ? +g.dataset.lx - w / 2 - 11 * k * big : +g.dataset.lx;
-        g.setAttribute('transform', `translate(${x},${g.dataset.y}) scale(${k * big})`);
-      }
-      dTxt.style.opacity = Math.max(0, Math.min(0.55, 1.4 - view.z * 0.45));
+      const k = 1 / sc;
+      // names: always for open/retaken missions and bosses; for yours and locked ones once you zoom in
+      svg.classList.toggle('km-near', sc >= 1.5 || showAll); svg.classList.toggle('km-street', sc >= 2.2);
+      for (const g of pins) g.setAttribute('transform', `translate(${g.dataset.x},${+g.dataset.y + (+g.dataset.dy || 0) * k}) scale(${k})`);
+      const pk = k * Math.min(1, vw / 820); // plaques shrink on small screens
+      for (const g of plaques) g.setAttribute('transform', `translate(${g.dataset.x},${g.dataset.y}) scale(${pk})`);
+      names.style.opacity = Math.max(0, Math.min(0.8, 1.7 - view.z * 0.6));
       route.setAttribute('stroke-width', 3 * k); route.setAttribute('stroke-dasharray', `${8 * k} ${6 * k}`);
       svg.style.setProperty('--k', k);
-      svg.classList.toggle('km-near', sc >= 2);
       zl.textContent = Math.round(view.z * 100) + '%';
-      { const mpp = 6.2 / sc, nice = [100, 200, 250, 500, 1000, 2000].find((m) => m / mpp >= 60) || 2000; sbar.style.width = (nice / mpp) + 'px'; stxt.textContent = nice >= 1000 ? String(nice / 1000).replace('.', ',') + ' km' : nice + ' m'; }
       navR.setAttribute('x', view.cx - bw / 2); navR.setAttribute('y', view.cy - bh / 2); navR.setAttribute('width', bw); navR.setAttribute('height', bh);
-      nav.style.display = view.z > 1.05 ? '' : 'none';
+      nav.style.display = view.z > 1.15 ? '' : 'none';
       drawRoute();
     }
-    function zoomAt(f, px, py) { // px,py in client coords, keep that map point under the cursor
+    function plates() { // name plates take their width from the text
+      for (const g of svg.querySelectorAll('.km-name')) { const t = g.querySelector('text'), p = g.querySelector('rect'); try { const w = t.getComputedTextLength(); if (w) p.setAttribute('width', w + 11); } catch (e) { /* not laid out yet */ } }
+    }
+    function zoomAt(f, px, py) { // keep the map point under (px,py) in place
       const r = vp.getBoundingClientRect(), mx = view.cx + (px - r.left - r.width / 2) / sc, my = view.cy + (py - r.top - r.height / 2) / sc;
       const z0 = view.z; view.z = Math.max(1, Math.min(ZMAX, view.z * f)); const g = z0 / view.z;
       view.cx = mx - (mx - view.cx) * g; view.cy = my - (my - view.cy) * g; apply(); save();
     }
-    function centerOn(x, y, z) { view.cx = x; view.cy = y; if (z) view.z = Math.max(view.z, z); apply(); save(); }
+    let anim = 0;
+    function flyTo(cx, cy, z) { // a short eased glide, so you see where you went
+      const a = { ...view }, b = { cx, cy, z: Math.max(1, Math.min(ZMAX, z)) }, t0 = performance.now(), id = ++anim;
+      const step = (t) => { if (id !== anim) return; const u = Math.min(1, (t - t0) / 380), e = 1 - Math.pow(1 - u, 3); view.cx = a.cx + (b.cx - a.cx) * e; view.cy = a.cy + (b.cy - a.cy) * e; view.z = a.z + (b.z - a.z) * e; apply(); if (u < 1) requestAnimationFrame(step); else save(); };
+      requestAnimationFrame(step);
+    }
+    function frame(r) { const [x0, y0, x1, y1] = bbox(r); flyTo((x0 + x1) / 2, (y0 + y1) / 2, Math.min(vw / ((x1 - x0) * s0), vh / ((y1 - y0) * s0)) * 0.88); }
     function drawRoute() {
       const t = sel && cur && cur.van && cur.terr.find((x) => x.n === sel);
-      if (!t || t.n === 'Kipkruidenkwartier') { route.setAttribute('d', ''); return; }
-      const [ax, ay] = HOME, [bx, by] = t.dot, mx = (ax + bx) / 2, my = (ay + by) / 2, dx = bx - ax, dy = by - ay;
+      if (!t) { route.setAttribute('d', ''); return; }
+      const [ax, ay] = HOME, bx = t.x, by = t.y, mx = (ax + bx) / 2, my = (ay + by) / 2, dx = bx - ax, dy = by - ay;
       route.setAttribute('d', `M${ax},${ay} Q${mx - dy * 0.18},${my + dx * 0.18} ${bx},${by}`);
     }
     function select(n) {
-      sel = n;
-      svg.querySelectorAll('.km-sel').forEach((e) => e.classList.remove('km-sel'));
-      svg.querySelectorAll('.km-cell').forEach((e) => { if (e.dataset.pin === n) e.classList.add('km-sel'); });
+      sel = n === 'Kipkruidenkwartier' ? null : n;
+      for (const g of pins) g.classList.toggle('km-sel', !!sel && g.dataset.pin === sel && !g.classList.contains('km-wh'));
       drawRoute();
-      const t = cur && cur.terr.find((x) => x.n === n);
-      if (t && cur.van && n !== 'Kipkruidenkwartier') { const d = Math.hypot(t.dot[0] - HOME[0], t.dot[1] - HOME[1]) * 6.2 / 1000; hov.textContent = `Route to ${n}: about ${d.toFixed(1).replace('.', ',')} km`; }
+      const t = sel && cur.terr.find((x) => x.n === sel);
+      if (t && cur.van) hov.textContent = `Route to ${t.n}: about ${(Math.hypot(t.x - HOME[0], t.y - HOME[1]) * 6.2 / 1000).toFixed(1).replace('.', ',')} km`;
     }
+    const clickPin = (n) => { const el = svg.querySelector(`.km-pin[data-pin="${CSS.escape(n)}"]`); if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true })); };
 
-    // pointer: drag to pan, two fingers to pinch
+    // pointer: drag to pan, pinch to zoom; a drag never counts as a click
     const pts = new Map(); let dragged = false, start = null, pinch = null;
     vp.addEventListener('pointerdown', (e) => {
-      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (e.target.closest('.km-nav')) return;
+      anim++; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pts.size === 1) { dragged = false; start = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy }; }
       if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: view.z }; }
     });
     vp.addEventListener('pointermove', (e) => {
       if (!pts.has(e.pointerId)) {
-        const tg = e.target.closest && e.target.closest('[data-pin]');
-        hov.textContent = tg ? tg.dataset.pin : (sel && cur && cur.van ? hov.textContent : hovIdle);
+        const tg = e.target.closest && e.target.closest('[data-pin],.km-person,.km-fog,.km-plaque');
+        if (!(sel && cur.van)) hov.textContent = !tg ? hovIdle : tg.dataset.pin ? tg.dataset.pin : tg.dataset.act ? `${ACT[tg.dataset.act].tag} · ${ACT[tg.dataset.act].name} is locked: ${ACT[tg.dataset.act].need}` : tg.querySelector('title').textContent;
         return;
       }
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pts.size === 2 && pinch) {
-        const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-        zoomAt((pinch.z * d / pinch.d) / view.z, (a.x + b.x) / 2, (a.y + b.y) / 2); dragged = true; return;
-      }
+      if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()]; zoomAt((pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d) / view.z, (a.x + b.x) / 2, (a.y + b.y) / 2); dragged = true; return; }
       if (!start) return;
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!dragged && Math.hypot(dx, dy) > 5) { dragged = true; vp.setPointerCapture(e.pointerId); vp.classList.add('km-drag'); }
       if (dragged) { view.cx = start.cx - dx / sc; view.cy = start.cy - dy / sc; apply(); }
     });
-    const up = (e) => {
-      pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
-      if (!pts.size) { if (dragged) save(); start = null; vp.classList.remove('km-drag'); }
-    };
+    const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) { if (dragged) save(); start = null; vp.classList.remove('km-drag'); } };
     vp.addEventListener('pointerup', up); vp.addEventListener('pointercancel', up);
-    // a drag must not count as a click on the territory under the pointer (main.js binds onclick on [data-pin])
     vp.addEventListener('click', (e) => {
       if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; return; }
       const tg = e.target.closest && e.target.closest('[data-pin]'); if (tg) select(tg.dataset.pin);
+      const fog = !tg && e.target.closest && e.target.closest('.km-fog,.km-plaque'); if (fog) frame(fog.dataset.act);
     }, true);
     vp.addEventListener('dblclick', (e) => { e.preventDefault(); zoomAt(2, e.clientX, e.clientY); });
-    vp.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(Math.exp(-Math.max(-120, Math.min(120, e.deltaY)) * 0.002), e.clientX, e.clientY); }, { passive: false });
+    vp.addEventListener('wheel', (e) => { e.preventDefault(); anim++; zoomAt(Math.exp(-Math.max(-120, Math.min(120, e.deltaY)) * 0.002), e.clientX, e.clientY); }, { passive: false });
     vp.addEventListener('keydown', (e) => {
-      const step = 60 / sc, r = vp.getBoundingClientRect(), mid = [r.left + r.width / 2, r.top + r.height / 2];
-      const k = e.key;
-      if (k === '+' || k === '=') zoomAt(1.4, ...mid); else if (k === '-') zoomAt(1 / 1.4, ...mid);
-      else if (k === 'ArrowLeft') centerOn(view.cx - step, view.cy); else if (k === 'ArrowRight') centerOn(view.cx + step, view.cy);
-      else if (k === 'ArrowUp') centerOn(view.cx, view.cy - step); else if (k === 'ArrowDown') centerOn(view.cx, view.cy + step);
-      else return;
+      const st = 60 / sc, k = e.key, r = vp.getBoundingClientRect(), mx = r.left + r.width / 2, my = r.top + r.height / 2;
+      if (k === '+' || k === '=') zoomAt(1.4, mx, my); else if (k === '-') zoomAt(1 / 1.4, mx, my);
+      else if (k.startsWith('Arrow')) { view.cx += k === 'ArrowLeft' ? -st : k === 'ArrowRight' ? st : 0; view.cy += k === 'ArrowUp' ? -st : k === 'ArrowDown' ? st : 0; apply(); save(); } else return;
       e.preventDefault(); e.stopPropagation();
     });
+    nav.addEventListener('pointerdown', (e) => { e.stopPropagation(); const r = nav.getBoundingClientRect(); flyTo((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H, view.z); });
 
     root.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => {
       const r = vp.getBoundingClientRect(), mx = r.left + r.width / 2, my = r.top + r.height / 2, z = b.dataset.z;
-      if (z === 'in') zoomAt(1.5, mx, my); else if (z === 'out') zoomAt(1 / 1.5, mx, my);
-      else if (z === 'fit') { view = { cx: W / 2, cy: H / 2, z: 1 }; apply(); save(); } else centerOn(HOME[0], HOME[1], 2.5);
+      if (z === 'in') zoomAt(1.5, mx, my); else if (z === 'out') zoomAt(1 / 1.5, mx, my); else if (z === 'fit') flyTo(W / 2, H / 2, 1); else flyTo(HOME[0] + 20, HOME[1], 3);
     });
-    root.querySelectorAll('[data-layer]').forEach((c) => c.onchange = () => {
-      layers[c.dataset.layer] = c.checked; save();
-      const m = { photo: '.km-photo', labels: '.km-labels', icons: '.km-icons', people: '.km-people' }[c.dataset.layer];
-      const el = svg.querySelector(m); if (el) el.style.display = c.checked ? '' : 'none';
-      svg.classList.toggle('km-photo-on', layers.photo);
-    });
-    svg.classList.toggle('km-photo-on', layers.photo);
-    const find = root.querySelector('.km-find');
-    find.onchange = () => {
-      const n = find.value; if (!n) return; find.value = '';
-      const t = cur.terr.find((x) => x.n === n); if (!t) return;
-      centerOn((t.box[0] + t.box[2]) / 2, (t.box[1] + t.box[3]) / 2, 2.2);
-      const el = svg.querySelector(`.km-cell[data-pin="${CSS.escape(n)}"]`); if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    };
-    if (sel) { const el = svg.querySelector(`.km-cell[data-pin="${CSS.escape(sel)}"]`); if (el) setTimeout(() => el.dispatchEvent(new MouseEvent('click', { bubbles: true })), 0); else sel = null; }
+    root.querySelector('.km-all').onchange = (e) => { showAll = e.target.checked; save(); apply(); };
+    root.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { const t = cur.terr.find((x) => x.n === b.dataset.go); if (!t) return; flyTo(t.x, t.y, Math.max(view.z, 2)); clickPin(t.n); });
+    root.querySelectorAll('[data-frame]').forEach((b) => b.onclick = () => frame(b.dataset.frame));
+    if (sel) { if (svg.querySelector(`.km-pin[data-pin="${CSS.escape(sel)}"]`)) setTimeout(() => clickPin(sel), 0); else sel = null; }
     if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(() => { if (!vp.isConnected) { ro.disconnect(); return; } apply(); }); ro.observe(vp); }
-    apply();
+    plates(); apply();
+    if (!opened && vw < 600) { const t = cur.terr.find((x) => x.st === 'open' || x.st === 'lost'); if (t) frame(t.region); }
+    opened = true;
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (vp.isConnected) plates(); });
   }
 
   return { html, bind };

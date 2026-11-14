@@ -1292,7 +1292,7 @@ function mapHTML(van) {
     for (const [n, x, y, r] of PINS) terr.push({ n, k: kindOf(n, reg[r]), region: reg[r], box: [x - 40, y - 24, x + 40, y - 8], dot: [x - 46, y - 16] });
   }
   const e = econ.ensure(), wh = Object.keys(e.wh || {}).map((id) => { const j = JOINTS.find((x) => x[1] === id); return j && { n: j[0], name: j[0] + ' warehouse' }; }).filter(Boolean);
-  return kmap.html({ van, terr, warehouses: wh, heat: e.heat, turf: state.table ? econ.turfHTML(true) : '', done: { act1: state.act1, act2: state.act2, act3: state.act3 } });
+  return kmap.html({ van, terr, warehouses: wh, heat: e.heat, turf: state.table ? econ.turfHTML(true) : '', done: { district1: state.district1, act1: state.act1, act2: state.act2, act3: state.act3 } });
 }
 // the daily challenge: one seeded raid per real day on one of your joints, the same for every player that day
 function dailyChallenge() {
