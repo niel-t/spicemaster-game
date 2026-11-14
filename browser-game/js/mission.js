@@ -61,6 +61,9 @@ import dadelplein from './levels/dadelplein.js';
 import kasbahalgara from './levels/kasbahalgara.js';
 import goudenmolen from './levels/goudenmolen.js';
 import warehouse from './levels/warehouse.js'; // the spice war: defend Eddy & Zn's own warehouse
+import { NOSHGEY } from './levels/noshgey.js';
+import { ABDAVISSIES } from './levels/docks.js';
+const SIEGE_LOOKS = { noshgey: NOSHGEY, abdavissies: ABDAVISSIES }; // a rival siege dresses the attackers in that faction's colours
 
 export const LEVELS = { warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen, couscouskade, zaatarmarkt, sumaksteeg, harissahof, dadelplein, kasbahalgara };
 
@@ -1038,7 +1041,8 @@ export function initMission(ctx) {
   }
   function defendActivate(i) {
     const e = enemies[i], f = e.userData.foe, sp = f.spawn;
-    f.alive = true; f.down = 0; e.visible = true; setFoeWeapon(e, sp[2]);
+    f.alive = true; f.down = 0; e.visible = true;
+    const fac = (DEF.faction || '').toLowerCase(); setFoeWeapon(e, fac.startsWith('abd') && sp[2] === 'bat' ? 'makarov' : sp[2]); if (fac.startsWith('nosh')) f.hp = Math.max(f.hp, 2);
     if (DEF.barricade && sp[4] === DEF.barricade) { const alt = ENTRANCES.front.cells === ENTRANCES[DEF.barricade].cells ? 'bay' : 'front'; const c = ENTRANCES[alt].cells; e.position.set(OX + c[0] + 1, 0, Z0 + c[1] + 3); }
     f.state = 'search'; f.sx = OX + 10; f.sz = Z0 + 8; f.searchT = -20; f.path = null; f.wary = true;
   }
@@ -1316,19 +1320,18 @@ export function initMission(ctx) {
     if (why) popup(player.position, why, '#ffe27a', true);
     for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0) f.wary = true; } // somebody did that on purpose
   }
-  function litAt(p) { // 0 (pitch dark) .. 1 (under a lamp)
-    if (HS.dark) {
-      for (const t of HS.torches) { if (!t.visible) continue; const e = t.userData.e, dx = p.x - e.position.x, dz = p.z - e.position.z, d = Math.hypot(dx, dz);
-        if (d < TORCH_R && Math.abs(angDiff(e.rotation.y, Math.atan2(dx, dz))) < TORCH_A && los(e.position, p)) return 1; }
-      return 0.08;
-    }
+  const torchesOn = () => HS.dark || (HEIST && HEIST.faction === 'abdavissies'); // dock guards carry torches all night (per-act extras)
+  function litAt(p) { // 0 (pitch dark) .. 1 (under a lamp or in a torch beam)
+    for (const t of HS.torches) { if (!t.visible) continue; const e = t.userData.e, dx = p.x - e.position.x, dz = p.z - e.position.z, d = Math.hypot(dx, dz);
+      if (d < TORCH_R && Math.abs(angDiff(e.rotation.y, Math.atan2(dx, dz))) < TORCH_A && los(e.position, p)) return 1; }
+    if (HS.dark) return 0.08;
     let m = 0;
     for (const [l, k] of lights) { const d = Math.hypot(l.position.x - p.x, l.position.z - p.z); if (d > 7) continue; const v = (k / kMax) * (1 - d / 7); if (v > m) m = v; }
     return Math.min(1, 0.18 + m * 1.05);
   }
   function heistSight(e, f, ang) { // how far this guard sees Eddy right now
     let v = EASY.vision * (0.33 + 0.67 * HS.lit);
-    if (HS.dark && f.torch && Math.abs(angDiff(e.rotation.y, ang)) < TORCH_A) v = Math.max(v, TORCH_R);
+    if (f.torch && Math.abs(angDiff(e.rotation.y, ang)) < TORCH_A) v = Math.max(v, TORCH_R);
     return v;
   }
   function takedownTarget() {
@@ -1348,7 +1351,7 @@ export function initMission(ctx) {
   }
   function stealthTick(dt) {
     HS.lit = litAt(player.position);
-    for (const t of HS.torches) { const e = t.userData.e, f = e.userData.foe, bulb = t.userData.bulb; f.torch = HS.dark; t.visible = bulb.visible = HS.dark && e.visible && f.alive && f.down <= 0 && e.position.distanceTo(player.position) < 28; if (!t.visible) continue;
+    for (const t of HS.torches) { const e = t.userData.e, f = e.userData.foe, bulb = t.userData.bulb; const tOn = torchesOn(); f.torch = tOn; t.visible = bulb.visible = tOn && e.visible && f.alive && f.down <= 0 && e.position.distanceTo(player.position) < 28; if (!t.visible) continue;
       const x = e.position.x, z = e.position.z, a0 = e.rotation.y, arr = t.geometry.attributes.position.array, y = 0.06; let px = 0, pz = 0;
       for (let i = 0; i <= TORCH_N; i++) { const a = a0 - TORCH_A + 2 * TORCH_A * i / TORCH_N, sa = Math.sin(a), ca = Math.cos(a), L = rayLen(x, z, sa, ca, TORCH_R), qx = x + sa * L, qz = z + ca * L; if (i) arr.set([x, y, z, px, y, pz, qx, y, qz], (i - 1) * 9); px = qx; pz = qz; }
       t.geometry.attributes.position.needsUpdate = true; bulb.position.set(x + Math.sin(a0) * 0.38, 1.05, z + Math.cos(a0) * 0.38);
@@ -1493,7 +1496,8 @@ export function initMission(ctx) {
     if (M.active || !LEVELS[id]) return;
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
-      if (!LV || LV.id !== id) buildLevel(LEVELS[id]);
+      const fl = opts.defend && SIEGE_LOOKS[opts.defend.looks] ? opts.defend.looks : null;
+      if (!LV || LV.id !== id || (LV.looksKey || null) !== fl) { buildLevel(fl ? { ...LEVELS[id], foeLooks: SIEGE_LOOKS[fl].foeLooks, foeCap: SIEGE_LOOKS[fl].foeCap, faction: SIEGE_LOOKS[fl].faction, factionName: SIEGE_LOOKS[fl].factionName, looksKey: fl } : LEVELS[id]); }
       HEIST = opts.heist || null; DEF = opts.defend || null;
       REMIX = DEF ? null : HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
       if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
@@ -2210,7 +2214,7 @@ export function initMission(ctx) {
       const cone = f.state === 'chase' || dist < (HEIST && !HS.loud ? 0.7 : 1.6) || Math.abs(angDiff(e.rotation.y, ang)) < (f.state === 'search' ? 1.3 : EASY.cone + (f.wary ? 0.35 : 0));
       if (cone && los(e.position, pp)) see = true;
     }
-    if (!see && !mate && !P.dead && f.state !== 'chase') { const spd = Math.hypot(pv[0], pv[1]); const hear = (spd > 5 ? 3.2 : 1.4) * (spd > 0.6 ? 1 : 0) * (HEIST && HEIST.shoes ? 0.5 : 1); if (dist < hear && los(e.position, pp)) { f.state = 'search'; f.sx = pp.x; f.sz = pp.z; f.searchT = 0; f.path = null; } }
+    if (!see && !mate && !P.dead && f.state !== 'chase') { const spd = Math.hypot(pv[0], pv[1]); const hear = (spd > 5 ? 3.2 : 1.4) * (spd > 0.6 ? 1 : 0) * (HEIST && HEIST.shoes ? 0.5 : 1) * (HEIST && HEIST.faction === 'noshgey' ? 1.5 : 1) /* Noshgey back rooms are silent: footsteps carry */; if (dist < hear && los(e.position, pp)) { f.state = 'search'; f.sx = pp.x; f.sz = pp.z; f.searchT = 0; f.path = null; } }
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }

@@ -33,6 +33,13 @@ export const PARTS = [
   { id: 'e_vetbak', slot: 'x', name: 'Fat tray', price: 30, pw: 0, relB: 0.02, capB: 0.05, rel: 1, note: '+5% capacity, +2 reliability' },
   { id: 'e_chroom', rank: 1, slot: 'x', name: 'Chrome panels', price: 70, pw: 0, styleB: 1, rel: 1, note: '+1 style' },
   { id: 'e_led', rank: 1, slot: 'x', name: 'LED sign "SHOARMA"', price: 90, pw: 1, styleB: 2, rel: 1, note: '+2 style, uses 1 power' },
+  // Act 2 (Hipsterheuvel): artisan design parts the Noshgey crowd pays for. Act 3 (De Duistere Dokken): smuggled heavy imports.
+  { id: 'f_koper', act: 2, slot: 'frame', name: 'Hand-hammered copper frame', price: 650, power: 4, rel: 0.92, style: 4, note: 'Hipsterheuvel artisan work: style 4, power 4' },
+  { id: 'e_hout', act: 2, slot: 'x', name: 'Reclaimed-wood panels', price: 160, pw: 0, styleB: 2, relB: 0.01, rel: 1, note: '+2 style, smells of a sauna' },
+  { id: 'b_bio', act: 2, slot: 'burner', name: 'Bio-ethanol burner', price: 380, heat: 4, pw: 0, kind: 'gas', rel: 0.9, note: 'Counts as gas, heat 4, very "sustainable"' },
+  { id: 'm_import', act: 3, slot: 'motor', name: 'Imported marine motor', price: 520, torque: 95, pw: 2, rel: 0.97, note: 'Off a ship. Turns 95 kg. No questions' },
+  { id: 'b_turbo', act: 3, slot: 'burner', name: 'Dockside turbo burner', price: 560, heat: 6, pw: 1, kind: 'gas', rel: 0.88, note: 'Heat 6 on gas. Loud. Eyebrows optional' },
+  { id: 'c_spit90', act: 3, slot: 'core', type: 'grill', name: 'Spit, 90 kg', price: 480, weight: 90, cap: 90, need: 6, rel: 0.93, note: 'Container-port size. Needs the marine motor and the turbo' },
   { id: 'e_spy', slot: 'x', name: 'Spy module (Mo)', price: 250, pw: 0, rel: 1, spy: true, idea: 'spion', note: 'Deliver it inside a machine: a free floor plan for a Nachtklus' },
 ];
 const P = (id) => PARTS.find((p) => p.id === id);
@@ -68,6 +75,7 @@ const SYMPTOM_SHORT = { frame: 'cracked weld', burner: 'dead burner', motor: 'st
 // deps: state, econ, addMoney(n, el), toast(title, text, sec), save(), haggle (js/haggle.js, optional)
 export function createWorkshop(deps) {
   const { state, econ } = deps;
+  const actOpen = (p) => !p.act || (deps.actOpen ? deps.actOpen(p.act) : true);
   const rank = () => (deps.rank ? deps.rank() : 9), locked = (p) => rank() < (p.rank || 0);
   const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
 
@@ -96,7 +104,8 @@ export function createWorkshop(deps) {
       const cap = base[clamp(tier + Math.floor(r() * 2) - (i ? 0 : 1), 0, 3)];
       const rel = 70 + Math.round(r() * (8 + tier * 4));
       const kind = type !== 'snijder' && r() < 0.35 ? rp(['gas', 'electric']) : null;
-      const style = r() < 0.25 + tier * 0.1 ? 1 + Math.floor(r() * 2) : 0;
+      const nosh = deps.actOpen && deps.actOpen(2) && r() < 0.35; // a Hipsterheuvel café: looks matter more than speed
+      const style = nosh ? 4 + Math.floor(r() * 2) : r() < 0.25 + tier * 0.1 ? 1 + Math.floor(r() * 2) : 0;
       const m = MACHINES.find((x) => x.id === type);
       const pay = Math.round((m.sell * (0.45 + 0.8 * cap / (type === 'grill' ? 60 : 30)) + (rel - 70) * 12 + style * 120 + (kind ? 60 : 0)) / 10) * 10;
       const cid = rp(clientsFor(type));
@@ -318,7 +327,7 @@ export function createWorkshop(deps) {
     h += '<table class="list" style="margin-top:8px"><tr><th>Used parts on Kaasplaats today</th><th>Price</th><th></th></tr>';
     for (const o of w.offers) h += `<tr><td>${P(o.id).name} <small>(worn ${Math.round(o.wear * 100)}%)</small></td><td>${fmt(o.price)}</td><td>${o.sold ? 'sold' : `<button class="b95" data-wsused="${o.n}">Buy</button>`}</td></tr>`;
     h += `</table><div class="well" style="margin-top:8px"><img src="${portrait('fenna')}" alt="" style="width:40px;height:44px;object-fit:cover;float:left;margin-right:8px;border:1px solid #888"><b>Kaasland Auto Parts</b> · Fenna at the counter${spentToday() ? ` · spent on parts today: <b>${fmt(spentToday())}</b>` : ''}<br><small>Pay the sticker price, or haggle. She has heard every story twice.</small><div style="clear:both"></div></div><table class="list"><tr><th>New parts</th><th>What it does</th><th>Price</th><th></th></tr>`;
-    for (const p of PARTS.filter((q) => !q.idea || (econ.has && econ.has(q.idea)))) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap">${locked(p) ? `<small style="color:#888">at rank ${RANK_NAMES[p.rank]}</small>` : `<button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}`}</td></tr>`;
+    for (const p of PARTS.filter((q) => (!q.idea || (econ.has && econ.has(q.idea))) && actOpen(q))) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap">${locked(p) ? `<small style="color:#888">at rank ${RANK_NAMES[p.rank]}</small>` : `<button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}`}</td></tr>`;
     h += '</table><table class="list" style="margin-top:8px"><tr><th>Kaasdows XL upgrades</th><th>What it does</th><th>Price</th><th></th></tr>';
     for (const p of PC_PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.text}</small></td><td>${fmt(p.price)}</td><td>${w.pc[p.id] ? '<b style="color:#070">installed</b>' : locked(p) ? `<small style="color:#888">at rank ${RANK_NAMES[p.rank]}</small>` : `<button class="b95" data-wspc="${p.id}">Install</button>`}</td></tr>`;
     return h + '</table>';

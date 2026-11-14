@@ -14,7 +14,13 @@ export const MODS = [
   { id: 'luik', rank: 2, name: 'Hidden compartment', price: 1500, text: 'Hides W 5.000 of cash from the tax inspector (and later, hot goods from an ambush).' },
   { id: 'chip', rank: 1, name: 'Chip tuning', price: 1200, text: '+3 top speed on every drive.' },
   { id: 'ramen', rank: 1, name: 'Tinted windows', price: 800, text: 'The Lampas spot you later: the first ambush on a drive never happens.' },
+  // Act 2 (Hipsterheuvel) and Act 3 (De Duistere Dokken): Mo only gets these parts once you hold a joint there
+  { id: 'koel', act: 2, name: 'Refrigerated hold', price: 2400, text: 'Off a Noshgey oat-milk van: +100 kg cargo, and Bio spice stays fresh.' },
+  { id: 'eco', act: 2, name: 'Electric assist motor', price: 2800, text: 'Silent take-off from a hipster cargo-bike kit, scaled up: +2 top speed.' },
+  { id: 'staal', act: 3, name: 'Dockside steel plating', price: 3600, text: 'Smuggler armour from Kardemomdok: rams do 30% less damage.' },
+  { id: 'nitro', act: 3, name: "Smuggler's nitrous", price: 4200, text: 'A bottle in the back, a button on the dash: +4 top speed.' },
 ];
+const ACT_TXT = { 2: 'after a Hipsterheuvel joint', 3: 'after a dock joint' };
 const CLAMP_FINE = 150, MO_CLAMP = 100;
 const TICKET = 95, CLAMP_AT = 2, COLLECT = 1.5; // a naheffingsaanslag; open tickets that bring the handhaver; the inspector's collection markup
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
@@ -24,7 +30,7 @@ const HIDE = 5000;
 // deps: state, econ, addMoney(n, el), toast(title, text, sec), save(), onPaint(color)
 export function createGarage(deps) {
   const { state, econ } = deps;
-  const rank = () => (deps.rank ? deps.rank() : 9), locked = (x) => rank() < (x.rank || 0);
+  const rank = () => (deps.rank ? deps.rank() : 9), actLocked = (x) => !!x.act && !!deps.actOpen && !deps.actOpen(x.act), locked = (x) => rank() < (x.rank || 0) || actLocked(x);
   const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
   function ensure() {
     const v = state.van && typeof state.van === 'object' ? state.van : (state.van = {});
@@ -36,7 +42,7 @@ export function createGarage(deps) {
   const has = (id) => !!ensure().mods[id];
   function stats() {
     const V = van();
-    return { livery: deps.livery ? deps.livery() : 'zn', name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0), maxV: V.maxV + (has('chip') ? 3 : 0), dmg: V.dmg, tint: has('ramen'), hidden: has('luik') ? HIDE : 0 };
+    return { livery: deps.livery ? deps.livery() : 'zn', name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0) + (has('koel') ? 100 : 0), maxV: V.maxV + (has('chip') ? 3 : 0) + (has('eco') ? 2 : 0) + (has('nitro') ? 4 : 0), dmg: V.dmg * (has('staal') ? 0.7 : 1), tint: has('ramen'), hidden: has('luik') ? HIDE : 0 };
   }
   const unlocked = (V) => (!V.needs || !!state[V.needs]) && !locked(V);
   function buyVan(id, el) {
@@ -52,7 +58,7 @@ export function createGarage(deps) {
   }
   function buyMod(id, el) {
     const M = MODS.find((x) => x.id === id), v = ensure();
-    if (!M || v.mods[id]) return; if (locked(M)) return `Mo: "That's for a ${RANK_NAMES[M.rank]}."`; if (state.money < M.price) return 'Not enough Wilders.';
+    if (!M || v.mods[id]) return; if (actLocked(M)) return `Mo: "I can't get those parts yet. Come back ${ACT_TXT[M.act]}."`; if (locked(M)) return `Mo: "That's for a ${RANK_NAMES[M.rank]}."`; if (state.money < M.price) return 'Not enough Wilders.';
     deps.addMoney(-M.price, el); v.mods[id] = econ.ensure().day;
     if (deps.toast) deps.toast('GARAGE MO', `${M.name} fitted. ${M.text}`, 3.5);
     if (deps.save) deps.save();
@@ -136,7 +142,7 @@ export function createGarage(deps) {
       h += `<tr><td><span style="display:inline-block;width:12px;height:12px;background:#${V.paint.toString(16).padStart(6, '0')};border:1px solid #000;margin-right:6px"></span><b>${V.name}</b><br><small>${V.note}</small></td><td>${V.cargo} kg</td><td>${V.maxV}</td><td>${Math.round(V.dmg * 100)}%</td><td>${V.price && v.tier !== V.id && VANS.indexOf(V) > VANS.indexOf(cur) ? fmt(cost) : '-'}</td><td>${act}</td></tr>`;
     }
     h += '</table><table class="list" style="margin-top:8px"><tr><th>Add-on</th><th>What it does</th><th>Price</th><th></th></tr>';
-    for (const M of MODS) h += `<tr><td><b>${M.name}</b></td><td><small>${M.text}</small></td><td>${fmt(M.price)}</td><td>${v.mods[M.id] ? '<b style="color:#070">fitted</b>' : locked(M) ? `<small style="color:#888">at rank ${RANK_NAMES[M.rank]}</small>` : `<button class="b95" data-vanmod="${M.id}">Fit it</button>`}</td></tr>`;
+    for (const M of MODS) h += `<tr><td><b>${M.name}</b></td><td><small>${M.text}</small></td><td>${fmt(M.price)}</td><td>${v.mods[M.id] ? '<b style="color:#070">fitted</b>' : actLocked(M) ? `<small style="color:#888">${ACT_TXT[M.act]}</small>` : locked(M) ? `<small style="color:#888">at rank ${RANK_NAMES[M.rank]}</small>` : `<button class="b95" data-vanmod="${M.id}">Fit it</button>`}</td></tr>`;
     h += '</table>';
     if (v.clamp) h += `<div class="well" style="margin-top:8px"><b style="color:#a00">Wheel clamp on the Oofmobiel.</b> <button class="b95" data-vanclamp="pay">Pay the fine (${fmt(CLAMP_FINE + ticketSum())}${ticketSum() ? ' with the tickets' : ''})</button> <button class="b95" data-vanclamp="mo">Ask Mo (${fmt(MO_CLAMP)})</button></div>`;
     return h;

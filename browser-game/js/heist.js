@@ -21,6 +21,8 @@ const JOBS = {
 };
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 const PLAN_COST = 150, HOT_DAYS = 3, FENCE = 75;
+// what a stolen crate is, per faction: what The Russian pays now, and what it becomes once it cools down
+const LOOT = { lampas: { name: 'Lampas spice', fence: 75, cool: null }, noshgey: { name: 'Bio spice', fence: 120, cool: ['paprika', 'bio', 8] }, abdavissies: { name: 'dock spice', fence: 150, cool: ['kardemom', 'std', 4] } };
 const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const hashStr = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const FNAME = { lampas: 'Lampas', noshgey: 'Noshgey Kariot', abdavissies: 'Abdavissies', paravim: 'Paravim' };
@@ -60,14 +62,17 @@ export function createHeists(deps) {
   function cap() { const h = ensure(), c = deps.garage ? deps.garage.stats().cargo : 300; return 2 + (h.tools.bag ? 1 : 0) + (c >= 800 ? 2 : c >= 550 ? 1 : 0); }
   function coolDown() { // hot crates older than HOT_DAYS become ordinary crates (sell on Kaasplaats)
     const h = ensure(), d = day(); let n = 0;
-    h.hot = h.hot.filter((x) => { if (d - x.day >= HOT_DAYS) { n += x.n; return false; } return true; });
+    let stockLines = [];
+    h.hot = h.hot.filter((x) => { if (d - x.day < HOT_DAYS) return true; const L = LOOT[x.f || 'lampas']; if (L.cool) { const e = econ.ensure(), k = `${L.cool[0]}:${L.cool[1]}`; e.stock[k] = +((e.stock[k] || 0) + L.cool[2] * x.n).toFixed(2); stockLines.push(`${L.cool[2] * x.n} kg ${L.name}`); } else n += x.n; return false; });
+    if (stockLines.length && deps.toast) deps.toast('COOLED DOWN', `Stolen goods went into your warehouse stock: ${stockLines.join(', ')}.`, 4);
     if (n) { state.loot = (state.loot || 0) + n; if (deps.toast) deps.toast('COOLED DOWN', `${n} stolen crate(s) aren't hot any more. Sell them on Kaasplaats as ordinary Lampas crates.`, 4); if (deps.save) deps.save(); }
   }
   const hotCount = () => ensure().hot.reduce((a, x) => a + x.n, 0);
+  const hotValue = () => ensure().hot.reduce((a, x) => a + x.n * LOOT[x.f || 'lampas'].fence, 0);
   function fence(el) {
-    const h = ensure(), n = hotCount(); if (!n) return;
-    deps.addMoney(n * FENCE, el); h.hot = [];
-    if (deps.toast) deps.toast('PANDJESHUIS SPASIBO', `The Russian takes ${n} hot crate(s): +${fmt(n * FENCE)}. "I don't ask, you don't tell. Is good system."`, 4);
+    const h = ensure(), n = hotCount(), v = hotValue(); if (!n) return;
+    deps.addMoney(v, el); h.hot = [];
+    if (deps.toast) deps.toast('PANDJESHUIS SPASIBO', `The Russian takes ${n} hot crate(s): +${fmt(v)}. "I don't ask, you don't tell. Is good system."`, 4);
     if (deps.save) deps.save();
   }
   function buyPlan(n, el) {
@@ -91,14 +96,14 @@ export function createHeists(deps) {
     const extra = Math.min(4, h.susp[t.faction] || 0);
     if (deps.closePC) deps.closePC();
     const kind = t.kind || 'kratten';
-    deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, shoes: !!h.tools.shoes, nv: !!h.tools.nv || !!(state.gear && state.gear.nvg), safe: !!t.safe, special: t.tutorial ? 'grill' : kind === 'recept' ? 'book' : null, kind, blackout: kind === 'stroom', cashX: (t.daily ? 2 : 1) * (kind === 'stroom' ? 1.5 : 1), extra: kind === 'spook' ? Math.max(2, extra) : extra, onEnd: (res) => ended(t, res) });
+    deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, shoes: !!h.tools.shoes, nv: !!h.tools.nv || !!(state.gear && state.gear.nvg), faction: t.faction, safe: !!t.safe, special: t.tutorial ? 'grill' : kind === 'recept' ? 'book' : null, kind, blackout: kind === 'stroom', cashX: (t.daily ? 2 : 1) * (kind === 'stroom' ? 1.5 : 1), extra: kind === 'spook' ? Math.max(2, extra) : extra, onEnd: (res) => ended(t, res) });
   }
   function ended(t, res) {
     const h = ensure(), lines = [];
     h.runs++;
     let crates = res.crates * (t.kind === 'stroom' ? 2 : 1);
     if (res.loud && crates && !(deps.garage && deps.garage.has('luik'))) { crates--; lines.push('The Lampas rammed the van on the way home: one crate fell out the back (a hidden compartment would have kept it).'); }
-    if (crates) { h.hot.push({ n: crates, day: day() }); lines.push(`${crates} hot crate(s) in the warehouse: The Russian buys them now for ${fmt(FENCE)} each, or wait ${HOT_DAYS} days and sell them for W 150.`); }
+    if (crates) { h.hot.push({ n: crates, day: day(), f: t.faction }); const L = LOOT[t.faction] || LOOT.lampas; lines.push(`${crates} hot crate(s) of ${L.name} in the warehouse: The Russian buys them now for ${fmt(L.fence)} each, or wait ${HOT_DAYS} days${L.cool ? ` and they go into your stock (${L.cool[2]} kg ${L.cool[0]} each)` : ' and sell them for W 150'}.`); }
     if (res.cash) { deps.addMoney(res.cash); lines.push(`Safe: +${fmt(res.cash)}.`); }
     if (t.daily) { const haul = res.cash + res.crates * 150; if (haul > (h.dailyBest[t.daily] || 0)) { h.dailyBest[t.daily] = haul; lines.push(`New best daily haul: ${fmt(haul)}.`); } }
     if (t.kind === 'recept' && res.book) { deps.addMoney(JOBS.recept.pay); h.books = (+h.books || 0) + 1; lines.push(`Kevin takes the ${FNAME[t.faction] || 'rival'} recipe book: +${fmt(JOBS.recept.pay)}. "Bro, they put cinnamon in everything."`); }
@@ -139,7 +144,7 @@ export function createHeists(deps) {
     }
     out += '</table>';
     const hot = hotCount();
-    out += `<div class="well" style="margin-top:8px"><b>Pandjeshuis Spasibo</b> · The Russian fences hot goods · Hot crates: <b>${hot}</b> ${hot ? `<button class="b95" data-hfence>Sell all for ${fmt(hot * FENCE)}</button>` : ''}<br><small>Or wait: a crate cools down after ${HOT_DAYS} market days and sells for W 150 on Kaasplaats.</small></div>`;
+    out += `<div class="well" style="margin-top:8px"><b>Pandjeshuis Spasibo</b> · The Russian fences hot goods · Hot crates: <b>${hot}</b> ${hot ? `<button class="b95" data-hfence>Sell all for ${fmt(hotValue())}</button>` : ''}<br><small>Or wait ${HOT_DAYS} market days: Lampas crates sell for W 150 on Kaasplaats, Bio and dock-spice crates go into your warehouse stock (8 kg Bio paprika, 4 kg kardemom).</small></div>`;
     out += '<table class="list" style="margin-top:8px"><tr><th>Tools from The Russian</th><th>What it does</th><th>Price</th><th></th></tr>';
     for (const T of TOOLS) out += `<tr><td><b>${T.name}</b></td><td><small>${T.text}</small></td><td>${fmt(T.price)}</td><td>${h.tools[T.id] ? '<b style="color:#070">owned</b>' : rank() < (T.rank || 0) ? `<small style="color:#888">at rank ${RANK_NAMES[T.rank]}</small>` : `<button class="b95" data-htool="${T.id}">Buy</button>`}</td></tr>`;
     out += '<tr><td colspan="4"><small>Stay in the <b>shadows</b>: in a lit room a guard spots you from far, in the dark only up close. The <b>stroomkast</b> (fuse box) near the way in cuts every light, until a guard walks over and fixes it. Come up behind a guard who hasn\'t seen you and press E for a <b>slaapgreep</b> (no kill). Guns are loud: any unsilenced shot fills the alarm; the MP5SD and the CZ suppressor (The Russian, after Kipkruidenkwartier) stay quiet. No alarm and nobody hurt is a <b>ghost</b> run: +50% on the haul.</small></td></tr>';

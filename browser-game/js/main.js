@@ -1155,8 +1155,9 @@ const UNLOCK = {
   plan: { ok: () => !!state.district1 || !!state.ngp, why: 'Take all of Kipkruidenkwartier first. Then Kevin and the Fluisteraar start talking about night work.' }, // New Game+ keeps the night work you already opened
 };
 const canDo = (k) => (k === 'rank1' ? rankNow() >= 1 : k === 'heist' ? !!(state.heists && state.heists.done && state.heists.done.tutorial) : UNLOCK[k] ? UNLOCK[k].ok() : true);
-const ws = createWorkshop({ rank: rankNow, state, econ, addMoney, toast, beep, haggle, save: () => writeSave() });
-const garage = createGarage({ rank: rankNow, state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c), phone: () => phone, livery: () => liveryNow() });
+const ws = createWorkshop({ actOpen: (n) => actOpen(n), rank: rankNow, state, econ, addMoney, toast, beep, haggle, save: () => writeSave() });
+const actOpen = (n) => (n === 2 ? NOSH.some(([, id]) => owns(id)) : n === 3 ? ABD.some(([, id]) => owns(id)) : true); // per-act extras: hold a joint in that act
+const garage = createGarage({ actOpen, rank: rankNow, state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c), phone: () => phone, livery: () => liveryNow() });
 const crew = createCrew({ can: canDo, state, econ, ws, addMoney, toast, save: () => writeSave() });
 const heists = createHeists({ rank: rankNow, state, econ, garage, addMoney, toast, save: () => writeSave(), closePC: () => closePC(),
   levels: () => JOINTS.map(([name, id, , ok]) => ({ id, name, faction: NOSH.some((j) => j[1] === id) ? 'noshgey' : ABD.some((j) => j[1] === id) ? 'abdavissies' : PARA.some((j) => j[1] === id) ? 'paravim' : 'lampas', owned: owns(id), unlocked: typeof ok === 'function' ? !!ok() : id === 'spekbuurt' || owns('spekbuurt') })),
@@ -2342,13 +2343,15 @@ let siegeAsked = -1;
 function updateSiege() {
   const sg = econ.siegeDue(); if (!sg || state.step !== 'free' || state.inPC || state.inDialogue || mission.active || oofDrive.active || siegeAsked === sg.day) return;
   siegeAsked = sg.day; tips.show('siege');
-  choice('Kevin', '"Bro. Bro! The Lampas are outside your warehouse. Like, all of them. You fight, or you let them take the spice?"', ['Defend the warehouse', 'Let them take it'], (i) => {
-    if (i === 1) { const m = econ.siegeResult(false); toast('THE LAMPAS RAIDED THE WAREHOUSE', m, 5); writeSave(); return; }
+  const FN = { lampas: 'Lampas', noshgey: 'Noshgey Kariot', abdavissies: 'Abdavissies' }, fname = FN[sg.faction] || 'Lampas';
+  const warn = sg.faction === 'noshgey' ? ['Shooki', `"Cousin! There are like forty hipsters on cargo bikes outside the warehouse. The ${fname}. They brought a drone."`] : sg.faction === 'abdavissies' ? ['De Fluisteraar', `(whispers) "Vans with no plates. The ${fname} are outside your warehouse. They brought crowbars."`] : ['Kevin', '"Bro. Bro! The Lampas are outside your warehouse. Like, all of them. You fight, or you let them take the spice?"'];
+  choice(warn[0], warn[1], ['Defend the warehouse', 'Let them take it'], (i) => {
+    if (i === 1) { const m = econ.siegeResult(false); toast(`THE ${fname.toUpperCase()} RAIDED THE WAREHOUSE`, m, 5); writeSave(); return; }
     setTimeout(() => choice('Eddy Jr.', 'Thirty seconds. Barricade one way in with crates?', ['The front shutter', 'The loading bay', 'The side door'], (b) => {
       const bar = ['front', 'bay', 'side'][b];
       setTimeout(() => choice('Eddy Jr.', 'And one red oil drum by a door, to shoot when they come through?', ['By the front shutter', 'By the loading bay', 'By the side door'], (t) => {
         const names = (state.crew || []).map((c) => c && c.name).filter(Boolean);
-        mission.enter('warehouse', { defend: { faction: 'Lampas', barricade: bar, trap: ['front', 'bay', 'side'][t], naknik: state.naknik || 0, names, onEnd: siegeOver } });
+        mission.enter('warehouse', { defend: { faction: fname, looks: sg.faction, barricade: bar, trap: ['front', 'bay', 'side'][t], naknik: state.naknik || 0, names, onEnd: siegeOver } });
       }, null), 60);
     }, null), 60);
   }, null); // no Escape out of a siege: fight or let them in

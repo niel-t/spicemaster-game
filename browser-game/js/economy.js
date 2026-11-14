@@ -425,6 +425,7 @@ export function createEconomy(deps) {
       for (const id of held) if (!known.includes(id)) { known.push(id); L[f.id] = (L[f.id] || 0) + 15 * mult; } // balance 2026-11-15: was +25
       L[f.id] = clamp((L[f.id] || 0) + held.length * mult - 4, 0, 100); // was +2 a joint: heat sat at 100 for most of an act
       if (!held.length) continue;
+      if (L[f.id] >= 100 && deps.siege && !e.siege) { e.siege = { faction: f.id, day: e.day }; L[f.id] = 95; out.push(`The ${f.name} are massing outside your warehouse. Go home and defend it, or let them take what they want.`); continue; }
       if (f.id === 'noshgey' && L.noshgey >= 50 && !Object.keys(e.bombed).length && Math.random() < 0.4) { // one campaign at a time
         const pool = activeClients().filter((c) => !e.bombed[c.id] && c.id !== 'schmatzel');
         if (pool.length) { const c = pick(pool); e.bombed[c.id] = 4; out.push(`Noshgey influencers review-bombed ${c.name}: ${pick(REVIEWS)} They pay 40% less for 4 days, or until you raid there.`); }
