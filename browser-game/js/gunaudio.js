@@ -25,7 +25,7 @@ function load() {
   try {
     AC = new (window.AudioContext || window.webkitAudioContext)();
     const comp = AC.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 6; comp.ratio.value = 4; comp.attack.value = 0.001; comp.release.value = 0.12;
-    bus = AC.createGain(); bus.gain.value = 0.55; bus.connect(comp); comp.connect(AC.destination);
+    bus = AC.createGain(); bus.gain.value = 0.9; bus.connect(comp); comp.connect(AC.destination);
   } catch (e) { AC = null; return; }
   fetch('./assets/audio/guns.mp3').then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
     .then((ab) => new Promise((ok, no) => { const p = AC.decodeAudioData(ab, ok, no); if (p && p.catch) p.catch(no); }))
