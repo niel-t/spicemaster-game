@@ -9,6 +9,7 @@ import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, st
 import { makeOofmobiel, makeCar } from './vehicles.js'; // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 import { createEconomy, rankOf } from './economy.js';
+import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wheel clamps, the tax inspector
 import { createWorkshop } from './workshop.js'; // De Werkplaats: build and repair machines, upgrade the Kaasdows
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
@@ -1059,11 +1060,13 @@ function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math
 const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 30;
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
-const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
+const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 const econ = createEconomy({ state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const ws = createWorkshop({ state, econ, addMoney, toast, beep, save: () => writeSave() });
+const garage = createGarage({ state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c) });
+function paintVan(c) { oof.traverse((o) => { if (o.userData && o.userData.paint) o.userData.paint.color.setHex(c); }); }
 function openPC(tab = 'sell', mode = 'pc') {
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
 }
@@ -1071,7 +1074,7 @@ function closePC() { state.inPC = false; $('pc').style.display = 'none'; afterPC
 $('pcclose').onclick = closePC;
 function renderPC() {
   const ic = $('pcicons'); ic.innerHTML = '';
-  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport', 'jobs', 'ideas', 'werk'].includes(id) || state.table)) {
+  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport', 'jobs', 'ideas', 'werk', 'garage'].includes(id) || state.table)) {
     const d = document.createElement('div'); d.className = 'icon' + (pcTab === id ? ' sel' : '');
     d.innerHTML = `<div class="g">${g}</div><span>${label}</span>`; d.onclick = () => { pcTab = id; beep(700, 0.03); renderPC(); }; ic.appendChild(d);
   }
@@ -1126,6 +1129,9 @@ function renderPC() {
   } else if (pcTab === 'werk') {
     title.textContent = 'Werkplaats · Build, repair, upgrade';
     body.innerHTML = ws.html(); ws.bind(body, renderPC);
+  } else if (pcTab === 'garage') {
+    title.textContent = 'Garage Mo · Oofmobiel upgrades';
+    body.innerHTML = garage.html(); garage.bind(body, renderPC);
   } else if (pcTab === 'map') {
     title.textContent = 'Map of Kaasland';
     body.innerHTML = mapHTML(false); bindMap();
@@ -1340,7 +1346,7 @@ junkDefs.forEach((d) => addInteract({
   },
 }));
 addInteract({ obj: desk, pos: () => new THREE.Vector3(-8.8, 0, -16.6), r: 1.8, enabled: () => state.step !== 'talk', label: () => 'Kaasdows 95 · log in', act: () => openPC(state.step === 'hire' ? (state.table ? 'hire' : 'shop') : state.step === 'map' ? 'map' : 'sell') });
-addInteract({ obj: oof, pos: () => oof.position, r: 4.2, label: () => 'Oofmobiel · get in', act: () => openPC('map', 'van'), far: true });
+addInteract({ obj: oof, pos: () => oof.position, r: 4.2, label: () => 'Oofmobiel · get in', act: () => { if (garage.ensure().clamp) return choice('Oofmobiel', `There's a <b>wheel clamp</b> on the front wheel. Pay the fine (W ${garage.CLAMP_FINE}) or get Monteur Mo to cut it off (W ${garage.MO_CLAMP})?`, ['Pay the fine', 'Call Mo', 'Leave it'], (i) => { if (i < 2 && garage.unclamp(i ? 'mo' : 'pay')) openPC('map', 'van'); }); openPC('map', 'van'); }, far: true });
 
 const SHOP = [
   { id: 'makarov', name: 'Makarov PM', desc: '9mm pistol, 8 rounds. Reliable. Like Lada, but works. (Gun slot)', price: 350 },
@@ -1463,7 +1469,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'npcs', 'ws'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'npcs', 'ws', 'van'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
   try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -1492,6 +1498,7 @@ function applySave(d) {
   if (state.step !== 'talk') dadOutside(); // the keys were handed over: Eddy Sr. is out front (or gone)
   if (['russian', 'free'].includes(state.step)) { dad.visible = false; dad.userData.leaving = false; dadSolid.off = true; }
   kitText(); if (state.kit.includes('maboota')) equip(true);
+  paintVan(garage.stats().paint); // the van Eddy owns now
   if (!s.loadout) state.loadout = null; if (!s.stash) state.stash = null; mission.migrateKit(); kitText();
   loadingSave = false;
 }
@@ -2090,6 +2097,34 @@ function updateOfficers(dt) {
   for (let i = flying.length - 1; i >= 0; i--) { const c = flying[i], d = c.userData; d.life -= dt; d.vy -= 14 * dt; c.position.x += d.vx * dt; c.position.y = Math.max(0.03, c.position.y + d.vy * dt); c.position.z += d.vz * dt; c.rotation.x += dt * 10; if (d.life <= 0) { scene.remove(c); flying.splice(i, 1); } }
 }
 
+// ================================================================== TAX INSPECTOR Van der Belasting (Garage Mo / js/garage.js rolls when he comes)
+// He walks up to Eddy in the street when Eddy carries a lot of cash: pay a fine, try a bribe, or offer a free garlic sauce.
+let inspector = null;
+function updateInspector(dt) {
+  if (!inspector) {
+    if (!garage.inspectorDue() || state.step !== 'free' || state.inPC || state.inDialogue || mission.active) return;
+    const from = Math.random() < 0.5 ? -1 : 1;
+    const p = makePS2Person(lookFromPerson({ head: { skin: 0xf0c8a8, hair: '#9a9a9a', brow: '#555', hairLine: 70, sideLine: 110, backLine: 140, mouth: 'flat', iris: '#3a3a6a' }, capColor: 0x2a2a3a, front: '#2a2a3a', shirt: 0x3a3a4a, pants: 0x2a2a30, shoes: 0x111111, belly: 0.2, skin: 0xf0c8a8 }, HEADS), { scene });
+    const brief = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.1), lam({ color: 0x4a2a14 })); brief.position.set(0, -0.62, 0.05); p.userData.arms[1].add(brief);
+    p.position.set(player.position.x + from * 16, 0, LANES.N[0]); scene.add(p);
+    inspector = { p, t: 0, talked: false };
+    personBubble(p, 'Meneer Eddy? Belastingdienst.', '#ffd23a');
+    return;
+  }
+  const p = inspector.p, d = new THREE.Vector3(player.position.x - p.position.x, 0, player.position.z - p.position.z), L = d.length();
+  inspector.t += dt;
+  if (inspector.left) { p.position.x += inspector.left * 2.2 * dt; animate(p, 2.2, dt); if (Math.abs(p.position.x - player.position.x) > 40) { scene.remove(p); inspector = null; } return; }
+  if (L > 1.6) { d.normalize(); p.position.addScaledVector(d, Math.min(L - 1.5, 2.0 * dt)); p.rotation.y = Math.atan2(d.x, d.z); animate(p, 2.0, dt); }
+  else if (!inspector.talked && !state.inDialogue && !state.inPC) {
+    inspector.talked = true; animate(p, 0, dt);
+    const fine = garage.inspectorFine();
+    choice('Van der Belasting', `Van der Belasting, Kaasland tax office. That is a lot of cash for a man who "sells old shoarma junk". I count a fine of <b>W ${fine.toLocaleString('nl-NL')}</b>${garage.has('luik') ? ' <small>(he doesn\'t find the hidden compartment in the Oofmobiel)</small>' : ''}.`, [`Pay W ${fine.toLocaleString('nl-NL')}`, 'Slip him W 500', 'Offer a free garlic sauce'], (i) => {
+      const line = garage.settleInspector(['pay', 'bribe', 'saus'][i]);
+      dialogue([['Van der Belasting', line]], () => { inspector.left = p.position.x > player.position.x ? 1 : -1; });
+    });
+  }
+}
+
 // ================================================================== SEAGULLS (they poop on people)
 const gulls = [], poops = [];
 function makeGull() {
@@ -2108,14 +2143,19 @@ const splatMat = lam({ color: 0xf6f6ee });
 // poop on Eddy's head stays until he changes location (travel); call clearPlayerSplats() on every location change
 const playerSplats = [];
 function clearPlayerSplats() { for (const sp of playerSplats) sp.parent && sp.parent.remove(sp); playerSplats.length = 0; }
+const gullLastP = new THREE.Vector3(); let gullPV = 0;
 function updateGulls(dt) {
   const P = player.position;
+  gullPV = gullLastP.lengthSq() ? Math.hypot(P.x - gullLastP.x, P.z - gullLastP.z) / Math.max(dt, 1e-3) : 0; gullLastP.copy(P);
   for (const G of gulls) {
     G.flap += dt * (G.state === 'circle' ? 6 : 10);
     for (const [w, s] of G.wings) w.rotation.x = s * Math.sin(G.flap) * 0.6;
     let tx, ty, tz;
     if (G.state === 'circle') {
       G.a += dt * 0.35; tx = P.x + Math.cos(G.a) * G.r; tz = P.z + 2 + Math.sin(G.a) * G.r * 0.6; ty = G.h; G.t -= dt;
+      if (G.t < 0 && Math.random() < 0.35) { // land on the pavement and peck at dropped fries
+        G.state = 'land'; G.t = 14 + Math.random() * 10; G.spot = { x: P.x + (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 5), z: LANES.N[0] + (Math.random() - 0.5) * 1.2 }; continue;
+      }
       if (G.t < 0) {
         const pool = walkers.filter((w) => w.position.distanceTo(P) < 14 && !(w.userData.down > 0));
         if (!pool.length) { G.t = 20; continue; }
@@ -2125,13 +2165,22 @@ function updateGulls(dt) {
     } else if (G.state === 'dive') {
       const T = G.target.position; const lead = G.target === player ? 0 : G.target.userData.walk.dir * G.target.userData.walk.v * 0.9;
       tx = T.x + lead; tz = T.z; ty = 3.8;
-      if (Math.hypot(G.g.position.x - tx, G.g.position.z - tz) < 0.6 && G.g.position.y < 4.4) {
+      if (Math.hypot(G.g.position.x - tx, G.g.position.z - tz) < 0.6 && G.g.position.y < 4.4 && G.target === player && state.metSchmatzel && Math.random() < 0.5) { // not poop: the broodje!
+        toast('MEEUW!', 'A seagull snatched the broodje shoarma right out of Eddy’s hand. Schmatzel will make you another one.', 3.5); squawk();
+        const bun = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.16, 3, 6), lam({ color: 0xd8a860 })); bun.rotation.z = Math.PI / 2; bun.position.set(0.2, -0.12, 0); G.g.add(bun); G.bun = bun;
+        G.state = 'leave'; G.t = 4;
+      } else if (Math.hypot(G.g.position.x - tx, G.g.position.z - tz) < 0.6 && G.g.position.y < 4.4) {
         const pp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), splatMat); pp.position.copy(G.g.position); pp.userData = { vy: 0, target: G.target }; scene.add(pp); poops.push(pp);
         G.state = 'leave'; G.t = 3; squawk();
       }
-    } else { tx = G.g.position.x + 8; tz = G.g.position.z - 6; ty = G.h + 1; G.t -= dt; if (G.t < 0) { G.state = 'circle'; G.t = 60 + Math.random() * 60; } }
+    } else if (G.state === 'land') { // waddle and peck; Eddy running at it sends it up with a squawk
+      tx = G.spot.x; tz = G.spot.z; ty = 0.12; G.t -= dt;
+      if (G.g.position.y < 0.3) { G.flap = 0; G.g.rotation.z = Math.sin(performance.now() * 0.012) > 0.6 ? -0.5 : 0; if (Math.random() < dt * 0.4) G.spot.x += (Math.random() - 0.5) * 1.2; }
+      const run = gullPV, near = Math.hypot(P.x - G.g.position.x, P.z - G.g.position.z);
+      if (G.t < 0 || (near < 3.2 && (run > 3 || keys.ShiftLeft)) || near < 1.4) { G.state = 'leave'; G.t = 3; G.g.rotation.z = 0; if (near < 3.2) squawk(); }
+    } else { tx = G.g.position.x + 8; tz = G.g.position.z - 6; ty = G.h + 1; G.t -= dt; if (G.t < 0) { G.state = 'circle'; G.t = 60 + Math.random() * 60; if (G.bun) { G.g.remove(G.bun); G.bun = null; } } }
     const d = new THREE.Vector3(tx - G.g.position.x, ty - G.g.position.y, tz - G.g.position.z), L = d.length();
-    const sp = G.state === 'dive' ? 9 : 6;
+    const sp = G.state === 'dive' ? 9 : G.state === 'land' ? (G.g.position.y > 0.3 ? 5 : 0.8) : 6;
     if (L > 0.05) { G.g.position.addScaledVector(d.normalize(), Math.min(L, sp * dt)); G.g.rotation.y = Math.atan2(-d.z, d.x); }
   }
   for (let i = poops.length - 1; i >= 0; i--) {
@@ -2363,7 +2412,7 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); mission.street(dt); } else mission.update(dt);
+  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); mission.street(dt); } else mission.update(dt);
   const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then stir
   for (const n of naknikim) {
@@ -2381,7 +2430,8 @@ function tick() {
   }
   if (state.table) spiceInBowl.rotation.y += dt * (state.naknik ? 2 : 0);
   // a finished mission ends the market day (checked back in the hub, so the toast doesn't cover the results screen)
-  if (!mission.active && !state.inDialogue) econ.update();
+  if (!mission.active && !state.inDialogue && econ.update()) garage.afterMission(); // a mission ended: maybe a wheel clamp
+  if (!mission.active) garage.dayCheck();
   if (npcs) npcs.update(dt);
   // passive income
   if (state.income > 0) {
@@ -2450,7 +2500,7 @@ initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
 // top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
 const oofDrive = initDrive({ THREE, renderer, canvasTex, signTex, beep, virt, isPaused });
 let driveMission = null; // the Lampas mission the drive is heading for (null: a scouting run)
-function startDrive(id = null) { driveMission = id; const j = id && JOINTS.find((x) => x[1] === id); oofDrive.start({ from: 'Kipkruidenkwartier', to: j ? j[0] : 'Oud-Vettenburg', target: j && j[4], mission: id ? mission.LEVELS[id].text.banner[0] + ' is just round the corner.' : null, onDone: afterDrive }); }
+function startDrive(id = null) { driveMission = id; const j = id && JOINTS.find((x) => x[1] === id); oofDrive.start({ van: garage.stats(), from: 'Kipkruidenkwartier', to: j ? j[0] : 'Oud-Vettenburg', target: j && j[4], mission: id ? mission.LEVELS[id].text.banner[0] + ' is just round the corner.' : null, onDone: afterDrive }); }
 function afterDrive(res) {
   clearPlayerSplats(); clock.getDelta();
   if (res.arrived) {
@@ -2468,5 +2518,5 @@ npcs = initNpcs({ THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, get npcs() { return npcs; } };
+window.__sme = { charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; } };
 tick();

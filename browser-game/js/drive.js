@@ -577,7 +577,7 @@ export function initDrive(ctx) {
     }
   }
   function floatText(t, x, z) { say(t, x + 1.5, z - 1.5, '#ff6a6a'); }
-  function damage(n) { if (run.over) return; van.hp = Math.max(0, van.hp - n); if (van.hp <= 0) fail('OOFMOBIEL KAPOT', 'The van gave up. Eddy Sr. will hear about this.'); }
+  function damage(n) { if (run.over) return; n *= (opts && opts.van && opts.van.dmg) || 1; van.hp = Math.max(0, van.hp - n); if (van.hp <= 0) fail('OOFMOBIEL KAPOT', 'The van gave up. Eddy Sr. will hear about this.'); }
 
   // ---- honk
   function honk() {
@@ -680,6 +680,7 @@ export function initDrive(ctx) {
   function reset() {
     if (!built) build();
     if (!van.g) { van.g = makeVan(); scene.add(van.g); }
+    if (opts && opts.van && opts.van.paint !== undefined) van.g.traverse((c) => { if (c.userData && c.userData.paint) c.userData.paint.color.setHex(opts.van.paint); }); // the van you own (Garage Mo)
     Object.assign(van, { x: START.x, z: START.z, h: START.h, vx: 0, vz: 0, hp: 100, freeze: 1.2, honkT: 0, safeT: 0 });
     van.safe = { x: START.x, z: START.z, h: START.h };
     run = { t: 0, bumped: 0, smart: 0, wrecked: 0, dents: 0, honks: 0, plunges: 0, ambush: 0, over: false };
@@ -745,7 +746,7 @@ export function initDrive(ctx) {
     }
     van.freeze -= dt;
     const grip = keys.ShiftLeft || keys.ShiftRight ? 1.4 : 7;
-    const sp = drivePhysics(van, thr, st, dt, MAXV, grip);
+    const sp = drivePhysics(van, thr, st, dt, (opts.van && opts.van.maxV) || MAXV, grip); // Garage Mo: van tier + chip tuning
     const hit = bodyCollide(van, 1.7);
     if (hit && hit.imp > 6 && !run.over) { damage((hit.imp - 6) * 1.6); shake = Math.max(shake, Math.min(0.7, hit.imp / 25)); beep(70, 0.16, 'sawtooth', 0.06); run.dents++; }
     vanVsMovers();
@@ -761,6 +762,7 @@ export function initDrive(ctx) {
     van.g.position.set(van.x, 0, van.z); van.g.rotation.y = van.h;
     van.g.rotation.z = Math.max(-0.08, Math.min(0.08, st * Math.abs(sp) * 0.004)); // body roll in corners
     // ambush when you cross into Lampas turf
+    if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0 && opts.van && opts.van.tint) run.ambush = 1; // tinted windows: they don't spot you at the canal
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0) {
       run.ambush = 1; banner('HINDERLAAG!', 'The Lampas want their street back. Ram them into a wall.', 2.6);
       for (const [dx, dz] of [[-30, -46], [26, -52], [0, -80]]) spawnLampas(Math.max(GX[0], Math.min(GX[5], Math.round((van.x + dx) / 44) * 44)) + 2.2, Math.max(GZ[9] + 2, van.z + dz));
