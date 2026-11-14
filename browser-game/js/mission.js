@@ -36,8 +36,11 @@ import kombuchakwartier from './levels/kombuchakwartier.js';
 import gembergracht from './levels/gembergracht.js';
 import avocadoakkers from './levels/avocadoakkers.js';
 import glutenvrijegaarde from './levels/glutenvrijegaarde.js';
+import quinoaplantage from './levels/quinoaplantage.js';
+import oatoase from './levels/oatoase.js';
+import speltpolder from './levels/speltpolder.js';
 
-export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde };
+export const LEVELS = { spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -162,7 +165,7 @@ export function initMission(ctx) {
     }
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
-    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill }) || {};
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt }) || {};
     levelShot = deco.onShot || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;
@@ -192,9 +195,10 @@ export function initMission(ctx) {
 
   // ================================================================== GRID QUERIES (Neon Vice: los / rayWall / pathing on cells)
   const walkable = (x, z) => x >= 0 && z >= 0 && x < W && z < H && !isBlock(G[z][x]);
+  const smoke = new Map(); // cells a level has filled with smoke or dust (decorate's smokeAt): they block sight until they clear
   function los(a, b) { // walls and racks block sight; glass and low furniture don't
     const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), n = Math.ceil(d / 0.15);
-    for (let i = 1; i < n; i++) { const t = i / n; if (SIGHT.has(cellAt(a.x + dx * t, a.z + dz * t))) return false; }
+    for (let i = 1; i < n; i++) { const t = i / n, px = a.x + dx * t, pz = a.z + dz * t; if (SIGHT.has(cellAt(px, pz))) return false; if (smoke.size && smoke.has(Math.floor(px - OX) + ',' + Math.floor(pz - Z0))) return false; }
     return !doorBlocks(a.x, a.z, b.x, b.z);
   }
   const NB = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
@@ -509,6 +513,9 @@ export function initMission(ctx) {
     for (const [k2, b2] of barrels) if (kill && Math.hypot(OX + b2.x + 0.5 - at.x, Z0 + b2.z + 0.5 - at.z) < r) setTimeout(() => explode(k2), 140);
     for (const [k2, q] of glass) if (Math.hypot(OX + q.x + 0.5 - at.x, Z0 + q.z + 0.5 - at.z) < r + 0.6) breakGlass(k2);
   }
+  function smokeAt(cx, cz, r, secs) { // block sight over a disc of cells for a while (the level draws the cloud itself)
+    for (let z = Math.floor(cz - r); z <= Math.ceil(cz + r); z++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) if (Math.hypot(x + 0.5 - cx, z + 0.5 - cz) <= r) smoke.set(x + ',' + z, R.time + secs);
+  }
   function explode(key, by) {
     const b = barrels.get(key); if (!b) return; barrels.delete(key); G[b.z][b.x] = '.'; b.s.off = true; root.remove(b.g);
     const at = new THREE.Vector3(OX + b.x + 0.5, 0, Z0 + b.z + 0.5);
@@ -531,6 +538,16 @@ export function initMission(ctx) {
   //   zeegaal: STEVEN ZEEGAAL, a 90s action-star parody mini-boss. Unarmed and slow, never picks up guns, takes 4 hits,
   //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
   const FOE_TYPES = {
+    //   goeroe: GOEROE GRANOLA, leader of the Noshgey Kariot (Act 2 finale, Speltpolder). White linen, bald, beads; 5 hits.
+    goeroe: {
+      name: 'GOEROE GRANOLA', hp: 5, speed: 0.8, dodge: 0.3, mass: 2.2, score: 6000,
+      look: { head: { skin: 0xe4b896, hair: '#d8d0c0', brow: '#a8a090', hairLine: 20, mouth: 'smile', squint: true, iris: '#3a5a3a', goatee: '#d8d0c0' }, front: '#f3ecdc', shirt: 0xf3ecdc, pants: 0xf3ecdc, shoes: 0x8a6a42, belt: 0xa9c46a, belly: 0.5, scale: 1.05 },
+      alert: ['Adem in... en schiet.', 'Jouw aura is zó Lampas.', 'Het universum stuurde je naar mij.', 'Spelt is leven, jongen.'],
+      hurt: ['Mijn chakra!', 'Dat was niet mindful.', 'Au. Maar ik vergeef je.', 'Slechte energie!'],
+      dodgeSay: ['Ik voelde het aankomen.', 'Flow.'],
+      disarm: ['Loslaten, jongen.'],
+      down: ['GOEROE GRANOLA IS DOWN', 'The Noshgey Kariot are finished.'],
+    },
     //   janvankaas: JAN VAN KAAS, boss of the Lampas (Act 1 finale, Pindasausplein). White suit, gold hair; keeps his shotgun, takes 5 hits.
     janvankaas: {
       name: 'JAN VAN KAAS', hp: 5, speed: 0.85, dodge: 0.15, mass: 2.8, score: 5000,
@@ -799,6 +816,7 @@ export function initMission(ctx) {
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = REMIX ? !REMIX.loot.has(i) : (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     for (const t of tasks) { t.done = !!done; if (t.reset) t.reset(t.done); }
+    smoke.clear();
     Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, foes: Math.max(1, alive().length) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
@@ -1102,7 +1120,8 @@ export function initMission(ctx) {
   function hitstop(dt) { if (FX.freeze > 0) { FX.freeze -= dt; return 0; } return dt; }
   function update(dt) {
     if (ARR) { updateArrive(dt); return; }
-    R.time += dt; if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
+    R.time += dt; if (smoke.size) for (const [k, t] of smoke) if (t < R.time) smoke.delete(k);
+    if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
     if (!P.dead) { if (P.exec > 0) P.exec -= dt; else aimAtMouse(dt); holdPose(dt); }
     else { P.deadT += dt; const u = player.userData; u.body.rotation.x = Math.max(-1.5, -P.deadT * 6); u.body.position.y = 0.1; slide(player, P, dt, 0.38); }
     if (!P.dead && (P.vx || P.vz)) { player.position.x += P.vx * dt; player.position.z += P.vz * dt; ctx.collide(player.position, 0.38); P.vx *= Math.exp(-dt * 8); P.vz *= Math.exp(-dt * 8); if (Math.hypot(P.vx, P.vz) < 0.05) P.vx = P.vz = 0; }
