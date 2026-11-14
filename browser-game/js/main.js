@@ -2,6 +2,7 @@
 // Neon Vice-style top-down browser game: three.js, PS2-style low-poly people with photo faces.
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
+import { initInput, virt, isPaused, glyph, inputMode, onInputMode } from './input.js';
 import { initMission } from './mission.js';
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 const music = new Music();
@@ -1409,10 +1410,23 @@ function titleMenu(confirm) {
   const btn = (t, txt, col) => `<span data-t="${t}" style="cursor:pointer;color:${col};padding:4px 10px;display:inline-block">${txt}</span>`;
   p.style.animation = 'none';
   p.innerHTML = confirm
-    ? `<div style="color:#ffd36b">START A NEW GAME? Your saved game will be gone.</div>${btn('yes', '[J] JA, OPNIEUW', '#ff6b6b')} · ${btn('no', '[ESC] NEE', '#7ee36b')}`
-    : `${btn('cont', '[ENTER] CONTINUE', '#7ee36b')} · ${btn('new', '[N] NEW GAME', '#ddd')}<div style="color:#aaa;font-size:14px;margin-top:8px">Saved ${when} · W ${(+st.money || 0).toLocaleString('nl-NL')}${st.spekbuurt ? ' · Spekbuurt is yours' : ''}</div>`;
+    ? `<div style="color:#ffd36b">START A NEW GAME? Your saved game will be gone.</div>${btn('yes', `[${glyph('J')}] JA, OPNIEUW`, '#ff6b6b')} · ${btn('no', `[${glyph('Esc')}] NEE`, '#7ee36b')}`
+    : `${btn('cont', `[${glyph('Enter')}] CONTINUE`, '#7ee36b')} · ${btn('new', `[${glyph('N')}] NEW GAME`, '#ddd')}<div style="color:#aaa;font-size:14px;margin-top:8px">Saved ${when} · W ${(+st.money || 0).toLocaleString('nl-NL')}${st.spekbuurt ? ' · Spekbuurt is yours' : ''}</div>`;
 }
 titleMenu(false);
+// hints follow the last device used (keyboard / controller / touch)
+const HELP = {
+  mouse: 'WASD move · Shift run · E interact / click · Wheel zoom · M map · N music · I inventory · 1 Maboota · F / click attack · P pause · guns on missions only',
+  pad: 'Left stick move · LB run · A interact · RT attack · RB map · D-pad ▼ inventory · Start pause',
+  touch: '',
+};
+function deviceHints() {
+  const m = inputMode();
+  $('help').textContent = HELP[m];
+  const nx = document.querySelector('#dialogue .next'); if (nx) nx.textContent = m === 'pad' ? 'A to continue' : m === 'touch' ? 'tap to continue' : 'E / click to continue';
+  if (state.step === 'title') { if (savedGame) titleMenu(titleConfirm); else $('title').querySelector('.press').textContent = m === 'pad' ? 'PRESS A' : m === 'touch' ? 'TAP TO START' : 'CLICK OR PRESS ANY KEY'; }
+}
+onInputMode(deviceHints);
 addEventListener('pagehide', () => writeSave());
 
 // ------------------------------------------------------------------ input
@@ -2182,6 +2196,7 @@ const occl = new THREE.Raycaster();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let incomeT = 0, lastStep = state.step;
 function tick() {
+  if (isPaused()) { clock.getDelta(); renderer.render(scene, camera); requestAnimationFrame(tick); return; }
   if (state.step !== lastStep) { lastStep = state.step; writeSave(); }
   let dt = Math.min(clock.getDelta(), 0.05);
   if (mission && mission.active) dt = mission.hitstop(dt); // Neon Vice hitstop on kills
@@ -2191,9 +2206,10 @@ function tick() {
   if (!state.inDialogue && !state.inPC && state.step !== 'title' && !(mOn && mission.frozen()) && !mission.invOpen()) {
     if (keys.KeyW || keys.ArrowUp) mz -= 1; if (keys.KeyS || keys.ArrowDown) mz += 1;
     if (keys.KeyA || keys.ArrowLeft) mx -= 1; if (keys.KeyD || keys.ArrowRight) mx += 1;
+    mx += virt.mx; mz += virt.mz; // controller / touch stick
   }
   if (knock.t > 0) { mx = mz = 0; }
-  const len = Math.hypot(mx, mz);
+  let len = Math.hypot(mx, mz); if (len < 0.15) { mx = mz = 0; len = 0; }
   const speed = len ? (keys.ShiftLeft || keys.ShiftRight ? 7.5 : 4.2) : 0;
   if (knock.t > 0) {
     knock.t -= dt;
@@ -2269,7 +2285,7 @@ function tick() {
     const d = it.pos().distanceTo(player.position);
     if (d < it.r && d < best) { best = d; current = it; }
   }
-  if (current && !state.inDialogue && !state.inPC && state.step !== 'title') { ui.prompt.style.display = 'block'; ui.prompt.innerHTML = `<b style="color:#ffd36b">[E]</b> ${current.label()}`; }
+  if (current && !state.inDialogue && !state.inPC && state.step !== 'title') { ui.prompt.style.display = 'block'; ui.prompt.innerHTML = `<b style="color:#ffd36b">[${glyph('E')}]</b> ${current.label()}`; }
   else ui.prompt.style.display = 'none';
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) ui.toast.style.display = 'none'; }
   // camera: Neon Vice-style high top-down, eased
@@ -2303,5 +2319,7 @@ updateObjective();
 mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
   makeVan: () => oof.clone(true), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
+initInput({ state, getMission: () => mission, canvas, beep, toast });
+deviceHints();
 window.__sme = { writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik };
 tick();

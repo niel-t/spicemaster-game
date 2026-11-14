@@ -10,6 +10,8 @@
 // The level is built once, 300 m east of De Natte Worst, in the same scene. initMission(ctx) gets the engine
 // helpers from main.js.
 
+import { virt, inputMode, glyph, controlsLine } from './input.js';
+
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, solid, makePerson, animate, toast, beep, addMoney,
     neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, bubble, say, addInteract, clearPlayerSplats, sun, hemi,
@@ -611,6 +613,10 @@ export function initMission(ctx) {
     #nvReload .g{position:absolute;top:0;bottom:0;background:#7dff9a}#nvReload .f{position:absolute;left:0;top:0;bottom:0;background:rgba(45,226,230,.5)}
     #nvReload .m{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:#fff}#nvReload.jam .f{background:rgba(255,74,90,.65)}
     #nvReload .t{position:absolute;left:50%;top:-17px;transform:translateX(-50%);font:8px 'Press Start 2P',monospace;color:#fff;text-shadow:1px 1px 0 #000;white-space:nowrap}
+    @media (max-width:820px),(max-height:500px){#nvHud{left:12px;bottom:10px}#nvHud .hp{font-size:16px}#nvHud .w{font-size:8px;margin-top:5px}#nvScore{font-size:13px;right:12px;top:58px}#nvScore .c{font-size:10px}#nvScore .l{font-size:7px}#nvBanner .b2{font-size:18px;padding:0 12px}#nvInv .box{padding:12px}#nvInv .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
+    body.touch #nvHud{bottom:auto;top:calc(96px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left))}
+    #nvInv .box{touch-action:pan-y;-webkit-overflow-scrolling:touch}
+    #nvInv button{min-height:36px}
     #nvInv .foot{font:18px 'VT323',monospace;color:#9a86b6;margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}`;
   document.head.appendChild(css);
   if (!document.querySelector('link[data-nvfont]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.dataset.nvfont = 1; l.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap'; document.head.appendChild(l); }
@@ -624,7 +630,7 @@ export function initMission(ctx) {
   function gunLabel(n) {
     const h = P.guns[n - 2]; if (!h) return `[${n}] —`;
     const on = P.slot === n;
-    return `[${n}] ${WD[h.id].name} ${h.ammo}/${WD[h.id].mag} <span style="color:#bfa6d8">+${poolOf(h.id)}</span>` + (on && P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#7dff9a'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : on && h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · R' : 'LEEG · ATTACK TO THROW'}</span>` : '');
+    return `[${n}] ${WD[h.id].name} ${h.ammo}/${WD[h.id].mag} <span style="color:#bfa6d8">+${poolOf(h.id)}</span>` + (on && P.rl ? ` <span style="color:${P.rl.jam ? '#ff4a5a' : '#7dff9a'}">${P.rl.jam ? 'VASTGELOPEN' : 'HERLADEN'}</span>` : on && h.ammo <= 0 ? ` <span style="color:#ff4a5a">${poolOf(h.id) ? 'LEEG · ' + glyph('R') : 'LEEG · ' + glyph('F') + ' TO THROW'}</span>` : '');
   }
   function hud() {
     const wbox = $('weapon');
@@ -709,7 +715,7 @@ export function initMission(ctx) {
       setArea('KAASLAND · SPEKBUURT');
       $('objective').innerHTML = state.spekbuurt ? 'Spekbuurt is <b>yours</b>. Shop setup comes in a later build. Drive home in the <b>Oofmobiel</b>.' : 'Take <b>Snackpaleis Spekbuurt</b> from the Lampas. Clear the restaurant, then the back of house. <span style="color:#ffd36b">Leave nobody standing.</span>';
       fade.style.opacity = '0';
-      startArrive(() => { if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. Mouse aim · click / F attack · E grab / throw · 1 · 2 · 3 / wheel weapons · R reload · Shift sprint · I inventory · Backspace restart', 4.5); });
+      startArrive(() => { if (!state.spekbuurt) banner('SNACKPALEIS SPEKBUURT', 'Lampas territory. ' + controlsLine(), 4.5); });
     }, 480);
   }
   function exit() {
@@ -802,7 +808,7 @@ export function initMission(ctx) {
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
     const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', fists: 'Punched out by a Lampas.', boom: 'Too close to a red barrel.' }[cause] || 'Killed by the Lampas.';
-    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${TIPS[Math.floor(Math.random() * TIPS.length)]}</div><div class="btn">RETRY · BACKSPACE</div>`); }, 900);
+    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${TIPS[Math.floor(Math.random() * TIPS.length)]}</div><div class="btn">RETRY · ${glyph('Backspace')}</div>`); }, 900);
   }
 
   // ================================================================== RESULTS (Neon Vice grade: score vs. 700 per enemy)
@@ -813,7 +819,7 @@ export function initMission(ctx) {
     const ratio = R.score / (enemies.length * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
     const pay = Math.round(R.score / 100) * 10; R.pay = pay; R.grade = gr;
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
-    showScreen(`<div class="logo2">SPEKBUURT UNLOCKED</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}</b><br>WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">The Lampas are out of Spekbuurt. Grab the spice crates (E), then drive home. You'll set up shop here later.</div><div class="btn">CONTINUE · E</div>`);
+    showScreen(`<div class="logo2">SPEKBUURT UNLOCKED</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}</b><br>WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint">The Lampas are out of Spekbuurt. Grab the spice crates (E), then drive home. You'll set up shop here later.</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
     sfx('cash'); addMoney(pay); commitKit();
     if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
     $('objective').innerHTML = '<b style="color:#6ed36e">Spekbuurt is yours.</b> Grab any spice crates (E), then drive home in the <b>Oofmobiel</b>.';
@@ -892,6 +898,7 @@ export function initMission(ctx) {
     if (invOpen) { if (e.target === invEl) closeInv(); e.stopImmediatePropagation(); return; }
     if (!M.active || state.inDialogue || state.inPC || e.target !== ctx.canvas) return;
     e.stopImmediatePropagation();
+    if (e.pointerType === 'touch') { if (ARR && ARR.t > 0.4) endArrive(); return; }
     if (ARR) { if (ARR.t > 0.4) endArrive(); return; }
     if (R.results) { grab(); return; }
     if (e.button === 2) { grab(); return; } attack();
@@ -905,7 +912,14 @@ export function initMission(ctx) {
   ctx.canvas.addEventListener('contextmenu', (e) => { if (M.active) e.preventDefault(); });
 
   // ================================================================== UPDATE
-  function aimAtMouse() {
+  function aimAtMouse(dt) {
+    if (inputMode() !== 'mouse') { // controller / touch: right stick aims; idle right stick aims along movement
+      const mvx = player.position.x - P.last.x, mvz = player.position.z - P.last.z;
+      const a = virt.aim !== null ? virt.aim : Math.hypot(mvx, mvz) > 0.004 ? Math.atan2(mvx, mvz) : null;
+      if (a !== null) player.rotation.y += angDiff(player.rotation.y, a) * Math.min(1, (dt || 0.016) * (virt.aim !== null ? 22 : 12));
+      aim.set(player.position.x + Math.sin(player.rotation.y) * 4, 1.1, player.position.z + Math.cos(player.rotation.y) * 4);
+      return;
+    }
     if (!mouseSeen) return;
     rc.setFromCamera(mouseN, camera);
     if (rc.ray.intersectPlane(aimPlane, aim)) player.rotation.y = Math.atan2(aim.x - player.position.x, aim.z - player.position.z);
@@ -934,13 +948,13 @@ export function initMission(ctx) {
     reloadEl.className = r.jam ? 'jam' : '';
     const [g, f, m, t] = reloadEl.children, k = Math.min(1, r.t / r.dur);
     g.style.display = r.tried ? 'none' : 'block'; g.style.left = (r.ar0 / r.dur * 100) + '%'; g.style.width = Math.max(3, (r.ar1 - r.ar0) / r.dur * 100) + '%';
-    f.style.width = (k * 100) + '%'; m.style.left = (k * 100) + '%'; t.textContent = r.jam ? 'VASTGELOPEN' : 'HERLADEN · R';
+    f.style.width = (k * 100) + '%'; m.style.left = (k * 100) + '%'; t.textContent = r.jam ? 'VASTGELOPEN' : 'HERLADEN · ' + glyph('R');
   }
   function hitstop(dt) { if (FX.freeze > 0) { FX.freeze -= dt; return 0; } return dt; }
   function update(dt) {
     if (ARR) { updateArrive(dt); return; }
     R.time += dt; if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
-    if (!P.dead) { if (P.exec > 0) P.exec -= dt; else aimAtMouse(); holdPose(dt); }
+    if (!P.dead) { if (P.exec > 0) P.exec -= dt; else aimAtMouse(dt); holdPose(dt); }
     else { P.deadT += dt; const u = player.userData; u.body.rotation.x = Math.max(-1.5, -P.deadT * 6); u.body.position.y = 0.1; slide(player, P, dt, 0.38); }
     if (!P.dead && (P.vx || P.vz)) { player.position.x += P.vx * dt; player.position.z += P.vz * dt; ctx.collide(player.position, 0.38); P.vx *= Math.exp(-dt * 8); P.vz *= Math.exp(-dt * 8); if (Math.hypot(P.vx, P.vz) < 0.05) P.vx = P.vz = 0; }
     const pv = [(player.position.x - P.last.x) / Math.max(dt, 1e-4), (player.position.z - P.last.z) / Math.max(dt, 1e-4)];
@@ -1164,9 +1178,9 @@ export function initMission(ctx) {
     @keyframes nvblink{50%{opacity:.25}}`;
   document.head.appendChild(lbCss);
   const lbTop = mk('nvLbT'), lbBot = mk('nvLbB');
-  lbBot.innerHTML = '<span>E / SPACE / CLICK · OVERSLAAN</span>';
+  
   function letterbox(on) {
-    lbTop.innerHTML = `<span>KAASLAND · SPEKBUURT</span>`;
+    lbTop.innerHTML = `<span>KAASLAND · SPEKBUURT</span>`; lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`;
     lbTop.className = lbBot.className = on ? 'on' : '';
     hudEl.style.opacity = scoreEl.style.opacity = on ? 0 : 1; $('objective').style.opacity = on ? 0 : 1;
   }
