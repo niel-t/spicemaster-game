@@ -1122,7 +1122,8 @@ function renderPC() {
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + d1Owned()}</b> (De Natte Worst${D1.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>`;
+    body.innerHTML = `<div class="well">Balance: <b>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + d1Owned()}</b> (De Natte Worst${D1.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${state.table ? econ.propertyHTML() : ''}`;
+    econ.propertyBind(body, renderPC);
   }
 }
 // ------------------------------------------------------------------ district 1: De Natte Worst (Spekbuurt, Kroketkade, Uitjesbuurt)

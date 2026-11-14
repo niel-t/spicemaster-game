@@ -56,6 +56,14 @@ export const MACHINES = [
 const MACHINE_CAP = 4; // machines the home warehouse can hold besides the spice
 const CONDITION = ['a bit rusty', 'smells of 1994', 'one knob missing', 'like new (allegedly)', 'from a closed-down Lampas joint', 'Dad sold this one in 1998'];
 export const STOCK_CAP = 200; // kg in the home warehouse
+// Extra warehouses in the territories you own (Bible: buy warehouses in the districts you move into). Each adds space,
+// a machine slot and two Naknik places, and steadies control there. A Naknik can stand guard against Lampas raids.
+export const WAREHOUSES = [
+  { id: 'kroketkade', name: 'Loods Kroketkade', cost: 6000, kg: 150, slots: 2, desc: 'An old fish store on the quay. Damp, but big.' },
+  { id: 'uitjesbuurt', name: 'Kelder Uitjesbuurt', cost: 4500, kg: 100, slots: 2, desc: 'The onion cellar under De Zure Ui. Smells of onions forever.' },
+  { id: 'spekbuurt', name: 'Opslag Spekbuurt', cost: 5000, kg: 120, slots: 2, desc: "The Snackpaleis' old storeroom, behind the gym." },
+];
+const WH_NAKNIK_COST = 450;
 const HISTORY = 8; // days of price history shown in the trend column
 const CRATE_KG = 10; // a Lampas spice crate unpacks into 10 kg of Lampas-grade spice
 
@@ -100,6 +108,7 @@ export function createEconomy(deps) {
     if (e.wholesaleLeft === undefined) e.wholesaleLeft = WHOLESALE_KG;
     e.trust = e.trust || {}; e.owed = Array.isArray(e.owed) ? e.owed : []; e.cards = Array.isArray(e.cards) ? e.cards : []; e.pause = e.pause || {};
     e.report = e.report || null; e.jobs = Array.isArray(e.jobs) ? e.jobs : null; e.event = e.event || null;
+    e.wh = e.wh || {};
     e.machines = e.machines || {}; e.installed = e.installed || {}; e.offers = Array.isArray(e.offers) ? e.offers : null;
     e.heat = e.heat || { lampas: 0 }; e.control = e.control || {}; e.retaken = e.retaken || {}; e.turfNews = Array.isArray(e.turfNews) ? e.turfNews : [];
     for (const g of INGREDIENTS) {
@@ -165,7 +174,7 @@ export function createEconomy(deps) {
   // the Naknikim mix today's order: PER_NAKNIK kg each, as far as the stock reaches. Grades are used cheapest
   // or best first (the player's policy); quality = the average stars of what went in. Now and then one messes up.
   function mix() {
-    const e = ensure(), n = state.naknik || 0, b = BLENDS.find((x) => x.id === e.order);
+    const e = ensure(), n = mixers(), b = BLENDS.find((x) => x.id === e.order);
     if (!n || !b || !b.mix) return null;
     let kg = n * PER_NAKNIK;
     for (const [id, w] of Object.entries(b.mix)) kg = Math.min(kg, Math.floor(have(id) * 10 / w));
@@ -236,11 +245,11 @@ export function createEconomy(deps) {
     const held = owned.filter((id) => !e.retaken[id]);
     L.lampas = clamp(L.lampas + 2 * held.length - 4, 0, 100);
     const name = (id) => CLIENTS.find((c) => c.id === id).name;
-    if (L.lampas >= 40) { for (const id of held) addControl(id, -5); if (!e.event) { const bl = pick(BLENDS.filter((x) => x.mix)); e.event = { id: 'pricewar', text: `The Lampas dump cheap ${bl.name} on your turf: clients pay 25% less for it today`, pay: 0.75, blend: bl.id }; } }
+    if (L.lampas >= 40) { for (const id of held) if (!e.wh[id]) addControl(id, -5); if (!e.event) { const bl = pick(BLENDS.filter((x) => x.mix)); e.event = { id: 'pricewar', text: `The Lampas dump cheap ${bl.name} on your turf: clients pay 25% less for it today`, pay: 0.75, blend: bl.id }; } }
     if (L.lampas >= 60 && held.length && Math.random() < 0.5) { const id = pick(held); addControl(id, -10); out.push(`Lampas thugs leaned on ${name(id)} (control -10).`); }
     const weakest = held.slice().sort((a, b) => controlOf(a) - controlOf(b))[0];
     if (weakest && (L.lampas >= 80 || controlOf(weakest) <= 0) && !Object.keys(e.retaken).length) { e.retaken[weakest] = true; L.lampas = clamp(L.lampas - 15, 0, 100); out.push(`They took ${name(weakest)} back! Raid it from the van map to retake it.`); }
-    if (L.lampas >= 100) { for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * 0.7); if (!e.stock[k]) delete e.stock[k]; } L.lampas = 60; out.push('They raided the warehouse and ran off with 30% of your spice.'); }
+    if (L.lampas >= 100) { const g = guarded(), keep = g ? 0.9 : 0.7; for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * keep); if (!e.stock[k]) delete e.stock[k]; } L.lampas = 60; out.push(g ? 'They raided your warehouses, but your Naknik guard scared most of them off: 10% of the spice gone.' : 'They raided the warehouse and ran off with 30% of your spice.'); }
     e.turfNews = out;
     return out;
   }
@@ -273,7 +282,7 @@ export function createEconomy(deps) {
   function buyMachine(id, used, el, offerN) {
     const e = ensure(), m = MACHINES.find((x) => x.id === id), off = used ? (e.offers || [])[offerN] : null;
     if (used && (!off || off.sold)) return 'Already sold.';
-    if (machineCount() >= MACHINE_CAP) return `The warehouse holds ${MACHINE_CAP} machines. Sell one first.`;
+    if (machineCount() >= mcap()) return `Your warehouses hold ${mcap()} machines. Sell one first.`;
     const cost = used ? off.price : m.new;
     if (state.money < cost) return `Not enough Wilders (${fmt(cost)}).`;
     deps.addMoney(-cost, el); e.machines[id] = (e.machines[id] || 0) + 1; if (off) off.sold = true;
@@ -290,7 +299,7 @@ export function createEconomy(deps) {
   function machinesHTML() {
     const e = ensure(); if (!e.offers) rollOffers(rng32(hashStr(`offers#${e.day}`)));
     const cl = activeClients();
-    let h = `<div class="well" style="margin-top:10px"><b>Machinehandel Eddy & Zn</b> · Dad's old trade · Warehouse: <b>${machineCount()} / ${MACHINE_CAP}</b> machines<br><small>Buy grills, ovens and fryers, then sell them to your joints: they pay well, order more spice every day and trust you more. Machine-delivery jobs on the Klusbord pay extra.</small></div>`;
+    let h = `<div class="well" style="margin-top:10px"><b>Machinehandel Eddy & Zn</b> · Dad's old trade · Warehouses: <b>${machineCount()} / ${mcap()}</b> machines<br><small>Buy grills, ovens and fryers, then sell them to your joints: they pay well, order more spice every day and trust you more. Machine-delivery jobs on the Klusbord pay extra.</small></div>`;
     h += '<table class="list" style="margin-top:6px"><tr><th>Machine</th><th>Used (today)</th><th>New</th><th>Clients pay</th><th>Orders</th><th>In stock</th></tr>';
     for (const m of MACHINES) {
       const offs = (e.offers || []).filter((o) => o.id === m.id && !o.sold);
@@ -438,7 +447,46 @@ export function createEconomy(deps) {
     deps.addMoney(pay, el); if (deps.save) deps.save();
     return { ok: true, kg, pay };
   }
-  const space = () => STOCK_CAP - stockTotal();
+  // ---- warehouses (home + bought ones). A warehouse in a joint the Lampas retook is shut until you win it back.
+  const whOpen = () => WAREHOUSES.filter((w) => ensure().wh[w.id] && !ensure().retaken[w.id]);
+  const cap = () => STOCK_CAP + whOpen().reduce((a, w) => a + w.kg, 0);
+  const mcap = () => MACHINE_CAP + whOpen().length;
+  const mixers = () => (state.naknik || 0) + whOpen().reduce((a, w) => a + ensure().wh[w.id].naknik - (ensure().wh[w.id].guard ? 1 : 0), 0);
+  const guarded = () => whOpen().some((w) => ensure().wh[w.id].guard);
+  function buyWarehouse(id, el) {
+    const e = ensure(), w = WAREHOUSES.find((x) => x.id === id);
+    if (e.wh[id]) return 'You already own it.';
+    if (!ownedClients().some((c) => c.id === id) || e.retaken[id]) return 'You need to hold that territory first.';
+    if (state.money < w.cost) return `Not enough Wilders (${fmt(w.cost)}).`;
+    deps.addMoney(-w.cost, el); e.wh[id] = { naknik: 0, guard: false }; addControl(id, 10); if (deps.save) deps.save(); return null;
+  }
+  function hireAt(id, el) {
+    const e = ensure(), w = WAREHOUSES.find((x) => x.id === id), h = e.wh[id];
+    if (!h) return null; if (h.naknik >= w.slots) return 'No more room there.';
+    if (state.money < WH_NAKNIK_COST) return `Not enough Wilders (${fmt(WH_NAKNIK_COST)}).`;
+    deps.addMoney(-WH_NAKNIK_COST, el); h.naknik++; if (deps.save) deps.save(); return null;
+  }
+  function propertyHTML() {
+    const e = ensure();
+    let h = `<div class="well" style="margin-top:8px"><b>Panden · Eddy & Zn property</b><br>Home warehouse: <b>${STOCK_CAP} kg</b>, ${MACHINE_CAP} machines, ${state.naknik || 0} Naknik(im). Total now: <b>${cap()} kg</b>, ${mcap()} machines, <b>${mixers()}</b> Naknikim mixing (${mixers() * PER_NAKNIK} kg a day).<br><small>Buy a warehouse in a territory you hold for more space, a machine slot and two more Naknikim. A Naknik on guard duty stops mixing but cuts what a Lampas warehouse raid steals from 30% to 10%. If the Lampas retake that territory, its warehouse shuts until you win it back.</small></div>`;
+    h += '<table class="list" style="margin-top:6px"><tr><th>Warehouse</th><th>Adds</th><th>Naknikim</th><th></th></tr>';
+    for (const w of WAREHOUSES) {
+      const own = e.wh[w.id], held = ownedClients().some((c) => c.id === w.id) && !e.retaken[w.id];
+      h += `<tr><td><b>${w.name}</b><br><small>${w.desc}</small></td><td>+${w.kg} kg, +1 machine, ${w.slots} Naknik places</td>`;
+      if (!own) h += `<td>-</td><td>${held ? `<button class="b95" data-wh="buy:${w.id}">Buy (${fmt(w.cost)})</button>` : `<small>${e.retaken[w.id] ? 'Retake the territory first' : 'Take the territory first'}</small>`}</td></tr>`;
+      else h += `<td>${own.naknik} / ${w.slots}${own.guard ? ' (1 on guard)' : ''}${e.retaken[w.id] ? '<br><b style="color:#a00">Shut: Lampas territory</b>' : ''}</td><td>${own.naknik < w.slots ? `<button class="b95" data-wh="hire:${w.id}">Hire (${fmt(WH_NAKNIK_COST)})</button> ` : ''}${own.naknik ? `<button class="b95" data-wh="guard:${w.id}">${own.guard ? 'Back to mixing' : 'Put one on guard'}</button>` : ''}</td></tr>`;
+    }
+    return h + '</table>';
+  }
+  function propertyBind(body, rerender) {
+    body.querySelectorAll('[data-wh]').forEach((b) => b.onclick = () => {
+      const [act, id] = b.dataset.wh.split(':'), e = ensure(); let m = null;
+      if (act === 'buy') m = buyWarehouse(id, b); else if (act === 'hire') m = hireAt(id, b); else if (e.wh[id]) { e.wh[id].guard = !e.wh[id].guard; if (deps.save) deps.save(); }
+      if (m && deps.toast) deps.toast('PANDEN', m, 2.5); else if (act === 'buy' && deps.toast) deps.toast('NEW WAREHOUSE', `${WAREHOUSES.find((w) => w.id === id).name} is yours. Hire Naknikim there.`, 3);
+      rerender();
+    });
+  }
+  const space = () => cap() - stockTotal();
 
   function buy(id, gradeId, kg, el) {
     const e = ensure(), g = INGREDIENTS.find((x) => x.id === id);
@@ -482,7 +530,7 @@ export function createEconomy(deps) {
   function html() {
     const e = ensure(), disc = deps.discount ? deps.discount() : 0;
     let h = `<div class="well" style="margin-bottom:8px"><b>Kruidenbeurs De Natte Worst</b> · Market day <b>${e.day}</b> · Balance <b>${fmt(state.money)}</b><br>
-      Warehouse stock: <b>${stockTotal()} / ${STOCK_CAP} kg</b>${disc > 0 ? ` · Home turf discount <b>${Math.round(disc * 100)}%</b>` : ''}<br>
+      Warehouse stock: <b>${stockTotal()} / ${cap()} kg</b>${disc > 0 ? ` · Home turf discount <b>${Math.round(disc * 100)}%</b>` : ''}<br>
       <small>Prices move after every outing. Lampas grade is cheap and diluted, Bio is the Noshgey Kariot's overpriced best. Dock spices come through the Abdavissies, a few kilos a day.</small></div>`;
     if (e.news.length) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>KAASLAND SPICE NEWS</b><br>${e.news.map((n) => `· ${n.text} <b style="color:${n.f > 1 ? '#b00000' : '#007000'}">${n.f > 1 ? '▲' : '▼'} ${Math.round(Math.abs(n.f - 1) * 100)}%</b>`).join('<br>')}</div>`;
     h += `<div style="margin-bottom:6px">Buy per click: ${[1, 5, 25].map((q) => `<button class="b95" data-qty="${q}" ${q === qty ? 'style="font-weight:bold;border-style:inset"' : ''}>${q} kg</button>`).join(' ')}</div>`;
@@ -514,9 +562,9 @@ export function createEconomy(deps) {
   // ---- Mengkamer (mixing room) window: pick the blend, grade policy, blend stock, sell to the Groothandel
   const on = (yes) => (yes ? 'style="font-weight:bold;border-style:inset"' : '');
   function mixHTML() {
-    const e = ensure(), n = state.naknik || 0;
+    const e = ensure(), n = mixers();
     let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${n * PER_NAKNIK} kg</b> after every outing` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
-      Stock: <b>${stockTotal()} / ${STOCK_CAP} kg</b> (spices + blends)<br>
+      Stock: <b>${stockTotal()} / ${cap()} kg</b> (spices + blends)<br>
       <small>Quality = the average stars of the spices that went in. Lampas grade makes ★ blends, Bio makes ★★★★★.</small></div>`;
     if (e.lastMix) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>Last night:</b> ${e.lastMix.kg ? `${e.lastMix.kg} kg ${e.lastMix.name} ${stars(Math.round(e.lastMix.q))}` : `no ${e.lastMix.name}, ${e.lastMix.why}`}${e.lastMix.oops ? `<br><i>Naknik: "${e.lastMix.oops}"</i>` : ''}</div>`;
     h += `<div style="margin-bottom:6px">Grades: <button class="b95" data-pol="cheap" ${on(e.policy === 'cheap')}>Cheapest first</button> <button class="b95" data-pol="best" ${on(e.policy === 'best')}>Best first</button></div>`;
@@ -540,5 +588,5 @@ export function createEconomy(deps) {
     body.querySelectorAll('[data-sellbl]').forEach((b) => b.onclick = () => { const [id, kg] = b.dataset.sellbl.split(':'); const r = sellBlend(id, +kg, b); if (!r.ok && deps.toast) deps.toast('GROOTHANDEL', r.why, 2); rerender(); });
   }
 
-  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }
