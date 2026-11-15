@@ -8,6 +8,7 @@
 //     userData: { half (half length), width, model (name), paint (the paint material) }
 
 // ---------------------------------------------------------------- shared helpers and materials (built once per THREE)
+import { liveryTex, panelTex, BIZ } from './livery.js'; // printed van liveries (Eddy & Zn, Eddy's, Shooki Koerier, street businesses)
 let K = null;
 function kit(THREE, canvasTex) {
   if (K) return K;
@@ -129,14 +130,19 @@ export function makeOofmobiel(THREE, canvasTex) {
   for (const [x, z] of [[0.93, 1.6], [-0.93, 1.6], [0.93, -1.58], [-0.93, -1.58]]) { const w = wheel(THREE, 0.39, 1, steel); w.rotation.y = Math.sign(x) * Math.PI / 2; w.position.set(x, 0.39, z); g.add(w); }
   const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 6.0), K.blob); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; g.add(blob);
   // EDDY & ZN lettering on the cargo sides, a small roof decal (what you see from above), roof seams
-  const sideT = canvasTex(512, 160, (c) => { c.textAlign = 'center'; c.fillStyle = '#ffd36b'; c.font = '900 70px "Arial Black", Arial'; c.fillText('EDDY & ZN', 256, 80); c.fillStyle = '#ffffff'; c.font = '700 30px Arial'; c.fillText('SPECERIJEN · SINDS 1987', 256, 128); });
-  const sideM = new THREE.MeshStandardMaterial({ map: sideT, transparent: true, roughness: 0.3, depthWrite: false });
-  for (const sx of [-1, 1]) onSide(sx, 1.6, 0.5, -0.6, 0.98, sideM, 0.008);
+  const sideM = vinyl(THREE, panelTex(canvasTex, 'zn'));
+  for (const sx of [-1, 1]) onSide(sx, 2.0, 0.75, -0.07, 0.99, sideM, 0.009); // the panel between the wheel arches, below the windows
   for (const z of [-1.75, -1.05, -0.35]) box(W - 0.4, 0.025, 0.08, blue, 0, 2.06, z);
-  const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.6), new THREE.MeshStandardMaterial({ map: canvasTex(256, 96, (c) => { c.textAlign = 'center'; c.fillStyle = '#ffd36b'; c.font = '900 52px "Arial Black", Arial'; c.fillText('EDDY & ZN', 128, 66); }), transparent: true, roughness: 0.3, depthWrite: false }));
+  const roofM = vinyl(THREE, liveryTex(canvasTex, 'zn', 'roof')); const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 0.55), roofM);
   decal.rotation.x = -Math.PI / 2; decal.rotation.z = -Math.PI / 2; decal.position.set(0, 2.11, -1.4); g.add(decal);
-  g.userData.paint = blue;
+  g.userData.paint = blue; g.userData.livery = { side: sideM, roof: roofM, id: 'zn', toJSON: () => null }; // toJSON: clone() copies userData through JSON
   return g;
+}
+// printed vinyl: a glossy decal that sits on the paint without z-fighting
+function vinyl(THREE, map) { return new THREE.MeshPhysicalMaterial({ map, transparent: true, roughness: 0.28, clearcoat: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }); }
+// swap the livery on every Oofmobiel inside a group ('zn' before the rebrand, 'eddys' after)
+export function setLivery(group, id, canvasTex) {
+  group.traverse((o) => { const L = o.userData && o.userData.livery; if (!L || L.id === id) return; L.side.map = panelTex(canvasTex, id); L.roof.map = liveryTex(canvasTex, id, 'roof'); L.side.needsUpdate = L.roof.needsUpdate = true; L.id = id; });
 }
 
 // ---------------------------------------------------------------- street cars
@@ -205,6 +211,14 @@ export function makeCar(THREE, canvasTex, opts = {}) {
     box(0.06, 0.15, 0.78, K.black, L + 0.0, 0.7, 0); box(0.04, 0.1, 0.16, K.chrome, L + 0.035, 0.7, 0);
     for (const sd of [1, -1]) box(0.3, 0.2, 0.36, K.lens, L - 0.12, 0.74, sd * (M.W / 2 - 0.3));
     box(0.05, 0.14, 0.9, K.black, L + 0.08, 0.5, 0); box(L + Lb - 0.9, 0.1, M.W + 0.05, K.black, (L - Lb) / 2 - 0.1, 0.62, 0);
+  }
+  const liv = opts.livery || (!opts.lampas && !opts.profile && (M.n === 'VW T3' || M.n === 'Volvo 245') && rand() < 0.45 ? 'biz' + Math.floor(rand() * BIZ.length) : null);
+  if (liv) {
+    const glassAll = [...M.glass, ...(M.glass2 || [])], panelVan = !M.glass2 && Math.min(...M.glass.map((p) => p[0])) > -0.5;
+    const x0 = -Lb + (panelVan ? 0.14 : 0.35), x1 = panelVan ? Math.min(...M.glass.map((p) => p[0])) - 0.08 : L - 0.65;
+    const y0 = panelVan ? 0.66 : 0.5, y1 = panelVan ? top - 0.12 : Math.min(...glassAll.map((p) => p[1])) - 0.04;
+    const pw = x1 - x0, ph = Math.min(y1 - y0, pw / 3.4), vm = vinyl(THREE, liveryTex(canvasTex, liv));
+    for (const s of [1, -1]) { const q = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), vm); q.position.set((x0 + x1) / 2, (y0 + y1) / 2, s * (M.W / 2 + 0.012)); if (s < 0) q.rotation.y = Math.PI; g.add(q); }
   }
   if (M.wing) { box(0.5, 0.06, M.W, pm, -Lb + 0.25, 1.1, 0); for (const zz of [-0.7, 0.7]) box(0.08, 0.25, 0.06, pm, -Lb + 0.25, 0.97, zz); }
   if (opts.lampas) { // Lampas chase car: black racing stripes and a big L on the roof

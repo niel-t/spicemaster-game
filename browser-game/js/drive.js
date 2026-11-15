@@ -26,7 +26,7 @@ const CAR_LINES = ['TOET TOET!', 'JA JA, RUSTIG!', 'BUSJE!', 'GA DAN!'];
 const LAMPAS_LINES = ['DIT IS ONZE STRAAT!', 'LAMPAS!', 'STOP DAT BUSJE!', 'VERDUND IS LEKKER!'];
 const ROOF_ADS = [['LAMPAS SPICE', '99% ZOUT · 1% SPICE'], ['FRIKANDEL XXL', 'NU MET MEER FRIKANDEL'], ['KAASLAND VERZEKERT', 'OOK UW BUSJE (NIET)'], ['KIPKRUIDENKWARTIER', 'GEKRUID SINDS 1652'], ['KAASDOWS 95', 'NU MET MUIS'], ['GOUDA GAMES', 'WIE KAAS ZEGT...']];
 
-import { makeOofmobiel, makeCar as makeStreetCar } from './vehicles.js';
+import { makeOofmobiel, makeCar as makeStreetCar, setLivery } from './vehicles.js';
 
 export function initDrive(ctx) {
   const { THREE, renderer, canvasTex, signTex, beep, virt, isPaused } = ctx;
@@ -729,6 +729,7 @@ export function initDrive(ctx) {
   function reset() {
     if (!built) build();
     if (!van.g) { van.g = makeVan(); scene.add(van.g); }
+    if (opts && opts.van && opts.van.livery) setLivery(van.g, opts.van.livery, canvasTex); // Eddy & Zn or Eddy's
     if (opts && opts.van && opts.van.paint !== undefined) van.g.traverse((c) => { if (c.userData && c.userData.paint) c.userData.paint.color.setHex(opts.van.paint); }); // the van you own (Garage Mo)
     Object.assign(van, { x: START.x, z: START.z, h: START.h, vx: 0, vz: 0, hp: 100, freeze: 1.2, honkT: 0, safeT: 0 });
     van.safe = { x: START.x, z: START.z, h: START.h };

@@ -34,7 +34,7 @@ export function createGarage(deps) {
   const has = (id) => !!ensure().mods[id];
   function stats() {
     const V = van();
-    return { name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0), maxV: V.maxV + (has('chip') ? 3 : 0), dmg: V.dmg, tint: has('ramen'), hidden: has('luik') ? HIDE : 0 };
+    return { livery: deps.livery ? deps.livery() : 'zn', name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0), maxV: V.maxV + (has('chip') ? 3 : 0), dmg: V.dmg, tint: has('ramen'), hidden: has('luik') ? HIDE : 0 };
   }
   const unlocked = (V) => (!V.needs || !!state[V.needs]) && !locked(V);
   function buyVan(id, el) {

@@ -8,7 +8,7 @@ import { initMission } from './mission.js';
 import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
 import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning visitors, knacks and outfits (from Neon Vice, in spice colours)
-import { makeOofmobiel, makeCar, KANGOO } from './vehicles.js'; // shared van and street cars
+import { makeOofmobiel, makeCar, KANGOO, setLivery } from './vehicles.js'; // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 import { createEconomy, rankOf } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
@@ -571,14 +571,14 @@ const oof = new THREE.Group(); oof.position.set((LOT.x0 + LOT.x1) / 2, 0, -11.4)
 solid(oof.position.x - 1.15, oof.position.x + 1.15, oof.position.z - 3.0, oof.position.z + 3.3);
 // Shooki's Renault Kangoo: parked next to the Oofmobiel once Kipkruidenkwartier is Eddy's (Shooki runs the errands in it)
 const kangoo = (() => {
-  const g = makeCar(THREE, canvasTex, { profile: KANGOO, paint: 0xf2f0ea, plate: 'SH-00-KI', rand: (() => { let a = 7; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })() });
-  const side = canvasTex(512, 160, (c, w, h) => { c.fillStyle = '#2f6a3a'; c.fillRect(0, h * 0.62, w, h * 0.16); c.fillStyle = '#2f6a3a'; c.font = '900 52px "Arial Black", Arial'; c.textAlign = 'center'; c.fillText('SHOOKI', w / 2, 58); c.font = '700 26px Arial'; c.fillText('KOERIER · 24/7 · FAMILIEPRIJS', w / 2, 96); c.fillStyle = '#fff'; c.font = '700 18px Arial'; c.fillText('bel Shooki, bro', w / 2, h * 0.74); });
-  for (const s of [1, -1]) { const d = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.6), new THREE.MeshStandardMaterial({ map: side, transparent: true, roughness: 0.5 })); d.position.set(-0.85, 1.12, s * (KANGOO.W / 2 + 0.02)); if (s < 0) d.rotation.y = Math.PI; g.add(d); }
+  const g = makeCar(THREE, canvasTex, { profile: KANGOO, paint: 0xf2f0ea, plate: 'SH-00-KI', livery: 'shooki', rand: (() => { let a = 7; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })() });
   g.position.set(8.25, 0, -11.6); g.rotation.y = -Math.PI / 2; g.visible = false; scene.add(g); // nose to the street, like the Oofmobiel
   g.userData.solid = solid(7.35, 9.15, -13.8, -9.4); g.userData.solid.off = true;
   return g;
 })();
-function updateKangoo() { const on = !!state.district1; kangoo.visible = on; kangoo.userData.solid.off = !on; }
+function updateKangoo() { const on = !!state.district1; kangoo.visible = on; kangoo.userData.solid.off = !on; setLivery(oof, liveryNow(), canvasTex); }
+// the Oofmobiel's lettering: Dad's Eddy & Zn until Kipkruidenkwartier is Eddy's, then his own brand, Eddy's
+const liveryNow = () => (state.district1 ? 'eddys' : 'zn');
 
 // ------------------------------------------------------------------ characters
 const faceTex = (f) => { const t = loader.load('./assets/' + f); t.colorSpace = THREE.SRGBColorSpace; return t; };
@@ -1109,7 +1109,7 @@ const UNLOCK = {
 };
 const canDo = (k) => (k === 'rank1' ? rankNow() >= 1 : k === 'heist' ? !!(state.heists && state.heists.done && state.heists.done.tutorial) : UNLOCK[k] ? UNLOCK[k].ok() : true);
 const ws = createWorkshop({ rank: rankNow, state, econ, addMoney, toast, beep, haggle, save: () => writeSave() });
-const garage = createGarage({ rank: rankNow, state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c), phone: () => phone });
+const garage = createGarage({ rank: rankNow, state, econ, addMoney, toast, save: () => writeSave(), onPaint: (c) => paintVan(c), phone: () => phone, livery: () => liveryNow() });
 const crew = createCrew({ can: canDo, state, econ, ws, addMoney, toast, save: () => writeSave() });
 const heists = createHeists({ rank: rankNow, state, econ, garage, addMoney, toast, save: () => writeSave(), closePC: () => closePC(),
   levels: () => JOINTS.map(([name, id, , ok]) => ({ id, name, faction: NOSH.some((j) => j[1] === id) ? 'noshgey' : ABD.some((j) => j[1] === id) ? 'abdavissies' : 'lampas', owned: owns(id), unlocked: typeof ok === 'function' ? !!ok() : id === 'spekbuurt' || owns('spekbuurt') })),
