@@ -52,10 +52,11 @@ import nootmuskade from './levels/nootmuskade.js';
 import smokkelsloot from './levels/smokkelsloot.js';
 import containerchaos from './levels/containerchaos.js';
 import kardemomdok from './levels/kardemomdok.js';
+import couscouskade from './levels/couscouskade.js';
 import goudenmolen from './levels/goudenmolen.js';
 import warehouse from './levels/warehouse.js'; // the spice war: defend Eddy & Zn's own warehouse
 
-export const LEVELS = { warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen };
+export const LEVELS = { warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen, couscouskade };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -181,7 +182,7 @@ export function initMission(ctx) {
     }
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
-    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt }) || {};
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt, sight: (m) => { sightCap = m; }, banner, shake, reinforce, reserves: () => enemies.filter((e) => e.userData.foe.res).length, alive: () => alive().length }) || {};
     levelShot = deco.onShot || null; levelReset = deco.reset || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;
@@ -534,7 +535,7 @@ export function initMission(ctx) {
   }
   const shardDecalM = new THREE.MeshBasicMaterial({ color: 0xd8f4ff, transparent: true, opacity: 0.55, depthWrite: false });
   // a level prop bursting (decorate's onShot calls spill): knocks down (or kills) everyone near it, Eddy included
-  let levelShot = null;
+  let levelShot = null, sightCap = Infinity; // sightCap: a level can cut how far guards see (Dadelplein's sandstorm)
   const spillMs = {};
   function spill(at, r, { text = 'SPLASH!', color = 0xf3ecdc, kill = false, scorch = false, quiet = false } = {}) {
     const m = spillMs[color] || (spillMs[color] = new THREE.MeshBasicMaterial({ color }));
@@ -575,6 +576,18 @@ export function initMission(ctx) {
   //   the vault; not in Spekbuurt any more: he turns up later in Act 1). Unarmed and slow, never picks up guns, takes 4 hits,
   //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
   const FOE_TYPES = {
+    //   rasalgara: RAS AL GARA, chief of the Paravim (De Zandwijk finale, Kasbah al Gara). Indigo robe, saffron sash, grey beard, head wrap; 7 hits.
+    //   Phase 1 he holds back with the long rifle; at 3 hits left (phase2.at) he draws the scimitar, charges and every Paravim gets Wraak.
+    rasalgara: {
+      name: 'RAS AL GARA', hp: 7, speed: 1.0, dodge: 0.12, mass: 3.0, score: 9000, phase2: { at: 3, weapon: 'machete', dodge: 0.4 },
+      look: { head: { skin: 0xc8946a, hair: '#8a8a84', brow: '#4a4440', hairLine: 50, mouth: 'smile', iris: '#2a1a10', beard: '#9a9a94' }, front: '#2a2e6a', shirt: 0x2a2e6a, pants: 0x2a2e6a, shoes: 0x5a3a1a, belt: 0xe8a33d, wrap: 0xe8a33d, belly: 0.6, scale: 1.1 },
+      alert: ['Eddy junior. Je vader stond bij ons in het krijt.', 'Drie zendingen. Rente erbij. Nu.', 'Ik heb een woestijn overgestoken voor dit geld!', 'Wie heeft er zand in mijn thee gedaan?! Jij?!'],
+      hurt: ['Mijn sjerp!', 'Zand in mijn ogen, niet in mijn hart.', 'Dat zet ik op je rekening!', 'Au! Met rente!'],
+      dodgeSay: ['De woestijn leert je bukken.', 'Te traag, kaaskop.'],
+      disarm: ['Dit geweer was van mijn vader.'],
+      phase2Say: ['DRIE ZENDINGEN!', 'GENOEG GEPRAAT!'],
+      down: ['RAS AL GARA IS DOWN', 'The Paravim are beaten. Take the ledger.'],
+    },
     //   gerrit: OOM GERRIT, Eddy Sr.'s old partner who sold him out (the finale, De Gouden Molen). Gold waistcoat, white hair; 6 hits.
     gerrit: {
       name: 'OOM GERRIT', hp: 6, speed: 0.8, dodge: 0.25, mass: 2.6, score: 10000,
@@ -639,7 +652,7 @@ export function initMission(ctx) {
     const on = SHOW_CONES && M.active && !HEIST && !P.dead && !R.results;
     for (const e of enemies) {
       const f = e.userData.foe;
-      const show = on && e.visible && f.alive && f.down <= 0 && f.state !== 'chase' && e.position.distanceTo(player.position) < 26;
+      const show = on && e.visible && f.alive && f.down <= 0 && f.state !== 'chase' && !(f.argue && f.state === 'idle') /* bickering Paravim see nothing */ && e.position.distanceTo(player.position) < 26;
       if (!f.cone) { if (!show) continue; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CONE_N * 9), 3)); f.cone = new THREE.Mesh(g, visConeM()); f.cone.frustumCulled = false; f.cone.renderOrder = 2; root.add(f.cone); }
       f.cone.visible = show; if (!show) continue;
       const x = e.position.x, z = e.position.z, a0 = e.rotation.y, cn = EASY.cone + (f.wary ? 0.35 : 0), arr = f.cone.geometry.attributes.position.array, y = 0.04;
@@ -654,22 +667,28 @@ export function initMission(ctx) {
     }
   }
   const laserM = new THREE.MeshBasicMaterial({ color: 0xff1030, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
-  // spawn entry: [cell x, cell z, weapon, facing, room, boss, extra]; extra is an enemy type name (FOE_TYPES) or { type, cap }
+  const shieldM = lam({ color: 0xc8783a, emissive: 0x2a1004 }), shieldRimM = lam({ color: 0xe8a33d });
+  // spawn entry: [cell x, cell z, weapon, facing, room, boss, extra]; extra is an enemy type name (FOE_TYPES) or { type, cap, shield, argue }
   function spawnEnemies(def) { def.spawns.forEach(([x, z, w, rot, room, boss, opt], i) => {
     if (typeof opt === 'string') opt = { type: opt };
     const type = opt && opt.type, FT = type && FOE_TYPES[type];
     const looks = def.foeLooks || LAMPAS_LOOKS, look = looks[i % looks.length], bl = def.bossLook || {}; // a level can dress its enemies (def.foeLooks: the Noshgey Kariot, the Abdavissies)
-    const skin = boss ? (bl.skin ?? 0xf0c8a8) : [0xf0c8a8, 0xe0a882, 0xf4d2bc, 0xd8a080][i % 4];
+    const skins = def.foeSkins || [0xf0c8a8, 0xe0a882, 0xf4d2bc, 0xd8a080], skin = boss ? (bl.skin ?? 0xf0c8a8) : skins[i % skins.length];
     const head = boss
       ? { skin, hair: '#d8c080', brow: '#a89060', hairLine: 80, sideLine: 116, backLine: 150, mouth: 'smile', glasses: true, iris: '#3a5a7a', ...(bl.head || {}) }
-      : { skin, hair: ['#2a2a2a', '#d8c080', '#7a5a30', '#1a1a1a'][i % 4], brow: '#3a2a1a', hairLine: i % 3 === 0 ? 40 : 96, sideLine: 120, backLine: 150, mouth: 'smile', iris: '#3a3a3a' };
+      : { skin, hair: ['#2a2a2a', '#d8c080', '#7a5a30', '#1a1a1a'][i % 4], brow: '#3a2a1a', hairLine: i % 3 === 0 ? 40 : 96, sideLine: 120, backLine: 150, mouth: 'smile', iris: '#3a3a3a', ...(def.foeHead ? def.foeHead(i) : {}) };
     const shirt = boss ? (bl.shirt ?? 0xf2efe6) : look.shirt;
-    const p = FT ? makePerson({ ...FT.look, skin: FT.look.head.skin, ps2: FT.ps2 && LOOKS[FT.ps2] }) : makePerson({ head, ballcap: opt && 'cap' in opt ? opt.cap : boss && bl.cap !== undefined ? bl.cap : i % 5 === 2 ? (def.foeCap ?? 0xff7a1a) : undefined, front: boss ? (bl.front ?? '#f2efe6') : look.front, shirt, pants: boss ? (bl.pants ?? 0xf2efe6) : look.pants, shoes: 0x111111, belly: boss ? (bl.belly ?? 1.2) : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1, lampas: !boss, suit: !!boss });
+    const p = FT ? makePerson({ ...FT.look, skin: FT.look.head.skin, ps2: FT.ps2 && LOOKS[FT.ps2] }) : makePerson({ head, ballcap: opt && 'cap' in opt ? opt.cap : boss && bl.cap !== undefined ? bl.cap : i % 5 === 2 ? (def.foeCap ?? 0xff7a1a) : undefined, front: boss ? (bl.front ?? '#f2efe6') : look.front, shirt, pants: boss ? (bl.pants ?? 0xf2efe6) : look.pants, shoes: 0x111111, wrap: boss ? bl.wrap : look.wrap, belt: boss ? bl.belt : look.belt, belly: boss ? (bl.belly ?? 1.2) : (i % 3) * 0.4, skin, chain: boss || i % 4 === 1, scale: boss ? 1.08 : 1, lampas: !boss, suit: !!boss });
     scene.remove(p); root.add(p);
     const hand = new THREE.Group(); hand.position.set(0, -0.68, 0.05); p.userData.arms[0].add(hand);
     const laser = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 1), laserM.clone()); laser.visible = false; root.add(laser);
     p.userData.foe = { id: i, spawn: [x, z, rot, w], room, boss: !!boss, type: type || null, wave: !!(opt && opt.wave), hand, laser, skin, shirt, pers: ['rush', 'careful', 'normal'][i % 3], mass: FT ? FT.mass : boss ? 2.6 : 1 + (i % 3) * 0.15 };
     p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0);
+    // Paravim extras: { shield: true } carries a copper tray that stops bullets from the front; { argue: 'a' } pairs up two who bicker (and see nothing)
+    if (opt && opt.shield) { const sh = new THREE.Group(); const tray = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.05, 22), shieldM); tray.rotation.x = Math.PI / 2; sh.add(tray);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.03, 6, 22), shieldRimM); sh.add(rim); sh.position.set(0.05, 1.12, 0.42); p.add(sh); p.userData.foe.shieldM = sh; p.userData.foe.shieldK = true; }
+    if (opt && opt.argue) p.userData.foe.argueK = opt.argue;
+    if (opt && opt.reserve) p.userData.foe.reserve = true; // held off-map until the level calls reinforce() (Couscouskade's boats)
     p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
   }); }
@@ -730,7 +749,7 @@ export function initMission(ctx) {
     muzzle(new THREE.Vector3(bx + sa * 0.6, 0, bz + ca * 0.6), q ? 1.5 : 4); casing(from, a, W2.pel > 1);
     sfx(byPlayer ? sndOf(id) : W2.snd, byPlayer ? 1 : 0.7);
     if (byPlayer) { P.bloom = Math.min(W2.bloomMax || 0.18, P.bloom + W2.bloom); shake(W2.kick * 1.2); FX.kick.set(-sa * W2.kick * 0.6, 0, -ca * W2.kick * 0.6); }
-    alertNoise(from, byPlayer ? loudOf(id) : W2.loud);
+    alertNoise(from, byPlayer ? loudOf(id) : W2.loud, byPlayer);
     if (byPlayer && !q && id !== 'silenced') callBackup(); // a loud shot: someone phones for backup
     if (byPlayer && HEIST) { const silent = q || id === 'silenced'; if (!silent) heistAlarm(30, 'BANG! THEY HEARD THAT'); else HS.quietShots = (HS.quietShots || 0) + 1; } // a Nachtklus wants a silencer
   }
@@ -753,10 +772,59 @@ export function initMission(ctx) {
     else { sparks(wx + nrx * 0.05, 1.0, wz + nrz * 0.05, woodM, 6); if (Math.random() < 0.4) sfx('thud'); }
     return true;
   }
-  function alertNoise(at, r) {
+  function alertNoise(at, r, byPlayer) {
     if (!M.active || r < 1) return;
+    if (byPlayer && LV.paravim && r >= 13 && !HEIST) { paraAlarm(at); return; }
     for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0 || f.state === 'chase') continue;
       if (e.position.distanceTo(at) < r) { f.state = 'search'; f.sx = at.x; f.sz = at.z; f.searchT = 0; f.path = null; } }
+  }
+  // ================================================================== THE PARAVIM (def.paravim, De Zandwijk): always angry, the toughest clan
+  //   · wary from the start, half the reaction time, and once they've seen you they never go back to idle
+  //   · one loud shot from Eddy alerts every Paravim in the level (paraAlarm)
+  //   · Wraak: a Paravim falling makes everyone within 8 m angrier for 6 s (faster, shoots sooner)
+  //   · tray shields stop bullets from the front until a kick or a knockdown takes them away
+  //   · the one weakness: arguing pairs (spawn { argue }) bicker while idle and see nothing past arm's length
+  const PARA = { wraakR: 8, wraakT: 6, react: 0.5, rageSpd: 1.4 };
+  const WRAAK_LINES = ['WRAAK!', 'Voor {n}!', 'Dat was mijn neef!', 'Nu ben je echt de klos!', 'Dat zet ik op jouw rekening!'];
+  const PARA_NAMES = ['Karim', 'Yusuf', 'Driss', 'Hamza', 'Bilal', 'Tarek', 'Samir', 'Nabil', 'Omar', 'Rachid', 'Idris', 'Faris'];
+  const ARGUE_LINES = [['Drie zendingen!', 'Twee! Het waren er twee!'], ['Jij hebt de couscous laten aanbranden.', 'De couscous was al zo!'], ['Zand in mijn schoenen. Weer.', 'Dan doe je ze uit!'], ['Het is te koud in dit land.', 'Het is altijd te koud!'], ['Die kaaskoppen betalen nooit.', 'Niemand betaalt ooit!'], ['Mijn thee is koud.', 'Jouw thee is altijd koud!']];
+  function paraAlarm(at) {
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0) continue; f.seen = true; f.argue = null;
+      if (f.state !== 'chase') { f.state = 'search'; f.sx = at.x + rnd(-1.5, 1.5); f.sz = at.z + rnd(-1.5, 1.5); f.searchT = 0; f.path = null; } }
+    if (!R.paraAlarm) { R.paraAlarm = true; banner('DE HELE WIJK HOORT HET', 'One shot, and every Paravim is coming.', 2.2); sfx('alert'); shake(0.25); }
+  }
+  function wraak(dead) {
+    let any = false; const nm = PARA_NAMES[dead.userData.foe.id % PARA_NAMES.length];
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || e === dead || f.down > 0) continue;
+      if (e.position.distanceTo(dead.position) > PARA.wraakR) continue;
+      f.rage = PARA.wraakT; f.seen = true; f.argue = null; any = true;
+      if (f.state !== 'chase') { f.state = 'search'; f.sx = dead.position.x; f.sz = dead.position.z; f.searchT = 0; f.path = null; }
+      say(e.userData.bubble, WRAAK_LINES[Math.floor(Math.random() * WRAAK_LINES.length)].replace('{n}', nm), '#ff3a2a'); }
+    if (any) popup(dead.position, 'WRAAK!', '#ff3a2a', true);
+  }
+  function shieldBlocks(e, b) { // a bullet coming at the tray side of a shield bearer
+    const f = e.userData.foe; if (!f.shield || f.down > 0) return false;
+    const fx = Math.sin(e.rotation.y), fz = Math.cos(e.rotation.y);
+    return -(b.dx * fx + b.dz * fz) > 0.45;
+  }
+  function dropShield(e, dir) {
+    const f = e.userData.foe; if (!f.shield) return; f.shield = false; if (f.shieldM) f.shieldM.visible = false;
+    popup(e.position, 'DIENBLAD WEG!', '#e8a33d'); sfx('thud');
+    for (let i = 0; i < 6; i++) particle(shieldRimM, e.position.x, 1.0, e.position.z, dir[0] * 3 + rnd(-1, 1), rnd(1, 3), dir[1] * 3 + rnd(-1, 1), 0.08, 0.6, 'spark');
+  }
+  // a level brings in held-back foes (spawn { reserve: true }) at a spot: n of them, already hunting Eddy
+  function reinforce(n, x, z, lines) {
+    let k = 0;
+    for (const e of enemies) { const f = e.userData.foe; if (!f.res || k >= n) continue;
+      f.res = false; f.alive = true; e.visible = true; setFoeWeapon(e, f.spawn[3]); e.position.set(x + rnd(-1.2, 1.2), 0, z + rnd(-0.5, 0.5));
+      Object.assign(f, { state: 'search', seen: true, wary: true, sx: player.position.x, sz: player.position.z, searchT: 0, path: null, down: 0 });
+      if (lines) say(e.userData.bubble, lines[k % lines.length], '#ff7a1a'); k++; }
+    if (k) hud(); return k;
+  }
+  function arguePartner(e) {
+    const f = e.userData.foe; if (!f.argue) return null;
+    for (const o of enemies) { const of = o.userData.foe; if (o !== e && of.argue === f.argue && of.alive && of.down <= 0 && of.state === 'idle') return o; }
+    return null;
   }
 
   // ================================================================== HUD + Neon Vice-style screens
@@ -1113,6 +1181,10 @@ export function initMission(ctx) {
       const pend = f.wave && !off; // backup: waits off-map until the alarm (waveTick brings it in)
       Object.assign(f, { alive: !off, down: 0, hp: (f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 + (LV.foeHp || 1) - 1 : (LV.foeHp || 1)) + Math.min(2, state.ngp || 0) /* New Game+: tougher every round */, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
       f.pend = pend; f.waveW = w; if (pend) f.alive = false;
+      Object.assign(f, { rage: 0, seen: false, phase: 1, argue: f.argueK || null, shield: !!f.shieldK }); if (f.shieldM) f.shieldM.visible = f.shield && !off;
+      if (LV.paravim) f.wary = true; // always angry
+      f.res = false; if (f.reserve) { f.res = !off; f.alive = false; e.visible = false; setFoeWeapon(e, null); }
+      if (f.type && FOE_TYPES[f.type].phase2) f.dodge = FOE_TYPES[f.type].dodge;
       setFoeWeapon(e, off || pend ? null : w);
       e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !off && !pend; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
     }
@@ -1126,8 +1198,8 @@ export function initMission(ctx) {
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = REMIX ? !REMIX.loot.has(i) : (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     for (const t of tasks) { t.done = !!done; if (t.reset) t.reset(t.done); }
-    smoke.clear(); if (levelReset) levelReset(); waveReset();
-    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, tin: false, foes: Math.max(1, alive().length + pendingN()) });
+    smoke.clear(); sightCap = Infinity; if (levelReset) levelReset(); waveReset();
+    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, tin: false, paraAlarm: false, foes: Math.max(1, alive().length + pendingN()) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
     Object.assign(P, { hp: EASY.hp + Math.min(3, pk('tough')), maxhp: EASY.hp + Math.min(3, pk('tough')), armor: armourOf(state.loadout) ? state.loadout.vest : 0, armourT: armourOf(state.loadout), invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
@@ -1432,6 +1504,8 @@ export function initMission(ctx) {
   function killEnemy(e, type, dir) {
     const f = e.userData.foe; if (!f.alive) return;
     f.alive = false; f.down = 0; f.wind = 0; f.laser.visible = false; e.userData.bubble.visible = false;
+    if (f.shield) dropShield(e, dir);
+    if (LV.paravim) wraak(e);
     if (f.weapon) { dropItem(f.weapon, e.position, dir[0] * 3, dir[1] * 3); setFoeWeapon(e, null); }
     launch(e, type, dir);
     e.rotation.y = Math.atan2(-dir[0], -dir[1]); poseDown(e, 1);
@@ -1461,6 +1535,7 @@ export function initMission(ctx) {
     const f = e.userData.foe; if (!f.alive) return;
     if (f.boss) { stagger(e, dir); hitEnemy(e, 'door', dir, 1); return; }
     f.down = 3.0; f.vx = dir[0] * 4; f.vz = dir[1] * 4; f.wind = 0; f.laser.visible = false;
+    if (f.shield) dropShield(e, dir); // kick a tray bearer over and the tray goes flying
     if (f.weapon) { dropItem(f.weapon, e.position, dir[0] * 3, dir[1] * 3); setFoeWeapon(e, null); }
     e.rotation.y = Math.atan2(-dir[0], -dir[1]); f.state = 'chase'; sfx('hit'); bloodBurst(e.position, dir, 6, 2); bloody(e, 1);
     say(e.userData.bubble, ['AU!', 'Mijn hoofd!', 'Ooompf!', 'Vuile...'][Math.floor(Math.random() * 4)], '#ff7a1a');
@@ -1469,9 +1544,10 @@ export function initMission(ctx) {
   // Zeegaal-style dodge: a small, almost bored lean to the side; the bullet goes past (not while he's winding up or down)
   function tryDodge(e, b) {
     const f = e.userData.foe, FT = f.type && FOE_TYPES[f.type];
-    if (!FT || !FT.dodge || f.down > 0 || f.wind > 0 || f.dodgeT > 0 || Math.random() > FT.dodge) return false;
+    const dg = f.dodge ?? (FT ? FT.dodge : LV.paravim && f.weapon === 'machete' ? 0.25 : 0); // Paravim scimitar runners duck too
+    if (!dg || f.down > 0 || f.wind > 0 || f.dodgeT > 0 || Math.random() > dg) return false;
     b.hit.add(e); f.dodgeT = 0.7; f.leanT = 0.45; f.leanS = Math.random() < 0.5 ? -1 : 1;
-    say(e.userData.bubble, pickLine(FT, 'dodgeSay'), '#ffd36b');
+    say(e.userData.bubble, FT ? pickLine(FT, 'dodgeSay') : ['Mis!', 'Haha, zand in je ogen?', 'Te traag!'][Math.floor(Math.random() * 3)], '#ffd36b');
     popup(e.position, 'ONTWEKEN', '#9fd3ff'); return true;
   }
   const pickLine = (FT, k) => { const a = k === 'dodgeSay' ? FT.dodgeSay || ['Te traag.'] : FT[k]; return a[Math.floor(Math.random() * a.length)]; };
@@ -1490,14 +1566,23 @@ export function initMission(ctx) {
   }
   function hitEnemy(e, type, dir, dmg) {
     const f = e.userData.foe; if (!f.alive) return;
-    if (f.hp > dmg) { f.hp -= dmg; bloodBurst(e.position, dir, 12, 3); floorDecal(e.position.x + dir[0] * 0.4, e.position.z + dir[1] * 0.4, 0.5, Math.random() * 6); popup(e.position, f.type ? FOE_TYPES[f.type].hurt[Math.floor(Math.random() * FOE_TYPES[f.type].hurt.length)] : 'IS DAT ALLES?!', '#ffd36b'); f.state = 'chase'; f.react = Math.min(f.react, 0.2); return; }
+    if (f.hp > dmg) { f.hp -= dmg; bloodBurst(e.position, dir, 12, 3); floorDecal(e.position.x + dir[0] * 0.4, e.position.z + dir[1] * 0.4, 0.5, Math.random() * 6); popup(e.position, f.type ? FOE_TYPES[f.type].hurt[Math.floor(Math.random() * FOE_TYPES[f.type].hurt.length)] : 'IS DAT ALLES?!', '#ffd36b'); f.state = 'chase'; f.react = Math.min(f.react, 0.2);
+      const P2 = f.type && FOE_TYPES[f.type].phase2; if (P2 && f.phase !== 2 && f.hp <= P2.at) bossPhase2(e, P2); // Ras al Gara draws the scimitar
+      return; }
     killEnemy(e, type, dir);
+  }
+  function bossPhase2(e, P2) {
+    const f = e.userData.foe, FT = FOE_TYPES[f.type]; f.phase = 2; f.dodge = P2.dodge; f.rage = 1e9;
+    if (f.weapon) dropItem(f.weapon, e.position, rnd(-2, 2), rnd(-2, 2)); setFoeWeapon(e, P2.weapon);
+    const line = FT.phase2Say[Math.floor(Math.random() * FT.phase2Say.length)];
+    say(e.userData.bubble, line, '#ff3a2a'); banner(line, `${FT.name} draws his scimitar. Every Paravim is furious.`, 2.4); shake(0.9); FX.freeze = 0.2; sfx('alert');
+    for (const o of enemies) { const of = o.userData.foe; if (!of.alive || o === e) continue; of.rage = 10; of.seen = true; of.argue = null; if (of.state !== 'chase') { of.state = 'search'; of.sx = player.position.x; of.sz = player.position.z; of.searchT = 0; of.path = null; } }
   }
   function execute(e) {
     const dir = [e.position.x - player.position.x, e.position.z - player.position.z], l = Math.hypot(dir[0], dir[1]) || 1; dir[0] /= l; dir[1] /= l;
     P.exec = 0.35; player.rotation.y = Math.atan2(dir[0], dir[1]);
     const gun = gunOut() && P.held.ammo > 0;
-    if (gun) { P.held.ammo--; sfx(sndOf(P.held.id)); muzzle(e.position); alertNoise(player.position, loudOf(P.held.id)); } else { sfx('hit'); setTimeout(() => sfx('hit'), 120); }
+    if (gun) { P.held.ammo--; sfx(sndOf(P.held.id)); muzzle(e.position); alertNoise(player.position, loudOf(P.held.id), true); } else { sfx('hit'); setTimeout(() => sfx('hit'), 120); }
     popup(e.position, 'EXECUTION', '#ff3a4a'); bloodBurst(e.position, dir, 30, 3); shake(0.45);
     killEnemy(e, 'exec', dir); if (gun && (SHOT_GUN(P.held.id) || ['revolver', 'golddeagle'].includes(P.held.id))) headPop(e, dir);
   }
@@ -1776,7 +1861,7 @@ export function initMission(ctx) {
         const dir = [b.dx, b.dz];
         if (b.byPlayer) {
           for (const e of enemies) { const f = e.userData.foe; if (!e.visible || b.hit.has(e)) continue;
-            if (f.alive) { const r = f.down > 0 ? 0.5 : 0.42; if (Math.hypot(e.position.x - nx, e.position.z - nz) < r) { if (tryDodge(e, b)) continue; R.hits++; b.hit.add(e); f.down > 0 ? killEnemy(e, b.id, dir) : hitEnemy(e, b.id, dir, 1); if (--b.pierce <= 0) { gone = true; break; } } }
+            if (f.alive) { const r = f.down > 0 ? 0.5 : 0.42; if (Math.hypot(e.position.x - nx, e.position.z - nz) < r) { if (shieldBlocks(e, b)) { sparks(nx, 1.1, nz, undefined, 8); popup(e.position, 'TING!', '#e8a33d'); sfx('thud'); gone = true; break; } if (tryDodge(e, b)) continue; R.hits++; b.hit.add(e); f.down > 0 ? killEnemy(e, b.id, dir) : hitEnemy(e, b.id, dir, 1); if (--b.pierce <= 0) { gone = true; break; } } }
             else if (Math.hypot(e.position.x - nx, e.position.z - nz) < 0.45) { b.hit.add(e); const kk = (FORCE[b.id] || 4) * 0.45 / f.mass; f.vx += b.dx * kk; f.vz += b.dz * kk; f.spin = (f.spin || 0) + rnd(-2, 2); bloodBurst(e.position, dir, 8, 2.5, 0.3); floorDecal(nx + b.dx * 0.4, nz + b.dz * 0.4, rnd(0.3, 0.5), Math.random() * 6); } }
         } else if (!P.dead && Math.hypot(player.position.x - nx, player.position.z - nz) < 0.38) { hurtPlayer(dir, b.id); gone = true; }
       }
@@ -1837,25 +1922,34 @@ export function initMission(ctx) {
     const wid = f.weapon || 'fists', W2 = WD[wid];
     const pp = player.position, dx = pp.x - e.position.x, dz = pp.z - e.position.z, dist = Math.hypot(dx, dz) || 0.001, ang = Math.atan2(dx, dz);
     let see = false;
-    if (!P.dead && dist < (f.state === 'chase' ? 13 : EASY.vision)) {
+    const mate = f.argue && f.state === 'idle' ? arguePartner(e) : null; if (f.argue && !mate && f.state === 'idle') f.argue = null; // partner gone: no more bickering
+    const rage = f.rage > 0; if (rage) { f.rage -= dt; f.react -= dt; f.cd -= dt * 0.6; }
+    if (mate && dist > 1.2) { /* arguing: blind and deaf past arm's length */ }
+    else if (!P.dead && dist < Math.min(f.state === 'chase' ? 13 : EASY.vision, sightCap)) {
       const cone = f.state === 'chase' || dist < 1.6 || Math.abs(angDiff(e.rotation.y, ang)) < (f.state === 'search' ? 1.3 : EASY.cone + (f.wary ? 0.35 : 0));
       if (cone && los(e.position, pp)) see = true;
     }
-    if (!see && !P.dead && f.state !== 'chase') { const spd = Math.hypot(pv[0], pv[1]); const hear = (spd > 5 ? 3.2 : 1.4) * (spd > 0.6 ? 1 : 0); if (dist < hear && los(e.position, pp)) { f.state = 'search'; f.sx = pp.x; f.sz = pp.z; f.searchT = 0; f.path = null; } }
+    if (!see && !mate && !P.dead && f.state !== 'chase') { const spd = Math.hypot(pv[0], pv[1]); const hear = (spd > 5 ? 3.2 : 1.4) * (spd > 0.6 ? 1 : 0); if (dist < hear && los(e.position, pp)) { f.state = 'search'; f.sx = pp.x; f.sz = pp.z; f.searchT = 0; f.path = null; } }
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }
-    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react * (1 + 0.15 * pk('sense')); say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
+    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react * (1 + 0.15 * pk('sense')) * (LV.paravim ? PARA.react : 1); f.seen = true; f.argue = null; say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
     else f.seeT += dt;
     if (P.dead && f.state === 'chase') f.state = 'idle';
     let tvx = 0, tvz = 0, face = null;
     const goTo = (x, z, sp) => { f.pathT -= dt; if (f.pathT <= 0 || !f.path || !f.path.length) { f.pathT = 0.45; f.path = path(e.position, new THREE.Vector3(x, 0, z)); }
       if (f.path && f.path.length) { const t = f.path[0], ddx = t.x - e.position.x, ddz = t.z - e.position.z, l = Math.hypot(ddx, ddz); if (l < 0.3) f.path.shift(); else { tvx = ddx / l * sp; tvz = ddz / l * sp; face = Math.atan2(ddx, ddz); } return true; } return false; };
     switch (f.state) {
-      case 'idle': f.turnT -= dt; if (f.turnT <= 0) { f.turnT = 1.5 + Math.random() * 2.5; f.ta = e.rotation.y + (Math.random() - 0.5) * 2.6; } face = f.ta; break;
+      case 'idle':
+        if (mate) { face = Math.atan2(mate.position.x - e.position.x, mate.position.z - e.position.z); // bickering: face each other, trade lines
+          f.turnT -= dt; if (f.turnT <= 0 && f.id < mate.userData.foe.id) { f.turnT = 2.4 + Math.random(); mate.userData.foe.turnT = 99; const L2 = ARGUE_LINES[Math.floor(Math.random() * ARGUE_LINES.length)]; say(u.bubble, L2[0], '#ffb36b'); setTimeout(() => { if (mate.userData.foe.alive && mate.userData.foe.argue) say(mate.userData.bubble, L2[1], '#ffb36b'); }, 1100); }
+          break; }
+        f.turnT -= dt; if (f.turnT <= 0) { f.turnT = 1.5 + Math.random() * 2.5; f.ta = e.rotation.y + (Math.random() - 0.5) * 2.6; } face = f.ta; break;
       case 'search': { const dd = Math.hypot(f.sx - e.position.x, f.sz - e.position.z);
         if (dd > 0.9) { if (!goTo(f.sx, f.sz, 2.6)) f.searchT += dt; } else { f.searchT += dt; face = e.rotation.y + dt * 3; }
-        if (f.searchT > (f.wary ? 6 : 3.5)) { f.state = 'idle'; f.turnT = 0; f.searchT = 0; } break; }
+        if (f.searchT > (f.wary ? 6 : 3.5)) {
+          if (LV.paravim && f.seen) { f.sx = e.position.x + rnd(-5, 5); f.sz = e.position.z + rnd(-5, 5); f.searchT = 0; f.path = null; } // a Paravim who's seen you never calms down: keep hunting
+          else { f.state = 'idle'; f.turnT = 0; f.searchT = 0; } } break; }
       case 'chase': {
         if (!f.weapon && !(FT && FT.noWeapons)) { let bi = null, bd = 4.5; for (const it of items) { if (it.flying) continue; const d = Math.hypot(it.g.position.x - e.position.x, it.g.position.z - e.position.z); if (d < bd && los(e.position, it.g.position)) { bd = d; bi = it; } }
           if (bi && (dist > 2.5 || !see)) { const ddx = bi.g.position.x - e.position.x, ddz = bi.g.position.z - e.position.z; tvx = ddx / (bd || 1) * 3.2; tvz = ddz / (bd || 1) * 3.2; face = Math.atan2(ddx, ddz);
@@ -1880,6 +1974,7 @@ export function initMission(ctx) {
       if (f.wind <= 0) { f.atkT = 0.2; f.cd = 0.8; sfx('swing'); const d2 = Math.hypot(pp.x - e.position.x, pp.z - e.position.z);
         if (!P.dead && d2 < 1.25 && Math.abs(angDiff(e.rotation.y, Math.atan2(pp.x - e.position.x, pp.z - e.position.z))) < 1.1) { const hd = [(pp.x - e.position.x) / (d2 || 1), (pp.z - e.position.z) / (d2 || 1)]; if (FT && FT.grab) wristLock(e, hd); else { sfx('hit'); hurtPlayer(hd, wid); } } } }
     if (face !== null) { const turn = f.state === 'chase' ? 8 : 3; e.rotation.y += Math.max(-turn * dt, Math.min(turn * dt, angDiff(e.rotation.y, face))); }
+    if (rage) { tvx *= PARA.rageSpd; tvz *= PARA.rageSpd; }
     const k = 1 - Math.exp(-dt * 10); f.mvx += (tvx - f.mvx) * k; f.mvz += (tvz - f.mvz) * k;
     e.position.x += f.mvx * dt; e.position.z += f.mvz * dt; ctx.collide(e.position, 0.34); collideDoors(e.position, 0.36, f.mvx, f.mvz, false);
     animate(e, Math.hypot(f.mvx, f.mvz) * (FT ? 0.8 : 1), dt);

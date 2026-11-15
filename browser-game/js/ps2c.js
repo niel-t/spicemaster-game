@@ -313,6 +313,7 @@ function buildHead(B){const M=newMesh(),X=[1,0,0],Z=[0,0,1],tv=y=>1-(y-HEAD.neck
   else if(B.hat==='peaked'){loft(M,[R(1.76,0.12),R(1.79,0.122)],16,{uvf:()=>bu});loft(M,[R(1.79,0.122),R(1.86,0.138),R(1.872,0.136)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});visor(0.1,0.085,1.768,[160/512,3/512]);}
   else if(B.hat==='chef'){loft(M,[R(1.76,0.12),R(1.8,0.122),R(1.88,0.135),R(1.95,0.16),R(1.99,0.15),R(2.01,0.09)],16,{uvf:()=>[52/512,3/512],capB:{dir:[0,1,0],uv:[52/512,3/512]}});}
   else if(B.hat==='fedora'){loft(M,[R(1.79,0.19),R(1.795,0.195),R(1.8,0.12)],16,{uvf:()=>hu});loft(M,[R(1.79,0.118),R(1.82,0.118)],16,{uvf:()=>bu});loft(M,[R(1.82,0.117),R(1.9,0.108),R(1.925,0.085)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu,lift:-0.01}});}
+  else if(B.hat==='wrap'){/* Spice Master: a Paravim head wrap, a wound band under a soft dome */loft(M,[R(1.735,0.124),R(1.765,0.131)],16,{uvf:()=>bu});loft(M,[R(1.765,0.131),R(1.81,0.137),R(1.855,0.129),R(1.89,0.106),R(1.915,0.066)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});}
   else if(B.hat==='beanie'){loft(M,[R(1.755,0.118),R(1.79,0.119)],16,{uvf:()=>bu});loft(M,[R(1.79,0.116),R(1.85,0.1),R(1.885,0.06)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});}
   else{loft(M,[R(1.745,0.116),R(1.8,0.112),R(1.84,0.09),R(1.86,0.05)],16,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});loft(M,[{c:[0,1.75,-0.13],s:[1,0,0],f:[0,1,0],rx:0.03,rz:0.012,w,v:hu[1]},{c:[0,1.68,-0.15],s:[1,0,0],f:[0,1,0],rx:0.02,rz:0.01,w,v:hu[1]}],6,{uvf:()=>hu});}}
  /* full fluffy beard + moustache (3D), e.g. Nine of Nine */

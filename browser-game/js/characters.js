@@ -328,6 +328,7 @@ export function lookFromPerson(o, HEADS = {}) {
   else if (o.ballcap) { L.hat = 'ballcap'; L.hatC = hex01(css(o.ballcap)); }
   else if (o.feltHat) { L.hat = 'fedora'; L.hatC = hex01(css(o.feltHat)); }
   else if (o.chefHat) L.hat = 'chef';
+  else if (o.wrap) { L.hat = 'wrap'; L.hatC = hex01(css(o.wrap)); } // Paravim head wrap
   if (o.stache) L.stache = 1;
   if (L.hat) L.hair = L.hair || null;
   if (o.cigarette) L.cigar = 1;
