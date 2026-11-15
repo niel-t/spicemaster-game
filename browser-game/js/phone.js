@@ -232,8 +232,8 @@ export function initPhone(d) {
   // ------------------------------------------------------------------ the phone itself
   const CALLERS = {
     hakan: { name: 'Hakan Et &amp; Döner', img: './assets/face_hakan.jpg', talk: talkHakan, missed: () => toast('GEMISTE OPROEP', 'Hakan Et & Döner. He\'ll call again another day.', 2.4) },
-    henk: { name: 'Henk Cijfer', img: null, talk: talkHenk, missed: henkVoicemail },
-    shooki: { name: 'Shooki', img: null, talk: talkShooki, missed: () => toast('GEMISTE OPROEP', 'Shooki. Probably nothing. It\'s always nothing.', 2.4) },
+    henk: { name: 'Henk Cijfer', img: './assets/face_henk.jpg', talk: talkHenk, missed: henkVoicemail },
+    shooki: { name: 'Shooki', img: './assets/face_shooki.jpg', talk: talkShooki, missed: () => toast('GEMISTE OPROEP', 'Shooki. Probably nothing. It\'s always nothing.', 2.4) },
   };
   let ringing = 0, who = null, buzz = 0, wait = 60 + Math.random() * 90, henkDue = false, henkWait = 0;
   const randomOk = () => state.step === 'free' && met('shooki') && !(state.tut && !state.tut.done) && econ.ensure().callDay !== econ.ensure().day;

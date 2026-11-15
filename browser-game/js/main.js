@@ -1078,7 +1078,7 @@ function beep(freq, dur, type = 'square', vol = 0.05) {
 }
 
 // dialogue
-const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg' };
+const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg', 'Shooki': './assets/face_shooki.jpg', 'Shooki (telefoon)': './assets/face_shooki.jpg', 'Henk Cijfer': './assets/face_henk.jpg', 'Henk Cijfer (telefoon)': './assets/face_henk.jpg', 'Van der Belasting': './assets/face_belasting.jpg' };
 let dlgQueue = [], dlgDone = null;
 function dialogue(lines, done) { dlgQueue = lines.slice(); dlgDone = done; state.inDialogue = true; nextLine(); }
 function nextLine() {
@@ -2282,7 +2282,7 @@ function updateInspector(dt) {
   if (!inspector) {
     if (!garage.inspectorDue() || state.step !== 'free' || state.inPC || state.inDialogue || mission.active) return;
     const from = Math.random() < 0.5 ? -1 : 1;
-    const p = makePS2Person(lookFromPerson({ head: { skin: 0xf0c8a8, hair: '#9a9a9a', brow: '#555', hairLine: 70, sideLine: 110, backLine: 140, mouth: 'flat', iris: '#3a3a6a' }, capColor: 0x2a2a3a, front: '#2a2a3a', shirt: 0x3a3a4a, pants: 0x2a2a30, shoes: 0x111111, belly: 0.2, skin: 0xf0c8a8 }, HEADS), { scene });
+    const p = makePS2Person(lookFromPerson({ head: { skin: 0xf0c4a4, hair: '#8a7a62', brow: '#6a5a48', hairLine: 70, sideLine: 110, backLine: 140, mouth: 'flat', iris: '#4a5a6a' }, suit: true, suitShirt: 0xf2f2ee, shirt: 0x2e3036, pants: 0x2e3036, shoes: 0x111111, belly: 0.2, skin: 0xf0c4a4 }, HEADS), { scene }); // grey suit, white shirt, lanyard (assets/face_belasting.jpg)
     const brief = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.1), lam({ color: 0x4a2a14 })); brief.position.set(0, -0.62, 0.05); p.userData.arms[1].add(brief);
     p.position.set(player.position.x + from * 16, 0, LANES.N[0]); scene.add(p);
     inspector = { p, t: 0, talked: false };

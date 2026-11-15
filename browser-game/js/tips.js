@@ -48,22 +48,16 @@ export function createTips(d) {
   const queue = []; let el = null, cur = null, life = 0;
   function build() {
     el = document.createElement('div'); el.id = 'shookitip';
-    const av = document.createElement('canvas'); av.width = av.height = 96; const c = av.getContext('2d'); // Shooki: black cap, green tracksuit, gold chain
-    c.fillStyle = '#2f6a3a'; c.beginPath(); c.arc(48, 110, 46, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#e8c46a'; c.lineWidth = 4; c.beginPath(); c.arc(48, 84, 16, 0.2, Math.PI - 0.2); c.stroke();
-    c.fillStyle = '#d8a07a'; c.beginPath(); c.ellipse(48, 46, 22, 26, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#1a1a1a'; c.beginPath(); c.ellipse(48, 30, 25, 13, 0, Math.PI, 0); c.fill(); c.fillRect(48, 26, 32, 6);
-    c.fillStyle = '#14100c'; c.fillRect(37, 42, 7, 3); c.fillRect(53, 42, 7, 3); c.fillStyle = '#3a2a1a'; c.beginPath(); c.arc(40, 49, 2.5, 0, 7); c.arc(56, 49, 2.5, 0, 7); c.fill();
-    c.strokeStyle = '#7a3a2a'; c.lineWidth = 3; c.beginPath(); c.arc(48, 56, 9, 0.2, Math.PI - 0.2); c.stroke();
-    el.innerHTML = '<div class="st-av"></div><div class="st-body"><div class="st-from">Shooki <span>· tip</span></div><div class="st-title"></div><div class="st-text"></div><div class="st-btns"><button class="st-ok">Tamam bro <small>[H]</small></button><button class="st-off">no more tips</button></div></div>';
-    el.querySelector('.st-av').appendChild(av);
+    // Shooki: black tee, worn denim apron, stubble, the grin (cartoon of Tristan's photo, assets/face_shooki_sq.jpg)
+    el.innerHTML = '<div class="st-av"><img src="./assets/face_shooki_sq.jpg" alt="Shooki"></div><div class="st-body"><div class="st-from">Shooki <span>· tip</span></div><div class="st-title"></div><div class="st-text"></div><div class="st-btns"><button class="st-ok">Tamam bro <small>[H]</small></button><button class="st-off">no more tips</button></div></div>';
     const css = document.createElement('style');
-    css.textContent = `#shookitip{position:fixed;left:16px;bottom:44px;z-index:9999;display:none;gap:12px;align-items:flex-start;width:min(430px,calc(100vw - 32px));padding:12px 14px;background:rgba(18,30,20,.94);border:2px solid #6ed36e;border-radius:14px 14px 14px 4px;box-shadow:0 6px 24px rgba(0,0,0,.45);color:#f3e6c8;font:400 14px/1.4 Rubik,Arial,sans-serif;animation:stIn .25s ease-out}
-#shookitip .st-av canvas{width:52px;height:52px;border-radius:50%;background:#a9d4f0;border:2px solid #6ed36e;display:block}
-#shookitip .st-from{font-weight:700;color:#6ed36e;font-size:12px;letter-spacing:.04em;text-transform:uppercase}#shookitip .st-from span{color:#9ab89a;font-weight:400}
+    css.textContent = `#shookitip{position:fixed;left:16px;bottom:44px;z-index:9999;display:none;gap:12px;align-items:flex-start;width:min(430px,calc(100vw - 32px));padding:12px 14px;background:rgba(40,24,14,.95);border:2px solid #e8a33d;border-radius:14px 14px 14px 4px;box-shadow:0 6px 24px rgba(0,0,0,.45);color:#f3e6c8;font:400 14px/1.4 Rubik,Arial,sans-serif;animation:stIn .25s ease-out}
+#shookitip .st-av img{width:56px;height:56px;border-radius:50%;object-fit:cover;background:#b8642a;border:2px solid #e8a33d;display:block}
+#shookitip .st-from{font-weight:700;color:#e8a33d;font-size:12px;letter-spacing:.04em;text-transform:uppercase}#shookitip .st-from span{color:#c8a47a;font-weight:400}
 #shookitip .st-title{font:700 16px Rubik,Arial,sans-serif;color:#ffd36b;margin:2px 0 3px}#shookitip b{color:#fff}
 #shookitip .st-btns{margin-top:8px;display:flex;gap:10px;align-items:center}
-#shookitip .st-ok{font:700 13px Rubik,Arial;padding:5px 12px;border-radius:8px;border:2px solid #6ed36e;background:#2f6a3a;color:#fff;cursor:pointer}#shookitip .st-ok small{opacity:.7}
-#shookitip .st-off{font:400 12px Rubik,Arial;background:none;border:none;color:#9ab89a;text-decoration:underline;cursor:pointer}
+#shookitip .st-ok{font:700 13px Rubik,Arial;padding:5px 12px;border-radius:8px;border:2px solid #e8a33d;background:#a8431e;color:#fff;cursor:pointer}#shookitip .st-ok small{opacity:.7}
+#shookitip .st-off{font:400 12px Rubik,Arial;background:none;border:none;color:#c8a47a;text-decoration:underline;cursor:pointer}
 @keyframes stIn{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}`;
     document.head.appendChild(css); document.body.appendChild(el);
     el.querySelector('.st-ok').onclick = (e) => { e.stopPropagation(); close(); };

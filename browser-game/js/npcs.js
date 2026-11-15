@@ -15,7 +15,7 @@ export function initNpcs(d) {
   const CAST = [
     { // Shooki: the cousin (Game Bible idea, Drive 06_Shooki)
       id: 'shooki', who: 'Shooki', label: 'Talk to cousin Shooki',
-      look: { lampas: true, front: '#2f6a3a', shirt: 0x2f6a3a, pants: 0x2f6a3a, chain: true, ballcap: 0x1a1a1a, head: { skin: 0xd8a07a, hair: '#1a1410', brow: '#14100c', hairLine: 64, mouth: 'laugh', iris: '#3a2a1a' }, belly: 0.3, skin: 0xd8a07a },
+      look: { front: '#1e1f24a', shirt: 0x1e1f24, apron: 0x3a4248, pants: 0x34343a, head: { skin: 0xc8946c, hair: '#2a2420', brow: '#1a1410', hairLine: 64, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3430' }, belly: 0.3, skin: 0xc8946c }, // black tee, worn denim apron, stubble (assets/face_shooki.jpg)
       pos: () => (state.district1 && met('shooki') ? [8.3, -8.7, Math.PI * 0.8] : met('shooki') ? [-0.6, -8.6, Math.PI] : [3.2, -5.6, 0]), // by his Kangoo once the district is Eddy's
       show: () => met('shooki') || owns('spekbuurt') || (state.step === 'free' && tutorial && tutorial.at('shooki')),
       news: () => !met('shooki') || (owns('spekbuurt') && !econ.has('koerier')) || (!!state.district1 && !state.npcs.kangoo),
@@ -48,7 +48,7 @@ export function initNpcs(d) {
     },
     { // Henk Cijfer: the accountant (Drive 03_Accountant)
       id: 'henk', who: 'Henk Cijfer', label: 'Talk to Henk Cijfer, bookkeeper',
-      look: { front: '#c8b48a', shirt: 0xc8b48a, belt: 0x3a2a1a, pants: 0x4a4a52, head: { skin: 0xf0c8a8, hair: '#8a7a60', brow: '#6a5a40', hairLine: 52, mouth: 'smile', glasses: true, iris: '#3a5a7a' }, belly: 0.6, skin: 0xf0c8a8 },
+      look: { front: '#1e2a46', shirt: 0x1e2a46, pants: 0x4a4a52, head: { skin: 0xeec4a4, hair: '#8a7658', brow: '#6a5a40', hairLine: 52, mouth: 'flat', glasses: true, iris: '#5a7a8a' }, belly: 0.3, skin: 0xeec4a4 }, // navy sweater, thin glasses (assets/face_henk.jpg)
       pos: () => [-13.6, -5.8, 0],
       show: () => met('henk') || state.money >= 5000,
       news: () => !met('henk'),

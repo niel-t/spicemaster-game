@@ -54,7 +54,7 @@ export function paintShirt(cv, S) {
   x.strokeStyle = rgb(dk, 0.45); x.lineWidth = 3; x.beginPath(); x.moveTo(1, 0); x.lineTo(1, ty(tuck)); x.moveTo(511, 0); x.lineTo(511, ty(tuck)); x.stroke();
   if (S.skirt) { fabric(x, 0, ty(0.92), 512, ROWT - ty(0.92), S.skirt, 0.03); blob(x, 256, ty(0.92) + 3, 240, 5, 'rgba(0,0,0,.3)'); }
   if (S.stripes) for (let Y = 1.45; Y > tuck + 0.03; Y -= 0.085) { x.fillStyle = 'rgba(255,255,255,.6)'; x.fillRect(0, ty(Y), 512, 9); }
-  if (S.apron) { const ac = [242, 239, 230]; fabric(x, fx(-0.17), ty(1.38), fx(0.17) - fx(-0.17), ROWT - ty(1.38), ac, 0.03); x.strokeStyle = '#d8d2c4'; x.lineWidth = 4; x.beginPath(); x.moveTo(fx(-0.15), ty(1.38)); x.lineTo(fx(-0.1), 0); x.moveTo(fx(0.15), ty(1.38)); x.lineTo(fx(0.1), 0); x.stroke(); x.strokeStyle = '#d8d2c4'; x.lineWidth = 3; x.beginPath(); x.moveTo(0, ty(1.12)); x.lineTo(fx(-0.17), ty(1.12)); x.moveTo(fx(0.17), ty(1.12)); x.lineTo(512, ty(1.12)); x.stroke(); }
+  if (S.apron) { const ac = S.apronC || [242, 239, 230], ae = S.apronC ? `rgb(${ac.map((v) => Math.round(v * 0.7))})` : '#d8d2c4'; fabric(x, fx(-0.17), ty(1.38), fx(0.17) - fx(-0.17), ROWT - ty(1.38), ac, 0.03); x.strokeStyle = ae; x.lineWidth = 4; x.beginPath(); x.moveTo(fx(-0.15), ty(1.38)); x.lineTo(fx(-0.1), 0); x.moveTo(fx(0.15), ty(1.38)); x.lineTo(fx(0.1), 0); x.stroke(); x.strokeStyle = ae; x.lineWidth = 3; x.beginPath(); x.moveTo(0, ty(1.12)); x.lineTo(fx(-0.17), ty(1.12)); x.moveTo(fx(0.17), ty(1.12)); x.lineTo(512, ty(1.12)); x.stroke(); }
   if (S.police) { x.fillStyle = '#d8b040'; x.beginPath(); x.arc(fx(-0.09), ty(1.33), 7, 0, 7); x.fill(); x.fillStyle = '#fff'; x.font = '900 22px Arial'; x.textAlign = 'center'; x.fillText('POLITIE', 0, ty(1.3)); x.fillText('POLITIE', 512, ty(1.3)); x.fillStyle = '#111'; x.fillRect(0, ty(1.0), 512, 12); }
   if (S.controle) { x.fillStyle = '#ffd23a'; x.fillRect(0, ty(1.2), 512, 16); x.fillStyle = '#fff'; x.font = '900 20px Arial'; x.textAlign = 'center'; x.fillText('CONTROLE', 0, ty(1.33)); x.fillText('CONTROLE', 512, ty(1.33)); }
   if (S.badge) S.badge(x, fx, ty);
@@ -336,7 +336,7 @@ export function lookFromPerson(o, HEADS = {}) {
     shirt: h255(shirt), pants: h255(pants), skin: h255(skin), belt: o.belt ? h255(css(o.belt)) : [30, 24, 20],
     tuck: !!o.belt, neck: o.mandarin || fl.includes('p') ? 'crew' : fem || !o.belt ? 'crew' : 'v', sleeves: o.rolled ? 'rolled' : 'long', buttons: !!o.belt,
     skirt: fem && o.skirt ? h255(css(o.skirt)) : null, stripes: fl.includes('s'), apron: fl.includes('a'), police: fl.includes('p'), controle: fl.includes('c'),
-    crewChain: !!o.chain, chain: !!o.chain,
+    crewChain: !!o.chain, chain: !!o.chain, apronC: o.apron ? h255(css(o.apron)) : null,
   };
   if (o.mandarin) { const g = h255(css(o.mandarin)); L.shirtPaint.badge = (x, fx, ty) => { x.fillStyle = `rgb(${g})`; x.fillRect(0, 0, 512, 14); for (let k = 0; k < 3; k++) x.fillRect(fx(-0.05), ty(1.4 - k * 0.11), fx(0.05) - fx(-0.05), 6); }; }
   if (o.suit) { delete L.shirtPaint; L.tee = 0; L.jacket = hex01(shirt); L.shirt = o.suitShirt ? hex01(css(o.suitShirt)) : [0.12, 0.12, 0.15]; L.chain = !!o.chain; L.watch = 1; }
