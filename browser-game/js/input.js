@@ -54,7 +54,7 @@ function overlay() {
   if (!ctx) return null;
   const st = ctx.state;
   if (st.step === 'title' && shown($('title'))) return $('title');
-  for (const id of ['nvInv', 'shop', 'pc']) if (shown($(id))) return $(id);
+  for (const id of ['nvInv', 'shop', 'pc', 'shmokia']) if (shown($(id))) return $(id);
   const dl = $('dialogue'); if (shown(dl) && dl.querySelector('button')) return dl; // a choice box
   return null;
 }
