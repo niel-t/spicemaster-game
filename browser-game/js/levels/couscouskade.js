@@ -16,11 +16,11 @@ export default souk({
   courtName: 'Kade',
   floors: {
     harbour: (g) => { g.fillStyle = '#081a2c'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(110,170,255,${0.04 + Math.random() * 0.12})`; g.fillRect(Math.random() * 64, Math.random() * 64, 5 + Math.random() * 10, 1); } },
-    quay: (g) => { for (let y = 0; y < 64; y += 8) { g.fillStyle = ['#5a4430', '#4e3a28', '#62492f'][(y / 8) % 3]; g.fillRect(0, y, 64, 8); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, y, 64, 1); } },
+    quay: (g) => { for (let y = 0; y < 64; y += 8) { g.fillStyle = ['#9a7650', '#8a6a46', '#a6825a'][(y / 8) % 3]; g.fillRect(0, y, 64, 8); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, y, 64, 1); } },
   },
   court: 'quay', floorRep: { harbour: 4, quay: 2 },
   furn: { ...WATER_FURN },
-  mood: { bg: 0x060a14, sky: 0x4a5a7a, ground: 0x3a3020, hemi: 0.42, sun: 0.3 },
+  mood: { bg: 0x0a1020, sky: 0x8a9ab8, ground: 0x5a4830, hemi: 0.62, sun: 0.45 },
   lights: [[5, 23, 0xffd8a0, 1.4], [5, 8, 0xe8a33d, 1.6], [18, 5, 0xffc878, 1.2], [30, 5, 0xffc878, 1.2], [40, 5, 0xffc878, 1.1], [17, 19, 0xffb060, 1.1], [24, 24, 0xffb060, 1.0], [30, 20, 0x6a8aa8, 0.7], [40, 20, 0xd8a83a, 1.2]],
   courtLayout({ put, putR }) {
     putR(28, 13, 32, 26, '~'); // the dock basin, with a quay all round it
@@ -57,7 +57,7 @@ export default souk({
   },
   decorate({ THREE, root, OX, Z0, box, cyl, lam, spill, run, reinforce, reserves, banner, popup, floorW, canvasTex }) {
     // the basin water, drawn over the quay planks
-    const wt = canvasTex(64, 64, (g) => { g.fillStyle = '#081a2c'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(110,170,255,${0.04 + Math.random() * 0.12})`; g.fillRect(Math.random() * 64, Math.random() * 64, 5 + Math.random() * 10, 1); } });
+    const wt = canvasTex(64, 64, (g) => { g.fillStyle = '#16405e'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(110,170,255,${0.04 + Math.random() * 0.12})`; g.fillRect(Math.random() * 64, Math.random() * 64, 5 + Math.random() * 10, 1); } });
     const wm = floorW(OX + 28, OX + 33, Z0 + 13, Z0 + 27, wt, 3, 0xffffff, 0.03); let wk = 0;
     for (let z = 13; z <= 27; z += 2) for (const x of [28, 33]) cyl(0.1, 0.1, 0.9, lam({ color: 0x3a2a1a }), OX + x, 0.3, Z0 + z, root, 6);
     // moored boats and their lines
