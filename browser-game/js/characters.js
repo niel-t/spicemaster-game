@@ -218,7 +218,8 @@ function poseOf(p, now) {
     if (!q.gait2) q.gait2 = new Gait(q.look.body === 'fat');
     // characters not driven by animate() (seated diners, card players) still get the clock
     const dt = Math.min(0.1, q.gaitDt || (now - (q.gaitT || now)) / 1000); q.gaitT = now; q.gaitDt = 0;
-    const g = q.gait2.update(q.moving ? q.gaitV || 0 : 0, !!u.seated, dt, p.rotation.y);
+    const lying = Math.abs(u.body.rotation.x) > 1; // knocked down / dead: hold still instead of swaying on the floor
+    const g = q.gait2.update(q.moving && !lying ? q.gaitV || 0 : 0, !!u.seated, lying ? 0 : dt, p.rotation.y);
     base = { R: g.R, root: g.root };
     if (g.lean || g.bank) base.R.spine = P.M4.mul(P.M4.mul(P.M4.R(X, g.lean), P.M4.R(Z, g.bank)), base.R.spine);
   }

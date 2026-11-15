@@ -37,7 +37,7 @@ const CLIPS = [
   { name: 'walkHeavy', file: '17_08.bvh', kind: 'loop', cyc: [0.9, 1.6] },
   { name: 'jog', file: '16_35.bvh', kind: 'loop', cyc: [0.55, 0.9] },
   { name: 'run', file: '16_55.bvh', kind: 'loop', cyc: [0.5, 0.85] },
-  { name: 'idle', file: process.env.IDLE || '40_10.bvh', kind: 'still', len: 6, relaxArms: true, calmHead: 0.3 },
+  { name: 'idle', file: process.env.IDLE || '40_10.bvh', kind: 'still', len: 6, relaxArms: true, calmHead: 0.3, calmBody: 0.3 },
   { name: 'sit', file: process.env.SIT || '86_15.bvh', kind: 'still', len: +(process.env.SITLEN || 4), seat: true, gaze: 0.2, upright: 0.3, handsLow: 12, calmHead: 0.5, lapArms: 0.2 },
 ];
 
@@ -158,9 +158,11 @@ function bake(cfg) {
   locals = localsOf();
   const n = a1 - a0, frames = [];
   // calm the head: keep only some of the actor's looking around (idle actors watch for the bus)
-  const calm = {};
-  if (cfg.calmHead) for (const b of ['neck', 'head']) {
-    const m = new THREE.Vector4(); for (let f = a0; f < a1; f++) { const q = locals[f][b], sg = q.w < 0 ? -1 : 1; m.x += q.x * sg; m.y += q.y * sg; m.z += q.z * sg; m.w += q.w * sg; }
+  // calmBody does the same for the torso and legs: a standing NPC sways and breathes but keeps its feet planted
+  const calm = {}, keep = {};
+  for (const [b] of BONES) keep[b] = ['neck', 'head'].includes(b) ? cfg.calmHead : /arm|hand/.test(b) ? undefined : cfg.calmBody;
+  for (const [b] of BONES) if (keep[b] !== undefined) {
+    const m = new THREE.Vector4(); for (let f = a0; f < a1; f++) { const q = b === 'pelvis' ? unyaw.clone().multiply(locals[f][b]) : locals[f][b], sg = q.w < 0 ? -1 : 1; m.x += q.x * sg; m.y += q.y * sg; m.z += q.z * sg; m.w += q.w * sg; }
     m.normalize(); calm[b] = new THREE.Quaternion(m.x, m.y, m.z, m.w);
   }
   const meanP = new THREE.Vector3(); for (let f = a0; f < a1; f++) meanP.add(hp(f)); meanP.divideScalar(n);
@@ -174,7 +176,7 @@ function bake(cfg) {
       const err = qb.clone().multiply(qa.clone().invert()); // qb = err * qa
       const fix = new THREE.Quaternion().slerp(err, u).invert();
       q.premultiply(fix);
-      if (calm[b]) q = calm[b].clone().slerp(q, cfg.calmHead);
+      if (calm[b]) q = calm[b].clone().slerp(q, keep[b]);
       L[b] = q;
     }
     // pelvis offset: detrended horizontal (in place), height relative to standing, all in our metres
@@ -182,6 +184,7 @@ function bake(cfg) {
     const off = hp(f).clone().sub(trend).applyQuaternion(unyaw);
     const y0 = hp(a0).y + (hp(a1).y - hp(a0).y) * u - hp(a0).y; // seam drift
     const root = [off.x * s, ((hp(f).y - y0) - floor - restH) * s, off.z * s];
+    if (cfg.calmBody !== undefined) { root[0] *= cfg.calmBody; root[2] *= cfg.calmBody; }
     if (cfg.relaxArms) relax(L, f * sdt);
     if (cfg.lapArms !== undefined) relax(L, f * sdt, true, cfg.lapArms);
     frames.push({ L, root });
