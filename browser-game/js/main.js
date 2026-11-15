@@ -449,10 +449,12 @@ whFloor.rotation.x = -Math.PI / 2; whFloor.position.set((WH.x0 + WH.x1) / 2, 0.0
 // back + side walls
 box(WH.x1 - WH.x0, WH.h, 0.3, corr, (WH.x0 + WH.x1) / 2, WH.h / 2, WH.z0, wh);
 box(0.3, WH.h, WH.z1 - WH.z0, corr, WH.x0, WH.h / 2, (WH.z0 + WH.z1) / 2, wh);
-box(0.3, WH.h, WH.z1 - WH.z0, corr, WH.x1, WH.h / 2, (WH.z0 + WH.z1) / 2, wh);
+// east wall: a doorway into Het Hok at z -16.6 (js/woning.js builds the room behind the parking)
+box(0.3, WH.h, -17.15 - WH.z0, corr, WH.x1, WH.h / 2, (WH.z0 - 17.15) / 2, wh); box(0.3, WH.h, WH.z1 + 16.05, corr, WH.x1, WH.h / 2, (WH.z1 - 16.05) / 2, wh); box(0.3, WH.h - 2.3, 1.1, corr, WH.x1, 2.3 + (WH.h - 2.3) / 2, -16.6, wh);
 solid(WH.x0 - 0.2, WH.x1 + 0.2, WH.z0 - 0.3, WH.z0 + 0.15);
 solid(WH.x0 - 0.15, WH.x0 + 0.15, WH.z0, WH.z1);
-solid(WH.x1 - 0.15, WH.x1 + 0.15, WH.z0, WH.z1);
+solid(WH.x1 - 0.15, WH.x1 + 0.15, WH.z0, -17.15); solid(WH.x1 - 0.15, WH.x1 + 0.15, -16.05, WH.z1);
+const hokDoorSolid = solid(WH.x1 - 0.15, WH.x1 + 0.15, -17.15, -16.05);
 // front (south) wall: low strip always visible, the rest hides when you're inside
 const frontHigh = new THREE.Group(); wh.add(frontHigh);
 const frontLow = new THREE.Group(); wh.add(frontLow);
@@ -507,8 +509,11 @@ for (let i = 0; i < 2; i++) {
   const so = solid(sx - 1.8, sx + 1.8, WH.z0, WH.z0 + 1.35);
   if (i === 0) { backShelf.meshes = ms; backShelf.sol = so; }
 }
-{ const hd = new THREE.Group(); hd.position.set(WH.x1 - 0.17, 0, -16.6); wh.add(hd); box(0.06, 2.15, 1.05, lam({ color: 0xf2ead8 }), 0, 1.08, 0, hd, false); box(0.07, 2.0, 0.9, lam({ color: 0x6a4a2a }), -0.01, 1.02, 0, hd, false); box(0.04, 0.05, 0.14, lam({ color: 0xd8b040 }), -0.05, 1.0, 0.3, hd, false);
-  const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.2), lam({ map: signTex([{ t: 'HET HOK', size: 38 }], '#d8b040', '#3a2412', 256, 90) })); pl.position.set(-0.05, 1.62, 0); pl.rotation.y = -Math.PI / 2; hd.add(pl); }
+const hokDoor = { leaf: null, pl: null }; // Het Hok: an open doorway while Eddy lives there, a shut storage door after the move
+{ const hd = new THREE.Group(); hd.position.set(WH.x1 - 0.17, 0, -16.6); wh.add(hd); box(0.06, 0.12, 1.15, lam({ color: 0xf2ead8 }), 0, 2.3, 0, hd, false);
+  const leaf = new THREE.Group(); hd.add(leaf); box(0.07, 2.2, 1.0, lam({ color: 0x6a4a2a }), 0, 1.1, 0, leaf, false); box(0.04, 0.05, 0.14, lam({ color: 0xd8b040 }), -0.05, 1.0, 0.3, leaf, false);
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.2), lam({ map: signTex([{ t: 'HET HOK', size: 38 }], '#d8b040', '#3a2412', 256, 90) })); pl.position.set(-0.05, 2.55, 0); pl.rotation.y = -Math.PI / 2; hd.add(pl);
+  hokDoor.leaf = leaf; hokDoor.pl = pl; hokDoor.plOpen = pl.material.map; hokDoor.plShut = signTex([{ t: 'OPSLAG', size: 38 }], '#f2b21a', '#1a1a1a', 256, 90); }
 const isInside = (p) => p.x > WH.x0 && p.x < WH.x1 && p.z > WH.z0 && p.z < WH.z1 - 0.1;
 
 // ------------------------------------------------------------------ street props
@@ -1102,7 +1107,7 @@ const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 let phone = null; // js/phone.js, Hakan's kipkraud calls
-const econ = createEconomy({ boost: () => (loods ? loods.boost() : null), state, addMoney, toast, tip: (k) => tips.show(k), endDay: () => endDay(), onPlan: () => { updateObjective(); }, onDay: () => { if (ui.obj) updateObjective(); }, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
+const econ = createEconomy({ boost: () => { const b = loods ? loods.boost() : {}; if (woning && woning.hokStorage()) b.cap = (b.cap || 0) + 80; return b; }, state, addMoney, toast, tip: (k) => tips.show(k), endDay: () => endDay(), onPlan: () => { updateObjective(); }, onDay: () => { if (ui.obj) updateObjective(); }, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const haggle = createHaggle({ state, day: () => econ.ensure().day, toast, beep, save: () => writeSave() });
 const tips = createTips({ state, beep, save: () => writeSave() });
 const tutorial = createTutorial({ state, econ, toast, beep, save: () => writeSave(), dialogue, choice, objective: () => updateObjective() });
@@ -1144,7 +1149,13 @@ function renderPC() {
   }
   const body = $('winbody'); const title = $('wintitle');
   const fmt = (n) => 'W ' + n.toLocaleString('nl-NL');
-  if (pcMode === 'van') { title.textContent = 'Oofmobiel · Where to?'; body.innerHTML = mapHTML(true); bindMap(); return; }
+  if (pcMode === 'van') {
+    title.textContent = 'Oofmobiel · Where to?';
+    const hv = woning ? woning.vanHomes() : []; // Eddy's own house is across town (js/woning.js)
+    body.innerHTML = (hv.length ? `<div class="well" style="margin-bottom:8px"><b>Home</b> · ${hv.map((h) => `<button class="b95" data-home="${h.tier}">Drive home · ${h.name}${h.home ? '' : ' (move in)'}</button>`).join(' ')}</div>` : '') + mapHTML(true); bindMap();
+    body.querySelectorAll('[data-home]').forEach((b) => b.onclick = () => { closePC(); woning.driveHome(+b.dataset.home); });
+    return;
+  }
   if (haggle.tab() === pcTab) tips.show('haggle');
   if (haggle.tab() === pcTab) { title.textContent = haggle.title(); body.innerHTML = haggle.html(); body.scrollTop = 0; haggle.bind(body, renderPC); return; } // a negotiation takes over its tab until it ends
   if (pcTab === 'sell') {
@@ -2722,12 +2733,13 @@ function afterDrive(res) {
 }
 deviceHints();
 npcs = initNpcs({ tutorial, THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave() });
-loods = createLoods({ tip: (k) => tips.show(k), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
+loods = createLoods({ tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), shutter,
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || oofDrive.active,
   away: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),
   hideShelf: (on) => { for (const m of backShelf.meshes) m.visible = !on; backShelf.sol.off = on; } });
-woning = createWoning({ endDay: () => endDay(), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
+woning = createWoning({ endDay: () => endDay(), hokDoor: (open) => { hokDoorSolid.off = open; hokDoor.leaf.visible = !open; hokDoor.pl.material.map = open ? hokDoor.plOpen : hokDoor.plShut; hokDoor.pl.material.needsUpdate = true; },
+  vanStand: () => ({ x: oof.position.x, z: oof.position.z + 1.9 }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, openPC: (tab) => openPC(tab), doors: HOME_DOORS,
   snapCam: () => { const inH = woning && woning.inside(), k = inH ? [woning.camHeight(), woning.camHeight() * 0.43] : [12.5, 6], f = inH ? woning.camFocus(player.position) : player.position.clone(); camPos.copy(f).add(new THREE.Vector3(0, k[0] * zoom, k[1] * zoom)); camLook.copy(f).setY(0.8); }, inWarehouse: () => isInside(player.position), blocked: () => mission.active,
   busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || oofDrive.active || state.step === 'title' || !!(phone && phone.isOpen) });

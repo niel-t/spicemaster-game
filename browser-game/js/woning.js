@@ -1,15 +1,17 @@
 // Eddy's woning: homes, furniture, morning visitors, knacks (perks) and outfits.
 // The systems come from Neon Vice (safehouses + furniture catalogue, morning events, RPG perks, suits); the look is Spice Master's:
 // saffron, turmeric, paprika, cumin brown, cardamom green and cream, copper and kilims instead of neon and marble.
-// Three homes: Het Hok (the back room of the warehouse, free), the Bovenwoning next to Eddy's parking, and the Grachtenpand past the pawnshop.
-// Each home is a little room built far from the street (z = ROOM_Z); a door on the street (or in the warehouse) takes Eddy there.
+// Three homes: Het Hok (the back room of the warehouse, free), the Bovenwoning in Oud-Vettenburg and the Grachtenpand on the Herengracht.
+// Het Hok is part of the street map: a lean-to on the shed's east wall, behind the parking, that Eddy walks into through a door in the shed.
+// Once Eddy buys a real house, Het Hok becomes storage (+80 kg) and he drives the Oofmobiel to visit his home (the van map has a Home button);
+// those two homes are rooms built far from the street (z = ROOM_Z), reached with a fade.
 // Furniture is bought per home on the Kaasdows (Woning tab) and most of it gives a small knack while you live there.
 // Everything lives in state.eddy (saved by main.js); the hidden kruidenblikken from the raids are in state.tins (js/mission.js).
 
 export const HOMES = [
   { id: 'hok', name: 'Het Hok', price: 0, w: 6, d: 5, desc: "The back room of the warehouse. A camp bed between the paprika sacks. Dad slept here in '87." },
-  { id: 'boven', name: 'Bovenwoning', price: 8000, w: 9, d: 7, rank: 1, desc: 'Two rooms in the house next to your parking spot. Creaky stairs, a real bed, a window on the canal.' },
-  { id: 'gracht', name: 'Grachtenpand', price: 35000, w: 12, d: 9, rank: 2, needs: 'district1', desc: 'The tall house past the pawnshop. A hoisting beam, high ceilings, the whole canal at your feet. Dad always wanted one.' },
+  { id: 'boven', name: 'Bovenwoning', price: 8000, w: 9, d: 7, rank: 1, desc: 'Two rooms above a bakery across town. Creaky stairs, a real bed, a window on the canal. Drive there in the Oofmobiel; Het Hok becomes storage.' },
+  { id: 'gracht', name: 'Grachtenpand', price: 35000, w: 12, d: 9, rank: 2, needs: 'district1', desc: 'A tall canal house on the Herengracht. A hoisting beam, high ceilings, the whole canal at your feet. Dad always wanted one. Drive there in the Oofmobiel.' },
 ];
 // furniture: per home tier [name, price, desc] (null: not sold in that home). perk: the knack it gives while it stands in your home.
 // comfort makes the morning visitors friendlier. global: bought once, it follows Eddy from home to home.
@@ -69,6 +71,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 const P = { saff: 0xe8a33d, turm: 0xd9a21b, papr: 0xb83a1e, cumin: 0x6a4a2a, card: 0xa9c46a, cream: 0xf2ead8, copper: 0xb8703a, brass: 0xd8b040, wood: 0x7a4a26, dark: 0x3a2412 };
 const ROOM_Z = -72, ROOM_X = [-40, 0, 40];
+const HOK = { x: 4.15, z: -18.5 }, HOK_DOOR = 1.9; // Het Hok on the street map (6 x 5 m behind the parking); the door from the shed at local z 1.9 (world z -16.6)
 
 // deps: THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast,
 // dialogue, choice, beep, save, repaint(player, look), music, setBounds(b), busy(), openPC(tab), doors: [{x,z,face,stand}] per home
@@ -113,6 +116,7 @@ export function createWoning(deps) {
   const fadeEl = document.createElement('div');
   fadeEl.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40';
   document.body.appendChild(fadeEl);
+  const corrT = canvasTex(128, 32, (g, w, h) => { for (let x = 0; x < w; x++) { const v = 200 + Math.round(55 * Math.cos(x / w * Math.PI * 16)); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, h); } }); corrT.wrapS = corrT.wrapT = THREE.RepeatWrapping;
   const fadeTo = (fn) => { fadeEl.style.opacity = '1'; setTimeout(() => { fn(); setTimeout(() => { fadeEl.style.opacity = '0'; }, 60); }, 380); };
   const M = {}; const mt = (c) => M[c] || (M[c] = lam({ color: c }));
   const plankTex = (base, line, herring) => { const t = canvasTex(256, 256, (g, w, h) => {
@@ -129,19 +133,32 @@ export function createWoning(deps) {
     { floor: () => { const t = plankTex('#6a3e1e', 'rgba(30,16,6,.6)', true); t.repeat.set(4, 3); return t; }, wall: 0xffffff, wallTex: () => wallpaper('#8a2a18', 'rgba(232,163,61,.4)'), trim: P.cream, light: 0xffc880 },
   ];
   const rooms = HOMES.map((h, i) => {
-    const g = new THREE.Group(); g.position.set(ROOM_X[i], 0, ROOM_Z); g.visible = false; deps.scene.add(g);
+    const hok = i === 0, ox = hok ? HOK.x : ROOM_X[i], oz = hok ? HOK.z : ROOM_Z;
+    const g = new THREE.Group(); g.position.set(ox, 0, oz); g.visible = hok; deps.scene.add(g);
     const L = LOOK[i], W = h.w, D = h.d, WH = i === 2 ? 3.2 : 2.7;
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 30, D + 30), mt(0x1a120a)); ground.rotation.x = -Math.PI / 2; ground.position.y = 0.004; g.add(ground);
+    if (!hok) { const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 30, D + 30), mt(0x1a120a)); ground.rotation.x = -Math.PI / 2; ground.position.y = 0.004; g.add(ground); }
     const fl = new THREE.Mesh(new THREE.PlaneGeometry(W, D), lam({ map: L.floor() })); fl.rotation.x = -Math.PI / 2; fl.position.y = 0.01; fl.receiveShadow = true; g.add(fl);
     const wm = L.wallTex ? lam({ map: (() => { const t = L.wallTex(); t.repeat.set(W / 1.2, WH / 1.2); return t; })() }) : mt(L.wall);
     const wmS = L.wallTex ? lam({ map: (() => { const t = L.wallTex(); t.repeat.set(D / 1.2, WH / 1.2); return t; })() }) : mt(L.wall);
     box(W + 0.3, WH, 0.15, wm, 0, WH / 2, -D / 2 - 0.07, g); // back wall
-    box(0.15, WH, D, wmS, -W / 2 - 0.07, WH / 2, 0, g); box(0.15, WH, D, wmS, W / 2 + 0.07, WH / 2, 0, g);
+    const outer = hok ? lam({ map: (() => { const t = corrT.clone(); t.needsUpdate = true; t.repeat.set(3, 1); return t; })(), color: 0x8ae6da }) : null; // Het Hok outside: the shed's mint sheet
+    if (hok) { // the shed's east wall is Het Hok's west wall from z -19; behind the shed it needs its own piece
+      box(0.15, WH, (-19 - HOK.z) + D / 2, wmS, -W / 2 - 0.07, WH / 2, (-D / 2 + (-19 - HOK.z)) / 2, g);
+      box(0.15, WH, D, wmS, W / 2 + 0.07, WH / 2, 0, g); box(0.06, WH, D + 0.3, outer, W / 2 + 0.17, WH / 2, 0, g);
+    } else { box(0.15, WH, D, wmS, -W / 2 - 0.07, WH / 2, 0, g); box(0.15, WH, D, wmS, W / 2 + 0.07, WH / 2, 0, g); }
     box(W + 0.3, 0.12, 0.2, mt(L.trim), 0, 0.06, -D / 2 + 0.02, g, false); // skirting
-    // the cutaway front: a low wall with the door gap on the left
+    // the cutaway front: a low wall with the door gap on the left (Het Hok: closed, the door is in the shed)
     const gap0 = -W / 2 + 0.6, gap1 = gap0 + 1.1;
-    box(gap0 + W / 2, 0.45, 0.15, wm, (-W / 2 + gap0) / 2, 0.22, D / 2 + 0.07, g); box(W / 2 - gap1, 0.45, 0.15, wm, (gap1 + W / 2) / 2, 0.22, D / 2 + 0.07, g);
-    box(1.1, 0.03, 0.5, mt(P.papr), (gap0 + gap1) / 2, 0.02, D / 2 - 0.15, g, false); // doormat
+    let hi = null, roofG = null;
+    if (hok) {
+      box(W + 0.3, 0.45, 0.15, wm, 0, 0.22, D / 2 + 0.07, g);
+      hi = new THREE.Group(); g.add(hi); box(W + 0.3, WH - 0.45, 0.15, outer, 0, 0.45 + (WH - 0.45) / 2, D / 2 + 0.07, hi);
+      roofG = new THREE.Group(); g.add(roofG); box(W + 0.6, 0.18, D + 0.6, lam({ color: 0xa08070 }), 0, WH + 0.09, 0, roofG); for (let k = 0; k < 5; k++) box(0.08, 0.06, D + 0.6, lam({ color: 0x8a6a5a }), -W / 2 + 0.6 + k * 1.2, WH + 0.2, 0, roofG, false);
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.4), lam({ map: signTex([{ t: 'HET HOK', size: 40 }], '#d8b040', '#3a2412', 256, 74) })); pl.position.set(0.8, WH - 0.5, D / 2 + 0.16); hi.add(pl);
+    } else {
+      box(gap0 + W / 2, 0.45, 0.15, wm, (-W / 2 + gap0) / 2, 0.22, D / 2 + 0.07, g); box(W / 2 - gap1, 0.45, 0.15, wm, (gap1 + W / 2) / 2, 0.22, D / 2 + 0.07, g);
+      box(1.1, 0.03, 0.5, mt(P.papr), (gap0 + gap1) / 2, 0.02, D / 2 - 0.15, g, false); // doormat
+    }
     // windows on the back wall: canal light (cream frames, a deep evening blue)
     const nW = i === 0 ? 1 : i === 1 ? 2 : 3;
     for (let k = 0; k < nW; k++) {
@@ -151,22 +168,32 @@ export function createWoning(deps) {
       box(0.06, 1.2, 0.09, mt(P.cream), wx, 1.65, -D / 2 + 0.06, g, false);
     }
     if (i === 0) for (let k = 0; k < 5; k++) { const sx = W / 2 - 0.45 - k * 0.45; cyl(0.2, 0.23, 0.6, mt([P.papr, P.turm, P.cumin][k % 3]), sx, 0.3, D / 2 - 0.45, g, 8); } // sacks along the front
+    if (hok) box(1.0, 0.03, 0.6, mt(P.papr), -W / 2 + 0.55, 0.02, HOK_DOOR, g, false); // doormat inside the door from the shed
     const light = new THREE.PointLight(L.light, 0, W * 1.4, 1.4); light.position.set(0, WH - 0.3, 0); g.add(light);
     const lamp = cyl(0.1, 0.16, 0.12, lam({ color: P.copper, emissive: 0x4a2a10 }), 0, WH - 0.12, 0, g, 10); lamp.castShadow = false;
     // walls block walking (local -> world)
-    const ox = ROOM_X[i], oz = ROOM_Z, sol = [];
+    const sol = [];
     sol.push(solid(ox - W / 2 - 0.3, ox + W / 2 + 0.3, oz - D / 2 - 0.3, oz - D / 2 + 0.05));
-    sol.push(solid(ox - W / 2 - 0.3, ox - W / 2 + 0.05, oz - D / 2, oz + D / 2));
+    if (hok) sol.push(solid(ox - W / 2 - 0.3, ox - W / 2 + 0.05, oz - D / 2, -19)); // (the shed's east wall covers the rest)
+    else sol.push(solid(ox - W / 2 - 0.3, ox - W / 2 + 0.05, oz - D / 2, oz + D / 2));
     sol.push(solid(ox + W / 2 - 0.05, ox + W / 2 + 0.3, oz - D / 2, oz + D / 2));
-    sol.push(solid(ox - W / 2, ox + gap0, oz + D / 2 - 0.05, oz + D / 2 + 0.3));
-    sol.push(solid(ox + gap1, ox + W / 2, oz + D / 2 - 0.05, oz + D / 2 + 0.3));
+    if (hok) sol.push(solid(ox - W / 2, ox + W / 2, oz + D / 2 - 0.05, oz + D / 2 + 0.3));
+    else { sol.push(solid(ox - W / 2, ox + gap0, oz + D / 2 - 0.05, oz + D / 2 + 0.3)); sol.push(solid(ox + gap1, ox + W / 2, oz + D / 2 - 0.05, oz + D / 2 + 0.3)); }
     const fg = new THREE.Group(); g.add(fg);
-    return { g, fg, light, W, D, WH, ox, oz, door: { x: ox + (gap0 + gap1) / 2, z: oz + D / 2 - 0.55 }, sol, furnSol: [], spots: [] };
+    const store = new THREE.Group(); store.visible = false; g.add(store); // Het Hok as storage, after the move
+    return { g, fg, store, hi, roofG, light, W, D, WH, ox, oz, door: hok ? { x: ox - W / 2 + 0.6, z: oz + HOK_DOOR } : { x: ox + (gap0 + gap1) / 2, z: oz + D / 2 - 0.55 }, sol, furnSol: [], spots: [] };
   });
 
+  { // Het Hok as storage: sacks to the ceiling, a pallet of crates, a ladder
+    const st = rooms[0].store, cols = [P.papr, P.turm, P.cumin, P.card, P.saff];
+    for (let k = 0; k < 14; k++) { const x = -2.4 + (k % 7) * 0.62, z = -1.9 + Math.floor(k / 7) * 0.7; for (let y = 0; y < 3 - (k % 3 === 2 ? 1 : 0); y++) { const b = box(0.55, 0.38, 0.5, mt(cols[(k + y) % 5]), x, 0.19 + y * 0.4, z, st); b.rotation.y = (k * 0.37 + y) % 0.3; } }
+    box(1.2, 0.14, 1.0, mt(0xc49a62), 1.6, 0.07, 1.2, st); for (let y = 0; y < 2; y++) for (let k = 0; k < 4; k++) box(0.5, 0.42, 0.42, mt(0xb08a5a), 1.33 + (k % 2) * 0.54, 0.35 + y * 0.44, 0.98 + Math.floor(k / 2) * 0.46, st);
+    for (let k = 0; k < 6; k++) cyl(0.22, 0.24, 0.62, mt(cols[k % 5]), -1.6 + k * 0.5, 0.31, 1.7, st, 8);
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.3), lam({ map: signTex([{ t: 'OPSLAG', size: 44 }], '#f2b21a', '#1a1a1a', 256, 76) })); pl.position.set(0.8, rooms[0].WH - 0.95, rooms[0].D / 2 + 0.17); st.add(pl);
+  }
   // ---- furniture models (box-built, spice palette). Each returns its footprint [w, d] for collision (0 = walk-through).
   const S = { // slots per home: [x, z, rotY]
-    bed: [[-1.9, -1.6, 0], [-3.1, -2.3, 0], [-4.3, -3.0, 0]], ward: [[2.45, -1.95, 0], [-1.3, -3.1, 0], [-2.1, -4.1, 0]], cat: [[-2.4, 1.6, 0], [-3.8, 2.6, 0], [-5.2, 3.6, 0]],
+    bed: [[-1.9, -1.6, 0], [-3.1, -2.3, 0], [-4.3, -3.0, 0]], ward: [[2.45, -1.95, 0], [-1.3, -3.1, 0], [-2.1, -4.1, 0]], cat: [[-1.0, 1.95, 0], [-3.8, 2.6, 0], [-5.2, 3.6, 0]],
     radio: [[-0.5, -2.15, 0], [0.5, -3.15, 0], [0.3, -4.1, 0]], coffee: [[0.5, -2.15, 0], [1.8, -3.15, 0], [2.1, -4.1, 0]], rack: [[1.5, -2.38, 0], [3.4, -3.38, 0], [4.3, -4.36, 0]],
     bag: [[2.3, 0.7, 0], [3.7, 1.8, 0], [4.9, 2.6, 0]], target: [[2.92, -0.6, -Math.PI / 2], [4.42, -1.0, -Math.PI / 2], [5.9, -1.4, -Math.PI / 2]],
     medic: [[-2.92, 1.0, Math.PI / 2], [-4.42, 0.2, Math.PI / 2], [-5.0, 0.7, 0]], rug: [[0, 0.1, 0], [0, 0.2, 0], [0.3, 0.2, 0]],
@@ -381,9 +408,18 @@ export function createWoning(deps) {
 
   // ================================================================== going in and out
   let inHome = -1, perkT = 1;
+  const hokStorage = () => ensure().homes.some((i) => i > 0); // a real house bought: Het Hok is storage now
+  const inHok = (p) => { const r = rooms[0]; return p.x > r.ox - r.W / 2 && p.x < r.ox + r.W / 2 && p.z > r.oz - r.D / 2 && p.z < r.oz + r.D / 2; };
+  function hokLook() { // Het Hok: a room, or storage (sacks and pallets) once Eddy has moved out
+    const r = rooms[0], st = hokStorage();
+    if (st && ensure().home === 0) ensure().home = Math.max(...ensure().homes); // an old save that moved back into Het Hok: it's storage now
+    r.fg.visible = !st; r.store.visible = st; for (const s of r.furnSol) s.off = st;
+    if (deps.hokDoor) deps.hokDoor(!st);
+  }
   const inRoom = (p, r) => p.x > r.ox - r.W / 2 - 0.5 && p.x < r.ox + r.W / 2 + 0.5 && p.z > r.oz - r.D / 2 - 0.5 && p.z < r.oz + r.D / 2 + 0.6;
   function show(tier) {
-    rooms.forEach((r, i) => { r.g.visible = i === tier; r.light.intensity = i === tier ? 2.4 : 0; });
+    rooms.forEach((r, i) => { r.g.visible = i === tier || i === 0; r.light.intensity = i === tier ? 2.4 : 0; });
+    rooms[0].hi.visible = rooms[0].roofG.visible = tier !== 0; // walking into Het Hok lifts its roof, like the shed's
     kat.visible = tier >= 0 && !!ensure().glob.kat;
     if (kat.visible) { const r = rooms[tier], sl = S.rug[tier]; kat.position.set(r.ox + sl[0] + 0.6, 0, r.oz + sl[1] - 0.3); kat.userData.wait = 1.5; }
   }
@@ -395,13 +431,18 @@ export function createWoning(deps) {
       const r = rooms[tier]; inHome = tier; show(tier);
       player.position.set(r.door.x, 0, r.door.z); player.rotation.y = Math.PI;
       deps.setBounds({ x0: r.ox - r.W / 2 + 0.3, x1: r.ox + r.W / 2 - 0.3, z0: r.oz - r.D / 2 + 0.3, z1: r.oz + r.D / 2 - 0.2 });
+      if (tier > 0) deps.toast(HOMES[tier].name.toUpperCase(), 'You park the Oofmobiel round the corner and go up.', 2.2);
       if (deps.snapCam) deps.snapCam(); deps.save();
     });
   }
-  function leaveHome() {
-    const d = deps.doors[inHome]; deps.beep(260, 0.08, 'triangle', 0.04);
-    fadeTo(() => { inHome = -1; show(-1); deps.setBounds(null); player.position.set(d.stand.x, 0, d.stand.z); player.rotation.y = d.face; if (deps.snapCam) deps.snapCam(); });
+  function leaveHome() { // from a real house: back to the Oofmobiel at the warehouse
+    if (inHome <= 0) return; const v = deps.vanStand ? deps.vanStand() : deps.doors[0].stand; deps.beep(260, 0.08, 'triangle', 0.04);
+    fadeTo(() => { inHome = -1; show(-1); deps.setBounds(null); player.position.set(v.x, 0, v.z); player.rotation.y = 0; if (deps.snapCam) deps.snapCam(); deps.toast('BACK AT THE WAREHOUSE', 'You drive back to the shed.', 2); });
   }
+  function driveHome(tier) { // the van map's Home button
+    const e = ensure(); if (!e.homes.includes(tier) || tier === 0) return; e.home = tier; enterHome(tier);
+  }
+  const vanHomes = () => ensure().homes.filter((i) => i > 0).map((i) => ({ tier: i, name: HOMES[i].name, home: ensure().home === i }));
   // street doors: Het Hok from the warehouse, the other two on the street with a TE KOOP board or a brass name plate
   const plates = deps.doors.map((d, i) => {
     if (!d.facade) return null;
@@ -412,16 +453,16 @@ export function createWoning(deps) {
     own.position.set(0.68, 1.45, 0.1); g.add(own);
     return { sale, own };
   });
-  function refreshPlates() { const e = ensure(); plates.forEach((p, i) => { if (!p) return; const mine = e.homes.includes(i); p.sale.visible = !mine; p.own.visible = mine; }); }
+  function refreshPlates() { plates.forEach((p) => { if (!p) return; p.sale.visible = p.own.visible = false; }); hokLook(); } // the homes are across town now (2026-11-15): no street doors
   refreshPlates();
   deps.doors.forEach((d, i) => addInteract({
-    pos: () => new THREE.Vector3(d.stand.x, 0, d.stand.z), r: 1.3, enabled: () => inHome < 0 && (i > 0 || deps.inWarehouse()) && !deps.blocked(),
-    label: () => { const e = ensure(); return e.homes.includes(i) ? (e.home === i ? `Go home · ${HOMES[i].name}` : `${HOMES[i].name} · yours · move back in`) : `${HOMES[i].name} · TE KOOP · ${fmt(HOMES[i].price)}`; },
-    act: () => { const e = ensure(); if (e.homes.includes(i)) enterHome(i); else deps.toast('TE KOOP', `${HOMES[i].name}, ${fmt(HOMES[i].price)}. ${buyWhy(i) || 'Buy it on the Kaasdows, under Woning.'}`, 3.5); },
+    pos: () => new THREE.Vector3(d.stand.x, 0, d.stand.z), r: 1.3, enabled: () => i === 0 && inHome < 0 && hokStorage() && deps.inWarehouse() && !deps.blocked(),
+    label: () => `Het Hok · storage now (+80 kg) · ${HOMES[ensure().home].name}: drive there in the Oofmobiel`,
+    act: () => deps.toast('HET HOK', `Sacks to the ceiling: it's storage now. Your home is ${HOMES[ensure().home].name}: take the Oofmobiel (the van map has a Home button).`, 3.5),
   }));
   // inside: the door, the bed, the wardrobe, the catalogue, the radio
   const here = (key) => () => { const r = rooms[inHome], sl = S[key][inHome]; return new THREE.Vector3(r.ox + sl[0], 0, r.oz + sl[1]); };
-  addInteract({ pos: () => (inHome >= 0 ? new THREE.Vector3(rooms[inHome].door.x, 0, rooms[inHome].door.z + 0.3) : new THREE.Vector3(0, -99, 0)), r: 1.0, enabled: () => inHome >= 0, label: () => 'Go outside', act: leaveHome });
+  addInteract({ pos: () => (inHome >= 0 ? new THREE.Vector3(rooms[inHome].door.x, 0, rooms[inHome].door.z + 0.3) : new THREE.Vector3(0, -99, 0)), r: 1.0, enabled: () => inHome > 0, label: () => 'Go outside · back to the Oofmobiel', act: leaveHome });
   addInteract({ pos: () => (inHome >= 0 ? here('bed')() : new THREE.Vector3(0, -99, 0)), r: 1.7, enabled: () => inHome >= 0, label: () => (deps.endDay && deps.state.step === 'free' ? `Sleep · end day ${econ.ensure().day}` : ensure().mornDay !== econ.ensure().day ? 'Sleep (somebody may knock in the morning)' : 'Take a nap'), act: sleep });
   addInteract({ pos: () => (inHome >= 0 ? here('ward')() : new THREE.Vector3(0, -99, 0)), r: 1.4, enabled: () => inHome >= 0, label: () => `Wardrobe · ${OUTFITS[ensure().outfit].name}`, act: wardrobe });
   addInteract({ pos: () => (inHome >= 0 ? here('cat')() : new THREE.Vector3(0, -99, 0)), r: 1.3, enabled: () => inHome >= 0, label: () => 'Catalogue & phone · order furniture', act: () => deps.openPC('woning') });
@@ -517,7 +558,9 @@ export function createWoning(deps) {
 
   // ================================================================== per frame
   function update(dt) {
-    if (inHome >= 0 && !inRoom(player.position, rooms[inHome])) { inHome = -1; show(-1); } // a mission or drive took Eddy away
+    if (inHome === 0 && !inHok(player.position)) { inHome = -1; show(-1); } // walked out of Het Hok (or a mission took Eddy away)
+    else if (inHome > 0 && !inRoom(player.position, rooms[inHome])) { inHome = -1; show(-1); } // a mission or drive took Eddy away
+    if (inHome < 0 && !hokStorage() && inHok(player.position) && !deps.blocked()) { inHome = 0; show(0); }
     if (inHome >= 0 && kat.visible) { // Saffie wanders between the furniture
       const r = rooms[inHome], u = kat.userData; u.wait -= dt;
       if (u.wait <= 0) {
@@ -542,8 +585,9 @@ export function createWoning(deps) {
     const e = ensure(), h = HOMES[i]; if (e.homes.includes(i)) return null;
     const why = buyWhy(i); if (why) return why;
     if (state.money < h.price) return `Not enough Wilders (${fmt(h.price)}).`;
+    const first = !hokStorage();
     deps.addMoney(-h.price, el); e.homes.push(i); e.home = i; refreshPlates(); deps.save();
-    deps.toast('SOLD', `${h.name} is yours. The key is under the mat: go and have a look.`, 3.5); return null;
+    deps.toast('SOLD', `${h.name} is yours. Take the Oofmobiel to go and have a look (the van map has a Home button).${first ? ' Het Hok becomes storage: +80 kg.' : ''}`, 5); return null;
   }
   function buyFurn(k, el) {
     const e = ensure(), it = FURN.find((f) => f.k === k), tier = e.home, row = it && itemFor(it, tier);
@@ -559,7 +603,7 @@ export function createWoning(deps) {
     h += '<table class="list"><tr><th>Home</th><th></th></tr>';
     HOMES.forEach((x, i) => {
       const mine = e.homes.includes(i), why = buyWhy(i);
-      h += `<tr><td><b>${x.name}</b>${i === tier ? ' <small>(home)</small>' : ''}<br><small>${x.desc}</small></td><td>${mine ? (i === tier ? 'Living here' : `<button class="b95" data-wo="move:${i}">Move back in</button>`) : why ? `<small>${why}</small>` : `<button class="b95" data-wo="home:${i}" data-need="${x.price}"${state.money < x.price ? ' disabled' : ''}>Buy (${fmt(x.price)})</button>`}</td></tr>`;
+      h += `<tr><td><b>${x.name}</b>${i === tier ? ' <small>(home)</small>' : ''}<br><small>${x.desc}</small></td><td>${mine ? (i === tier ? 'Living here' : i === 0 && hokStorage() ? '<small>Storage now</small>' : `<button class="b95" data-wo="move:${i}">Move back in</button>`) : why ? `<small>${why}</small>` : `<button class="b95" data-wo="home:${i}" data-need="${x.price}"${state.money < x.price ? ' disabled' : ''}>Buy (${fmt(x.price)})</button>`}</td></tr>`;
     });
     h += `</table><div class="well" style="margin-top:8px"><b>Inrichting · ${HOMES[tier].name}</b> · comfort ${comfort()}</div><table class="list"><tr><th>Piece</th><th>Gives</th><th></th></tr>`;
     for (const it of FURN) {
@@ -582,12 +626,12 @@ export function createWoning(deps) {
     body.querySelectorAll('[data-wo]').forEach((b) => b.onclick = () => {
       const [act, id] = b.dataset.wo.split(':'); let m = null;
       if (act === 'home') m = buyHome(+id, b); else if (act === 'furn') m = buyFurn(id, b); else if (act === 'wear') wear(id);
-      else if (act === 'move') { ensure().home = +id; deps.toast('MOVING', `Back to ${HOMES[+id].name}. Walk over and go in.`, 2.5); deps.save(); }
+      else if (act === 'move') { ensure().home = +id; deps.toast('MOVING', `Back to ${HOMES[+id].name}. Drive there in the Oofmobiel.`, 2.5); deps.save(); }
       if (m) deps.toast('WONING', m, 2.5); rerender();
     });
   }
-  function loaded() { ensure(); refreshPlates(); rooms.forEach((r, i) => furnish(i)); applyOutfit(); applyStation(); }
+  function loaded() { ensure(); rooms.forEach((r, i) => furnish(i)); refreshPlates(); applyOutfit(); applyStation(); }
   const camFocus = (p) => { const r = rooms[inHome]; return new THREE.Vector3(r.ox * 0.55 + p.x * 0.45, 0, (r.oz - 0.6) * 0.55 + p.z * 0.45); };
   const camHeight = () => rooms[Math.max(0, inHome)].D * 1.1 + 4.2; // bigger rooms: the camera goes up a bit
-  return { camHeight, camFocus, ensure, perk, update, html, bind, loaded, applyOutfit, inside: () => inHome >= 0, home: () => inHome, enterHome, leaveHome, pending, knackLevel, comfort, rooms, sleep, wear, buyHome, buyFurn };
+  return { hokStorage, driveHome, vanHomes, camHeight, camFocus, ensure, perk, update, html, bind, loaded, applyOutfit, inside: () => inHome >= 0, home: () => inHome, enterHome, leaveHome, pending, knackLevel, comfort, rooms, sleep, wear, buyHome, buyFurn };
 }

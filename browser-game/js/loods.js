@@ -150,7 +150,7 @@ export function createLoods(deps) {
     for (let k = 0; k <= 6; k++) { const x = TENT.x0 + k * (W / 6); box(0.14, 5.5, 0.14, truss, x, 2.75, TENT.z0 + 0.1, tent); for (let y = 0.8; y < 5.4; y += 1.1) { const d = box(0.05, 1.3, 0.05, truss, x + 0.45, y, TENT.z0 + 0.12, tent, false); d.rotation.z = 0.7; } }
     for (let k = 0; k <= 4; k++) box(0.14, 5.5, 0.14, truss, TENT.x0 + 0.1, 2.75, TENT.z0 + k * (D / 4), tent);
     box(1.6, 0.6, 0.15, memb, cx, 0.3, TENT.z1, tent); box(W, 0.5, 0.15, mt(0xd8d0bc), cx, 0.25, TENT.z1, tent);
-    for (let k = 0; k < 9; k++) { const p = pallet(0x141414, tent); p.position.set(TENT.x0 + 0.9, 0, TENT.z0 + 2.2 + k * 1.3); p.rotation.y = Math.PI / 2; p.userData.load.material = mt(0x161616); if (k % 3 === 1) { const q = pallet(0x141414, tent); q.position.set(TENT.x0 + 0.9, 1.1, TENT.z0 + 2.2 + k * 1.3); q.rotation.y = Math.PI / 2; q.userData.load.material = mt(0x161616); } }
+    for (let k = 0; k < 9; k++) { const p = pallet(0x141414, tent); p.position.set(TENT.x0 + 0.9, 0, TENT.z0 + 3.4 + k * 1.2); p.rotation.y = Math.PI / 2; p.userData.load.material = mt(0x161616); if (k % 3 === 1) { const q = pallet(0x141414, tent); q.position.set(TENT.x0 + 0.9, 1.1, TENT.z0 + 3.4 + k * 1.2); q.rotation.y = Math.PI / 2; q.userData.load.material = mt(0x161616); } }
     // an orange hand pallet truck, like the one in the art
     { const j = new THREE.Group(); j.position.set(TENT.x0 + 2.6, 0, TENT.z1 - 1.6); j.rotation.y = 0.4; tent.add(j); for (const x of [-0.18, 0.18]) box(0.16, 0.08, 1.2, mt(C.orange), x, 0.06, 0.4, j); box(0.5, 0.25, 0.25, mt(C.orange), 0, 0.15, -0.25, j); const h = box(0.05, 1.0, 0.05, mt(C.orange), 0, 0.6, -0.35, j); h.rotation.x = -0.35; }
     tent.userData.lights = [TENT.x0 + 5.5, TENT.x0 + 16.5].map((x) => { const l = new THREE.PointLight(0xfff0d8, 0, 26, 1.2); l.position.set(x, 4.2, cz); tent.add(l); return l; });
@@ -161,7 +161,7 @@ export function createLoods(deps) {
     solid(HX + TENT.x0 - 0.3, HX + TENT.x1, HZ + TENT.z0 - 0.3, HZ + TENT.z0 + 0.1),
     solid(HX + TENT.x0 - 0.3, HX + TENT.x0 + 0.1, HZ + TENT.z0, HZ + TENT.z1),
     solid(HX + TENT.x0 - 0.3, HX + TENT.x1, HZ + TENT.z1 - 0.1, HZ + TENT.z1 + 0.3),
-    solid(HX + TENT.x0 + 0.4, HX + TENT.x0 + 1.4, HZ + TENT.z0 + 1.5, HZ + TENT.z1 - 1.0), // the wrapped pallets
+    solid(HX + TENT.x0 + 0.4, HX + TENT.x0 + 1.4, HZ + TENT.z0 + 2.7, HZ + TENT.z1 - 0.6), // the wrapped pallets
   ];
   const tentNotch = solid(HX + HALL.x0 - 0.2, HX + HALL.x1 + 0.3, HZ + TENT.z0 - 0.3, HZ + HALL.z0 - 0.1); // north of the hall wall: outside
 
@@ -279,6 +279,8 @@ export function createLoods(deps) {
     dockPallets.forEach((d, i) => { const it = L.dock.find((p) => p.spot === i && landed(p) && !(F.carry && F.carry.spot === i)); d.g.visible = !!it && has('hal'); d.sol.off = !d.g.visible; if (it) d.g.userData.load.material = mt(ING_COL[it.id] || C.paprika); });
   }
   const carried = pallet(C.paprika, fork.userData.carriage); carried.position.set(0, -0.1, 0.62); carried.visible = false;
+  const driver = deps.makeDriver ? deps.makeDriver() : null; // a Naknik on the seat when he racks the pallets himself
+  if (driver) { driver.position.set(0, 0.62, -0.28); driver.visible = false; fork.add(driver); }
 
   // rack slots: which slots show a pallet. The fill follows stock / capacity; a racked pallet pins its own slot first.
   const filled = new Set(); let hint = -1;
@@ -357,14 +359,14 @@ export function createLoods(deps) {
   const far = new THREE.Vector3(0, -99, 0);
   deps.addInteract({ pos: () => (has('hal') && !inHall ? new THREE.Vector3(-4.6, 0, -17.9) : far), r: 1.3, enabled: () => has('hal') && !inHall && deps.inWarehouse() && !deps.blocked(), label: () => 'Go into De Hal', act: enterHall });
   deps.addInteract({ pos: () => (inHall ? new THREE.Vector3(HX, 0, HZ + HALL.z1 - 0.6) : far), r: 1.2, enabled: () => inHall && !F.drive, label: () => 'Back to the shed', act: leaveHall });
-  deps.addInteract({ pos: () => (inHall && fork.visible && !F.drive ? new THREE.Vector3(F.x, 0, F.z) : far), r: 1.9, enabled: () => inHall && fork.visible && !F.drive, label: () => 'Drive the heftruck', act: getOn });
+  deps.addInteract({ pos: () => (inHall && fork.visible && !F.drive ? new THREE.Vector3(F.x, 0, F.z) : far), r: 1.9, enabled: () => inHall && fork.visible && !F.drive, label: () => (A.phase ? `Take over the heftruck from ${A.who}` : 'Drive the heftruck'), act: getOn });
   deps.addInteract({ pos: () => (F.drive ? player.position : far), r: 5, enabled: () => F.drive && !F.busy, label: () => forkAction().label, act: () => forkAction().act() });
   // the dock pallets can be looked at on foot too
   deps.addInteract({ pos: () => { const p = nearestDock(player.position, 1.6); return p ? DOCK_V(p.spot) : far; }, r: 1.6, enabled: () => inHall && !F.drive, label: () => { const p = nearestDock(player.position, 1.6); return p ? `Pallet: ${p.kg} kg ${p.name} · rack it with the heftruck` : ''; }, act: () => deps.toast('PALLET', fork.visible ? 'Get on the heftruck, lift it at the dock and put it in a free rack bay.' : 'You need a Heftruck to rack it (Loods tab).', 3) });
   const DOCK_V = (i) => new THREE.Vector3(DOCK_SPOTS[i][0], 0, DOCK_SPOTS[i][1]);
   function nearestDock(p, r) { let best = null, bd = r; for (const it of ensure().dock) { if ((F.carry && F.carry.spot === it.spot) || !landed(it)) continue; const d = DOCK_V(it.spot).distanceTo(p); if (d < bd) { bd = d; best = it; } } return best; }
 
-  function getOn() { F.drive = true; F.v = 0; deps.beep(180, 0.2, 'sawtooth', 0.03); deps.toast('HEFTRUCK', `W/S drive · A/D steer · [${deps.glyph ? deps.glyph('E') : 'E'}] lift a pallet at the dock, set it in a rack bay, or get off`, 4); placeFork(); }
+  function getOn() { autoStop(); F.drive = true; F.v = 0; deps.beep(180, 0.2, 'sawtooth', 0.03); deps.toast('HEFTRUCK', `W/S drive · A/D steer · [${deps.glyph ? deps.glyph('E') : 'E'}] lift a pallet at the dock, set it in a rack bay, or get off`, 4); placeFork(); }
   function getOff() { F.drive = false; F.v = 0; const side = new THREE.Vector3(Math.cos(F.h), 0, -Math.sin(F.h)); player.position.set(F.x - side.x * 1.0, 0, F.z - side.z * 1.0); player.position.y = 0; placeFork(); deps.collide(player.position, 0.38); }
   function bayAhead() { // the racking bay the forks point into, and a free slot in it (lowest first)
     const t = tip(), L = ensure();
@@ -387,13 +389,68 @@ export function createLoods(deps) {
     if (econ.space() < F.carry.kg) return { label: 'The warehouse is full', act: () => deps.toast('VOL', `No room for ${F.carry.kg} kg: mix or sell some stock first, or build more racking.`, 3) };
     return { label: `Put it in the rack · bay ${b.i}`, act: () => rack(b) };
   }
-  function rack(b) {
+  // ---- the Naknik on the heftruck: racks waiting dock pallets by himself (Tristan 2026-11-15), and the night shift racks the rest
+  const A = { phase: null, path: [], p: null, bay: -1, who: 'the Naknik', wait: 0 };
+  const autoOn = () => has('heftruck') && ensure().autoFork !== false && (state.naknik || 0) > 0;
+  const crewName = () => { const c = Array.isArray(state.crew) && state.crew.find((m) => m && !m.away); return c ? c.name : 'a Naknik'; };
+  function freeBay() { // the first hall/tent bay with an empty place
+    const L = ensure(); for (let i = 1; i < L.racks; i++) if (bays[i].slots.some((s, si) => !filled.has(i * 6 + si))) return i; return -1;
+  }
+  const LV = (x, z) => new THREE.Vector3(HX + x, 0, HZ + z);
+  function autoPlan() {
+    const L = ensure(), p = L.dock.find(landed); if (!p) return false;
+    const bi = freeBay(); if (bi < 0 || econ.space() < p.kg) return false;
+    const d = DOCK_SPOTS[p.spot], b = bays[bi], aisle = b.front.z + 2.7, park = LV(4.5, 4.2);
+    A.p = p; A.bay = bi; A.who = crewName(); A.phase = 'go';
+    A.path = [{ x: d[0] - 3.2, z: d[1] }, { x: d[0] - 2.05, z: d[1], h: Math.PI / 2, act: 'lift' }, { x: d[0] - 3.4, z: d[1], rev: true },
+      { x: b.front.x, z: aisle }, { x: b.front.x, z: b.front.z + 1.3, h: Math.PI, act: 'rack' }, { x: b.front.x, z: aisle, rev: true }, { x: park.x, z: park.z, h: Math.PI / 2, act: 'park' }];
+    if (driver) driver.visible = true;
+    return true;
+  }
+  function autoStop() { // Eddy takes over: the pallet goes back to the dock
+    if (!A.phase) return; A.phase = null; A.path = [];
+    if (F.carry) { F.carry = null; carried.visible = false; showDock(); }
+    F.liftTo = 0.12; if (driver) driver.visible = false;
+  }
+  function autoStep(dt) {
+    if (!A.phase) { if (A.wait > 0) { A.wait -= dt; return; } if (autoOn() && ensure().dock.some(landed) && !F.drive) { if (!autoPlan()) A.wait = 3; } return; }
+    if (F.busy > 0) return;
+    const w = A.path[0]; if (!w) { A.phase = null; if (driver) driver.visible = false; return; }
+    const dx = w.x - F.x, dz = w.z - F.z, dist = Math.hypot(dx, dz);
+    if (dist > 0.06) {
+      const want = Math.atan2(dx, dz) + (w.rev ? Math.PI : 0); let dh = Math.atan2(Math.sin(want - F.h), Math.cos(want - F.h));
+      F.h += Math.sign(dh) * Math.min(Math.abs(dh), 2.4 * dt);
+      if (Math.abs(dh) < 0.5) { const st = Math.min(dist, (w.rev ? 1.4 : 2.4) * dt); F.x += dx / dist * st; F.z += dz / dist * st; }
+      return;
+    }
+    if (w.h !== undefined) { const dh = Math.atan2(Math.sin(w.h - F.h), Math.cos(w.h - F.h)); if (Math.abs(dh) > 0.02) { F.h += Math.sign(dh) * Math.min(Math.abs(dh), 2.4 * dt); return; } }
+    A.path.shift();
+    const L = ensure();
+    if (w.act === 'lift') { if (!L.dock.includes(A.p)) { autoStop(); return; } F.carry = A.p; carried.visible = true; carried.userData.load.material = mt(ING_COL[A.p.id] || C.paprika); F.liftTo = 0.45; showDock(); F.busy = 0.6; }
+    if (w.act === 'rack') {
+      const b = bays[A.bay], free = b.slots.findIndex((sl, si) => !filled.has(A.bay * 6 + si));
+      if (free < 0 || econ.space() < A.p.kg) { A.phase = 'back'; autoStop(); return; } // no room after all: it goes back to the dock
+      rack({ i: A.bay, free }, true);
+    }
+    if (w.act === 'park') { A.phase = null; if (driver) driver.visible = false; }
+  }
+  function nightShift() { // racked overnight, so nothing waits at the dock for days
+    const L = ensure(); if (!autoOn() || F.drive) return 0; let n = 0;
+    for (const p of [...L.dock]) {
+      if ((A.phase && A.p === p) || !(p.day === undefined || p.day < day())) continue; const bi = freeBay(); // only what stood there yesterday: this morning's truck waits for the day crew if (bi < 0) break;
+      const si = bays[bi].slots.findIndex((sl, k) => !filled.has(bi * 6 + k)); if (si < 0 || !econ.stockIn(p.id, 'std', p.kg, true)) break;
+      L.dock = L.dock.filter((x) => x !== p); filled.add(bi * 6 + si); n++;
+    }
+    if (n) { refreshSlots(); showDock(); deps.save(); }
+    return n;
+  }
+  function rack(b, auto) {
     const p = F.carry, lvl = LEVELS[Math.floor(b.free / 2)];
     F.busy = 1.1; F.liftTo = lvl + 0.1; deps.beep(200, 0.6, 'sawtooth', 0.025);
     setTimeout(() => {
-      const L = ensure(); if (!econ.stockIn(p.id, 'std', p.kg)) { deps.toast('VOL', 'No room after all.', 2); return; }
+      const L = ensure(); if (!econ.stockIn(p.id, 'std', p.kg, auto)) { deps.toast('VOL', 'No room after all.', 2); return; }
       L.dock = L.dock.filter((x) => x !== p); F.carry = null; carried.visible = false; filled.delete(b.i * 6 + b.free); filled.add(b.i * 6 + b.free); refreshSlots(); F.liftTo = 0.12; showDock();
-      econ.addRep(5); deps.toast('GERACKT', `${p.kg} kg ${p.name} (Standaard) is in stock.`, 2.2); deps.save();
+      econ.addRep(5); if (!auto || inHall) deps.toast('GERACKT', `${auto ? `${A.who} racked ` : ''}${p.kg} kg ${p.name} (Standaard)${auto ? '' : ' is in stock'}.`, 2.2); deps.save();
     }, 900);
   }
 
@@ -432,10 +489,12 @@ export function createLoods(deps) {
     h += '</table>';
     if (has('heftruck')) {
       const D = rollDeals();
+      const on = ensure().autoFork !== false;
+      h += `<div class="well" style="margin-top:8px"><b>Heftruck</b> · ${on ? `A Naknik drives it: he racks dock pallets by himself, and the night shift racks what's left after every outing.${(state.naknik || 0) ? '' : ' <i>(hire a Naknik first)</i>'}` : 'Only you drive it.'} <button class="b95" id="autofork">${on ? 'Drive it myself only' : 'Let a Naknik drive'}</button></div>`;
       h += `<div class="well" style="margin-top:8px"><b>Palletdeals</b> · market day ${D.day} · the truck drops them at the hall's dock (${L.dock.length}/3 places taken)<br><small>Bulk spice under the Kruidenbeurs price. The truck comes <b>two market days</b> after you buy (express: tomorrow, +${Math.round(econ.EXPRESS * 100)}%). It only counts as stock once you rack it with the heftruck, so make room first.</small></div>`;
       h += '<table class="list"><tr><th>Pallet</th><th>From</th><th>Price</th><th></th></tr>' + D.offers.map((o, k) => `<tr><td>${o.kg} kg <b>${o.name}</b> (Standaard)</td><td><small>${o.who}</small></td><td>${fmt(dealPrice(o))} <small style="color:#070">−${Math.round(o.off * 100)}%</small></td><td>${o.sold ? '<i>bought</i>' : `<button class="b95" data-deal="${k}" data-need="${dealPrice(o)}">Buy · 2 days</button> <button class="b95" data-deal="${k}:x" data-need="${econ.expressCost(dealPrice(o), true)}">Express ${fmt(econ.expressCost(dealPrice(o), true))}</button>`}</td></tr>`).join('') + '</table>';
       const here = L.dock.filter(landed), road = L.dock.filter((p) => !landed(p));
-      if (here.length) h += `<p><small>Waiting at the dock: ${here.map((p) => `${p.kg} kg ${p.name}`).join(', ')}. Go into De Hal and rack them.</small></p>`;
+      if (here.length) h += `<p><small>Waiting at the dock: ${here.map((p) => `${p.kg} kg ${p.name}`).join(', ')}. Walk into De Hal and rack them (or let a Naknik do it).</small></p>`;
       if (road.length) h += `<p><small>On the truck: ${road.map((p) => `${p.kg} kg ${p.name} (day ${p.day})`).join(', ')}.</small></p>`;
     }
     h += '<p><small>Coming later, maybe: a delivery van fleet, a canteen that keeps the Naknikim happy, solar panels on the hall roof.</small></p>';
@@ -443,6 +502,7 @@ export function createLoods(deps) {
   }
   function bind(body, rerender) {
     body.querySelectorAll('[data-build]').forEach((b) => b.onclick = () => { const m = order(b.dataset.build, b); deps.toast(m ? 'DE LOODS' : 'GERRIT IS ON IT', m || 'The crew arrives with a van full of tools and a radio. Go out and let them work.', 3); rerender(); });
+    const af = body.querySelector('#autofork'); if (af) af.onclick = () => { const L = ensure(); L.autoFork = L.autoFork === false; if (!L.autoFork) autoStop(); deps.save(); rerender(); };
     body.querySelectorAll('[data-deal]').forEach((b) => b.onclick = () => { const [k, x] = b.dataset.deal.split(':'), m = buyDeal(+k, b, x === 'x'); deps.toast(m ? 'PALLETDEAL' : 'ON ITS WAY', m || `The truck drops the pallet at the dock of De Hal ${x === 'x' ? 'tomorrow morning' : 'in two days'}.`, 3); rerender(); });
   }
 
@@ -452,7 +512,7 @@ export function createLoods(deps) {
     const L = ensure();
     if (inHall && deps.away()) { inHall = false; hall.visible = tent.visible = false; F.drive = false; } // a mission or a drive took Eddy away
     if (L.job && day() >= L.job.done) finish();
-    if (day() !== lastDay) { lastDay = day(); showSite(); rollDeals(); showDock(); } // the morning truck may have dropped pallets
+    if (day() !== lastDay) { const first = lastDay < 0; lastDay = day(); showSite(); rollDeals(); showDock(); if (!first) { const n = nightShift(); if (n) deps.toast('NACHTPLOEG', `${crewName()} racked ${n} pallet${n > 1 ? 's' : ''} from the dock overnight.`, 3); } } // the morning truck may have dropped pallets
     slotT -= dt; if (slotT <= 0) { slotT = 1; refreshSlots(); }
     // machines run while Naknikim mix
     const on = (state.naknik || 0) > 0;
@@ -462,6 +522,7 @@ export function createLoods(deps) {
     if (fork.visible) {
       F.lift += (F.liftTo - F.lift) * Math.min(1, dt * 3);
       if (F.busy > 0) F.busy = Math.max(0, F.busy - dt);
+      if (!F.drive) autoStep(dt);
       if (F.drive) {
         let th = 0, st = 0;
         if (!deps.frozen()) { if (keys.KeyW || keys.ArrowUp) th += 1; if (keys.KeyS || keys.ArrowDown) th -= 1; if (keys.KeyA || keys.ArrowLeft) st -= 1; if (keys.KeyD || keys.ArrowRight) st += 1; th -= virt.mz; st += virt.mx; }
@@ -485,7 +546,7 @@ export function createLoods(deps) {
   apply();
   return {
     UPGRADES, ensure, boost, has, stage, naknikCap, html, bind, update, apply, order, finish, buyDeal, rollDeals, enterHall, leaveHall, getOn, getOff, forkAction,
-    inside: () => inHall, driving: () => F.drive, fork: F, spots: () => SPOTS, bays, refreshSlots,
+    inside: () => inHall, driving: () => F.drive, fork: F, auto: A, nightShift, spots: () => SPOTS, bays, refreshSlots,
     camFocus: (p) => p.clone(), loaded: () => { if (inHall) { inHall = false; hall.visible = tent.visible = false; } F.drive = false; F.carry = null; carried.visible = false; apply(); },
   };
 }

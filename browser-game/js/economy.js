@@ -717,8 +717,8 @@ export function createEconomy(deps) {
     });
   }
   const space = () => cap() - stockTotal();
-  function stockIn(id, gradeId, kg) { // a pallet racked by the heftruck (js/loods.js)
-    if (space() < kg) return false; const e = ensure(); e.stock[key(id, gradeId)] = +(stockOf(id, gradeId) + kg).toFixed(2); work('loods'); if (deps.save) deps.save(); return true;
+  function stockIn(id, gradeId, kg, crew) { // a pallet racked by the heftruck (js/loods.js); racked by a Naknik (crew) it doesn't use up Eddy's day
+    if (space() < kg) return false; const e = ensure(); e.stock[key(id, gradeId)] = +(stockOf(id, gradeId) + kg).toFixed(2); if (!crew) work('loods'); if (deps.save) deps.save(); return true;
   }
 
   function buy(id, gradeId, kg, el, express = ensure().express) { // an order: paid now, delivered in 2 days (express 1)
