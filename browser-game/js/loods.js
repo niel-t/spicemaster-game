@@ -579,8 +579,38 @@ export function createLoods(deps) {
       placeFork();
     }
   }
+  // ---- where the Naknikim work (js/naknikwork.js): the hall and tent floors, and spots to grab, rack and tip sacks (world coords)
+  function workRooms() {
+    const r = [];
+    if (has('hal')) r.push({ x0: HX + HALL.x0, x1: HX + HALL.x1, z0: HZ + HALL.z0, z1: HZ + HALL.z1 }, { x0: DX - 0.85, x1: DX + 0.85, z0: HZ + HALL.z1 - 0.6, z1: -18.2 });
+    if (has('tent')) r.push({ x0: HX + TENT.x0, x1: HX + TENT.x1 + 0.6, z0: HZ + TENT.z0, z1: HZ + TENT.z1 });
+    return r;
+  }
+  function workStations() {
+    const L = ensure(), out = [], area = (x, z) => (z > -19 ? 'shed' : x < HX + HALL.x0 ? 'tent' : 'hall');
+    bays.forEach((b, i) => { // the two lower levels of every open bay: grab from a pallet, or put a sack on an empty beam
+      if (i >= L.racks) return;
+      const n = new THREE.Vector3(Math.sin(b.ry), 0, Math.cos(b.ry)), c = b.g.position;
+      for (let si = 0; si < 4; si++) {
+        const sx = si % 2 ? 0.66 : -0.66, lv = LEVELS[si >> 1], full = b.slots[si].visible;
+        const p = new THREE.Vector3(c.x + b.dir.x * sx, 0, c.z + b.dir.z * sx), st = p.clone().addScaledVector(n, 1.05);
+        // level 0: grab off the pallet at waist height, or put the sack on the floor beam / on top of the pallet; level 1: reach up
+        const put = si < 2 ? (full ? lv + 1.32 : lv + 0.3) : full ? null : lv + 0.3;
+        out.push({ key: `rack${i}:${si % 2}`, kind: 'rack', area: area(p.x, p.z), x: st.x, z: st.z, fx: p.x, fz: p.z, hg: si < 2 ? 'mid' : 'high', hs: si < 2 && !full ? 'floor' : 'high',
+          grab: full, store: put !== null, put: put === null ? null : p.clone().addScaledVector(n, full ? 0.15 : 0.25).setY(put) });
+      }
+    });
+    dockPallets.forEach((d, i) => { if (d.g.visible) { const [x, z] = DOCK_SPOTS[i]; out.push({ key: `dock${i}`, kind: 'pallet', area: 'hall', x: x - 1.05, z, fx: x, fz: z, h: 'mid', grab: true }); } });
+    if (has('tent')) for (const k of [1, 4, 7]) { const x = HX + TENT.x0 + 0.9, z = HZ + TENT.z0 + 3.4 + k * 1.2; out.push({ key: `zwart${k}`, kind: 'pallet', area: 'tent', x: x + 1.15, z, fx: x, fz: z, h: 'mid', grab: true }); }
+    for (const [t, ar] of [[table2, 'hall'], [table3, 'tent']]) if (t.visible) { const x = HX + t.position.x - 1.62, z = HZ + t.position.z - 0.9; out.push({ key: `pile${ar}`, kind: 'pile', area: ar, x: x - 0.85, z, fx: x, fz: z, h: 'floor', grab: true }); }
+    if (mixer1.visible || mixer2.visible) out.push({ key: 'menger', kind: 'machine', area: 'shed', x: -3.2, z: -15.75, fx: -3.2, fz: -14.7, h: 'pour', pour: true, ty: 1.6 });
+    if (mill.visible) out.push({ key: 'molen', kind: 'machine', area: 'shed', x: -6.3, z: -15.9, fx: -6.3, fz: -14.9, h: 'pour', pour: true, ty: 1.6 });
+    return out;
+  }
+
   apply();
   return {
+    workRooms, workStations,
     UPGRADES, ensure, boost, has, stage, naknikCap, html, bind, update, apply, order, finish, buyDeal, rollDeals, enterHall, leaveHall, getOn, getOff, forkAction,
     inside: () => inHall, driving: () => F.drive, fork: F, auto: A, nightShift, spots: () => SPOTS, bays, refreshSlots,
     camFocus: (p) => p.clone(), loaded: () => { F.drive = false; F.carry = null; carried.visible = false; apply(); },

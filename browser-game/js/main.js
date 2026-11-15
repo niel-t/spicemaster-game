@@ -23,9 +23,11 @@ import { createTitleCity } from './titlecity.js'; // the animated city behind th
 import { createTips } from './tips.js'; // Shooki texts a tip the first time each topic comes up
 import { createTutorial } from './tutorial.js'; // the first fifteen minutes: Shooki's tour of the spice trade
 import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades, racking, the heftruck, the hall and the tent
+import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
+let work = null; // js/naknikwork.js, set up after De Loods
 let woning = null; // js/woning.js, set up once the street, the economy and the phone exist
 const music = new Music();
 
@@ -2723,24 +2725,21 @@ function tick() {
   animate(russian, 0, dt);
   if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); updateSiege(); mission.street(dt); } else { mission.update(dt); updateRazimMission(dt); }
   const inJ = !mOn && updateJoint(dt);
-  // naknikim walk to the table, then stir
+  // naknikim walk to the table, then work: stir, and run little jobs around De Loods (js/naknikwork.js)
   for (const n of naknikim) {
-    const u = n.userData; { const m = crew.info(naknikim.indexOf(n)); n.visible = !(m && m.away); } { const bu = u.bubble && u.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; } }
+    const u = n.userData, i = naknikim.indexOf(n); { const m = crew.info(i); n.visible = !(m && m.away); } { const bu = u.bubble && u.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; } }
     if (u.walking) {
       const via = n.position.z > -7.5 ? new THREE.Vector3((WH.doorX0 + WH.doorX1) / 2, 0, -9) : u.target;
       const d = via.clone().sub(n.position); d.y = 0; const L = d.length();
       if (L < 0.15 && via === u.target) { u.walking = false; n.rotation.y = Math.atan2(u.face[0] - n.position.x, u.face[1] - n.position.z); }
       else { d.normalize(); n.position.addScaledVector(d, Math.min(L, 2.6 * dt)); n.rotation.y = Math.atan2(d.x, d.z); }
       animate(n, u.walking ? 2.6 : 0, dt);
-    } else if (crew.napping(naknikim.indexOf(n))) { // low mood: asleep against the sacks
-      u.body.rotation.x = -0.5; u.arms[0].rotation.x = 0; u.arms[1].rotation.x = 0; u.phase += dt;
+    } else if (work.update(n, dt, crew.napping(i))) { // low mood: back at the table, asleep against the sacks
+      u.body.rotation.x = -0.5; u.phase += dt;
       if (Math.sin(u.phase * 0.7) > 0.995 && !(u.bubble && u.bubble.visible)) personBubble(n, 'Zzz...', '#a9c46a');
-    } else {
-      u.body.rotation.x = 0;
-      u.phase += dt * 7; u.arms[1].rotation.x = -1.2 + Math.sin(u.phase) * 0.35; u.arms[0].rotation.x = -0.9 + Math.cos(u.phase) * 0.3;
-      u.body.position.y = Math.abs(Math.sin(u.phase * 0.5)) * 0.03;
     }
   }
+  work.tick(dt);
   if (state.table) spiceInBowl.rotation.y += dt * (state.naknik ? 2 : 0);
   // a finished mission ends the market day (checked back in the hub, so the toast doesn't cover the results screen)
   if (!mission.active && !state.inDialogue && econ.update()) garage.afterMission(); // a mission ended: maybe a wheel clamp
@@ -2855,6 +2854,20 @@ loods = createLoods({ tip: (k) => tips.show(k), makeDriver: () => makePerson({ p
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || oofDrive.active,
   away: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),
   hideShelf: (on) => { for (const m of backShelf.meshes) m.visible = !on; backShelf.sol.off = on; backPlug.visible = !on; backPlugSolid.off = on; } });
+// the Naknikim at work around the shed, the hall and the tent (js/naknikwork.js)
+work = createNaknikWork({ scene, solids, solid, animate, list: () => naknikim, frozen: (n) => (state.inDialogue || state.inPC) && n.position.distanceTo(player.position) < 2.6,
+  rooms: () => [{ x0: WH.x0, x1: WH.x1, z0: WH.z0, z1: WH.z1 }, ...loods.workRooms()],
+  ketels: [{ x: -9.3, z: -9.5, area: 'shed', on: () => state.table && state.sold.has('doner') }, { x: -1.4, z: -23.3, area: 'hall', on: () => loods.has('hal') }],
+  stations: () => {
+    const out = loods.workStations(), shelfY = 1.16, shelfZ = WH.z0 + 1.35;
+    if (state.table) out.push({ key: 'pileshed', kind: 'pile', area: 'shed', x: -8.45, z: -12.9, fx: -7.5, fz: -12.9, h: 'floor', grab: true });
+    for (const [k, sx] of [[0, WH.x0 + 6.4], [1, WH.x0 + 10.3]]) {
+      if (k === 0 && loods.has('hal')) continue; // that shelf made way for the door into De Hal
+      const ox = (Math.random() - 0.5) * 2.2;
+      out.push({ key: 'shelf' + k, kind: 'shelf', area: 'shed', x: sx + ox, z: shelfZ + 0.5, fx: sx + ox, fz: shelfZ - 0.6, h: 'mid', grab: true, store: true, put: new THREE.Vector3(sx + ox, shelfY, shelfZ - 0.2) });
+    }
+    return out;
+  } });
 woning = createWoning({ endDay: () => endDay(), hokDoor: (open) => { hokDoorSolid.off = open; hokDoor.leaf.visible = !open; hokDoor.pl.material.map = open ? hokDoor.plOpen : hokDoor.plShut; hokDoor.pl.material.needsUpdate = true; },
   vanStand: () => ({ x: oof.position.x, z: oof.position.z + 1.9 }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, openPC: (tab) => openPC(tab), doors: HOME_DOORS,
@@ -2866,5 +2879,5 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; } };
+window.__sme = { get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; } };
 tick();
