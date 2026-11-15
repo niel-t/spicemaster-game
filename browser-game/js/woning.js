@@ -422,7 +422,7 @@ export function createWoning(deps) {
   // inside: the door, the bed, the wardrobe, the catalogue, the radio
   const here = (key) => () => { const r = rooms[inHome], sl = S[key][inHome]; return new THREE.Vector3(r.ox + sl[0], 0, r.oz + sl[1]); };
   addInteract({ pos: () => (inHome >= 0 ? new THREE.Vector3(rooms[inHome].door.x, 0, rooms[inHome].door.z + 0.3) : new THREE.Vector3(0, -99, 0)), r: 1.0, enabled: () => inHome >= 0, label: () => 'Go outside', act: leaveHome });
-  addInteract({ pos: () => (inHome >= 0 ? here('bed')() : new THREE.Vector3(0, -99, 0)), r: 1.7, enabled: () => inHome >= 0, label: () => (ensure().mornDay !== econ.ensure().day ? 'Sleep (somebody may knock in the morning)' : 'Take a nap'), act: sleep });
+  addInteract({ pos: () => (inHome >= 0 ? here('bed')() : new THREE.Vector3(0, -99, 0)), r: 1.7, enabled: () => inHome >= 0, label: () => (deps.endDay && deps.state.step === 'free' ? `Sleep · end day ${econ.ensure().day}` : ensure().mornDay !== econ.ensure().day ? 'Sleep (somebody may knock in the morning)' : 'Take a nap'), act: sleep });
   addInteract({ pos: () => (inHome >= 0 ? here('ward')() : new THREE.Vector3(0, -99, 0)), r: 1.4, enabled: () => inHome >= 0, label: () => `Wardrobe · ${OUTFITS[ensure().outfit].name}`, act: wardrobe });
   addInteract({ pos: () => (inHome >= 0 ? here('cat')() : new THREE.Vector3(0, -99, 0)), r: 1.3, enabled: () => inHome >= 0, label: () => 'Catalogue & phone · order furniture', act: () => deps.openPC('woning') });
   addInteract({ pos: () => (inHome >= 0 ? here('radio')() : new THREE.Vector3(0, -99, 0)), r: 1.3, enabled: () => inHome >= 0 && owned('radio', inHome), label: () => `Radio · ${STATIONS[ensure().station].name} · change station`, act: nextStation });
@@ -488,8 +488,9 @@ export function createWoning(deps) {
     { who: 'A seagull', home: 0, msg: 'It came in through the roof and ate your bread. Then it looked at you. You looked away first.', fx: () => 'Nothing. You lost to a seagull.' },
   ];
   function sleep() {
-    const e = ensure(), day = econ.ensure().day; deps.beep(220, 0.3, 'sine', 0.04);
+    const e = ensure(); let day = econ.ensure().day; deps.beep(220, 0.3, 'sine', 0.04);
     fadeTo(() => {
+      if (deps.endDay && deps.state.step === 'free' && deps.endDay()) day = econ.ensure().day; // sleeping ends the market day (js/economy.js day plan)
       if (e.mornDay === day) { deps.toast('ZZZ...', 'A good nap. Nothing happens. Bliss.', 2.2); return; }
       e.mornDay = day;
       const c = comfort(), pool = MORNING.filter((m) => (!m.need || m.need()) && (m.home === undefined || m.home === e.home));

@@ -270,12 +270,13 @@ export function createLoods(deps) {
     const c = Math.abs(Math.cos(F.h)), s = Math.abs(Math.sin(F.h)), hw = 0.55 * c + 0.9 * s, hd = 0.55 * s + 0.9 * c;
     Object.assign(forkSol, { minx: F.x - hw, maxx: F.x + hw, minz: F.z - hd, maxz: F.z + hd, off: F.drive || !fork.visible });
   }
-  // pallets waiting at the dock (bought deals): spots inside the dock door
+  // pallets waiting at the dock (bought deals): spots inside the dock door. A pallet lands two market days after you buy it (express: one).
+  const landed = (p) => !(p.day > day());
   const DOCK_SPOTS = [[8.9, 3.6], [8.9, 2.0], [8.9, 0.4]].map(([x, z]) => [HX + x, HZ + z]);
   const dockPallets = DOCK_SPOTS.map(([x, z]) => { const p = pallet(C.paprika, scene); p.position.set(x, 0, z); p.rotation.y = Math.PI / 2; p.visible = false; const sol = solid(x - 0.5, x + 0.5, z - 0.6, z + 0.6); sol.off = true; return { g: p, sol }; });
   function showDock() {
     const L = ensure();
-    dockPallets.forEach((d, i) => { const it = L.dock.find((p) => p.spot === i && !(F.carry && F.carry.spot === i)); d.g.visible = !!it && has('hal'); d.sol.off = !d.g.visible; if (it) d.g.userData.load.material = mt(ING_COL[it.id] || C.paprika); });
+    dockPallets.forEach((d, i) => { const it = L.dock.find((p) => p.spot === i && landed(p) && !(F.carry && F.carry.spot === i)); d.g.visible = !!it && has('hal'); d.sol.off = !d.g.visible; if (it) d.g.userData.load.material = mt(ING_COL[it.id] || C.paprika); });
   }
   const carried = pallet(C.paprika, fork.userData.carriage); carried.position.set(0, -0.1, 0.62); carried.visible = false;
 
@@ -361,7 +362,7 @@ export function createLoods(deps) {
   // the dock pallets can be looked at on foot too
   deps.addInteract({ pos: () => { const p = nearestDock(player.position, 1.6); return p ? DOCK_V(p.spot) : far; }, r: 1.6, enabled: () => inHall && !F.drive, label: () => { const p = nearestDock(player.position, 1.6); return p ? `Pallet: ${p.kg} kg ${p.name} · rack it with the heftruck` : ''; }, act: () => deps.toast('PALLET', fork.visible ? 'Get on the heftruck, lift it at the dock and put it in a free rack bay.' : 'You need a Heftruck to rack it (Loods tab).', 3) });
   const DOCK_V = (i) => new THREE.Vector3(DOCK_SPOTS[i][0], 0, DOCK_SPOTS[i][1]);
-  function nearestDock(p, r) { let best = null, bd = r; for (const it of ensure().dock) { if (F.carry && F.carry.spot === it.spot) continue; const d = DOCK_V(it.spot).distanceTo(p); if (d < bd) { bd = d; best = it; } } return best; }
+  function nearestDock(p, r) { let best = null, bd = r; for (const it of ensure().dock) { if ((F.carry && F.carry.spot === it.spot) || !landed(it)) continue; const d = DOCK_V(it.spot).distanceTo(p); if (d < bd) { bd = d; best = it; } } return best; }
 
   function getOn() { F.drive = true; F.v = 0; deps.beep(180, 0.2, 'sawtooth', 0.03); deps.toast('HEFTRUCK', `W/S drive · A/D steer · [${deps.glyph ? deps.glyph('E') : 'E'}] lift a pallet at the dock, set it in a rack bay, or get off`, 4); placeFork(); }
   function getOff() { F.drive = false; F.v = 0; const side = new THREE.Vector3(Math.cos(F.h), 0, -Math.sin(F.h)); player.position.set(F.x - side.x * 1.0, 0, F.z - side.z * 1.0); player.position.y = 0; placeFork(); deps.collide(player.position, 0.38); }
@@ -405,13 +406,13 @@ export function createLoods(deps) {
     return (L.deals = { day: d, offers });
   }
   const dealPrice = (o) => Math.round(econ.price(o.id, 'std') * (1 - o.off) * o.kg);
-  function buyDeal(k, el) {
+  function buyDeal(k, el, express) {
     const L = ensure(), o = rollDeals().offers[k]; if (!o || o.sold) return 'Gone.';
     if (!has('heftruck')) return 'You need a Heftruck to unload pallets.';
     const used = new Set(L.dock.map((p) => p.spot)), spot = [0, 1, 2].find((i) => !used.has(i));
     if (spot === undefined) return 'The dock is full: rack the pallets that are waiting first.';
-    const cost = dealPrice(o); if (state.money < cost) return `Not enough Wilders (${fmt(cost)}).`;
-    deps.addMoney(-cost, el); o.sold = true; L.dock.push({ id: o.id, name: o.name, kg: o.kg, spot }); showDock(); deps.save(); return null;
+    const cost = econ.expressCost(dealPrice(o), express); if (state.money < cost) return `Not enough Wilders (${fmt(cost)}).`;
+    deps.addMoney(-cost, el); o.sold = true; L.dock.push({ id: o.id, name: o.name, kg: o.kg, spot, day: day() + (express ? 1 : econ.ORDER_DAYS) }); showDock(); if (deps.tip) deps.tip('order'); deps.save(); return null;
   }
 
   // ================================================================== Kaasdows tab
@@ -420,7 +421,7 @@ export function createLoods(deps) {
     const L = ensure(), B = boost(), j = L.job;
     let h = `<div class="well" style="margin-bottom:8px"><b>De Loods</b> · ${STAGE_NAME[stage()]} · Balance <b data-bal>${fmt(state.money)}</b><br>
       Stock space <b>${econ.stockTotal()} / ${econ.cap()} kg</b> (racking ${L.racks} bay${L.racks === 1 ? '' : 's'}, +${B.cap} kg) · Each Naknik mixes <b>${econ.perNaknik()} kg</b> · Naknik places at home <b>${naknikCap()}</b>${B.q ? ' · blends <b>+½★</b>' : ''}<br>
-      <small>Bouwbedrijf Gerrit &amp; Zonen builds one thing at a time. Building takes market days: go out (a raid, a drive, a Nachtklus) and they work while you're gone.</small></div>`;
+      <small>Bouwbedrijf Gerrit &amp; Zonen builds one thing at a time. Building takes market days: they work while you raid, deliver or sleep.</small></div>`;
     if (j) { const u = UPGRADES.find((x) => x.id === j.id), left = Math.max(0, j.done - day()); h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>Under construction:</b> ${u.name}${u.repeat ? ` (bay ${L.racks + 1})` : ''} · ready in <b>${left}</b> market day${left === 1 ? '' : 's'}<br><small>Gerrit: "${['Nog effe, baas.', 'We are waiting for the concrete. And for coffee.', 'My nephew is on it. Mostly.', 'Two more days. Three. Dutch days.'][j.start % 4]}"</small></div>`; }
     h += '<table class="list"><tr><th>Upgrade</th><th>What it does</th><th>Cost</th><th>Build</th><th></th></tr>';
     for (const u of UPGRADES) {
@@ -431,16 +432,18 @@ export function createLoods(deps) {
     h += '</table>';
     if (has('heftruck')) {
       const D = rollDeals();
-      h += `<div class="well" style="margin-top:8px"><b>Palletdeals</b> · market day ${D.day} · the truck drops them at the hall's dock (${L.dock.length}/3 waiting)<br><small>Bulk spice under the Kruidenbeurs price. It only counts as stock once you rack it with the heftruck, so make room first.</small></div>`;
-      h += '<table class="list"><tr><th>Pallet</th><th>From</th><th>Price</th><th></th></tr>' + D.offers.map((o, k) => `<tr><td>${o.kg} kg <b>${o.name}</b> (Standaard)</td><td><small>${o.who}</small></td><td>${fmt(dealPrice(o))} <small style="color:#070">−${Math.round(o.off * 100)}%</small></td><td>${o.sold ? '<i>bought</i>' : `<button class="b95" data-deal="${k}" data-need="${dealPrice(o)}">Buy</button>`}</td></tr>`).join('') + '</table>';
-      if (L.dock.length) h += `<p><small>Waiting at the dock: ${L.dock.map((p) => `${p.kg} kg ${p.name}`).join(', ')}. Go into De Hal and rack them.</small></p>`;
+      h += `<div class="well" style="margin-top:8px"><b>Palletdeals</b> · market day ${D.day} · the truck drops them at the hall's dock (${L.dock.length}/3 places taken)<br><small>Bulk spice under the Kruidenbeurs price. The truck comes <b>two market days</b> after you buy (express: tomorrow, +${Math.round(econ.EXPRESS * 100)}%). It only counts as stock once you rack it with the heftruck, so make room first.</small></div>`;
+      h += '<table class="list"><tr><th>Pallet</th><th>From</th><th>Price</th><th></th></tr>' + D.offers.map((o, k) => `<tr><td>${o.kg} kg <b>${o.name}</b> (Standaard)</td><td><small>${o.who}</small></td><td>${fmt(dealPrice(o))} <small style="color:#070">−${Math.round(o.off * 100)}%</small></td><td>${o.sold ? '<i>bought</i>' : `<button class="b95" data-deal="${k}" data-need="${dealPrice(o)}">Buy · 2 days</button> <button class="b95" data-deal="${k}:x" data-need="${econ.expressCost(dealPrice(o), true)}">Express ${fmt(econ.expressCost(dealPrice(o), true))}</button>`}</td></tr>`).join('') + '</table>';
+      const here = L.dock.filter(landed), road = L.dock.filter((p) => !landed(p));
+      if (here.length) h += `<p><small>Waiting at the dock: ${here.map((p) => `${p.kg} kg ${p.name}`).join(', ')}. Go into De Hal and rack them.</small></p>`;
+      if (road.length) h += `<p><small>On the truck: ${road.map((p) => `${p.kg} kg ${p.name} (day ${p.day})`).join(', ')}.</small></p>`;
     }
     h += '<p><small>Coming later, maybe: a delivery van fleet, a canteen that keeps the Naknikim happy, solar panels on the hall roof.</small></p>';
     return h;
   }
   function bind(body, rerender) {
     body.querySelectorAll('[data-build]').forEach((b) => b.onclick = () => { const m = order(b.dataset.build, b); deps.toast(m ? 'DE LOODS' : 'GERRIT IS ON IT', m || 'The crew arrives with a van full of tools and a radio. Go out and let them work.', 3); rerender(); });
-    body.querySelectorAll('[data-deal]').forEach((b) => b.onclick = () => { const m = buyDeal(+b.dataset.deal, b); deps.toast(m ? 'PALLETDEAL' : 'ON ITS WAY', m || 'The truck drops the pallet at the dock of De Hal.', 3); rerender(); });
+    body.querySelectorAll('[data-deal]').forEach((b) => b.onclick = () => { const [k, x] = b.dataset.deal.split(':'), m = buyDeal(+k, b, x === 'x'); deps.toast(m ? 'PALLETDEAL' : 'ON ITS WAY', m || `The truck drops the pallet at the dock of De Hal ${x === 'x' ? 'tomorrow morning' : 'in two days'}.`, 3); rerender(); });
   }
 
   // ================================================================== per frame
@@ -449,7 +452,7 @@ export function createLoods(deps) {
     const L = ensure();
     if (inHall && deps.away()) { inHall = false; hall.visible = tent.visible = false; F.drive = false; } // a mission or a drive took Eddy away
     if (L.job && day() >= L.job.done) finish();
-    if (day() !== lastDay) { lastDay = day(); showSite(); rollDeals(); }
+    if (day() !== lastDay) { lastDay = day(); showSite(); rollDeals(); showDock(); } // the morning truck may have dropped pallets
     slotT -= dt; if (slotT <= 0) { slotT = 1; refreshSlots(); }
     // machines run while Naknikim mix
     const on = (state.naknik || 0) > 0;

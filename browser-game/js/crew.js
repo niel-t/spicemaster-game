@@ -39,7 +39,7 @@ export function createCrew(deps) {
   function send(i, kind) {
     const m = ensure()[i]; if (!m || m.away) return;
     m.away = { kind, back: day() + 1 };
-    if (deps.toast) deps.toast('NAKNIK OUT', `${m.name} waddles off: ${ERRANDS.find((e) => e.id === kind).name.toLowerCase()}. Back after the next outing.`, 3);
+    if (deps.toast) deps.toast('NAKNIK OUT', `${m.name} waddles off: ${ERRANDS.find((e) => e.id === kind).name.toLowerCase()}. Back tomorrow.`, 3);
     if (deps.save) deps.save();
   }
   function dayOff(i) {

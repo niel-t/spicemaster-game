@@ -1102,7 +1102,7 @@ const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 let phone = null; // js/phone.js, Hakan's kipkraud calls
-const econ = createEconomy({ boost: () => (loods ? loods.boost() : null), state, addMoney, toast, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
+const econ = createEconomy({ boost: () => (loods ? loods.boost() : null), state, addMoney, toast, tip: (k) => tips.show(k), endDay: () => endDay(), onPlan: () => { updateObjective(); }, onDay: () => { if (ui.obj) updateObjective(); }, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const haggle = createHaggle({ state, day: () => econ.ensure().day, toast, beep, save: () => writeSave() });
 const tips = createTips({ state, beep, save: () => writeSave() });
 const tutorial = createTutorial({ state, econ, toast, beep, save: () => writeSave(), dialogue, choice, objective: () => updateObjective() });
@@ -1121,7 +1121,7 @@ const crew = createCrew({ can: canDo, state, econ, ws, addMoney, toast, save: ()
 const heists = createHeists({ rank: rankNow, state, econ, garage, addMoney, toast, save: () => writeSave(), closePC: () => closePC(),
   levels: () => JOINTS.map(([name, id, , ok]) => ({ id, name, faction: NOSH.some((j) => j[1] === id) ? 'noshgey' : ABD.some((j) => j[1] === id) ? 'abdavissies' : 'lampas', owned: owns(id), unlocked: typeof ok === 'function' ? !!ok() : id === 'spekbuurt' || owns('spekbuurt') })),
   go: (id, h) => { // drive there first, park round the corner, then the night begins
-    if (mission.active || oofDrive.active) return; const j = JOINTS.find((x) => x[1] === id);
+    if (mission.active || oofDrive.active) return; if (!econ.canRaid()) { raidRefused(); return; } econ.startRaid(); const j = JOINTS.find((x) => x[1] === id);
     oofDrive.start({ van: garage.stats(), from: 'Kipkruidenkwartier', to: j ? j[0] : id, target: j && j[4], mission: 'Lights off. Park round the corner.', onDone: (res) => {
       clearPlayerSplats(); clock.getDelta();
       if (res.arrived) { mission.enter(id, { heist: h }); return; }
@@ -1559,7 +1559,8 @@ function updateObjective() {
   if (owns('spekbuurt')) tutorial.owned('spekbuurt');
   if (state.district1 && tutorial.active()) tutorial.skip(); // never got round to Shooki's tour: it stops nagging once the district is Eddy's
   updateKangoo();
-  setObjective(tutorial.objective() || t || '');
+  setObjective((tutorial.objective() || t || '') + (state.step === 'free' && !mission.active ? `<div id="dayplan">${econ.planLine()}</div>` : ''));
+  if (state.step === 'free' && !tutorial.active()) tips.show('day');
   if (['list', 'sell', 'hire', 'russian', 'free'].includes(state.step)) tips.show('step:' + state.step);
   if (state.step === 'free' && checkDistrict()) updateObjective();
   if (state.step === 'free' && checkAct1()) updateObjective();
@@ -2617,6 +2618,7 @@ function tick() {
   if (state.table) spiceInBowl.rotation.y += dt * (state.naknik ? 2 : 0);
   // a finished mission ends the market day (checked back in the hub, so the toast doesn't cover the results screen)
   if (!mission.active && !state.inDialogue && econ.update()) garage.afterMission(); // a mission ended: maybe a wheel clamp
+  if (state.step === 'free' && !mission.active) { const dp = document.getElementById('dayplan'), l = econ.planLine(); if (dp && dp.dataset.l !== l) { dp.dataset.l = l; dp.innerHTML = l; } } // keep today's plan line current
   if (!mission.active) { garage.dayCheck(); const oops = crew.dayCheck(); if (oops) { const here = naknikim.filter((x, k) => x.visible && !crew.napping(k)); const who = here[Math.floor(Math.random() * here.length)]; if (who) { personBubble(who, oops, '#f2c14e'); spiceCloud(who.position); } } }
   if (npcs) npcs.update(dt);
   if (phone) phone.update(dt);
@@ -2692,27 +2694,40 @@ initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
 { const enter0 = mission.enter; mission.enter = (id, o) => { const r = enter0(id, o); setTimeout(() => tips.show(o && o.heist ? 'heist' : o && o.defend ? 'siege' : o && o.remix ? 'remix' : 'mission'), 1600); return r; }; } // Shooki's first-time tips
 const oofDrive = initDrive({ THREE, renderer, canvasTex, signTex, beep, virt, isPaused });
 let driveMission = null; // the Lampas mission the drive is heading for (null: a scouting run)
-function startDrive(id = null) { driveMission = id; const j = id && JOINTS.find((x) => x[1] === id); oofDrive.start({ van: garage.stats(), from: 'Kipkruidenkwartier', to: j ? j[0] : 'Oud-Vettenburg', target: j && j[4], theme: j && (NOSH.includes(j) ? 'nosh' : ABD.includes(j) || FINAL.includes(j) ? 'docks' : 'lampas'), mission: id ? mission.LEVELS[id].text.banner[0] + ' is just round the corner.' : null, onDone: afterDrive }); }
+// the day plan (econ.today): a raid takes the whole day, warehouse work and deliveries share one. Sleeping or the PC button ends it.
+function raidRefused() { tips.show('day'); toast('NOT TODAY', 'A raid takes the whole day, and you already worked today. Sleep (or end the day on the PC) and raid tomorrow.', 4); }
+function endDay() {
+  if (mission.active || oofDrive.active) return false;
+  econ.endDay(econ.today().plan === 'raid' ? 'recovering' : econ.today().plan ? 'asleep' : 'taking a day off'); writeSave(); updateObjective(); if (state.inPC) renderPC(); return true;
+}
+{ const enter1 = mission.enter; mission.enter = (id, o) => { // every raid but the warehouse defence claims the day
+  if (!(o && o.defend)) { if (!econ.canRaid()) { raidRefused(); return null; } econ.startRaid(); }
+  return enter1(id, o);
+}; }
+function startDrive(id = null) {
+  if (id ? !econ.canRaid() : !econ.canDrive()) { if (id) raidRefused(); else toast('NOT TODAY', econ.today().plan === 'raid' ? 'Today is a raid day.' : 'One delivery run a day: the Oofmobiel needs a rest. Finish up and end the day.', 3.5); return; }
+  if (id) econ.startRaid(); else econ.work('rit');
+  driveMission = id; const j = id && JOINTS.find((x) => x[1] === id); oofDrive.start({ van: garage.stats(), from: 'Kipkruidenkwartier', to: j ? j[0] : 'Oud-Vettenburg', target: j && j[4], theme: j && (NOSH.includes(j) ? 'nosh' : ABD.includes(j) || FINAL.includes(j) ? 'docks' : 'lampas'), mission: id ? mission.LEVELS[id].text.banner[0] + ' is just round the corner.' : null, onDone: afterDrive }); }
 function afterDrive(res) {
   clearPlayerSplats(); clock.getDelta();
   if (res.arrived) {
     addMoney(res.pay); state.drives = state.drives || {};
     state.drives.oudvettenburg = Math.min(state.drives.oudvettenburg ?? 1e9, Math.round(res.time));
-    if (driveMission) { const id = driveMission; driveMission = null; econ.driveDone(true); econ.advance('on the road'); writeSave(); mission.enter(id, owns(id) ? { remix: { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } } : {}); return; } // arrived: straight into the mission
-    toast('BACK AT THE WAREHOUSE', `Oud-Vettenburg scouted. +W ${res.pay}.`, 4);
+    if (driveMission) { const id = driveMission; driveMission = null; econ.driveDone(true); writeSave(); mission.enter(id, owns(id) ? { remix: { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } } : {}); return; } // arrived: straight into the mission
+    toast('BACK AT THE WAREHOUSE', `Oud-Vettenburg scouted. +W ${res.pay}. The day isn't over: rack pallets, deliver, then sleep to end it.`, 4.5);
   } else { driveMission = null; toast('BACK AT THE WAREHOUSE', 'The Oofmobiel limps home on three wheels.', 3); }
   econ.driveDone(!!res.arrived); // a scout job pays out
-  setTimeout(() => { econ.advance('on the road'); writeSave(); }, 4200); // every outing is a market day
+  setTimeout(() => tips.show('day'), 4600); // a delivery run doesn't end the day: Eddy does, by sleeping
   writeSave(); updateObjective();
 }
 deviceHints();
 npcs = initNpcs({ tutorial, THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave() });
-loods = createLoods({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
+loods = createLoods({ tip: (k) => tips.show(k), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), shutter,
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || oofDrive.active,
   away: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),
   hideShelf: (on) => { for (const m of backShelf.meshes) m.visible = !on; backShelf.sol.off = on; } });
-woning = createWoning({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
+woning = createWoning({ endDay: () => endDay(), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, openPC: (tab) => openPC(tab), doors: HOME_DOORS,
   snapCam: () => { const inH = woning && woning.inside(), k = inH ? [woning.camHeight(), woning.camHeight() * 0.43] : [12.5, 6], f = inH ? woning.camFocus(player.position) : player.position.clone(); camPos.copy(f).add(new THREE.Vector3(0, k[0] * zoom, k[1] * zoom)); camLook.copy(f).setY(0.8); }, inWarehouse: () => isInside(player.position), blocked: () => mission.active,
   busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || oofDrive.active || state.step === 'title' || !!(phone && phone.isOpen) });

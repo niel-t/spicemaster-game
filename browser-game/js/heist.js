@@ -98,7 +98,7 @@ export function createHeists(deps) {
     if (res.crates || res.cash || res.grill) h.susp[t.faction] = (h.susp[t.faction] || 0) + 1;
     if (!lines.length) lines.push('You drove home with nothing. Tomorrow is another night.');
     if (deps.toast) deps.toast(res.loud ? 'NACHTKLUS · LOUD' : 'NACHTKLUS · CLEAN', lines.join('<br>'), 7);
-    setTimeout(() => { econ.advance('on a Nachtklus'); coolDown(); if (deps.save) deps.save(); }, 4500); // a heist is an outing: a market day passes
+    setTimeout(() => { econ.advance('on a Nachtklus'); coolDown(); if (deps.save) deps.save(); }, 4500); // a heist is a raid: it takes the whole day
     if (deps.save) deps.save();
   }
 

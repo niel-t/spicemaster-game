@@ -1,5 +1,6 @@
 // Spice economy, step 1: De Kruidenbeurs (spice market) and the warehouse stock.
-// A market day passes after every outing (a cleared mission or an Oofmobiel drive), the same clock Nabil uses.
+// A market day passes when Eddy ends it: after a raid (which takes the whole day), or by sleeping / Dag afsluiten after
+// a work day (warehouse work and deliveries). Spice orders arrive two market days later, or the next morning with express.
 // Prices drift every day, news events shake one ingredient up or down for a few days, and owned territories
 // make the home market a little cheaper. Everything lives in state.econ, which main.js saves.
 // Later steps (blends, clients, machines, territory control, faction heat) build on this module.
@@ -34,6 +35,8 @@ const LAMPAS_JOINTS = ['frietwijk', 'sauzenbuurt', 'knoflooksteeg', 'mayonaisema
 const NOSH_JOINTS = ['joppiehaven', 'frikandelhaven', 'havermelkhaven', 'kombuchakwartier', 'gembergracht', 'avocadoakkers', 'glutenvrijegaarde', 'quinoaplantage', 'oatoase', 'speltpolder'];
 const ABD_JOINTS = ['komijnkade', 'kaneelsilos', 'paprikapakhuis', 'kruidnagelkade', 'peperhaven', 'kurkumaloods', 'saffraanpier', 'nootmuskade', 'smokkelsloot', 'containerchaos', 'kardemomdok'];
 const DISTRICT_KG = 5;
+// Spice orders (Kruidenbeurs, phone, Loods pallets) arrive on the morning ORDER_DAYS market days later; express: 1 day, +EXPRESS
+export const ORDER_DAYS = 2, EXPRESS = 0.25;
 const DISTRICT_SALES = [{ name: 'Joints in Oud-Vettenburg', ids: LAMPAS_JOINTS, blend: 'kip' }, { name: 'Joints on Hipsterheuvel', ids: NOSH_JOINTS, blend: 'lams' }, { name: 'Joints in De Duistere Dokken', ids: ABD_JOINTS, blend: 'kebab' }];
 const PER_NAKNIK = 10; // kg of blend each Naknik mixes per market day
 const WHOLESALE_KG = 40;
@@ -139,6 +142,8 @@ export function createEconomy(deps) {
     e.report = e.report || null; e.jobs = Array.isArray(e.jobs) ? e.jobs : null; e.event = e.event || null;
     e.wh = e.wh || {}; e.rep = +e.rep || 0; e.ideas = e.ideas || {}; e.repairs = Array.isArray(e.repairs) ? e.repairs : [];
     e.machines = e.machines || {}; e.installed = e.installed || {}; e.offers = Array.isArray(e.offers) ? e.offers : null;
+    e.inbound = Array.isArray(e.inbound) ? e.inbound : []; e.express = !!e.express;
+    if (!e.today || e.today.day !== e.day) e.today = { day: e.day, plan: null, did: {} };
     e.heat = e.heat || { lampas: 0 }; e.control = e.control || {}; e.retaken = e.retaken || {}; e.turfNews = Array.isArray(e.turfNews) ? e.turfNews : [];
     for (const g of INGREDIENTS) {
       if (!(e.mult[g.id] > 0)) e.mult[g.id] = 1;
@@ -156,6 +161,7 @@ export function createEconomy(deps) {
     const strikes = turf(); // the Lampas react to how much of their turf you hold
     e.day++; e.wholesaleLeft = WHOLESALE_KG + (boost().sell || 0); e.lastMix = made; e.report = rep;
     rollDay(); // the new day's job board and event (seeded by the day, so a reload shows the same)
+    const came = arrivals(); e.today = { day: e.day, plan: null, did: {} }; // the morning truck, and a fresh day to plan
     for (const n of e.news) n.days--;
     e.news = e.news.filter((n) => n.days > 0);
     const T = tomorrow(); e.next = null; // what was rolled for today (Henk and the Fluisteraar saw it coming)
@@ -180,7 +186,9 @@ export function createEconomy(deps) {
     const mixLine = made ? (made.kg ? `Naknikim mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
     const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
     if (strikes.length && deps.toast) { deps.toast(state.act1 ? 'THEY STRIKE BACK' : 'THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
-    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + payLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine ? 5 : 3);
+    const cameLine = came.length ? `The truck dropped ${came.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : '';
+    if (deps.onDay) deps.onDay(e.day);
+    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + payLine + cameLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine || cameLine ? 5 : 3);
     return e.day;
   }
   // called every frame: a finished mission bumps state.raids, which ends the day
@@ -189,6 +197,53 @@ export function createEconomy(deps) {
     if (r > e.raidsSeen && state.lastRaid) { raidDone(state.lastRaid); state.lastRaid = null; }
     if (r > e.raidsSeen) { const n = r - e.raidsSeen; e.raidsSeen = r; for (let i = 0; i < n; i++) advance('out raiding'); return true; }
     return false;
+  }
+
+  // ---- the day plan: a raid takes the whole day (only on a day with nothing done yet, and it ends the day);
+  // warehouse work (loods) and deliveries (rit: one Oofmobiel delivery drive, levering: Klusbord orders) share a work day.
+  const today = () => ensure().today;
+  const canRaid = () => !today().plan || today().plan === 'raid';
+  const canDrive = () => today().plan !== 'raid' && !today().did.rit;
+  function startRaid() { today().plan = 'raid'; if (deps.onPlan) deps.onPlan(); if (deps.save) deps.save(); }
+  function work(kind) {
+    const t = today(); if (t.plan === 'raid') return false;
+    const fresh = !t.plan || !t.did[kind]; t.plan = 'werk'; t.did[kind] = true;
+    if (fresh && deps.onPlan) deps.onPlan(); if (deps.save) deps.save(); return true;
+  }
+  function endDay(why) { return advance(why || 'asleep'); }
+  const DID = { loods: 'warehouse work', rit: 'delivery run', levering: 'Klusbord delivery' };
+  function planLine() { // one line for the HUD
+    const t = today();
+    if (t.plan === 'raid') return `<b>Day ${t.day}</b> · Raid day: the raid takes the whole day`;
+    if (t.plan === 'werk') return `<b>Day ${t.day}</b> · Work day: ${Object.keys(t.did).map((k) => DID[k] + ' ✓').join(', ')}${t.did.rit ? '' : ' · a delivery run still fits'} · <i>sleep to end the day</i>`;
+    return `<b>Day ${t.day}</b> · Free: a raid, or warehouse work and deliveries`;
+  }
+  function planHTML() { // the "Vandaag" box on the Dagrapport and Kruidenbeurs
+    const t = today(), arr = ensure().inbound.filter((o) => o.day === t.day + 1);
+    return `<div class="well" style="margin-bottom:8px;background:#f0fff0"><b>Vandaag · market day ${t.day}</b> · ${t.plan === 'raid' ? 'Raid day' : t.plan === 'werk' ? 'Work day' : 'Nothing planned yet'}<br>
+      <small>A <b>raid</b> takes the whole day: only on a day you haven't worked yet, and the day ends after it. <b>Warehouse work</b> (racking pallets) and <b>deliveries</b> (one delivery drive, Klusbord orders) fit in one day together. Done? Sleep in your bed or end the day here: the Naknikim mix overnight, clients pay, prices move.</small><br>
+      ${t.plan === 'werk' ? `Done today: ${Object.keys(t.did).map((k) => DID[k]).join(', ')}. ` : ''}${arr.length ? `Tomorrow morning the truck brings ${arr.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : ''}<button class="b95" data-endday="1">Dag afsluiten · end the day</button></div>`;
+  }
+  // ---- spice orders on their way
+  const inboundKg = () => ensure().inbound.reduce((a, o) => a + o.kg, 0);
+  const orderRoom = () => cap() - stockTotal() - inboundKg();
+  function order(id, gradeId, kg, express) { // paid now, on the shelves ORDER_DAYS (express 1) mornings later
+    const e = ensure(), d = e.day + (express ? 1 : ORDER_DAYS), o = e.inbound.find((x) => x.id === id && x.grade === gradeId && x.day === d);
+    if (o) o.kg += kg; else e.inbound.push({ id, grade: gradeId, kg, day: d });
+    if (deps.tip) deps.tip('order');
+    return d;
+  }
+  function arrivals() {
+    const e = ensure(), came = e.inbound.filter((o) => o.day <= e.day);
+    for (const o of came) e.stock[key(o.id, o.grade)] = +(stockOf(o.id, o.grade) + o.kg).toFixed(2);
+    e.inbound = e.inbound.filter((o) => o.day > e.day);
+    return came;
+  }
+  const expressCost = (cost, express) => Math.round(cost * (express ? 1 + EXPRESS : 1));
+  function inboundHTML() {
+    const e = ensure(); if (!e.inbound.length) return '';
+    const by = {}; for (const o of e.inbound) (by[o.day] = by[o.day] || []).push(o);
+    return `<div class="well" style="margin-bottom:8px;background:#eef4ff"><b>Onderweg · on its way</b><br>${Object.keys(by).sort((a, b) => a - b).map((d) => `Day ${d}${+d === e.day + 1 ? ' (tomorrow)' : ''}: ${by[d].map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name} ${GRADES.find((g) => g.id === o.grade).name}`).join(', ')}`).join('<br>')}<br><small>Orders are paid now and count against your warehouse space until they arrive.</small></div>`;
   }
 
   function tomorrow() { // the next market day's random part, rolled one day ahead
@@ -531,8 +586,9 @@ export function createEconomy(deps) {
     const e = ensure(), j = (e.jobs || [])[n]; if (!j || j.done) return null;
     if (j.kind === 'spoed') {
       const cur = blendOf(j.blend); if (cur.kg < j.kg) return `You need ${j.kg} kg ${BLENDS.find((x) => x.id === j.blend).name} in stock (you have ${Math.floor(cur.kg)}).`;
+      if (today().plan === 'raid') return 'Today is a raid day. Deliver it tomorrow.';
       cur.kg -= j.kg; if (cur.kg <= 0) delete e.blends[j.blend]; else e.blends[j.blend] = cur;
-      finishJob(j, el); return null;
+      work('levering'); finishJob(j, el); return null;
     }
     if (j.kind === 'deal') {
       const cost = Math.round(price(j.ing, 'std') * (1 - j.off)) * j.kg;
@@ -544,7 +600,7 @@ export function createEconomy(deps) {
   }
   function jobsHTML() {
     const e = ensure(); if (!e.jobs) rollDay();
-    let h = `<div class="well" style="margin-bottom:8px"><b>Klusbord</b> · Market day <b>${e.day}</b> · New jobs after every outing.<br><small>Raids are done from the Oofmobiel map (owned joints show tonight's remix). Order and deal jobs are done right here.</small></div>`;
+    let h = `<div class="well" style="margin-bottom:8px"><b>Klusbord</b> · Market day <b>${e.day}</b> · New jobs every market day.<br><small>Raids are done from the Oofmobiel map (owned joints show tonight's remix). Order and deal jobs are done right here.</small></div>`;
     if (e.event) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>TODAY:</b> ${e.event.text}.</div>`;
     const dc = deps.daily ? deps.daily() : null;
     if (dc) h += `<div class="well" style="margin-bottom:8px;background:#f0f0ff"><b>DAGELIJKSE UITDAGING · ${dc.date}</b>: ${dc.name}, ${dc.mod}. The same raid for everyone today, a new one tomorrow. Your best today: <b>${dc.best ? 'W ' + dc.best.toLocaleString('nl-NL') : '-'}</b>. <i>Start it from the van map.</i></div>`;
@@ -579,17 +635,18 @@ export function createEconomy(deps) {
   }
   function reportHTML() {
     const e = ensure(), cl = activeClients();
-    let h = `<div class="well" style="margin-bottom:8px"><b>Dagrapport</b> · Market day <b>${e.day}</b> · Balance <b data-bal>${fmt(state.money)}</b><br><small>Every outing ends the day: the Naknikim mix, then each client takes its order from your blend stock and pays. Good quality and full orders build trust; missed orders send them back to the Lampas.</small></div>`;
+    let h = `<div class="well" style="margin-bottom:8px"><b>Dagrapport</b> · Market day <b>${e.day}</b> · Balance <b data-bal>${fmt(state.money)}</b><br><small>Every night the Naknikim mix, then each client takes its order from your blend stock and pays. Good quality and full orders build trust; missed orders send them back to the Lampas.</small></div>`;
     for (let i = 0; i < e.cards.length; i++) {
       const c = e.cards[i];
       h += `<div class="well" style="margin-bottom:8px;background:#fff0f0"><b>${c.who}, ${c.name}:</b><br><i>"${c.text}"</i><br>They owe you <b>${fmt(c.amount)}</b>.<br>
         <button class="b95" data-card="${i}:discount">Give 20% off</button>${(e.installed[c.id] || []).length ? ` <button class="b95" data-card="${i}:repo">Repo their ${MACHINES.find((m) => m.id === e.installed[c.id].at(-1)).name.toLowerCase()}</button>` : ''} <button class="b95" data-card="${i}:insist">Insist on full pay</button> <button class="b95" data-card="${i}:cut">Cut off their supply</button></div>`;
     }
     const r = e.report;
+    h += planHTML();
     h += `<div class="well" style="margin-bottom:8px">${e.turfNews.length ? `<b style="color:#a00">YOUR RIVALS STRUCK BACK:</b> ${e.turfNews.join(' ')}<br>` : ''}${turfHTML(false)}</div>`;
     if (e.event) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>TODAY:</b> ${e.event.text}.</div>`;
     h += `<div class="well" style="margin-bottom:8px"><b>${r ? `Day ${r.day}` : 'No report yet'}</b>${r ? ` · Paid today <b>${fmt(r.paid)}</b>${r.missed ? ` · <span style="color:#a00">${r.missed} missed</span>` : ''}` : ''}`;
-    h += r && r.rows.length ? '<table class="list" style="margin-top:4px"><tr><th>Client</th><th>Order</th><th>Delivered</th><th>Paid</th><th></th></tr>' + r.rows.map((x) => `<tr><td>${x.name}</td><td>${x.want || ''}</td><td>${x.kg ? `${x.kg} kg ${stars(Math.round(x.q))}` : '-'}</td><td>${x.pay ? fmt(x.pay) : '-'}</td><td><small>${x.note}</small></td></tr>`).join('') + '</table>' : '<br>Go on an outing (a mission or a drive) to end the day.';
+    h += r && r.rows.length ? '<table class="list" style="margin-top:4px"><tr><th>Client</th><th>Order</th><th>Delivered</th><th>Paid</th><th></th></tr>' + r.rows.map((x) => `<tr><td>${x.name}</td><td>${x.want || ''}</td><td>${x.kg ? `${x.kg} kg ${stars(Math.round(x.q))}` : '-'}</td><td>${x.pay ? fmt(x.pay) : '-'}</td><td><small>${x.note}</small></td></tr>`).join('') + '</table>' : '<br>End the day (a raid, or sleep after a work day) to see who pays.';
     h += '</div>';
     h += '<table class="list"><tr><th>Client</th><th>Wants daily</th><th>Min. quality</th><th>Pays now</th><th>Trust</th></tr>';
     for (const c of cl) {
@@ -601,7 +658,11 @@ export function createEconomy(deps) {
     h += `<p><small>Take more joints to win more clients. ${cl.length < CLIENTS.length ? 'Each Kipkruidenkwartier territory you own becomes a client.' : ''}</small></p>`;
     return h;
   }
+  function planBind(body, rerender) {
+    body.querySelectorAll('[data-endday]').forEach((b) => b.onclick = () => { if (deps.endDay) deps.endDay(); else endDay(); if (rerender) rerender(); });
+  }
   function reportBind(body, rerender) {
+    planBind(body, rerender);
     body.querySelectorAll('[data-tribute]').forEach((b) => b.onclick = () => { const m = tribute(b, b.dataset.tribute); if (deps.toast) deps.toast('TRIBUTE', m || 'Paid. They calm down a little (heat -30).', 3); if (rerender) rerender(); });
     const tb = body.querySelector('#tribute'); if (tb) tb.onclick = () => { const m = tribute(tb); if (deps.toast) deps.toast('TRIBUTE', m || 'The Lampas count the money and back off. For now.', 3); rerender(); };
     body.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { const [i, ch] = b.dataset.card.split(':'); const m = settle(+i, ch, b); if (m && deps.toast) deps.toast('DEAL', m, 3); rerender(); });
@@ -657,20 +718,20 @@ export function createEconomy(deps) {
   }
   const space = () => cap() - stockTotal();
   function stockIn(id, gradeId, kg) { // a pallet racked by the heftruck (js/loods.js)
-    if (space() < kg) return false; const e = ensure(); e.stock[key(id, gradeId)] = +(stockOf(id, gradeId) + kg).toFixed(2); if (deps.save) deps.save(); return true;
+    if (space() < kg) return false; const e = ensure(); e.stock[key(id, gradeId)] = +(stockOf(id, gradeId) + kg).toFixed(2); work('loods'); if (deps.save) deps.save(); return true;
   }
 
-  function buy(id, gradeId, kg, el) {
+  function buy(id, gradeId, kg, el, express = ensure().express) { // an order: paid now, delivered in 2 days (express 1)
     const e = ensure(), g = INGREDIENTS.find((x) => x.id === id);
-    kg = Math.min(kg, space(), g.supply ? e.supply[id] : Infinity);
-    if (kg <= 0) return { ok: false, why: space() <= 0 ? 'The warehouse is full.' : 'Sold out for today.' };
-    const cost = price(id, gradeId) * kg;
+    kg = Math.min(kg, orderRoom(), g.supply ? e.supply[id] : Infinity);
+    if (kg <= 0) return { ok: false, why: orderRoom() <= 0 ? (inboundKg() ? 'The warehouse is full once the orders on their way arrive.' : 'The warehouse is full.') : 'Sold out for today.' };
+    const cost = expressCost(price(id, gradeId) * kg, express);
     if (state.money < cost) return { ok: false, why: `Not enough Wilders (${fmt(cost)}).` };
-    e.stock[key(id, gradeId)] = stockOf(id, gradeId) + kg;
+    const day = order(id, gradeId, kg, express);
     if (g.supply) e.supply[id] -= kg;
     deps.addMoney(-cost, el);
     if (deps.save) deps.save();
-    return { ok: true, kg, cost };
+    return { ok: true, kg, cost, day };
   }
   function sell(id, gradeId, kg, el) { // sell stock back at 70% of today's price
     const e = ensure(); kg = Math.min(kg, stockOf(id, gradeId));
@@ -703,27 +764,30 @@ export function createEconomy(deps) {
     const e = ensure(), disc = deps.discount ? deps.discount() : 0;
     let h = `<div class="well" style="margin-bottom:8px"><b>Kruidenbeurs Kipkruidenkwartier</b> · Market day <b>${e.day}</b> · Balance <b data-bal>${fmt(state.money)}</b><br>
       Warehouse stock: <b>${stockTotal()} / ${cap()} kg</b>${disc > 0 ? ` · Home turf discount <b>${Math.round(disc * 100)}%</b>` : ''}<br>
-      <small>Prices move after every outing. Lampas grade is cheap and diluted, Bio is the Noshgey Kariot's overpriced best. Dock spices come through the Abdavissies, a few kilos a day.</small></div>`;
+      <small>Prices move every market day. Orders arrive on the morning <b>two days</b> later (express: tomorrow, +${Math.round(EXPRESS * 100)}%). Lampas grade is cheap and diluted, Bio is the Noshgey Kariot's overpriced best. Dock spices come through the Abdavissies, a few kilos a day.</small></div>`;
     if (e.news.length) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>KAASLAND SPICE NEWS</b><br>${e.news.map((n) => `· ${n.text} <b style="color:${n.f > 1 ? '#b00000' : '#007000'}">${n.f > 1 ? '▲' : '▼'} ${Math.round(Math.abs(n.f - 1) * 100)}%</b>`).join('<br>')}</div>`;
-    h += `<div style="margin-bottom:6px">Buy per click: ${[1, 5, 25].map((q) => `<button class="b95" data-qty="${q}" ${q === qty ? 'style="font-weight:bold;border-style:inset"' : ''}>${q} kg</button>`).join(' ')}</div>`;
+    h += planHTML() + inboundHTML();
+    h += `<div style="margin-bottom:6px">Buy per click: ${[1, 5, 25].map((q) => `<button class="b95" data-qty="${q}" ${q === qty ? 'style="font-weight:bold;border-style:inset"' : ''}>${q} kg</button>`).join(' ')} · Delivery: <button class="b95" data-exp="0" ${!e.express ? 'style="font-weight:bold;border-style:inset"' : ''}>2 days</button> <button class="b95" data-exp="1" ${e.express ? 'style="font-weight:bold;border-style:inset"' : ''}>Express, tomorrow (+${Math.round(EXPRESS * 100)}%)</button></div>`;
     h += '<table class="list"><tr><th>Spice</th>' + GRADES.map((g) => `<th title="${g.note}">${g.name}<br><small>${stars(g.stars)}</small></th>`).join('') + '<th>Trend</th><th>In stock</th></tr>';
     for (const g of INGREDIENTS) {
       const left = g.supply ? e.supply[g.id] : null;
       h += `<tr><td><b>${g.name}</b><br><small>${g.from}${left !== null ? ` · ${left} kg left today` : ''}</small></td>`;
-      for (const gr of GRADES) h += `<td>${fmt(price(g.id, gr.id))}/kg<br><button class="b95" data-buy="${g.id}:${gr.id}" ${left === 0 ? 'disabled' : ''}>Buy</button></td>`;
+      for (const gr of GRADES) h += `<td>${fmt(price(g.id, gr.id) * (e.express ? 1 + EXPRESS : 1))}/kg<br><button class="b95" data-buy="${g.id}:${gr.id}" ${left === 0 ? 'disabled' : ''}>Buy</button></td>`;
       const inStock = GRADES.map((gr) => [gr, stockOf(g.id, gr.id)]).filter(([, kg]) => kg > 0);
       h += `<td>${spark(e.hist[g.id])}${has('prognose') ? ` <b title="Henk's forecast for tomorrow" style="color:${forecast(g.id) > 0 ? '#b00000' : '#007000'}">${forecast(g.id) > 0 ? '▲' : '▼'}</b>` : ''}</td><td>${inStock.map(([gr, kg]) => `${kg} kg ${gr.name} <button class="b95" data-sellst="${g.id}:${gr.id}" title="Sell 5 kg back at 70%">−5</button>`).join('<br>') || '-'}</td></tr>`;
     }
     h += '</table>';
     if (state.loot) h += `<p><button class="b95" id="unpack">Unpack ${state.loot} Lampas crate(s) into stock (${CRATE_KG} kg Lampas grade each)</button> <small>or sell them on Kaasplaats</small></p>`;
-    h += '<p><small>Your Naknikim mix blends from this stock after every outing. Pick the blend in the <b>Mengkamer</b>.</small></p>';
+    h += '<p><small>Your Naknikim mix blends from this stock every night. Pick the blend in the <b>Mengkamer</b>. Order two days ahead, or pay for express.</small></p>';
     return h;
   }
   function bind(body, rerender) {
     body.querySelectorAll('[data-qty]').forEach((b) => b.onclick = () => { qty = +b.dataset.qty; rerender(); });
+    body.querySelectorAll('[data-exp]').forEach((b) => b.onclick = () => { ensure().express = b.dataset.exp === '1'; if (deps.save) deps.save(); rerender(); });
+    planBind(body, rerender);
     body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => {
       const [id, gr] = b.dataset.buy.split(':'); const r = buy(id, gr, qty, b);
-      if (!r.ok && deps.toast) deps.toast('KRUIDENBEURS', r.why, 2);
+      if (deps.toast) deps.toast('KRUIDENBEURS', r.ok ? `${r.kg} kg ${INGREDIENTS.find((g) => g.id === id).name} ordered: the truck brings it on day ${r.day}${r.day === ensure().day + 1 ? ' (tomorrow morning)' : ''}.` : r.why, 2);
       rerender();
     });
     body.querySelectorAll('[data-sellst]').forEach((b) => b.onclick = () => { const [id, gr] = b.dataset.sellst.split(':'); sell(id, gr, 5, b); rerender(); });
@@ -735,7 +799,7 @@ export function createEconomy(deps) {
   const on = (yes) => (yes ? 'style="font-weight:bold;border-style:inset"' : '');
   function mixHTML() {
     const e = ensure(), n = mixers();
-    let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${n * perNaknik()} kg</b> after every outing` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
+    let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${n * perNaknik()} kg</b> every night` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
       Stock: <b>${stockTotal()} / ${cap()} kg</b> (spices + blends)<br>
       <small>Quality = the average stars of the spices that went in. Lampas grade makes ★ blends, Bio makes ★★★★★.</small></div>`;
     if (e.lastMix) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>Last night:</b> ${e.lastMix.kg ? `${e.lastMix.kg} kg ${e.lastMix.name} ${stars(Math.round(e.lastMix.q))}` : `no ${e.lastMix.name}, ${e.lastMix.why}`}${e.lastMix.oops ? `<br><i>Naknik: "${e.lastMix.oops}"</i>` : ''}</div>`;
@@ -749,7 +813,7 @@ export function createEconomy(deps) {
     h += '</table>';
     const stocked = BLENDS.filter((b) => blendOf(b.id).kg > 0);
     h += `<div class="well" style="margin-top:8px"><b>Blends in stock</b> · Groothandel Van Kruidenburg buys <b>${e.wholesaleLeft} kg</b> more today<br>`;
-    h += stocked.length ? '<table class="list" style="margin-top:4px"><tr><th>Blend</th><th>Stock</th><th>Quality</th><th>Groothandel pays</th><th></th></tr>' + stocked.map((b) => `<tr><td>${b.name}</td><td>${blendOf(b.id).kg} kg</td><td>${stars(Math.round(blendOf(b.id).q))}</td><td>${fmt(wholesalePrice(b.id))}/kg</td><td><button class="b95" data-sellbl="${b.id}:10">Sell 10 kg</button> <button class="b95" data-sellbl="${b.id}:999">Sell max</button></td></tr>`).join('') + '</table>' : 'Nothing yet. Buy spices at the Kruidenbeurs, then go on an outing while the Naknikim mix.';
+    h += stocked.length ? '<table class="list" style="margin-top:4px"><tr><th>Blend</th><th>Stock</th><th>Quality</th><th>Groothandel pays</th><th></th></tr>' + stocked.map((b) => `<tr><td>${b.name}</td><td>${blendOf(b.id).kg} kg</td><td>${stars(Math.round(blendOf(b.id).q))}</td><td>${fmt(wholesalePrice(b.id))}/kg</td><td><button class="b95" data-sellbl="${b.id}:10">Sell 10 kg</button> <button class="b95" data-sellbl="${b.id}:999">Sell max</button></td></tr>`).join('') + '</table>' : 'Nothing yet. Order spices at the Kruidenbeurs; once they arrive, the Naknikim mix overnight.';
     h += '<br><small>Your own joints pay better than the Groothandel: keep enough stock for their orders (Dagrapport).</small></div>';
     return h;
   }
@@ -763,5 +827,5 @@ export function createEconomy(deps) {
   // Hakan's phone order (js/phone.js): Shooki brings it at the next market day
   function phoneOrder(kg) { const e = ensure(); e.phoneOrder = { kg, day: e.day }; e.phoneDay = e.day; if (deps.save) deps.save(); }
   const phoneQuote = (kg) => Math.round(clientPrice('kip', Math.max(1, blendOf('kip').q || 3), null) * kg * 1.15);
-  return { perNaknik, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }
