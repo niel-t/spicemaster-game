@@ -34,6 +34,7 @@ export const TIPS = {
   order: ['Ordered', 'Nothing arrives the same day, bro. Spice comes on the morning <b>two days</b> later. In a hurry? <b>Express</b> brings it tomorrow for 25% extra. Plan ahead: order before the shelves run empty.'],
   phone: ['Phone', 'Your phone is ringing, bro. Press <b>T</b> to answer. Hakan wants kipkraud: say yes and I bring it tomorrow, if there\'s Kip Shoarma in stock.'],
   razim: ['Razim', 'That\'s Razim, bro. He wants shoarma. He always wants shoarma. His texts are under <b>Razim</b> in the Shmokia (<b>T</b>). Reply or don\'t, he texts again anyway.'],
+  razimVisit: ['Razim, in person', 'Bro, he just shows up. Buy him a broodje and he goes home happy. Say you\'re working and he follows you around all day. I\'m only telling you.'],
   shmokia: ['Shmokia', 'Your phone. Call people, trade a bit. <b>T</b> opens and closes it.'],
   haggle: ['Haggling', 'They want a deal. Offer, counter, walk away. Push too hard and they leave. Be too soft and you lose money.'],
   crew: ['Your Naknikim', 'Each Naknik has a name, skill and mood. Send one on an <b>errand</b> (they skip mixing that day) or give a <b>day off</b> when they\'re tired. Happy Naknikim mess up less.'],

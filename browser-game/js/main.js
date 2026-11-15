@@ -1090,7 +1090,7 @@ function beep(freq, dur, type = 'square', vol = 0.05) {
 }
 
 // dialogue
-const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg', 'Shooki': './assets/face_shooki.jpg', 'Shooki (telefoon)': './assets/face_shooki.jpg', 'Razim (telefoon)': './assets/face_razim.jpg', 'Henk Cijfer': './assets/face_henk.jpg', 'Henk Cijfer (telefoon)': './assets/face_henk.jpg', 'Van der Belasting': './assets/face_belasting.jpg' };
+const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg', 'Shooki': './assets/face_shooki.jpg', 'Shooki (telefoon)': './assets/face_shooki.jpg', 'Razim (telefoon)': './assets/face_razim.jpg', 'Razim': './assets/face_razim.jpg', 'Henk Cijfer': './assets/face_henk.jpg', 'Henk Cijfer (telefoon)': './assets/face_henk.jpg', 'Van der Belasting': './assets/face_belasting.jpg' };
 let dlgQueue = [], dlgDone = null;
 function dialogue(lines, done) { dlgQueue = lines.slice(); dlgDone = done; state.inDialogue = true; nextLine(); }
 function nextLine() {
@@ -2341,6 +2341,63 @@ function updateInspector(dt) {
   }
 }
 
+// ================================================================== RAZIM drops by unannounced (js/phone.js has his texts and calls)
+// Some market days Eddy's annoying friend just turns up, at the warehouse, at home, wherever Eddy is: "EDDY! Surprise!"
+// Buy him a broodje, let him tag along (he follows Eddy around asking questions, then leaves and texts), or claim
+// you're not in Nederland while he's standing right in front of you. Good-natured: he just wants shoarma with Eddy.
+let razim = null;
+const rnd = (a) => a[Math.floor(Math.random() * a.length)];
+const RAZIM_LOOK = { head: { skin: 0xd6a888, hair: '#1e1814', brow: '#1a1410', hairLine: 64, sideLine: 112, backLine: 140, mouth: 'smile', glasses: true, iris: '#3a2a1e' }, shirt: 0x1c1c22, pants: 0x2c3446, shoes: 0x1a1a1a, belly: 0.1, skin: 0xd6a888 }; // buzzcut (hairLine <= 66 = 'buzz' in characters.js), thin glasses, black sweater (assets/face_razim.jpg)
+const RAZ_ASK = ['What does this machine do?', 'Is that a Naknik? Hi Naknik!', 'Eddy. Shoarma after this?', 'Can I press this button?', 'Your dad still has that moustache?', 'I could work here. I\'d be good.', 'Ok but after this, shoarma.', 'Eddy, look, I can do a cartwheel. ...No I can\'t.'];
+function razimVisit() {
+  if (razim || state.step !== 'free' || state.inPC || state.inDialogue || mission.active) return false;
+  const from = Math.random() < 0.5 ? -1 : 1;
+  const p = makePS2Person(lookFromPerson(RAZIM_LOOK, HEADS), { scene });
+  const z = Math.abs(player.position.z - LANES.N[0]) < 10 ? player.position.z : LANES.N[0];
+  p.position.set(player.position.x + from * 14, 0, z); scene.add(p);
+  razim = { p, t: 0, talked: false, follow: 0, ask: 4 };
+  personBubble(p, rnd(['EDDY! Surprise!', 'Eddyyy! I was in the neighbourhood!', 'Eddy! Don\'t pretend you didn\'t see me!']), '#b4cc7a');
+  return true;
+}
+function updateRazim(dt) {
+  if (!razim) {
+    const e = econ.ensure();
+    if (state.step !== 'free' || !npcs.met('shooki') || (state.tut && !state.tut.done)) return;
+    if (e.razimVisitRoll !== e.day) { e.razimVisitRoll = e.day; e.razimVisitIn = !garage.inspectorDue() && Math.random() < 0.3 ? 30 + Math.random() * 120 : -1; }
+    if (!(e.razimVisitIn > 0) || state.inPC || state.inDialogue || mission.active || garage.inspectorDue()) return;
+    if ((e.razimVisitIn -= dt) <= 0 && !razimVisit()) e.razimVisitIn = 5;
+    return;
+  }
+  const p = razim.p, d = new THREE.Vector3(player.position.x - p.position.x, 0, player.position.z - p.position.z), L = d.length();
+  razim.t += dt;
+  if (razim.left) { p.position.x += razim.left * 2.6 * dt; p.rotation.y = razim.left * Math.PI / 2; animate(p, 2.6, dt); if (Math.abs(p.position.x - player.position.x) > 40) { scene.remove(p); razim = null; } return; }
+  const leave = (txt) => { razim.left = p.position.x > player.position.x ? 1 : -1; if (txt && phone) phone.razimText(txt); };
+  if (razim.follow > 0) { // tagging along: keeps two steps behind Eddy and asks things
+    razim.follow -= dt; razim.ask -= dt;
+    if (L > 2.4) { d.normalize(); p.position.addScaledVector(d, Math.min(L - 2.2, (L > 6 ? 4.5 : 2.6) * dt)); p.rotation.y = Math.atan2(d.x, d.z); animate(p, L > 6 ? 4.5 : 2.6, dt); } else { p.rotation.y = Math.atan2(d.x, d.z); animate(p, 0, dt); }
+    if (razim.ask <= 0) { razim.ask = 6 + Math.random() * 5; personBubble(p, rnd(RAZ_ASK), '#b4cc7a'); }
+    if (razim.follow <= 0 || state.step !== 'free') { personBubble(p, 'Ok I go. I text you!', '#b4cc7a'); leave(['that was fun', 'same time tomorrow?', 'with shoarma this time']); }
+    return;
+  }
+  if (L > 1.6) { d.normalize(); p.position.addScaledVector(d, Math.min(L - 1.5, 3.0 * dt)); p.rotation.y = Math.atan2(d.x, d.z); animate(p, 3.0, dt); }
+  else if (!razim.talked && !state.inDialogue && !state.inPC) {
+    razim.talked = true; animate(p, 0, dt);
+    tips.show('razimVisit');
+    dialogue([['Razim', rnd(['EDDY! I was just walking by. For forty minutes. Around your place.', 'Surprise! You didn\'t answer, so I came. That\'s what friends do.', 'Eddy! I texted, you didn\'t reply, so I thought: he\'s probably dead. You\'re not dead! Shoarma?'])]],
+      () => choice('Razim', '<i>Razim is here. In person. Razim wants shoarma.</i>', ['Tamam, one broodje. Quick. (W 15)', 'I\'m working, Razim.', 'I\'m not in Nederland.'], (i) => {
+        if (i === 0) {
+          if (state.money >= 15) addMoney(-15);
+          dialogue([['Eddy Jr.', 'Tamam. One broodje. Quick.'], ['Razim', rnd(['YES! Best friend! ...You\'re paying, right? You\'re paying.', 'Quick, quick. I eat fast. You know I eat fast.']) ], ['Razim', 'Ahh. Shoarma with Eddy. Now my day is complete. See you tomorrow!']],
+            () => { leave(['thanks for the broodje!!', 'best day', 'tomorrow again?']); toast('BROODJE MET RAZIM', 'He ate his and half of yours. Somehow you feel a bit better.', 3.5); writeSave(); });
+        } else if (i === 1) {
+          dialogue([['Eddy Jr.', 'I\'m working, Razim.'], ['Razim', 'No problem! I\'ll just watch. I\'m very quiet. You won\'t even notice me.']], () => { razim.follow = 35 + Math.random() * 20; razim.ask = 3; });
+        } else {
+          dialogue([['Eddy Jr.', 'I\'m not in Nederland.'], ['Razim', rnd(['Eddy. I am LOOKING at you. I can touch your face.', 'Ok. When you\'re back in Nederland, I\'m right here. Standing here. In Nederland.'])]], () => { personBubble(p, 'Ok bye! Not-in-Nederland Eddy!', '#b4cc7a'); leave(['you\'re funny', 'you were literally there', 'shoarma when you\'re "back"?']); });
+        }
+      }, null));
+  }
+}
+
 // ================================================================== SEAGULLS (they poop on people)
 const gulls = [], poops = [];
 function makeGull() {
@@ -2632,7 +2689,7 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateSiege(); mission.street(dt); } else mission.update(dt);
+  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); updateSiege(); mission.street(dt); } else mission.update(dt);
   const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then stir
   for (const n of naknikim) {
@@ -2776,5 +2833,5 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; }, get phone() { return phone; } };
+window.__sme = { tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get npcs() { return npcs; }, get phone() { return phone; } };
 tick();
