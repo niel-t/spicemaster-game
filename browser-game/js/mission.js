@@ -339,6 +339,13 @@ export function initMission(ctx) {
     return true;
   }
   const flashing = new Set(), flashAt = new THREE.Vector3();
+  // gun smoke: a thin grey puff that drifts up from the muzzle after each shot
+  const puffTex = canvasTex(64, 64, (g) => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(210,210,205,.9)'); r.addColorStop(0.5, 'rgba(180,180,175,.35)'); r.addColorStop(1, 'rgba(160,160,160,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); });
+  const puffs = [];
+  function puff(at, big) { if (puffs.length > 40) { const o = puffs.shift(); o.s.parent && o.s.parent.remove(o.s); }
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, opacity: big ? 0.5 : 0.32 })); s.position.copy(at); s.scale.setScalar(0.12); root.add(s); puffs.push({ s, t: 0, big }); }
+  function updatePuffs(dt) { for (let i = puffs.length - 1; i >= 0; i--) { const p = puffs[i]; p.t += dt; const k = p.t / (p.big ? 1.1 : 0.7);
+    if (k >= 1) { root.remove(p.s); p.s.material.dispose(); puffs.splice(i, 1); continue; } p.s.position.y += dt * 0.35; p.s.scale.setScalar(0.12 + k * (p.big ? 0.8 : 0.45)); p.s.material.opacity = (p.big ? 0.5 : 0.32) * (1 - k); } }
   const isGun = isGunId;
 
   // ================================================================== THE PLAYER'S KIT
@@ -755,7 +762,7 @@ export function initMission(ctx) {
       bullets.push({ m, dx: Math.sin(aa), dz: Math.cos(aa), sp, byPlayer, id, life: 1.2, pierce: byPlayer ? (W2.pierce || 1) : 1, pen: byPlayer ? (W2.pen || 0) : 0, hit: new Set() });
     }
     const q = byPlayer && quiet(id);
-    if (gunM && fireFlash(gunM, flashAt)) { flashing.add(gunM); muzzle(flashAt, q ? 1.5 : 4, true); casing(flashAt, a, W2.pel > 1); } // the flash sits on the barrel
+    if (gunM && fireFlash(gunM, flashAt)) { flashing.add(gunM); muzzle(flashAt, q ? 1.5 : 4, true); puff(flashAt, W2.pel > 1); casing(flashAt, a, W2.pel > 1); } // the flash sits on the barrel
     else { muzzle(new THREE.Vector3(bx + sa * 0.6, 0, bz + ca * 0.6), q ? 1.5 : 4); casing(from, a, W2.pel > 1); }
     if (shooter && hd) holdRecoil(shooter, Math.min(1.5, 0.45 + W2.kick * 2.2), alt && !!hd.gun2);
     if (shooter && hd && id === 'pump') holdPump(shooter);
@@ -1816,7 +1823,7 @@ export function initMission(ctx) {
     separate(); bodyPhysics();
     updateBullets(dt); updateItems(dt); updateParts(dt); updateNades(dt); plateTick(dt);
     if (flashT > 0) { flashT -= dt; if (flashT <= 0) { flashL.intensity = 0; flashSp.visible = false; } }
-    for (const g of flashing) { tickFlash(g, dt); if (!g.userData.flash.visible) flashing.delete(g); }
+    for (const g of flashing) { tickFlash(g, dt); if (!g.userData.flash.visible) flashing.delete(g); } updatePuffs(dt);
     FX.shake *= Math.exp(-dt * 8); FX.flash = Math.max(0, FX.flash - dt * 1.5); FX.kick.multiplyScalar(Math.exp(-dt * 12));
     flashEl.style.background = `rgba(${FX.flashC},1)`; flashEl.style.opacity = FX.flash * 0.6;
     const vig = FX.hurtT > 0 ? FX.hurtT / 0.7 * 0.55 : (!P.dead && P.hp === 1 ? 0.18 + Math.sin(R.time * 6) * 0.08 : 0);

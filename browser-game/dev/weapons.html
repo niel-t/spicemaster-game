@@ -15,6 +15,13 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWid
 renderer.shadowMap.enabled = true; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2633);
 installCharacters(scene);
+{ // an environment like the game's, so metal reflects something
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, '#d8dcef'); g.addColorStop(0.45, '#8a8496'); g.addColorStop(0.55, '#3a3038'); g.addColorStop(1, '#1a1418'); x.fillStyle = g; x.fillRect(0, 0, 256, 128);
+  x.fillStyle = '#fff6e0'; x.fillRect(40, 18, 50, 14); x.fillRect(160, 22, 36, 10);
+  const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  scene.environment = new THREE.PMREMGenerator(renderer).fromEquirectangular(t).texture; scene.environmentIntensity = 0.55;
+}
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 100);
 scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x3a2a20, 1.1));
 const sun = new THREE.DirectionalLight(0xfff0dc, 2.4); sun.position.set(3, 6, 4); sun.castShadow = true; scene.add(sun);

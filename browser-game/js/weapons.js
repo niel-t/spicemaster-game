@@ -12,30 +12,44 @@
 // arm proxy; guns are held through characters.js setHold(), which puts both hands on them.
 import * as THREE from '../vendor/three.module.min.js';
 
-const phong = (color, o = {}) => new THREE.MeshPhongMaterial({ color, shininess: 30, specular: 0x222222, ...o });
+// realistic materials: PBR metals and woods (the game has a scene environment, so metal picks up reflections),
+// a little procedural grain, stippled polymer, and the spice colours kept as accents (anodised grips, cerakote, wraps)
+const canvasT = (w, h, draw, srgb = true) => { if (typeof document === 'undefined') return null; const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+const grain = (base, dark, light) => canvasT(128, 128, (x, w, h) => { // wood: long wavy grain with a few pores
+  x.fillStyle = base; x.fillRect(0, 0, w, h);
+  for (let i = 0; i < 70; i++) { const y0 = Math.random() * h, a = 1 + Math.random() * 3, f = 0.02 + Math.random() * 0.05, ph = Math.random() * 6; x.strokeStyle = Math.random() < 0.7 ? dark : light; x.globalAlpha = 0.18 + Math.random() * 0.3; x.lineWidth = 0.6 + Math.random() * 1.6; x.beginPath(); for (let X = 0; X <= w; X += 4) x.lineTo(X, y0 + Math.sin(X * f + ph) * a); x.stroke(); }
+  x.globalAlpha = 0.35; x.fillStyle = dark; for (let i = 0; i < 90; i++) x.fillRect(Math.random() * w, Math.random() * h, 2, 1); x.globalAlpha = 1; });
+const noise = (k = 1) => canvasT(64, 64, (x, w, h) => { const d = x.createImageData(w, h); for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - 0.5) * 255 * k; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } x.putImageData(d, 0, 0); }, false);
+const STIPPLE = noise(1), BRUSH = canvasT(64, 64, (x, w, h) => { x.fillStyle = '#808080'; x.fillRect(0, 0, w, h); for (let i = 0; i < 160; i++) { x.fillStyle = Math.random() < 0.5 ? '#6a6a6a' : '#999'; x.fillRect(0, Math.random() * h, w, 1); } }, false);
+const std = (color, roughness, metalness, o = {}) => new THREE.MeshStandardMaterial({ color, roughness, metalness, ...o });
+const metal = (color, roughness, o = {}) => std(color, roughness, 1, { roughnessMap: BRUSH, envMapIntensity: 1.6, ...o });
 export const GM = {
-  blued: phong(0x24262c, { shininess: 70, specular: 0x5a6070 }),
-  park: phong(0x3a3b37, { shininess: 12, specular: 0x1a1a1a }),
-  poly: phong(0x2b2a29, { shininess: 18, specular: 0x202020 }),
-  steel: phong(0xa4aab2, { shininess: 90, specular: 0x8a9098 }),
-  brass: phong(0xd2a23c, { shininess: 80, specular: 0xffe0a0, emissive: 0x1a1000 }),
-  gold: phong(0xf0bf3e, { shininess: 100, specular: 0xfff0b0, emissive: 0x3a2600 }),
-  walnut: phong(0x6a3a1c, { shininess: 40, specular: 0x3a2010 }),
-  teak: phong(0x9a5a2a, { shininess: 35, specular: 0x3a2010 }),
-  ash: phong(0xd8b27a, { shininess: 25 }),
-  saffron: phong(0xe8a33d, { shininess: 30 }),
-  paprika: phong(0xb8361e, { shininess: 25 }),
-  cardamom: phong(0x7d9848, { shininess: 20 }),
-  cumin: phong(0x6a4a2a, { shininess: 20 }),
-  rubber: phong(0x151515, { shininess: 5 }),
-  blade: phong(0xe2e6ea, { shininess: 120, specular: 0xffffff }),
-  lens: phong(0x5ad0ff, { shininess: 120, specular: 0xffffff, emissive: 0x0a3040 }),
+  blued: metal(0x34373e, 0.36),                                   // blued / nitrided steel
+  park: metal(0x3c3d3e, 0.68, { metalness: 0.55 }),               // matte phosphate
+  poly: std(0x1f1f20, 0.7, 0, { bumpMap: STIPPLE, bumpScale: 0.2 }), // polymer frames and furniture, stippled
+  steel: metal(0xb9bec5, 0.24),                                   // stainless
+  brass: metal(0xc39a48, 0.3),
+  gold: metal(0xe0b44c, 0.2),
+  walnut: std(0xffffff, 0.5, 0, { map: grain('#5a3018', '#2e170a', '#7a4524') }),
+  teak: std(0xffffff, 0.55, 0, { map: grain('#8a5428', '#4a2a10', '#a8703a') }),
+  ash: std(0xffffff, 0.6, 0, { map: grain('#cfa977', '#9a7448', '#e2c49a') }),
+  saffron: metal(0xc9782a, 0.38, { metalness: 0.7 }),             // anodised aluminium grips, saffron orange
+  paprika: std(0x6a1c14, 0.92, 0, { bumpMap: STIPPLE, bumpScale: 0.8 }), // worn cloth tape
+  cardamom: std(0x4a5232, 0.74, 0, { bumpMap: STIPPLE, bumpScale: 0.5 }), // OD-green polymer
+  cumin: std(0xffffff, 0.55, 0, { map: grain('#4a3020', '#24160c', '#5e3e28') }), // dark wood grips
+  rubber: std(0x121212, 0.95, 0, { bumpMap: STIPPLE, bumpScale: 1 }),
+  blade: metal(0xd2d6db, 0.16),
+  lens: std(0x0c1830, 0.04, 0.3, { envMapIntensity: 2.5 }),
+  bore: new THREE.MeshBasicMaterial({ color: 0x050505 }),
 };
 
 const geoCache = new Map();
 const gkey = (k, f) => { if (!geoCache.has(k)) geoCache.set(k, f()); return geoCache.get(k); };
-const boxG = (w, h, d) => gkey(`b${w},${h},${d}`, () => new THREE.BoxGeometry(w, h, d));
-const cylG = (rt, rb, l, s) => gkey(`c${rt},${rb},${l},${s}`, () => new THREE.CylinderGeometry(rt, rb, l, s));
+const boxG = (w, h, d) => gkey(`b${w},${h},${d}`, () => { // machined look: every box gets chamfered edges
+  const g = new THREE.BoxGeometry(w, h, d, 3, 3, 3), p = g.attributes.position, hx = w / 2, hy = h / 2, hz = d / 2, r = Math.min(0.004, Math.min(w, h, d) * 0.22), v = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); c.set(THREE.MathUtils.clamp(v.x, -hx + r, hx - r), THREE.MathUtils.clamp(v.y, -hy + r, hy - r), THREE.MathUtils.clamp(v.z, -hz + r, hz - r)); const n = v.sub(c); if (n.lengthSq() > 1e-12) { n.normalize().multiplyScalar(r); p.setXYZ(i, c.x + n.x, c.y + n.y, c.z + n.z); } }
+  g.computeVertexNormals(); return g; });
+const cylG = (rt, rb, l, s) => gkey(`c${rt},${rb},${l},${s}`, () => new THREE.CylinderGeometry(rt, rb, l, Math.max(s, 12)));
 
 // a tiny builder: B = box, C = cylinder along an axis, all in the gun frame
 function kit(g) {
@@ -67,9 +81,9 @@ const flashMat = (map) => new THREE.MeshBasicMaterial({ map, transparent: true, 
 const FLASH = { star: flashMat(flashTex), petal: flashMat(petalTex) };
 function makeFlash(size, long) {
   const f = new THREE.Group(); f.visible = false; f.userData.size = size;
-  const star = new THREE.Mesh(gkey('fq', () => new THREE.PlaneGeometry(1, 1)), FLASH.star); star.scale.setScalar(size * 0.9); f.add(star);
+  const star = new THREE.Mesh(gkey('fq', () => new THREE.PlaneGeometry(1, 1)), FLASH.star); star.scale.setScalar(size * 0.7); f.add(star);
   const pg = gkey('fp', () => { const p = new THREE.PlaneGeometry(1, 1); p.translate(0, 0.5, 0); p.rotateX(Math.PI / 2); return p; }); // petal grows along +Z
-  for (let i = 0; i < 2; i++) { const p = new THREE.Mesh(pg, FLASH.petal); p.scale.set(size * 0.7, 1, size * (long ? 2.4 : 1.6)); p.rotation.z = i * Math.PI / 2; f.add(p); }
+  for (let i = 0; i < 2; i++) { const p = new THREE.Mesh(pg, FLASH.petal); p.scale.set(size * 0.5, 1, size * (long ? 1.9 : 1.3)); p.rotation.z = i * Math.PI / 2; f.add(p); }
   return f;
 }
 // show a gun's flash for this frame; returns its world position in `out`
@@ -94,7 +108,7 @@ function trigger(k, mat, z = 0.032, y = 0.008) { // trigger guard loop and blade
 }
 function curvedMag(k, mat, z0, n, h, w, d, a0, da, y0 = 0.02) { // a banana magazine: segments chained along an arc, curving forward
   let y = y0, z = z0, a = a0;
-  for (let i = 0; i < n; i++) { const cy = y - Math.cos(a) * h / 2, cz = z + Math.sin(a) * h / 2; k.B(w, h * 1.08, d, mat, 0, cy, cz, a); y -= Math.cos(a) * h; z += Math.sin(a) * h; a += da; }
+  for (let i = 0; i < n; i++) { const cy = y - Math.cos(a) * h / 2, cz = z + Math.sin(a) * h / 2; k.B(w, h * 1.1, d, mat, 0, cy, cz, -a); y -= Math.cos(a) * h; z += Math.sin(a) * h; a += da; }
 }
 function serrations(k, mat, x0, y, z0, n = 5) { for (let i = 0; i < n; i++) for (const s of [-1, 1]) k.B(0.002, 0.024, 0.004, mat, s * x0, y, z0 + i * 0.009); }
 
@@ -172,8 +186,8 @@ const BUILD = {
     k.B(0.03, 0.012, 0.02, GM.blued, 0, 0.087, 0.15); k.B(0.03, 0.014, 0.02, GM.blued, 0, 0.088, -0.05);   // sight ears
     k.C(0.012, 0.05, GM.blued, 0, 0.05, 0.2, 'z', 8); k.C(0.016, 0.02, GM.blued, 0, 0.05, 0.185, 'z', 8);  // barrel + nut
     pistolGrip(k, GM.park, GM.cardamom, 0.1, 0.12, 0.0);
-    const ml = o.xmag ? 0.2 : 0.13; k.B(0.026, ml, 0.032, GM.blued, 0, -0.02 - ml / 2 + 0.03, -0.004, 0.12); k.B(0.03, 0.012, 0.036, GM.saffron, 0, -0.02 - ml + 0.03, -0.004 - ml * 0.12, 0.12);
-    k.B(0.03, 0.03, 0.05, GM.park, 0, 0.0, 0.14);                  // fore body (support hand)
+    const ml = o.xmag ? 0.2 : 0.13; k.B(0.026, ml, 0.032, GM.blued, 0, -0.02 - ml / 2 + 0.03, -0.004, 0.12); k.B(0.03, 0.012, 0.036, GM.park, 0, -0.02 - ml + 0.03, -0.004 - ml * 0.12, 0.12);
+    k.B(0.036, 0.04, 0.07, GM.park, 0, 0.016, 0.135);              // lower fore body (support hand)
     trigger(k, GM.park, 0.03, 0.02);
     for (const s of [-1, 1]) k.B(0.006, 0.008, 0.15, GM.blued, s * 0.018, 0.03, -0.02);  // folded wire stock
     return [0, 0.05, 0.226];
@@ -208,6 +222,7 @@ const BUILD = {
   // sawn-off double: two short side-by-side barrels, brass hinge, walnut pistol grip wrapped in paprika tape
   shotgun(k) {
     for (const s of [-1, 1]) k.C(0.0125, 0.27, GM.blued, s * 0.0125, 0.062, 0.2, 'z', 10);
+    for (const s of [-1, 1]) { const b = k.add(gkey('bore', () => new THREE.CircleGeometry(1, 12)), GM.bore, s * 0.0125, 0.062, 0.3358); b.scale.setScalar(0.0085); }
     k.B(0.012, 0.008, 0.26, GM.blued, 0, 0.076, 0.2);              // rib
     k.B(0.042, 0.03, 0.1, GM.walnut, 0, 0.04, 0.17);               // forend
     k.B(0.046, 0.05, 0.08, GM.steel, 0, 0.052, 0.03); k.C(0.008, 0.05, GM.brass, 0, 0.04, 0.07, 'x', 8); // action + hinge pin
@@ -254,31 +269,45 @@ const BUILD = {
     trigger(k, GM.blued, 0.0, 0.025);
     return [0, 0.068, 0.765];
   },
-  // black rifle: carry handle, triangular handguard, A-frame front sight, fixed stock
+  // black rifle: lower and upper receiver, carry handle, ribbed round handguard, A-frame front sight, birdcage, tapered stock
   m16(k) {
-    k.B(0.034, 0.05, 0.22, GM.poly, 0, 0.058, 0.02);
-    k.B(0.012, 0.03, 0.12, GM.poly, 0, 0.098, 0.03); k.B(0.016, 0.012, 0.13, GM.poly, 0, 0.115, 0.03);   // carry handle
-    k.add(gkey('m16hg', () => new THREE.CylinderGeometry(0.028, 0.032, 0.2, 8)), GM.poly, 0, 0.06, 0.23, Math.PI / 2);
-    for (let i = 0; i < 4; i++) k.C(0.0335, 0.006, GM.blued, 0, 0.06, 0.15 + i * 0.05, 'z', 8);
-    k.C(0.008, 0.26, GM.blued, 0, 0.065, 0.44, 'z', 8); k.C(0.011, 0.04, GM.blued, 0, 0.065, 0.58, 'z', 8);
-    k.B(0.012, 0.05, 0.012, GM.blued, 0, 0.09, 0.36, 0.2); k.B(0.006, 0.01, 0.006, GM.saffron, 0, 0.118, 0.36);
-    k.B(0.024, 0.11, 0.036, GM.blued, 0, -0.01, 0.07, 0.15);          // mag
-    pistolGrip(k, GM.poly, null, 0.1, 0.3, 0.0); trigger(k, GM.poly, 0.025, 0.025);
-    k.B(0.032, 0.06, 0.24, GM.poly, 0, 0.045, -0.2, -0.1); k.B(0.034, 0.07, 0.02, GM.rubber, 0, 0.035, -0.32, -0.1);
-    k.C(0.006, 0.02, GM.brass, 0, 0.02, 0.29, 'x', 6);                // brass sling swivel
-    return [0, 0.065, 0.6];
+    k.B(0.03, 0.045, 0.2, GM.park, 0, 0.03, 0.03);                    // lower receiver
+    k.B(0.032, 0.05, 0.05, GM.park, 0, 0.0, 0.085);                   // magazine well
+    curvedMag(k, GM.park, 0.085, 3, 0.045, 0.024, 0.04, 0.06, 0.07, -0.02);
+    k.B(0.032, 0.042, 0.25, GM.park, 0, 0.072, 0.04);                 // upper receiver
+    k.B(0.002, 0.014, 0.045, GM.bore, -0.0165, 0.07, 0.07);            // ejection port
+    k.C(0.007, 0.02, GM.park, -0.017, 0.082, -0.01, 'x', 8);          // forward assist
+    for (const z of [-0.06, 0.12]) k.B(0.014, 0.03, 0.02, GM.park, 0, 0.105, z);
+    k.B(0.018, 0.012, 0.21, GM.park, 0, 0.122, 0.03);                 // carry handle
+    k.C(0.032, 0.012, GM.blued, 0, 0.065, 0.165, 'z', 14);            // delta ring
+    k.C(0.027, 0.19, GM.poly, 0, 0.065, 0.265, 'z', 14);              // handguard
+    for (let i = 0; i < 6; i++) k.B(0.056, 0.006, 0.012, GM.poly, 0, 0.065, 0.19 + i * 0.03);
+    k.C(0.0075, 0.2, GM.blued, 0, 0.065, 0.45, 'z', 10);              // barrel
+    k.B(0.014, 0.05, 0.022, GM.blued, 0, 0.088, 0.38); k.B(0.004, 0.022, 0.004, GM.blued, 0, 0.12, 0.38); // front sight
+    k.C(0.0105, 0.05, GM.blued, 0, 0.065, 0.57, 'z', 10);             // flash hider
+    pistolGrip(k, GM.poly, null, 0.1, 0.32, 0.0); trigger(k, GM.park, 0.025, 0.025);
+    k.C(0.014, 0.12, GM.park, 0, 0.065, -0.11, 'z', 10);              // buffer tube
+    k.add(gkey('m16stock', () => new THREE.CylinderGeometry(0.026, 0.038, 0.2, 4).rotateY(Math.PI / 4).scale(0.75, 1, 1.3)), GM.poly, 0, 0.05, -0.23, Math.PI / 2 - 0.06);
+    k.B(0.03, 0.09, 0.016, GM.rubber, 0, 0.042, -0.335, -0.06);       // butt plate
+    k.C(0.006, 0.02, GM.blued, 0, 0.022, 0.29, 'x', 6);               // sling swivel
+    return [0, 0.065, 0.595];
   },
-  // golden AK: gold receiver, walnut handguard and stock, gas tube, curved magazine
+  // golden AK: gold receiver with ribbed dust cover, walnut handguards around the gas tube, curved mag, walnut stock
   goldak(k) {
-    k.B(0.036, 0.05, 0.24, GM.gold, 0, 0.056, 0.03);
-    k.B(0.036, 0.04, 0.13, GM.walnut, 0, 0.05, 0.22); k.B(0.024, 0.02, 0.13, GM.walnut, 0, 0.085, 0.22);
-    k.C(0.0075, 0.14, GM.gold, 0, 0.088, 0.36, 'z', 8);               // gas tube
-    k.C(0.009, 0.25, GM.blued, 0, 0.06, 0.4, 'z', 8); k.C(0.012, 0.03, GM.gold, 0, 0.06, 0.53, 'z', 8);
-    k.B(0.012, 0.035, 0.012, GM.gold, 0, 0.09, 0.45);
-    curvedMag(k, GM.gold, 0.08, 3, 0.05, 0.024, 0.042, 0.15, 0.2, 0.035);
-    pistolGrip(k, GM.walnut, null, 0.1, 0.35, 0.0); trigger(k, GM.gold, 0.025, 0.025);
-    k.B(0.03, 0.055, 0.25, GM.walnut, 0, 0.03, -0.2, -0.16); k.B(0.032, 0.075, 0.02, GM.gold, 0, 0.012, -0.32, -0.16);
-    return [0, 0.06, 0.545];
+    k.B(0.034, 0.046, 0.25, GM.gold, 0, 0.052, 0.02);
+    k.B(0.032, 0.014, 0.23, GM.gold, 0, 0.081, 0.015); for (let i = 0; i < 4; i++) k.B(0.033, 0.003, 0.006, GM.brass, 0, 0.087, -0.06 + i * 0.012);
+    k.B(0.002, 0.012, 0.05, GM.bore, -0.0175, 0.06, 0.06);            // ejection port
+    k.B(0.022, 0.03, 0.03, GM.gold, 0, 0.082, 0.16);                  // rear sight block
+    k.B(0.04, 0.042, 0.14, GM.walnut, 0, 0.048, 0.225);               // lower handguard
+    k.B(0.03, 0.026, 0.12, GM.walnut, 0, 0.08, 0.22);                 // upper handguard
+    k.C(0.0085, 0.08, GM.gold, 0, 0.085, 0.32, 'z', 10); k.B(0.024, 0.04, 0.02, GM.gold, 0, 0.072, 0.37); // gas tube + block
+    k.C(0.0085, 0.2, GM.blued, 0, 0.058, 0.42, 'z', 10);
+    k.B(0.012, 0.04, 0.014, GM.gold, 0, 0.078, 0.49); k.C(0.011, 0.025, GM.gold, 0, 0.058, 0.53, 'z', 10);
+    curvedMag(k, GM.gold, 0.085, 4, 0.042, 0.026, 0.042, 0.08, 0.17, 0.03);
+    pistolGrip(k, GM.walnut, null, 0.1, 0.32, 0.0); trigger(k, GM.gold, 0.025, 0.025);
+    k.add(gkey('akstock', () => new THREE.CylinderGeometry(0.024, 0.042, 0.26, 4).rotateY(Math.PI / 4).scale(0.72, 1, 1.35)), GM.walnut, 0, 0.03, -0.22, Math.PI / 2 - 0.16);
+    k.B(0.03, 0.09, 0.012, GM.gold, 0, 0.01, -0.35, -0.16);
+    return [0, 0.058, 0.545];
   },
   /* melee (old convention: hand spot origin, hanging down -Y) */
   bat(k) { const b = k.add(gkey('bat', () => new THREE.CylinderGeometry(0.042, 0.017, 0.82, 10)), GM.ash, 0, -0.39, 0); b.castShadow = true;
@@ -298,7 +327,8 @@ const KIND = { makarov: 'pistol', cz: 'pistol', silenced: 'pistol', revolver: 'p
 const FORE = { smg: [0, -0.01, 0.13], mp5sd: [0, 0.03, 0.16], pump: [0, 0.03, 0.2], shotgun: [0, 0.025, 0.15], autosg: [0, 0.03, 0.19], jackhammer: [0, 0.01, 0.17], awp: [0, 0.02, 0.17], m16: [0, 0.03, 0.18], goldak: [0, 0.03, 0.18] };
 const FLASH_SIZE = { makarov: 0.12, cz: 0.15, revolver: 0.22, dual: 0.15, golddeagle: 0.24, smg: 0.16, dualuzi: 0.14, pump: 0.3, shotgun: 0.34, autosg: 0.3, jackhammer: 0.3, awp: 0.3, m16: 0.22, goldak: 0.24 };
 
-const protos = new Map(), GUN_SCALE = 1.18;
+const BORE = { shotgun: 0.0001, revolver: 0.0055, golddeagle: 0.0065, pump: 0.0095, autosg: 0.0095, jackhammer: 0.0095, awp: 0.0055, m16: 0.004, goldak: 0.0055, mp5sd: 0.006 };
+const protos = new Map(), GUN_SCALE = 1.06;
 // opts: { quiet: suppressor fitted (Makarov / CZ mods), xmag: extended Uzi mag }
 export function weaponMesh(id, opts = {}) {
   const key = `${id}|${opts.quiet ? 'q' : ''}${opts.xmag ? 'x' : ''}`;
@@ -311,6 +341,7 @@ export function weaponMesh(id, opts = {}) {
     p.userData.kind = KIND[id] || (f ? 'melee' : 'none');
     if (Array.isArray(muz)) {
       const m = new THREE.Object3D(); m.position.fromArray(muz); m.name = 'muzzle'; inner.add(m);
+      const bore = new THREE.Mesh(gkey('bore', () => new THREE.CircleGeometry(1, 12)), GM.bore); bore.scale.setScalar(BORE[id] || 0.0045); bore.position.z = 0.0008; m.add(bore); // the dark hole you look down
       const quiet = opts.quiet || id === 'silenced' || id === 'mp5sd';
       const fl = makeFlash((FLASH_SIZE[id] || 0.18) * (quiet ? 0.35 : 1), p.userData.kind === 'rifle'); fl.name = 'flash'; m.add(fl);
     }
