@@ -154,6 +154,95 @@
     #pcboot .bn { font-size: 36px; } #pcboot .bl svg { width: 56px; height: 56px; } #pcboot .bs { margin-left: 70px; }
   }
   @media (max-height: 480px) { #pc .icons { grid-auto-rows: 84px; } #pc .icon { height: 84px; } #pc .icon .g { width: 40px; height: 40px; } }
+  /* ---------- Kaasdows XL, Aero skin: glass, gloss, aqua and bubbles (overrides the rules above) ---------- */
+  #pc { font-family: "Segoe UI", Tahoma, "Rubik", Arial, sans-serif; --glass: linear-gradient(180deg, rgba(190,232,255,.62), rgba(120,190,230,.5) 45%, rgba(90,170,215,.55)); }
+  #pc .icon { border-radius: 8px; }
+  #pc .icon:hover { background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.1)); border-color: rgba(255,255,255,.55); }
+  #pc .icon.sel, #pc .icon:focus { background: linear-gradient(180deg, rgba(160,225,255,.5), rgba(60,160,230,.35)); border-color: rgba(255,255,255,.75); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 0 10px rgba(120,220,255,.6); }
+  #pc .icon.sel span, #pc .icon:focus span { background: none; text-shadow: 0 1px 2px #003a66, 0 0 4px rgba(0,40,80,.8); }
+  #pc .icon .g { filter: drop-shadow(0 3px 3px rgba(0,30,60,.45)); }
+  #pc .icon.sel .g, #pc .icon:active .g { filter: drop-shadow(0 0 6px rgba(160,240,255,.9)) brightness(1.08); }
+  #pc .icon .g .new { background: linear-gradient(180deg, #ffb35a, #ff7a1a 55%, #f05a00); }
+  /* glass window frame around a bright white page */
+  .win { padding: 0 7px 7px; border: 1px solid rgba(255,255,255,.75); border-radius: 10px; background: var(--glass); -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6);
+    box-shadow: 0 12px 34px rgba(0,30,70,.45), 0 0 0 1px rgba(0,40,80,.35), inset 0 1px 0 rgba(255,255,255,.9), inset 0 0 18px rgba(255,255,255,.25); }
+  .win::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 46px; border-radius: 10px 10px 0 0; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.12) 60%, rgba(255,255,255,0)); }
+  .win.max { padding: 0 4px 4px; border-radius: 0; border-width: 0; }
+  .win.max::before { border-radius: 0; }
+  .win .tb { position: relative; height: 32px; margin: 0; padding: 0 0 0 2px; border-radius: 0; background: none; color: #0a2a48; font: 600 14px "Segoe UI", Tahoma, Arial, sans-serif; text-shadow: 0 0 8px #fff, 0 0 3px #fff; }
+  .xpb { width: 28px; height: 20px; border: 1px solid rgba(20,60,100,.55); border-radius: 4px; color: #fff; text-shadow: 0 0 3px #00335a; box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    background: linear-gradient(180deg, rgba(255,255,255,.75) 0%, rgba(200,235,255,.55) 45%, rgba(110,180,225,.6) 50%, rgba(160,215,245,.7) 100%); }
+  .xpb:hover { background: linear-gradient(180deg, #e6fbff, #8fe0ff 45%, #2fb4f0 50%, #7fe4ff); filter: none; box-shadow: inset 0 1px 0 #fff, 0 0 8px rgba(80,210,255,.9); }
+  .xpb.cls { width: 44px; background: linear-gradient(180deg, #f6b7a6 0%, #e6735a 45%, #c8341a 50%, #e45a3a 100%); border-color: #6a1a0a; }
+  .xpb.cls:hover { background: linear-gradient(180deg, #ffd2c4, #ff7a5a 45%, #e8300a 50%, #ff6a3a); box-shadow: inset 0 1px 0 #fff, 0 0 10px rgba(255,90,40,.9); }
+  .xpb .g-max { border-color: #fff; } .xpb .g-res { box-shadow: -4px -4px 0 -2px rgba(130,190,230,.9), -4px -4px 0 0 #fff; }
+  #pcmenubar { position: relative; margin: 0; background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(232,244,252,.92)); border: 1px solid rgba(60,110,150,.45); border-bottom: 0; border-radius: 4px 4px 0 0; }
+  .mbi { border-radius: 4px; color: #11324e; }
+  .mbi:hover, .mbi.on { background: linear-gradient(180deg, #eaf7ff, #c2e6fb); border-color: #7ec4ea; color: #062a46; }
+  #pcdrop { border: 1px solid #8fb8d6; border-radius: 6px; background: rgba(250,253,255,.97); box-shadow: 0 6px 18px rgba(0,40,80,.3); padding: 3px; }
+  #pcdrop .dri { border-radius: 4px; border: 1px solid transparent; } #pcdrop .dri:hover { background: linear-gradient(180deg, #eaf7ff, #c2e6fb); border-color: #7ec4ea; color: #062a46; }
+  .win .body { position: relative; background: linear-gradient(180deg, #fbfdff, #eef6fb); border: 1px solid rgba(60,110,150,.45); border-top-color: #d3e3ee; }
+  /* glossy aqua buttons everywhere inside the PC */
+  .b95 { border: 1px solid #5e9cc6; border-radius: 6px; color: #0d2c46; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,40,80,.18);
+    background: linear-gradient(180deg, #ffffff 0%, #f0f8fd 48%, #d6ecf8 52%, #e8f5fc 100%); }
+  .b95:hover:not(:disabled) { border-color: #2c9ad8; box-shadow: inset 0 1px 0 #fff, 0 0 8px rgba(70,190,255,.75); background: linear-gradient(180deg, #f4fcff 0%, #dff3fd 48%, #b6e2f8 52%, #d4f0fd 100%); }
+  .b95:active:not(:disabled) { background: linear-gradient(180deg, #b7dff4, #e2f3fc); box-shadow: inset 0 2px 4px rgba(0,60,110,.3); }
+  .b95:disabled { border-color: #c4d4df; background: #f2f6f8; color: #9aaab5; box-shadow: none; }
+  .well { border: 1px solid #b6d3e6; border-radius: 8px; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,60,110,.08); }
+  table.list { border: 1px solid #b6d3e6; border-radius: 8px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
+  table.list th { background: linear-gradient(180deg, #ffffff 0%, #eef7fc 48%, #dcedf8 52%, #e9f5fc 100%); border-bottom: 1px solid #b6d3e6; color: #11324e; }
+  table.list tr:hover td { background: #f1f9fe; }
+  #pc ::-webkit-scrollbar-track { background: #eef5fa; border-radius: 8px; }
+  #pc ::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #e9f6fd, #bfe2f6 50%, #9fd2ef); border: 1px solid #7fb6d8; border-radius: 8px; box-shadow: inset 0 1px 0 #fff; }
+  .km-gh { background: linear-gradient(180deg, #59b8ec, #2389cf 50%, #1d7bc0); } .km-item.on { background: linear-gradient(180deg, #5cc0f2, #2a92d8); }
+  /* dark glass taskbar with a glowing orb */
+  #taskbar { overflow: visible; background: linear-gradient(180deg, rgba(120,190,230,.55) 0%, rgba(40,90,140,.6) 48%, rgba(10,40,75,.72) 52%, rgba(20,60,100,.7) 100%);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5); backdrop-filter: blur(14px) saturate(1.5); border-top: 1px solid rgba(255,255,255,.65); box-shadow: 0 -2px 10px rgba(0,30,60,.35), inset 0 1px 0 rgba(255,255,255,.35); }
+  #taskbar .start { position: relative; top: -6px; width: 52px; height: 52px; margin: 0 6px; align-self: center; padding: 0; justify-content: center; border-radius: 50%; font-size: 0; border: 1px solid rgba(0,50,30,.6);
+    background: radial-gradient(circle at 50% 120%, #b8ff6a 0%, #3fc43f 35%, #1b8a2a 62%, #0d5a1a 100%); box-shadow: 0 0 0 2px rgba(255,255,255,.5), 0 2px 8px rgba(0,30,10,.6), 0 0 14px rgba(140,255,120,.45); }
+  #taskbar .start::after { content: ""; position: absolute; left: 5px; right: 5px; top: 2px; height: 46%; border-radius: 50% 50% 45% 45%; background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.1)); pointer-events: none; }
+  #taskbar .start .klogo { width: 30px; height: 30px; position: relative; z-index: 1; filter: drop-shadow(0 1px 2px rgba(0,30,0,.6)); }
+  #taskbar .start:hover, #taskbar .start.on { filter: brightness(1.12); box-shadow: 0 0 0 2px rgba(255,255,255,.75), 0 2px 8px rgba(0,30,10,.6), 0 0 22px rgba(170,255,140,.9); }
+  #pctasks .task { border: 1px solid rgba(255,255,255,.35); border-radius: 5px; background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.06) 50%, rgba(0,0,0,.08) 51%, rgba(255,255,255,.1)); text-shadow: 0 1px 2px #001a33; font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+  #pctasks .task.on { background: linear-gradient(180deg, rgba(170,230,255,.55), rgba(80,170,230,.35) 50%, rgba(30,120,200,.4) 51%, rgba(120,210,255,.45)); border-color: rgba(255,255,255,.7); box-shadow: 0 0 10px rgba(110,210,255,.6), inset 0 1px 0 rgba(255,255,255,.6); }
+  #taskbar .tray { background: none; border-left: 1px solid rgba(255,255,255,.25); box-shadow: inset 1px 0 0 rgba(0,0,0,.25); font-family: "Segoe UI", Tahoma, Arial, sans-serif; text-shadow: 0 1px 2px #001a33; }
+  #taskbar .tray .wil { color: #ffe68a; text-shadow: 0 1px 2px #001a33, 0 0 6px rgba(255,210,90,.6); }
+  /* start menu: glass frame, white list on the left, smoky glass on the right */
+  #startmenu { bottom: calc(var(--tbh) + 4px); left: 4px; width: min(420px, calc(100vw - 8px)); padding: 7px; border: 1px solid rgba(255,255,255,.75); border-radius: 10px; background: var(--glass); -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6); box-shadow: 0 10px 30px rgba(0,30,70,.5), inset 0 1px 0 rgba(255,255,255,.9); box-sizing: border-box; }
+  #startmenu .sm-head { background: none; border: 0; padding: 2px 4px 8px; color: #0a2a48; text-shadow: 0 0 8px #fff, 0 0 3px #fff; }
+  #startmenu .sm-head img { border-radius: 8px; box-shadow: 0 2px 6px rgba(0,40,80,.4); }
+  #startmenu .sm-cols { border-radius: 6px; overflow: hidden; border: 1px solid rgba(40,90,130,.5); }
+  #startmenu .sm-left { background: rgba(255,255,255,.96); }
+  #startmenu .sm-right { background: linear-gradient(180deg, rgba(20,60,95,.55), rgba(10,35,60,.6)); border-left: 1px solid rgba(255,255,255,.35); }
+  #startmenu .sm-right .smi { color: #fff; text-shadow: 0 1px 2px #001a33; } #startmenu .sm-right .smi small { color: #cfeaff; }
+  #startmenu .smi { border: 1px solid transparent; border-radius: 5px; font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+  #startmenu .sm-left .smi:hover { background: linear-gradient(180deg, #eaf7ff, #c2e6fb); border-color: #7ec4ea; color: #062a46; } #startmenu .sm-left .smi:hover small { color: #355; }
+  #startmenu .sm-right .smi:hover { background: linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,.08)); border-color: rgba(255,255,255,.45); }
+  #startmenu .sm-foot { background: none; padding: 7px 2px 0; }
+  #startmenu .smf { color: #0a2a48; font-weight: 600; text-shadow: 0 0 6px #fff; border: 1px solid rgba(20,60,100,.4); border-radius: 5px; background: linear-gradient(180deg, rgba(255,255,255,.6), rgba(200,235,255,.3) 50%, rgba(120,190,230,.35) 51%, rgba(180,225,250,.5)); }
+  #startmenu .smf:hover { background: linear-gradient(180deg, #ffd2c4, #ff8a6a 50%, #e8401a 51%, #ff7a4a); color: #fff; text-shadow: 0 1px 2px #5a1000; }
+  /* message box */
+  #xpmsg .xpm { position: relative; padding: 0 7px 7px; border: 1px solid rgba(255,255,255,.75); border-radius: 10px; background: var(--glass); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: 0 12px 34px rgba(0,30,70,.5), inset 0 1px 0 #fff; }
+  #xpmsg .tb { margin: 0; background: none; color: #0a2a48; text-shadow: 0 0 8px #fff; font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+  #xpmsg .xpm-b, #xpmsg .xpm-f { background: #fbfdff; } #xpmsg .xpm-b { border-radius: 4px 4px 0 0; } #xpmsg .xpm-f { border-radius: 0 0 4px 4px; text-align: right; }
+  /* boot: deep aqua with bubbles rising, quick login is a sunny aqua fade */
+  #pcboot { background: radial-gradient(ellipse at 50% 40%, #0b4f7a 0%, #04243f 55%, #010c18 100%); font-family: "Segoe UI", "Trebuchet MS", Arial, sans-serif; overflow: hidden; }
+  #pcboot::before, #pcboot::after { content: ""; position: absolute; inset: -20% 0 0; pointer-events: none; opacity: .55; animation: bubbles 7s linear infinite;
+    background: radial-gradient(circle closest-side, rgba(170,230,255,.14) 0 68%, rgba(255,255,255,.75) 90%, rgba(255,255,255,0) 100%) 12% 80% / 34px 34px no-repeat, radial-gradient(circle closest-side, rgba(170,230,255,.14) 0 68%, rgba(255,255,255,.75) 90%, rgba(255,255,255,0) 100%) 78% 95% / 22px 22px no-repeat,
+      radial-gradient(circle closest-side, rgba(170,230,255,.14) 0 68%, rgba(255,255,255,.75) 90%, rgba(255,255,255,0) 100%) 60% 70% / 14px 14px no-repeat, radial-gradient(circle closest-side, rgba(170,230,255,.14) 0 68%, rgba(255,255,255,.75) 90%, rgba(255,255,255,0) 100%) 30% 110% / 46px 46px no-repeat; }
+  #pcboot::after { animation-duration: 9.5s; animation-delay: -3s; transform: scaleX(-1); opacity: .4; }
+  @keyframes bubbles { from { transform: translateY(0); } to { transform: translateY(-60%); } }
+  #pcboot .bn { font-weight: 300; letter-spacing: 0; text-shadow: 0 0 18px rgba(120,220,255,.8); } #pcboot .bn sup { color: #8cff6a; text-shadow: 0 0 10px rgba(140,255,100,.8); }
+  #pcboot .bl svg { filter: drop-shadow(0 0 14px rgba(255,220,100,.6)); } #pcboot .bs { color: #9fdcff; }
+  #pcboot .bar { border: 1px solid rgba(255,255,255,.6); border-radius: 10px; background: rgba(255,255,255,.08); box-shadow: inset 0 1px 3px rgba(0,0,0,.5); }
+  #pcboot .bar i { border-radius: 5px; background: linear-gradient(180deg, #d8ffb8, #5fd45a 50%, #2ea836 51%, #8cff6a); box-shadow: 0 0 6px rgba(140,255,100,.8); }
+  #pcboot.quick { background: linear-gradient(180deg, #2aa8e8 0%, #7fd6ff 48%, #3fb6ee 52%, #a6e6ff 100%); }
+  #pcboot.quick .welcome { font: 300 44px "Segoe UI", Arial, sans-serif; font-style: normal; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,.9), 0 2px 6px rgba(0,60,110,.6); }
+  @media (max-width: 760px), (max-height: 480px) {
+    #taskbar .start { width: 54px; height: 54px; top: -4px; } #taskbar .start .klogo { width: 32px; height: 32px; }
+    .win.max { padding: 0 3px 3px; } .win .tb { height: 42px; } .xpb { width: 40px; height: 32px; } .xpb.cls { width: 52px; }
+    #startmenu { left: 4px; }
+  }
   .mapwrap { position: relative; }
   .mapwrap img { width: 100%; display: block; border: 2px solid #000; }
   .pin { position: absolute; transform: translate(-50%, -50%); width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #000; }

@@ -1,5 +1,5 @@
-// Kaasdows XL ("eXtra Lekker"): the PC's desktop shell. An early-2000s look (blue rounded taskbar, green start button,
-// glossy blue window frames, a polder wallpaper) drawn from scratch: every icon, the wallpaper, the logo and the startup
+// Kaasdows XL ("eXtra Lekker"): the PC's desktop shell, with an Aero skin in index.html (glass frames, glossy aqua
+// buttons, a glowing start orb, a bubbly polder wallpaper). Everything is drawn from scratch: every icon, the wallpaper, the logo and the startup
 // chime below are original (inline SVG and WebAudio), nothing is taken from the real thing.
 // main.js still renders each program's contents into #winbody; this module owns the frame around it: icons, the start
 // menu, the window's open/minimised/maximised state, dragging, the boot screen and the chime.
@@ -31,23 +31,34 @@ export const ICONS = {
   van: S('<path d="M4 32 L4 18 C4 14 7 12 11 12 L30 12 L38 20 L44 22 L44 32 Z" fill="#e8e1cf" stroke="#4d5a66" stroke-width="2" stroke-linejoin="round"/><path d="M30 14 L36 21 L30 21 Z" fill="#7fc3ff"/><circle cx="13" cy="34" r="5" fill="#333"/><circle cx="35" cy="34" r="5" fill="#333"/>'),
 };
 
-// ------------------------------------------------------------------ wallpaper: a polder morning, all hand-drawn shapes
+// ------------------------------------------------------------------ wallpaper: an aqua polder morning with bubbles and light rays, all hand-drawn shapes
 const WALL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
-<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f62c9"/><stop offset=".55" stop-color="#6aa8ef"/><stop offset="1" stop-color="#cfe6ff"/></linearGradient>
-<linearGradient id="h1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd14f"/><stop offset="1" stop-color="#3f8f22"/></linearGradient>
-<linearGradient id="h2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6cbf3a"/><stop offset="1" stop-color="#2c6e17"/></linearGradient>
-<radialGradient id="sun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff8d0"/><stop offset=".5" stop-color="#ffe27a" stop-opacity=".7"/><stop offset="1" stop-color="#ffe27a" stop-opacity="0"/></radialGradient></defs>
-<rect width="1600" height="1000" fill="url(#s)"/><circle cx="1240" cy="210" r="170" fill="url(#sun)"/>
-<g fill="#fff" opacity=".85"><ellipse cx="300" cy="200" rx="150" ry="34"/><ellipse cx="380" cy="180" rx="90" ry="40"/><ellipse cx="240" cy="190" rx="70" ry="30"/>
-<ellipse cx="900" cy="130" rx="120" ry="24"/><ellipse cx="960" cy="114" rx="70" ry="30"/><ellipse cx="1400" cy="380" rx="110" ry="22"/><ellipse cx="620" cy="320" rx="80" ry="16"/></g>
-<path d="M0 640 C260 560 520 600 760 620 C1040 645 1300 560 1600 590 L1600 1000 L0 1000 Z" fill="#9fcf6a" opacity=".7"/>
-<g transform="translate(1180 520)"><rect x="-10" y="0" width="20" height="90" fill="#5a4a3a"/><path d="M-16 90 L16 90 L10 0 L-10 0 Z" fill="#6b5844"/><path d="M-14 0 L0 -18 L14 0 Z" fill="#3a2f26"/>
-<g stroke="#f4efe2" stroke-width="5"><path d="M0 -4 L-62 -66 M0 -4 L58 -62 M0 -4 L62 58 M0 -4 L-58 54"/></g><circle cx="0" cy="-4" r="6" fill="#3a2f26"/></g>
-<path d="M0 760 C300 640 640 680 900 740 C1150 800 1380 700 1600 690 L1600 1000 L0 1000 Z" fill="url(#h1)"/>
-<path d="M0 860 C380 780 760 820 1100 880 C1300 915 1460 870 1600 850 L1600 1000 L0 1000 Z" fill="url(#h2)"/>
-<path d="M-20 900 C400 820 900 900 1620 820" fill="none" stroke="#7fc6ec" stroke-width="18" opacity=".55"/>
-<g fill="#ffd23a" opacity=".9"><circle cx="220" cy="930" r="5"/><circle cx="250" cy="945" r="5"/><circle cx="280" cy="930" r="5"/><circle cx="1300" cy="955" r="5"/><circle cx="1330" cy="940" r="5"/></g>
-<g fill="#ff5a4a" opacity=".9"><circle cx="235" cy="960" r="5"/><circle cx="265" cy="965" r="5"/><circle cx="1315" cy="970" r="5"/><circle cx="1345" cy="962" r="5"/></g></svg>`;
+<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0277c9"/><stop offset=".45" stop-color="#2fb6f0"/><stop offset=".75" stop-color="#9ee6ff"/><stop offset="1" stop-color="#e8fbff"/></linearGradient>
+<radialGradient id="sun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff"/><stop offset=".25" stop-color="#fffbe0" stop-opacity=".9"/><stop offset="1" stop-color="#bff4ff" stop-opacity="0"/></radialGradient>
+<radialGradient id="b" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".25" stop-color="#e8fbff" stop-opacity=".35"/><stop offset=".8" stop-color="#7fd8ff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></radialGradient>
+<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b6f55a"/><stop offset=".5" stop-color="#5cc932"/><stop offset="1" stop-color="#1f7a1a"/></linearGradient>
+<linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fe84a"/><stop offset="1" stop-color="#17631a"/></linearGradient>
+<linearGradient id="sh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="rib" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#e6fff6" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="wt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9f1ff"/><stop offset="1" stop-color="#2aa7dc"/></linearGradient></defs>
+<rect width="1600" height="1000" fill="url(#s)"/>
+<g fill="#fff" opacity=".13"><path d="M260 -40 L520 1000 L640 1000 Z"/><path d="M260 -40 L820 1000 L1000 1000 Z"/><path d="M260 -40 L1250 900 L1400 780 Z"/><path d="M260 -40 L120 1000 L260 1000 Z"/></g>
+<circle cx="260" cy="70" r="260" fill="url(#sun)"/>
+<path d="M-50 520 C300 380 700 640 1050 470 C1300 350 1500 420 1700 360" fill="none" stroke="url(#rib)" stroke-width="70"/>
+<path d="M-50 600 C350 470 760 700 1120 540 C1340 450 1500 500 1700 450" fill="none" stroke="url(#rib)" stroke-width="26"/>
+<g fill="#fff" opacity=".9"><ellipse cx="1180" cy="170" rx="140" ry="30"/><ellipse cx="1250" cy="148" rx="80" ry="38"/><ellipse cx="1110" cy="160" rx="60" ry="26"/><ellipse cx="760" cy="250" rx="90" ry="18"/></g>
+<g transform="translate(1320 560)"><path d="M-14 100 L14 100 L9 0 L-9 0 Z" fill="#f4f8fb"/><path d="M-12 0 L0 -16 L12 0 Z" fill="#c43a2a"/><g stroke="#fff" stroke-width="5" opacity=".95"><path d="M0 -4 L-56 -60 M0 -4 L52 -56 M0 -4 L56 52 M0 -4 L-52 48"/></g><circle cx="0" cy="-4" r="5" fill="#2a5a7a"/></g>
+<path d="M0 720 C320 600 660 660 920 720 C1180 780 1400 690 1600 680 L1600 1000 L0 1000 Z" fill="url(#g1)"/>
+<path d="M0 720 C320 600 660 660 920 720 C1180 780 1400 690 1600 680 L1600 730 C1400 740 1180 820 920 770 C660 715 320 655 0 770 Z" fill="url(#sh)" opacity=".55"/>
+<path d="M0 850 C380 770 760 820 1100 880 C1300 915 1460 870 1600 850 L1600 1000 L0 1000 Z" fill="url(#g2)"/>
+<path d="M-20 935 C420 860 900 950 1620 860 L1620 900 C900 990 420 905 -20 975 Z" fill="url(#wt)" opacity=".85"/>
+<path d="M-20 935 C420 860 900 950 1620 860" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/>
+<g fill="url(#b)" stroke="#fff" stroke-opacity=".6" stroke-width="1.5">
+<circle cx="140" cy="520" r="46"/><circle cx="230" cy="430" r="22"/><circle cx="90" cy="370" r="14"/><circle cx="1480" cy="420" r="58"/><circle cx="1390" cy="330" r="26"/><circle cx="1540" cy="270" r="16"/>
+<circle cx="980" cy="580" r="34"/><circle cx="1040" cy="510" r="14"/><circle cx="560" cy="430" r="18"/><circle cx="640" cy="560" r="40"/><circle cx="1220" cy="620" r="20"/><circle cx="380" cy="640" r="28"/></g>
+<g fill="#fff"><path d="M500 300 l3 -12 l3 12 l12 3 l-12 3 l-3 12 l-3 -12 l-12 -3 Z" opacity=".9"/><path d="M1120 380 l2 -9 l2 9 l9 2 l-9 2 l-2 9 l-2 -9 l-9 -2 Z" opacity=".8"/><path d="M860 140 l2 -8 l2 8 l8 2 l-8 2 l-2 8 l-2 -8 l-8 -2 Z" opacity=".8"/></g>
+<g><circle cx="230" cy="905" r="6" fill="#ffd23a"/><circle cx="260" cy="915" r="6" fill="#ff5a4a"/><circle cx="290" cy="903" r="6" fill="#ffd23a"/><circle cx="1290" cy="932" r="6" fill="#ff5a4a"/><circle cx="1320" cy="920" r="6" fill="#ffd23a"/><circle cx="1350" cy="934" r="6" fill="#ff5a4a"/></g>
+</svg>`;
 export const WALLPAPER = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(WALL)}")`;
 
 // ------------------------------------------------------------------ the startup chime: an original WebAudio phrase
