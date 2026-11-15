@@ -423,6 +423,7 @@ let nx = JS.x1, hi = 3;
 for (const w of spanWidths(WH_X0_GAP - nx, hi)) { house(nx + w / 2, -11, w, 9, 9 + (hi % 3) * 1.3, 0, hi); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++; }
 // east of the warehouse: Eddy's private parking (x 1..9.5), then the houses, with The Russian's pawnshop in between
 const LOT = { x0: 1.15, x1: 9.5 };
+const BAYS = { lines: [1.45, 5.35, 9.25], oof: 3.4, kangoo: 7.3 }; // bay lines and the two cars' centres
 const HOME_DOORS = [{ x: 0.86, z: -16.6, stand: { x: 0.25, z: -16.6 }, face: -Math.PI / 2 }]; // Het Hok: a door in the warehouse's east wall; [1] the house next to Eddy's parking, [2] the one past the pawnshop (set below)
 const PS = { x0: 20, x1: 28, z0: -15.5, z1: -6.5, h: 4.8, doorX0: 23.2, doorX1: 24.6 };
 nx = LOT.x1;
@@ -572,7 +573,8 @@ for (const rx of [-24, 4, 30]) for (let i = 0; i < 5; i++) {
   lot.rotation.x = -Math.PI / 2; lot.position.set((LOT.x0 + LOT.x1) / 2, 0.018, -11.25); lot.receiveShadow = true; scene.add(lot);
   const drive = new THREE.Mesh(new THREE.PlaneGeometry(LOT.x1 - LOT.x0 - 1, RC - 5.1 + 7), lam({ map: tex('asphalt.jpg', 4, 1), color: 0x8c8c8c }));
   drive.rotation.x = -Math.PI / 2; drive.position.set((LOT.x0 + LOT.x1) / 2, 0.02, (RC - 5.1 - 7) / 2); scene.add(drive);
-  for (const x of [LOT.x0 + 1.2, LOT.x1 - 1.0]) box(0.12, 0.01, 6.5, lam({ color: 0xf2d24a }), x, 0.03, -11.6, scene, false);
+  // two bays, each car centred in its own: the Oofmobiel on the left, Shooki's Kangoo on the right
+  for (const x of BAYS.lines) box(0.12, 0.01, 6.5, lam({ color: 0xf2d24a }), x, 0.03, -11.6, scene, false);
   const prive = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#ffd36b'; g.fillRect(0, 0, w, h); g.fillStyle = '#6b1410'; g.font = '900 34px Arial Black, Arial'; g.textAlign = 'center'; g.fillText('PRIVÉ', w / 2, 52); g.font = '700 22px Arial'; g.fillText('EDDY & ZN · OOFMOBIEL', w / 2, 90); g.fillText('wegsleepregeling', w / 2, 116); });
   box(LOT.x1 - LOT.x0, 1.6, 0.3, brickMats[3], (LOT.x0 + LOT.x1) / 2, 0.8, -15.35); solid(LOT.x0, LOT.x1, -15.5, -15.2);
   graffiti(scene, 3.4, 0.85, -15.18, 3, 2.6); graffiti(scene, 7.2, 0.8, -15.18, 6, 2.2);
@@ -582,14 +584,14 @@ for (const rx of [-24, 4, 30]) for (let i = 0; i < 5; i++) {
   const pw = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), lam({ map: canvasTex(256, 64, (g) => { g.fillStyle = '#f2d24a'; g.font = '900 44px Arial'; g.textAlign = 'center'; g.fillText('PRIVÉ', 128, 50); }), transparent: true }));
   pw.rotation.x = -Math.PI / 2; pw.position.set((LOT.x0 + LOT.x1) / 2, 0.035, -7.8); scene.add(pw);
 }
-const oof = new THREE.Group(); oof.position.set((LOT.x0 + LOT.x1) / 2, 0, -11.4); oof.rotation.y = -Math.PI / 2; scene.add(oof);
+const oof = new THREE.Group(); oof.position.set(BAYS.oof, 0, -11.4); oof.rotation.y = -Math.PI / 2; scene.add(oof);
 { const v = makeOofmobiel(THREE, canvasTex); v.rotation.y = Math.PI / 2; oof.add(v); } // nose along the group's +x, as before
 solid(oof.position.x - 1.15, oof.position.x + 1.15, oof.position.z - 3.0, oof.position.z + 3.3);
 // Shooki's Renault Kangoo: parked next to the Oofmobiel once Kipkruidenkwartier is Eddy's (Shooki runs the errands in it)
 const kangoo = (() => {
   const g = makeCar(THREE, canvasTex, { profile: KANGOO, paint: 0xf2f0ea, plate: 'SH-00-KI', livery: 'shooki', rand: (() => { let a = 7; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })() });
-  g.position.set(8.25, 0, -11.6); g.rotation.y = -Math.PI / 2; g.visible = false; scene.add(g); // nose to the street, like the Oofmobiel
-  g.userData.solid = solid(7.35, 9.15, -13.8, -9.4); g.userData.solid.off = true;
+  g.position.set(BAYS.kangoo, 0, -11.6); g.rotation.y = -Math.PI / 2; g.visible = false; scene.add(g); // nose to the street, like the Oofmobiel
+  g.userData.solid = solid(BAYS.kangoo - 0.9, BAYS.kangoo + 0.9, -13.8, -9.4); g.userData.solid.off = true;
   return g;
 })();
 function updateKangoo() { const on = !!state.district1; kangoo.visible = on; kangoo.userData.solid.off = !on; setLivery(oof, liveryNow(), canvasTex); const sm = signFace(canvasTex, liveryNow(), 1024, 182); if (sign.material.map !== sm) { sign.material.map = sm; sign.material.needsUpdate = true; } }

@@ -12,11 +12,19 @@ export function initNpcs(d) {
   const name = (id) => econ.INGREDIENTS.find((g) => g.id === id).name;
   const B = () => econ.ensure().blends;
 
+  const SHOOKI_LOODS = [-0.6, -8.6, Math.PI], SHOOKI_VAN = [6.4, -8.9, 0.35]; // inside the warehouse by the east wall / in front of his Kangoo
   const CAST = [
     { // Shooki: the cousin (Game Bible idea, Drive 06_Shooki)
       id: 'shooki', who: 'Shooki', label: 'Talk to cousin Shooki',
       look: { front: '#1e1f24a', shirt: 0x1e1f24, apron: 0x3a4248, pants: 0x34343a, head: { skin: 0xc8946c, hair: '#2a2420', brow: '#1a1410', hairLine: 64, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3430' }, belly: 0.3, skin: 0xc8946c }, // black tee, worn denim apron, stubble (assets/face_shooki.jpg)
-      pos: () => (state.district1 && met('shooki') ? [8.3, -8.7, Math.PI * 0.8] : met('shooki') ? [-0.6, -8.6, Math.PI] : [3.2, -5.6, 0]), // by his Kangoo once the district is Eddy's
+      // once the district is Eddy's he runs errands: a while by his Kangoo, a while in the loods, walking between the two
+      pos: () => (state.district1 && met('shooki') ? (Math.floor(performance.now() / 26000) % 2 ? SHOOKI_LOODS : SHOOKI_VAN) : met('shooki') ? SHOOKI_LOODS : [3.2, -5.6, 0]),
+      route: (from, to) => { // out through the open shutter, along the pavement, into the parking
+        const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1.5, way = [[-3.2, -8.4], [-3.2, -6.0], [5.2, -6.0]];
+        if (near(from, SHOOKI_LOODS) && near(to, SHOOKI_VAN)) return [...way, to];
+        if (near(from, SHOOKI_VAN) && near(to, SHOOKI_LOODS)) return [...way.slice().reverse(), to];
+        return null; // anything else: just appear there
+      },
       show: () => met('shooki') || owns('spekbuurt') || (state.step === 'free' && tutorial && tutorial.at('shooki')),
       news: () => !met('shooki') || (owns('spekbuurt') && !econ.has('koerier')) || (!!state.district1 && !state.npcs.kangoo),
       talk() {
@@ -204,8 +212,16 @@ export function initNpcs(d) {
       c.bench = bench; scene.add(bench); bench.visible = false; }
     addInteract({ obj: p, pos: () => p.position, r: 2.0, enabled: () => p.visible && !(mission && mission.active), label: () => c.label + (c.news && c.news.call(c) ? '  (!)' : ''), act: () => c.talk() });
   }
-  function place(c) {
-    const [x, z, r] = c.pos(); c.p.position.set(x, 0, z); c.p.rotation.y = r; c.home = r;
+  // snap: put the character on its spot (it just appeared). Otherwise a new spot is walked to when the cast member has a route,
+  // and an unchanged spot leaves position and facing alone (re-setting the facing twice a second made people near the player keep turning)
+  function place(c, snap) {
+    const [x, z, r] = c.pos();
+    const same = c.spot && Math.hypot(c.spot[0] - x, c.spot[1] - z) < 0.05;
+    if (same && !snap) return;
+    const from = [c.p.position.x, c.p.position.z], path = !snap && c.route ? c.route(from, [x, z]) : null;
+    c.spot = [x, z, r]; c.home = r;
+    if (path) { c.path = path.map((w) => [w[0], w[1]]); c.solid.off = true; return; }
+    c.path = null; c.p.position.set(x, 0, z); if (snap !== 'arrived') c.p.rotation.y = r; // after a walk the facing eases round below
     Object.assign(c.solid, { minx: x - 0.3, maxx: x + 0.3, minz: z - 0.3, maxz: z + 0.3 });
     if (c.bench) { c.bench.position.set(x, 0, z + 0.05); c.bench.rotation.y = r + Math.PI; }
   }
@@ -216,13 +232,21 @@ export function initNpcs(d) {
       t = 0.5;
       for (const c of CAST) {
         const on = !(mission && mission.active) && c.show();
-        if (on) place(c);
-        c.p.visible = on; c.solid.off = !on; if (c.bench) c.bench.visible = on;
+        if (on) place(c, !c.p.visible);
+        c.p.visible = on; c.solid.off = !on || !!c.path; if (c.bench) c.bench.visible = on;
       }
     }
     for (const c of CAST) {
       if (!c.p.visible) continue;
       const dx = player.position.x - c.p.position.x, dz = player.position.z - c.p.position.z;
+      if (c.path && !state.inDialogue) { // walking to a new spot
+        const w = c.path[0], mx = w[0] - c.p.position.x, mz = w[1] - c.p.position.z, L = Math.hypot(mx, mz), sp = 1.7;
+        if (L < 0.08) { c.path.shift(); if (!c.path.length) { c.path = null; place(c, 'arrived'); } continue; }
+        c.p.position.x += mx / L * Math.min(L, sp * dt); c.p.position.z += mz / L * Math.min(L, sp * dt);
+        const want = Math.atan2(mx, mz); c.p.rotation.y += Math.atan2(Math.sin(want - c.p.rotation.y), Math.cos(want - c.p.rotation.y)) * Math.min(1, dt * 8);
+        animate(c.p, sp, dt);
+        continue;
+      }
       if (!c.seated) {
         const want = dx * dx + dz * dz < 16 ? Math.atan2(dx, dz) : c.home;
         c.p.rotation.y += Math.atan2(Math.sin(want - c.p.rotation.y), Math.cos(want - c.p.rotation.y)) * Math.min(1, dt * 3);
