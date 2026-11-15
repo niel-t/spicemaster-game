@@ -151,13 +151,15 @@ export const CAR_MODELS = [
   { n: 'VW T3', W: 1.85, r: 0.22, wr: 0.33, body: [[-2.25, 0.35], [2.25, 0.35], [2.3, 1.0], [2.15, 1.9], [-2.25, 1.92]], glass: [[2.24, 1.15], [2.12, 1.78], [1.3, 1.8], [1.3, 1.15]], glass2: [[1.1, 1.25], [1.1, 1.78], [-2.05, 1.8], [-2.05, 1.25]], lights: 'round', twoTone: true },
   { n: 'Daf 33', W: 1.45, r: 0.2, wr: 0.28, body: [[-1.55, 0.3], [1.55, 0.3], [1.6, 0.75], [0.8, 0.85], [0.45, 1.35], [-1.25, 1.35], [-1.55, 0.85]], glass: [[0.75, 0.88], [0.45, 1.3], [-1.2, 1.3], [-1.46, 0.88]], lights: 'round' },
 ];
+// Shooki's Renault Kangoo: a small panel van, short sloping bonnet, tall boxy load space, windows only up front (not in the street-car pool)
+export const KANGOO = { n: 'Kangoo', W: 1.8, r: 0.2, wr: 0.3, body: [[-2.0, 0.3], [2.0, 0.3], [2.06, 0.78], [1.45, 0.98], [0.78, 1.74], [-1.94, 1.8], [-2.02, 0.95]], glass: [[1.34, 1.0], [0.8, 1.66], [0.12, 1.68], [0.12, 1.0]], lights: 'rect' };
 const PLATE_TEXTS = ['KL-04-FR', 'NW-12-KS', '37-GVT-9', 'ZT-88-PJ', 'SPK-21-B', 'FR-1T-ES', 'KAA-5-LD', '06-BRD-2'];
 const ACCENTS = [0xffffff, 0xffd23a, 0xff3fa4, 0x1a1a1a];
 
 export function makeCar(THREE, canvasTex, opts = {}) {
   kit(THREE, canvasTex);
   const rand = opts.rand || Math.random;
-  const M = CAR_MODELS[opts.model >= 0 ? opts.model : Math.floor(rand() * CAR_MODELS.length)];
+  const M = opts.profile || CAR_MODELS[opts.model >= 0 ? opts.model : Math.floor(rand() * CAR_MODELS.length)];
   const g = new THREE.Group(), pm = opts.lampas ? paintM(THREE, 0xff7a1a).clone() : paintM(THREE, opts.paint ?? 0xb8b2a2); // Lampas get their own paint (it turns black when wrecked)
   const box = (w, h, d, m, x, y, z, shadow) => boxIn(THREE, g, w, h, d, m, x, y, z, shadow);
   const ext = (pts, r, depth, m, bevel, y = 0) => {
@@ -186,7 +188,7 @@ export function makeCar(THREE, canvasTex, opts = {}) {
     box(0.12, 0.1, 0.16, K.black, Math.max(...gx) - 0.08, gLow + 0.05, s * (M.W / 2 + 0.08)); // mirror
   }
   // bumpers (chrome or black, rounded), lights with lenses, indicators, plates
-  const bumpM = M.n === 'Countach' ? pm : rand() < 0.55 ? K.chrome : K.black;
+  const bumpM = M.n === 'Countach' ? pm : M.n === 'Kangoo' ? K.black : rand() < 0.55 ? K.chrome : K.black;
   for (const [x, d] of [[L + 0.04, 1], [-Lb - 0.04, -1]]) { const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, M.W - 0.12, 3, 8), bumpM); b.rotation.x = Math.PI / 2; b.position.set(x, 0.42, 0); b.castShadow = true; g.add(b); }
   for (const sd of [1, -1]) {
     if (M.lights === 'round') { const l = cylIn(THREE, 0.11, 0.11, 0.06, K.lens, 14); l.rotation.z = Math.PI / 2; l.position.set(L - 0.01, 0.72, sd * (M.W / 2 - 0.28)); g.add(l); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.018, 6, 16), K.chrome); rim.rotation.y = Math.PI / 2; rim.position.set(L + 0.02, 0.72, sd * (M.W / 2 - 0.28)); g.add(rim); }
@@ -195,10 +197,15 @@ export function makeCar(THREE, canvasTex, opts = {}) {
     box(0.05, 0.08, 0.12, K.amber, L + 0.02, 0.56, sd * (M.W / 2 - 0.12));
     box(0.06, 0.16, 0.34, K.tail, -Lb - 0.02, 0.72, sd * (M.W / 2 - 0.3));
   }
-  const pt = PLATE_TEXTS[Math.floor(rand() * PLATE_TEXTS.length)];
+  const pt = opts.plate || PLATE_TEXTS[Math.floor(rand() * PLATE_TEXTS.length)];
   { const pf = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.1), K.plate(pt)); pf.rotation.y = Math.PI / 2; pf.position.set(L + 0.13, 0.42, 0); g.add(pf); }
   { const pb = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.1), K.plate(pt)); pb.rotation.y = -Math.PI / 2; pb.position.set(-Lb - 0.13, 0.42, 0); g.add(pb); }
   if (M.rack && rand() < 0.6) { for (const zz of [-0.55, 0.55]) box(1.6, 0.05, 0.05, K.black, -0.3, top + 0.12, zz); if (rand() < 0.5) box(1.2, 0.35, 0.9, new THREE.MeshStandardMaterial({ color: [0x2a5aa0, 0xd84a2a, 0xf2e8c8][Math.floor(rand() * 3)], roughness: 0.6 }), -0.3, top + 0.32, 0, true); }
+  if (M.n === 'Kangoo') { // a black grille band between swept-back headlights, a grey lower intake, a black rubbing strip down the sides
+    box(0.06, 0.15, 0.78, K.black, L + 0.0, 0.7, 0); box(0.04, 0.1, 0.16, K.chrome, L + 0.035, 0.7, 0);
+    for (const sd of [1, -1]) box(0.3, 0.2, 0.36, K.lens, L - 0.12, 0.74, sd * (M.W / 2 - 0.3));
+    box(0.05, 0.14, 0.9, K.black, L + 0.08, 0.5, 0); box(L + Lb - 0.9, 0.1, M.W + 0.05, K.black, (L - Lb) / 2 - 0.1, 0.62, 0);
+  }
   if (M.wing) { box(0.5, 0.06, M.W, pm, -Lb + 0.25, 1.1, 0); for (const zz of [-0.7, 0.7]) box(0.08, 0.25, 0.06, pm, -Lb + 0.25, 0.97, zz); }
   if (opts.lampas) { // Lampas chase car: black racing stripes and a big L on the roof
     for (const s of [-1, 1]) box(L + Lb - 0.4, 0.02, 0.14, K.black, (L - Lb) / 2, top + 0.075, s * 0.22);

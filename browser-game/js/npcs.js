@@ -16,12 +16,23 @@ export function initNpcs(d) {
     { // Shooki: the cousin (Game Bible idea, Drive 06_Shooki)
       id: 'shooki', who: 'Shooki', label: 'Talk to cousin Shooki',
       look: { lampas: true, front: '#2f6a3a', shirt: 0x2f6a3a, pants: 0x2f6a3a, chain: true, ballcap: 0x1a1a1a, head: { skin: 0xd8a07a, hair: '#1a1410', brow: '#14100c', hairLine: 64, mouth: 'laugh', iris: '#3a2a1a' }, belly: 0.3, skin: 0xd8a07a },
-      pos: () => (met('shooki') ? [-0.6, -8.6, Math.PI] : [3.2, -5.6, 0]),
+      pos: () => (state.district1 && met('shooki') ? [8.3, -8.7, Math.PI * 0.8] : met('shooki') ? [-0.6, -8.6, Math.PI] : [3.2, -5.6, 0]), // by his Kangoo once the district is Eddy's
       show: () => met('shooki') || owns('spekbuurt') || (state.step === 'free' && tutorial && tutorial.at('shooki')),
-      news: () => !met('shooki') || (owns('spekbuurt') && !econ.has('koerier')),
+      news: () => !met('shooki') || (owns('spekbuurt') && !econ.has('koerier')) || (!!state.district1 && !state.npcs.kangoo),
       talk() {
         if (!met('shooki') && tutorial && tutorial.at('shooki')) { meet('shooki'); return tutorial.shooki(() => d.save()); } // the tour starts here
         const tip = tutorial && tutorial.shookiTip(); if (tip) return dialogue([['Shooki', tip]]);
+        if (met('shooki') && state.district1 && !state.npcs.kangoo) { // the first talk after the district falls: his new van
+          state.npcs.kangoo = true;
+          return dialogue([
+            ['Shooki', 'Bro. BRO. Look outside. Next to your Oofmobiel.'],
+            ['Eddy Jr.', 'Is that... a Renault Kangoo?'],
+            ['Shooki', 'Renault Kangoo, diesel, two hundred eighty thousand kilometres, one owner. Well. Four owners. Now five.'],
+            ['Shooki', 'The whole Kipkruidenkwartier is yours now, so your cousin needs a real company van. "Shooki Koerier, 24/7, familieprijs." I did the letters myself.'],
+            ['Eddy Jr.', 'The K is backwards.'],
+            ['Shooki', 'That is branding, bro. Hakan\'s kipkraud, the joints, the Klusbord jobs: Shooki delivers. Where Shooki is, the Kangoo is.'],
+          ], () => { if (!econ.has('koerier')) econ.learn('koerier'); d.save(); });
+        }
         if (met('shooki') && !econ.has('koerier') && owns('spekbuurt')) return dialogue([['Shooki', 'Bro! Spekbuurt! Respect. Now I run errands for you: pick-ups, drop-offs, whatever. Family price.'], ['Shooki', 'Every day I put one extra job on your Klusbord. You do the job, I take a little kebab. Deal? Deal.']], () => { econ.learn('koerier'); d.save(); });
         if (!met('shooki')) {
           meet('shooki');
