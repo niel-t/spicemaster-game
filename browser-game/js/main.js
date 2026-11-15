@@ -2347,8 +2347,8 @@ function updateInspector(dt) {
 // you're not in Nederland while he's standing right in front of you. Good-natured: he just wants shoarma with Eddy.
 let razim = null;
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
-const RAZIM_LOOK = { head: { skin: 0xd6a888, hair: '#1e1814', brow: '#1a1410', bald: true, hairLine: 64, sideLine: 112, backLine: 140, mouth: 'smile', glasses: true, iris: '#3a2a1e' }, suit: true, suitShirt: 0xffffff, shirt: 0xf1efe8, pants: 0xe9e6de, shoes: 0xcfc7b6, belly: 0.05, skin: 0xd6a888 };
-// Razim is Neon Vice's Money Man (same person): slim, cream suit, white shirt, glasses, bald (only a scatter of hair, so head.bald). Portrait: assets/face_razim.jpg.
+const RAZIM_LOOK = { head: { skin: 0xd6a888, hair: '#1e1814', brow: '#1a1410', bald: true, hairLine: 64, sideLine: 112, backLine: 140, mouth: 'smile', glasses: true, iris: '#3a2a1e' }, shirt: 0x1c1c22, pants: 0x2c3446, shoes: 0x1a1a1a, belly: 0.05, skin: 0xd6a888 };
+// Razim is Neon Vice's Money Man (same person), but in his own black sweater (Tristan's call): slim, glasses, bald (only a scatter of hair, so head.bald). Portrait: assets/face_razim.jpg.
 // He talks like him too: fast, transactional, always pricing something. And shoarma.
 const RAZ_ASK = ['That machine? W 400. I\'d give you 350. Today only.', 'Everybody has a price, Eddy. Your Naknikim? Priceless. Also W 9 an hour.', 'You know what this place needs? A receipt printer.', 'What does this machine do?', 'Is that a Naknik? Hi Naknik!', 'Eddy. Shoarma after this?', 'Can I press this button?', 'Your dad still has that moustache?', 'I could work here. I\'d be good.', 'Ok but after this, shoarma.', 'Eddy, look, I can do a cartwheel. ...No I can\'t.'];
 function razimVisit() {
