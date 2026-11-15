@@ -142,6 +142,17 @@ export function finishModel(md) {
   return md;
 }
 export function buildModel(look) { return finishModel(prepModel(look)); }
+// repaint a character's clothes in place (Eddy's outfits, js/woning.js): the same body, a new shirtPaint / colours
+export function repaint(p, patch) {
+  const q = p && p.userData && p.userData.ps2; if (!q) return;
+  finishModel(q.md);
+  const base = q.base || (q.base = q.md.look);
+  const look = { ...base, ...patch, shirtPaint: { ...(base.shirtPaint || {}), ...(patch.shirtPaint || {}) } };
+  q.md.look = look; q.look = look;
+  const bc = P.paintBodyP(look); if (look.shirtPaint) paintShirt(bc, look.shirtPaint); if (look.paintBody) look.paintBody(bc);
+  const t = q.md.meshes[0].material.map, cv = t.image; cv.getContext('2d').drawImage(bc, 0, 0, cv.width, cv.height); t.needsUpdate = true;
+  q.clean = null; q.bl = 0;
+}
 
 /* ---------- person (makePerson-compatible) ---------- */
 const ARM = [{ s: -1, u: 'uarmR', f: 'farmR', h: 'handR' }, { s: 1, u: 'uarmL', f: 'farmL', h: 'handL' }];

@@ -6,7 +6,8 @@ import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable
 import { createGunShop } from './gunshop.js';
 import { initMission } from './mission.js';
 import { createPost } from './post.js';
-import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats } from './characters.js';
+import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
+import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning visitors, knacks and outfits (from Neon Vice, in spice colours)
 import { makeOofmobiel, makeCar } from './vehicles.js'; // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 import { createEconomy, rankOf } from './economy.js';
@@ -19,6 +20,7 @@ import { createWorkshop } from './workshop.js'; // De Werkplaats: build and repa
 import { initPhone } from './phone.js'; // Hakan calls for kipkraud
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
+let woning = null; // js/woning.js, set up once the street, the economy and the phone exist
 const music = new Music();
 
 // ------------------------------------------------------------------ renderer / scene
@@ -415,11 +417,14 @@ let nx = JS.x1, hi = 3;
 for (const w of spanWidths(WH_X0_GAP - nx, hi)) { house(nx + w / 2, -11, w, 9, 9 + (hi % 3) * 1.3, 0, hi); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++; }
 // east of the warehouse: Eddy's private parking (x 1..9.5), then the houses, with The Russian's pawnshop in between
 const LOT = { x0: 1.15, x1: 9.5 };
+const HOME_DOORS = [{ x: 0.86, z: -16.6, stand: { x: 0.25, z: -16.6 }, face: -Math.PI / 2 }]; // Het Hok: a door in the warehouse's east wall; [1] the house next to Eddy's parking, [2] the one past the pawnshop (set below)
 const PS = { x0: 20, x1: 28, z0: -15.5, z1: -6.5, h: 4.8, doorX0: 23.2, doorX1: 24.6 };
 nx = LOT.x1;
 for (const [a, b] of [[LOT.x1, PS.x0], [PS.x1, 64]]) for (const w of spanWidths(b - a, hi)) {
   if (nx < a) nx = a;
-  house(nx + w / 2, -11, w, 9, 9 + (hi % 4) * 1.1, 0, hi, hi === 7 ? 'BITTERBAL & ZO' : null, hi === 9 ? { gable: 'point', color: 0x23a07a, clock: true, neon: null } : {}); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++;
+  house(nx + w / 2, -11, w, 9, 9 + (hi % 4) * 1.1, 0, hi, hi === 7 ? 'BITTERBAL & ZO' : null, hi === 9 ? { gable: 'point', color: 0x23a07a, clock: true, neon: null } : {}); solid(nx, nx + w, -15.5, -6.5);
+  if (hi === 4 || hi === 6) HOME_DOORS[hi === 4 ? 1 : 2] = { x: nx + w / 2 + w * 0.28, z: -6.5, facade: true, stand: { x: nx + w / 2 + w * 0.28, z: -5.8 }, face: 0 }; // Eddy's woning (js/woning.js): the street door
+  nx += w; hi++;
 }
 // back row behind the street (only the roofs show) so nothing looks empty from the camera
 for (let x = -64, i = 0; x < 64; i++) { const w = 5 + (i % 3); house(x + w / 2, -25.5, w, 9, 10 + (i % 4) * 1.2, 0, i + 7, null, { simple: true }); x += w; }
@@ -495,6 +500,8 @@ for (let i = 0; i < 2; i++) {
   for (let k = 0; k < 4; k++) box(0.5, 0.6, 0.5, lam({ color: [0xb08a5a, 0x9a7a4a, 0xc0a070][k % 3] }), sx - 1.3 + k * 0.85, 1.35, WH.z0 + 0.8, wh);
   solid(sx - 1.8, sx + 1.8, WH.z0, WH.z0 + 1.35);
 }
+{ const hd = new THREE.Group(); hd.position.set(WH.x1 - 0.17, 0, -16.6); wh.add(hd); box(0.06, 2.15, 1.05, lam({ color: 0xf2ead8 }), 0, 1.08, 0, hd, false); box(0.07, 2.0, 0.9, lam({ color: 0x6a4a2a }), -0.01, 1.02, 0, hd, false); box(0.04, 0.05, 0.14, lam({ color: 0xd8b040 }), -0.05, 1.0, 0.3, hd, false);
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.2), lam({ map: signTex([{ t: 'HET HOK', size: 38 }], '#d8b040', '#3a2412', 256, 90) })); pl.position.set(-0.05, 1.62, 0); pl.rotation.y = -Math.PI / 2; hd.add(pl); }
 const isInside = (p) => p.x > WH.x0 && p.x < WH.x1 && p.z > WH.z0 && p.z < WH.z1 - 0.1;
 
 // ------------------------------------------------------------------ street props
@@ -1074,7 +1081,7 @@ function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math
 const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 30;
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
-const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['bank', 'W', 'My Wilders']];
+const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['woning', 'H', 'Woning'], ['bank', 'W', 'My Wilders']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 let phone = null; // js/phone.js, Hakan's kipkraud calls
@@ -1110,7 +1117,7 @@ function closePC() { state.inPC = false; $('pc').style.display = 'none'; afterPC
 $('pcclose').onclick = closePC;
 function renderPC() {
   const ic = $('pcicons'); ic.innerHTML = '';
-  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport', 'jobs', 'ideas', 'werk', 'garage', 'plan'].includes(id) || state.table)) {
+  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => !['beurs', 'meng', 'rapport', 'jobs', 'ideas', 'werk', 'garage', 'plan', 'woning'].includes(id) || state.table)) {
     const d = document.createElement('div'); d.className = 'icon' + (pcTab === id ? ' sel' : '');
     d.innerHTML = `<div class="g">${g}</div><span>${label}</span>`; d.onclick = () => { pcTab = id; beep(700, 0.03); renderPC(); }; ic.appendChild(d);
   }
@@ -1175,6 +1182,9 @@ function renderPC() {
   } else if (pcTab === 'garage') {
     title.textContent = 'Garage Mo · Oofmobiel upgrades';
     body.innerHTML = garage.html(); garage.bind(body, renderPC);
+  } else if (pcTab === 'woning') {
+    title.textContent = "Woning · Eddy's homes, furniture, knacks and outfits";
+    body.innerHTML = woning.html(); woning.bind(body, renderPC);
   } else if (pcTab === 'map') {
     title.textContent = 'Map of Kaasland';
     body.innerHTML = mapHTML(false); bindMap();
@@ -1308,7 +1318,7 @@ function remixInfo(n, id) {
   const rx = mission.remixFor(id, econ.ensure().day), m = mission.REMIX_MODS[rx.mod], b = state.best && state.best[id];
   const job = econ.jobFor(id);
   if (econ.isRetaken(id)) return `<b style="color:#a00">${n}: the Lampas took it back!</b> No orders until you retake it. <b>Tonight: ${m.name}</b> (${m.line}) Winning it back drops Lampas heat by 30.`;
-  const dc = dailyChallenge(), st = b && b.stars ? b.stars : {}, stars = ['S', 'melee', 'par', 'clean'].map((k) => (st[k] ? '★' : '☆')).join('');
+  const dc = dailyChallenge(), st = b && b.stars ? b.stars : {}, stars = ['S', 'melee', 'par', 'clean'].map((k) => (st[k] ? '★' : '☆')).join('') + (state.tins && state.tins[id] ? '◆' : '◇');
   return (job ? `<b style="color:#a00">JOB: ${job.title} (+W ${job.reward.toLocaleString('nl-NL')})</b><br>` : '') + (dc && dc.id === id ? `<b style="color:#000080">DAILY CHALLENGE today: ${mission.REMIX_MODS[dc.remix.mod].name}</b>${pcMode === 'van' ? ' <button class="b95" id="goDaily">Play the daily challenge</button>' : ''}<br>` : '') + `Challenges: <b>${stars}</b> (S grade, no guns, under par, no hits)<br>` + `<b>${n}</b>: yours, and a client of Eddy & Zn. But the Lampas sneak back in every night. <b>Tonight's remix: ${m.name}</b> (${m.line})${b ? ` Your best: <b>${b.grade}</b> · W ${b.score.toLocaleString('nl-NL')} · ${b.runs || 1} run(s).` : ''}`;
 }
 function bindMap() {
@@ -1529,7 +1539,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'ngp', 'npcs', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'ngp', 'npcs', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
   try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -1560,6 +1570,7 @@ function applySave(d) {
   kitText(); if (state.kit.includes('maboota')) equip(true);
   paintVan(garage.stats().paint); // the van Eddy owns now
   if (!s.loadout) state.loadout = null; if (!s.stash) state.stash = null; mission.migrateKit(); kitText();
+  if (woning) woning.loaded();
   loadingSave = false;
 }
 let savedGame = readSave();
@@ -2511,7 +2522,7 @@ function tick() {
   }
   if (knock.t > 0) { mx = mz = 0; }
   let len = Math.hypot(mx, mz); if (len < 0.15) { mx = mz = 0; len = 0; }
-  const speed = len ? (keys.ShiftLeft || keys.ShiftRight ? 7.5 : 4.2) : 0;
+  const speed = len ? (keys.ShiftLeft || keys.ShiftRight ? 7.5 : 4.2) * (1 + 0.06 * (woning ? woning.perk('fleet') : 0)) : 0;
   if (knock.t > 0) {
     knock.t -= dt;
     player.position.x += knock.vx * dt; player.position.z += knock.vz * dt;
@@ -2571,6 +2582,7 @@ function tick() {
   if (!mission.active) { garage.dayCheck(); const oops = crew.dayCheck(); if (oops) { const here = naknikim.filter((x, k) => x.visible && !crew.napping(k)); const who = here[Math.floor(Math.random() * here.length)]; if (who) { personBubble(who, oops, '#f2c14e'); spiceCloud(who.position); } } }
   if (npcs) npcs.update(dt);
   if (phone) phone.update(dt);
+  if (woning && !mOn) woning.update(dt);
   // passive income
   if (state.income > 0) {
     incomeT += dt;
@@ -2605,9 +2617,11 @@ function tick() {
   // camera: Neon Vice-style high top-down, eased
   const off = new THREE.Vector3(0, 12.5 * zoom, 6 * zoom);
   if (inside || inShop || inJ) off.set(0, 14 * zoom, 4.5 * zoom);
+  const wf = woning && woning.inside() ? woning.camFocus(player.position) : null; // in Eddy's woning: frame the room, follow Eddy a little
+  if (wf) { const ch = woning.camHeight(); off.set(0, ch * zoom, ch * 0.43 * zoom); }
   const jc = new THREE.Vector3(((JS.x0 + JS.x1) / 2) * 0.4 + player.position.x * 0.6, 0, -11.5 * 0.5 + player.position.z * 0.5);
-  camPos.lerp((inJ ? jc.clone() : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone()).add(off), Math.min(1, dt * 4));
-  const lookAt = inJ ? jc.clone().setY(0.8) : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
+  camPos.lerp((inJ ? jc.clone() : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : wf ? wf.clone() : player.position.clone()).add(off), Math.min(1, dt * 4));
+  const lookAt = inJ ? jc.clone().setY(0.8) : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : wf ? wf.clone().setY(0.8) : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
   if (state.step === 'title') { const tt = performance.now() * 0.001; camPos.set(-14 + Math.sin(tt * 0.045) * 16, 5.2 + Math.sin(tt * 0.11) * 0.6, 7.5); camLook.set(camPos.x * 0.85 + 2, 1.6, -7); }
   else if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
   else camLook.lerp(lookAt, Math.min(1, dt * 6));
@@ -2631,7 +2645,7 @@ function tick() {
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
 updateObjective();
-mission = initMission({ THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
+mission = initMission({ perk: (k) => (woning ? woning.perk(k) : 0), THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
   makeVan: () => oof.clone(true), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
@@ -2653,9 +2667,14 @@ function afterDrive(res) {
 }
 deviceHints();
 npcs = initNpcs({ THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave() });
+woning = createWoning({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
+  save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, openPC: (tab) => openPC(tab), doors: HOME_DOORS,
+  snapCam: () => { const inH = woning && woning.inside(), k = inH ? [woning.camHeight(), woning.camHeight() * 0.43] : [12.5, 6], f = inH ? woning.camFocus(player.position) : player.position.clone(); camPos.copy(f).add(new THREE.Vector3(0, k[0] * zoom, k[1] * zoom)); camLook.copy(f).setY(0.8); }, inWarehouse: () => isInside(player.position), blocked: () => mission.active,
+  busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || oofDrive.active || state.step === 'title' || !!(phone && phone.isOpen) });
+woning.loaded();
 phone = initPhone({ state, econ, dialogue, choice, toast, beep, addMoney, busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || oofDrive.active || state.step === 'title', met: (id) => npcs.met(id), inspectorFine: () => garage.inspectorFine(), hasLuik: () => garage.has('luik'), save: () => writeSave() });
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; }, get phone() { return phone; } };
+window.__sme = { woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, get npcs() { return npcs; }, get phone() { return phone; } };
 tick();

@@ -1,6 +1,8 @@
 // Upbeat procedural synth-pop loop (WebAudio), in the spirit of Neon Vice's soundtrack. No audio files needed.
 export class Music {
-  constructor() { this.ctx = null; this.on = false; this.step = 0; this.bpm = 116; }
+  constructor() { this.ctx = null; this.on = false; this.step = 0; this.bpm = 116; this.key = 0; }
+  // radio stations (the radio in Eddy's woning, js/woning.js): same song, another tempo and key
+  setStation(st) { this.bpm = st.bpm; this.key = st.key; if (this.delay) this.delay.delayTime.value = 60 / this.bpm * 0.75; }
   init() {
     if (this.ctx) return;
     const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -28,7 +30,7 @@ export class Music {
   noiseHit(t, type, freq, peak, dec) { const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = this.noise; f.type = type; f.frequency.value = freq; this.env(g, t, 0.001, peak, dec); s.connect(f).connect(g).connect(this.master); s.start(t, Math.random() * 0.5); s.stop(t + dec + 0.05); }
   tone(t, midi, dur, type, peak, cutoff, dest = this.master, detune = 0) {
     const c = this.ctx, o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
-    o.type = type; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12); o.detune.value = detune;
+    o.type = type; o.frequency.value = 440 * Math.pow(2, (midi + this.key - 69) / 12); o.detune.value = detune;
     f.type = 'lowpass'; f.frequency.setValueAtTime(cutoff * 2.2, t); f.frequency.exponentialRampToValueAtTime(cutoff, t + dur * 0.6); f.Q.value = 6;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(f).connect(g).connect(dest); o.start(t); o.stop(t + dur + 0.02);

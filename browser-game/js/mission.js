@@ -66,6 +66,7 @@ export function initMission(ctx) {
   const L = (x, z, y = 0) => new THREE.Vector3(OX + x, y, Z0 + z);
   const rnd = (a, b) => a + Math.random() * (b - a);
   const WALL_H = 2.3;
+  const pk = (k) => (ctx.perk ? ctx.perk(k) || 0 : 0); // Eddy's knacks, outfit and home furniture (js/woning.js)
 
   // ================================================================== GRID QUERIES (Neon Vice: los / rayWall / pathing on cells)
   const BASE_BLOCK = '#%KBMFRCwOVQbXATScPGp', BASE_COVER = '#KBMFRCwOVQbXA', BASE_SIGHT = '#R';
@@ -714,7 +715,7 @@ export function initMission(ctx) {
       dropItem('tknife', at, Math.sin(a) * 21, Math.cos(a) * 21, 1, true, byPlayer); const it = items[items.length - 1]; it.g.position.y = 1.0; it.blade = true;
       sfx('throw'); return;
     }
-    const spr = byPlayer ? W2.spr + (moving ? W2.mv : 0) + P.bloom : W2.spr + EASY.espr;
+    const spr = byPlayer ? (W2.spr + (moving ? W2.mv : 0) + P.bloom) * Math.max(0.4, 1 - 0.15 * pk('steady')) : W2.spr + EASY.espr;
     let ox = 0; if (W2.dual) { P.alt = !P.alt; ox = P.alt ? -0.17 : 0.17; }
     const ca = Math.cos(a), sa = Math.sin(a), bx = from.x + ca * ox, bz = from.z - sa * ox;
     for (let i = 0; i < W2.pel; i++) {
@@ -1119,14 +1120,51 @@ export function initMission(ctx) {
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     for (const t of tasks) { t.done = !!done; if (t.reset) t.reset(t.done); }
     smoke.clear();
-    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, foes: Math.max(1, alive().length) });
+    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, tin: false, foes: Math.max(1, alive().length) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
-    Object.assign(P, { hp: EASY.hp, maxhp: EASY.hp, armor: armourOf(state.loadout) ? state.loadout.vest : 0, armourT: armourOf(state.loadout), invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
+    Object.assign(P, { hp: EASY.hp + Math.min(3, pk('tough')), maxhp: EASY.hp + Math.min(3, pk('tough')), armor: armourOf(state.loadout) ? state.loadout.vest : 0, armourT: armourOf(state.loadout), invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
     heistSetup(); defendSetup();
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
+  }
+  // ================================================================== KRUIDENBLIK (Neon Vice hidden stash): one of Dad's old spice tins per level
+  // Seeded per level, so it's always in the same spot: a reachable floor cell against a wall, far from the front door. Only visible up close.
+  const TIN_PAY = 400;
+  let tin = null;
+  function placeTin() {
+    if (tin) { root.remove(tin.g); tin = null; }
+    if (!state.tins || typeof state.tins !== 'object') state.tins = {};
+    if (!LV || DEF || state.tins[LV.id] || !LV.validateFrom) return;
+    const r = rng32(hashStr(LV.id + '#tin')), start = L(LV.validateFrom[0], LV.validateFrom[1]), cand = [];
+    for (let z = 1; z < H - 1; z++) for (let x = 1; x < W - 1; x++) {
+      if (!walkable(x, z) || G[z][x] !== '.') continue;
+      const walls = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dz]) => G[z + dz][x + dx] === '#').length;
+      const d = Math.hypot(OX + x + 0.5 - start.x, Z0 + z + 0.5 - start.z);
+      if (walls >= 1 && d > 7) cand.push([x, z, walls * 2 + d * 0.15]);
+    }
+    cand.sort((a, b) => b[2] - a[2]);
+    for (let tries = 0; tries < 12 && cand.length; tries++) {
+      const k = Math.floor(r() * Math.min(cand.length, 25)), [x, z] = cand.splice(k, 1)[0];
+      if (!path(start, L(x + 0.5, z + 0.5))) continue;
+      const g = new THREE.Group(); g.position.copy(L(x + 0.5, z + 0.5));
+      cyl(0.13, 0.13, 0.26, lam({ color: 0xc8641e }), 0, 0.2, 0, g, 12); // a paprika-red tin with a brass lid and a cream label
+      cyl(0.135, 0.135, 0.05, lam({ color: 0xd8b040, emissive: 0x3a2a00 }), 0, 0.355, 0, g, 12);
+      cyl(0.132, 0.132, 0.1, lam({ color: 0xf2ead8 }), 0, 0.2, 0, g, 12);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.4, 20), new THREE.MeshBasicMaterial({ color: 0xe8a33d, transparent: true, opacity: 0.6, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; g.add(ring);
+      g.visible = false; root.add(g); tin = { g, ring, x, z, t: 0 }; return;
+    }
+  }
+  function updateTin(dt) {
+    if (!tin || !LV) return;
+    const d = Math.hypot(tin.g.position.x - player.position.x, tin.g.position.z - player.position.z);
+    tin.t += dt; tin.g.visible = d < 4.5; tin.g.rotation.y = tin.t * 1.2; tin.ring.material.opacity = 0.35 + 0.3 * Math.sin(tin.t * 4);
+    if (d > 0.8 || P.dead) return;
+    state.tins[LV.id] = 1; root.remove(tin.g); tin = null; R.tin = true;
+    addMoney(TIN_PAY); sfx('cash'); shake(0.2); popup(player.position, '+W ' + TIN_PAY, '#e8a33d', true);
+    banner('KRUIDENBLIK FOUND', `One of Dad's old spice tins, with Wilders rolled up inside. +W ${TIN_PAY} · It goes on the rack at home.`, 3.5);
   }
   function enter(id = 'spekbuurt', opts = {}) {
     if (M.active || !LEVELS[id]) return;
@@ -1145,7 +1183,7 @@ export function initMission(ctx) {
       if (REMIX && REMIX.m.dark) { lights.forEach(([l, k]) => { l.intensity = k * 0.2; }); hemi.intensity *= 0.45; sun.intensity *= 0.4; }
       setBounds({ x0: OX + LV.bounds[0], x1: OX + LV.bounds[1], z0: LV.bounds[2], z1: LV.bounds[3] });
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
-      resetFloor();
+      resetFloor(); placeTin();
       setArea(LV.text.area);
       $('objective').innerHTML = DEF ? '<b>SPICE WAR</b>: hold the warehouse against three waves. Keep them away from the Naknikim under the mixing tables.' : HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
@@ -1175,7 +1213,7 @@ export function initMission(ctx) {
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
   function addKillScore(e, type) {
-    R.combo++; R.comboT = 3.5; R.maxCombo = Math.max(R.maxCombo, R.combo);
+    R.combo++; R.comboT = 3.5 + 0.75 * pk('adren'); R.maxCombo = Math.max(R.maxCombo, R.combo);
     const pts = (KILLPTS[type] || 300) * Math.min(R.combo, 8);
     R.score += pts; popup(e.position, '+W ' + pts.toLocaleString('nl-NL') + (R.combo > 1 ? '  ×' + R.combo : ''), R.combo > 2 ? '#f08a3c' : '#b9d46e');
   }
@@ -1280,7 +1318,7 @@ export function initMission(ctx) {
     R.results = true; setOwned(LV.id); state.lastRaid = { id: LV.id, remix: !!REMIX, grade: null }; state.raids = (state.raids || 0) + 1;
     if (!REMIX) setLootTaken(LV.id, lootCrates.map((l, i) => (l.taken ? i : -1)).filter((i) => i >= 0));
     const ratio = R.score / ((R.foes || enemies.length) * 700), gr = ratio > 3 ? 'S' : ratio > 2.2 ? 'A+' : ratio > 1.6 ? 'A' : ratio > 1.1 ? 'B' : ratio > 0.7 ? 'C' : 'D';
-    const pay = Math.round(R.score / 100 * (REMIX ? REMIX.m.pay : 1)) * 10; R.pay = pay; R.grade = gr;
+    const pay = Math.round(R.score / 100 * (REMIX ? REMIX.m.pay : 1) * (1 + 0.1 * pk('shark'))) * 10; R.pay = pay; R.grade = gr;
     // personal bests per level (shown on the map); remixes count too
     state.best = state.best && typeof state.best === 'object' ? state.best : {};
     const prev = state.best[LV.id], isBest = !prev || R.score > prev.score;
@@ -1292,7 +1330,7 @@ export function initMission(ctx) {
     if (REMIX && REMIX.daily) { const d = state.daily && state.daily.date === REMIX.daily ? state.daily : { date: REMIX.daily, best: 0 }; d.best = Math.max(d.best, R.score); state.daily = d; }
     Object.assign(state.lastRaid, { grade: gr, score: R.score, daily: !!(REMIX && REMIX.daily) });
     const CH = [['S', 'S GRADE'], ['melee', 'NO GUNS FIRED'], ['par', `UNDER ${Math.floor(par / 60)}:${String(par % 60).padStart(2, '0')}`], ['clean', 'NO HITS TAKEN']];
-    const chLine = CH.map(([k, t]) => `<span style="color:${ch[k] ? '#ffd36b' : bs.stars[k] ? '#9a8a60' : '#555'}">${ch[k] || bs.stars[k] ? '★' : '☆'} ${t}</span>`).join(' &nbsp; ');
+    const chLine = CH.map(([k, t]) => `<span style="color:${ch[k] ? '#ffd36b' : bs.stars[k] ? '#9a8a60' : '#555'}">${ch[k] || bs.stars[k] ? '★' : '☆'} ${t}</span>`).join(' &nbsp; ') + ` &nbsp; <span style="color:${R.tin ? '#e8a33d' : state.tins && state.tins[LV.id] ? '#9a8a60' : '#555'}">${state.tins && state.tins[LV.id] ? '◆' : '◇'} ${state.tins && state.tins[LV.id] ? 'KRUIDENBLIK' : 'HIDDEN TIN'}</span>`;
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
     showScreen(`<div class="logo2">${REMIX ? (REMIX.daily ? 'DAILY CHALLENGE DONE' : REMIX.retake ? `${LV.text.area.split('·').pop().trim()} IS YOURS AGAIN` : 'REMIX CLEARED') : LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#f08a3c">NEW BEST</span>' : ''}</b><br>${REMIX ? `${REMIX.daily ? 'DAILY' : 'REMIX'}<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint" style="font-size:16px;letter-spacing:1px">${chLine}${newStar ? ' &nbsp; <span style="color:#f08a3c">NEW STAR</span>' : ''}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
     sfx('cash'); addMoney(pay); commitKit();
@@ -1439,7 +1477,7 @@ export function initMission(ctx) {
   function hitstop(dt) { if (FX.freeze > 0) { FX.freeze -= dt; return 0; } return dt; }
   function update(dt) {
     if (ARR) { updateArrive(dt); return; }
-    R.time += dt; if (smoke.size) for (const [k, t] of smoke) if (t < R.time) smoke.delete(k);
+    R.time += dt; updateTin(dt); if (smoke.size) for (const [k, t] of smoke) if (t < R.time) smoke.delete(k);
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
     if (!P.dead) { if (P.exec > 0) P.exec -= dt; else aimAtMouse(dt); holdPose(dt); }
     else { P.deadT += dt; const u = player.userData; u.body.rotation.x = Math.max(-1.5, -P.deadT * 6); u.body.position.y = 0.1; slide(player, P, dt, 0.38); }
@@ -1453,7 +1491,7 @@ export function initMission(ctx) {
     const spd = Math.hypot(pv[0], pv[1]); P.sprint = !P.dead && shift.on && spd > 5;
     if (P.sprint) { P.stepT -= dt; if (P.stepT <= 0) { P.stepT = 0.3; alertNoise(player.position, 4.5); beep(70 + Math.random() * 20, 0.04, 'square', 0.02); } } else P.stepT = 0;
     P.fireT -= dt; P.invT -= dt; P.bloom = Math.max(0, P.bloom - dt * 0.45); if (FX.hurtT > 0) FX.hurtT -= dt;
-    if (!P.dead && P.hp < P.maxhp && R.time - P.lastHurt > EASY.regen) { P.hp++; P.lastHurt = R.time; popup(player.position, '+1 HEALTH', '#b9d46e'); sfx('pick'); hud(); }
+    if (!P.dead && P.hp < P.maxhp && R.time - P.lastHurt > Math.max(3, EASY.regen - 1.5 * pk('medic'))) { P.hp++; P.lastHurt = R.time; popup(player.position, '+1 HEALTH', '#b9d46e'); sfx('pick'); hud(); }
     if (!P.dead) for (const it of items) if (!it.flying && it.age > 1 && (isGun(it.id) ? !P.guns[0] || !P.guns[1] : !P.melee) && Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z) < 0.45) { pickUp(it); break; }
     if (R.comboT > 0) { R.comboT -= dt; if (R.comboT <= 0) { R.combo = 0; hud(); } }
     updateDoors(dt);
@@ -1597,7 +1635,7 @@ export function initMission(ctx) {
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }
-    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react; say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
+    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react * (1 + 0.15 * pk('sense')); say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
     else f.seeT += dt;
     if (P.dead && f.state === 'chase') f.state = 'idle';
     let tvx = 0, tvz = 0, face = null;
@@ -1643,7 +1681,7 @@ export function initMission(ctx) {
   function melee(fv) {
     const id = P.slot === 1 && P.held && isMelee(P.held.id) ? P.held.id : 'maboota', W2 = WD[id];
     const sprinting = Math.hypot(player.position.x - P.last.x, player.position.z - P.last.z) * 60 > 5.5;
-    let tgt = null, bd = W2.range + 0.45 + (sprinting ? 0.4 : 0);
+    let tgt = null, bd = W2.range + 0.45 + (sprinting ? 0.4 : 0) + 0.2 * pk('grip');
     for (const e of enemies) { const f = e.userData.foe; if (!f.alive) continue;
       const d = e.position.clone().sub(player.position); d.y = 0; const L2 = d.length();
       if (L2 < bd && Math.abs(angDiff(Math.atan2(fv.x, fv.z), Math.atan2(d.x, d.z))) < (W2.arc || 1) && los(player.position, e.position)) { bd = L2; tgt = e; } }
