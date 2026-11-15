@@ -11,7 +11,7 @@ const ACTS = [
   { r: 'lampas', name: 'Oud-Vettenburg', tag: 'Act 1', faction: 'Lampas', heat: 'lampas', open: (d) => d.district1, need: 'Take all of Kipkruidenkwartier first' },
   { r: 'nosh', name: 'Hipsterheuvel', tag: 'Act 2', faction: 'Noshgey Kariot', heat: 'noshgey', open: (d) => d.act1, need: 'Beat the Lampas in Oud-Vettenburg first' },
   { r: 'abd', name: 'De Duistere Dokken', tag: 'Act 3', faction: 'Abdavissies', heat: 'abdavissies', open: (d) => d.act2, need: 'Beat the Noshgey Kariot first' },
-  { r: 'para', name: 'De Zandwijk', tag: 'Paravim', faction: 'Paravim', heat: null, open: () => false, need: 'Missions coming in a later build' },
+  { r: 'para', name: 'De Zandwijk', tag: 'Paravim', faction: 'Paravim', heat: 'paravim', open: (d) => d.act2, need: 'Beat the Noshgey Kariot first' },
   { r: 'fin', name: 'De Gouden Molen', tag: 'Finale', faction: 'everyone', heat: null, open: (d) => d.act3, need: 'Beat the Abdavissies first' },
 ];
 const ACT = Object.fromEntries(ACTS.map((a) => [a.r, a]));
@@ -19,11 +19,12 @@ const PARENT = { // shown on the place card: "opens after ..."
   Kroketkade: 'Spekbuurt', Uitjesbuurt: 'Spekbuurt', Frietwijk: 'all of Kipkruidenkwartier',
   Sauzenbuurt: 'Frietwijk', Knoflooksteeg: 'Frietwijk', Mayonaisemarkt: 'Frietwijk', 'Halve Kip Plein': 'two of Sauzenbuurt, Knoflooksteeg, Mayonaisemarkt', Bitterbalbuurt: 'two of Sauzenbuurt, Knoflooksteeg, Mayonaisemarkt', Pindasausplein: 'the other six Lampas joints',
   Joppiehaven: 'the end of Act 1', Frikandelhaven: 'Joppiehaven', Havermelkhaven: 'Joppiehaven', 'Kombucha-kwartier': 'Joppiehaven', Gembergracht: 'two harbour joints', 'Avocado-akkers': 'two harbour joints', 'Glutenvrije Gaarde': 'two harbour joints', Quinoaplantage: 'two of Gembergracht, Avocado-akkers, Glutenvrije Gaarde', 'Oat-oase': 'two of Gembergracht, Avocado-akkers, Glutenvrije Gaarde', Speltpolder: 'the other nine Noshgey joints',
+  Couscouskade: 'the end of Act 2', "Za'atarmarkt": 'Couscouskade', Sumaksteeg: 'Couscouskade', Harissahof: "Za'atarmarkt and Sumaksteeg", Dadelplein: "Za'atarmarkt and Sumaksteeg", 'Kasbah al Gara': 'the other five Paravim places',
   Komijnkade: 'the end of Act 2', "Kaneelsilo's": 'Komijnkade', Paprikapakhuis: 'Komijnkade', Kruidnagelkade: 'Komijnkade', Peperhaven: "two of Kaneelsilo's, Paprikapakhuis, Kruidnagelkade", Kurkumaloods: "two of Kaneelsilo's, Paprikapakhuis, Kruidnagelkade", Saffraanpier: 'Peperhaven or Kurkumaloods', Nootmuskade: 'Peperhaven or Kurkumaloods', Smokkelsloot: 'Peperhaven or Kurkumaloods', Containerchaos: 'two of Saffraanpier, Nootmuskade, Smokkelsloot', Kardemomdok: 'the other ten dock joints', 'De Gouden Molen': 'the end of Act 3',
 };
-// De Zandwijk is on the map before its missions exist: these cards stand in for the mission briefings
+// De Zandwijk opens with Act 2 done (a side act, optional). Until then these cards stand in for the mission briefings
 const PARA_TEXT = {
-  'Kasbah al Gara': "<b>Kasbah al Gara</b>: Sharma al Gara's fortress on the west quay. The Paravim came out of the desert with nothing but a grudge, and they still have the grudge. Nobody has walked out of here smiling.",
+  'Kasbah al Gara': "<b>Kasbah al Gara</b>: Ras al Gara's fortress on the west quay. The Paravim came out of the desert with nothing but a grudge, and they still have the grudge. Nobody has walked out of here smiling.",
   Couscouskade: "<b>Couscouskade</b>: the Paravim quay. Boats come in from the south at night and nobody asks what is under the couscous.",
   "Za'atarmarkt": "<b>Za'atarmarkt</b>: the Paravim souk. Za'atar, sumak, ras el hanout, and a lot of shouting. Every stall keeper is already angry with you.",
   Harissahof: "<b>Harissahof</b>: a courtyard of harissa pots, red and hot, with guards to match. Two of them are always arguing.",
@@ -87,7 +88,7 @@ export function createKaasMap() {
     const d = o.done || {};
     const openAct = (r) => !!ACT[r].open(d);
     const terr = o.terr.filter((t) => t.n !== 'Kipkruidenkwartier' && PLACES[t.n]).map((t) => ({ ...t, st: statusOf(t.k), boss: BOSS.includes(t.n), x: PLACES[t.n][0], y: PLACES[t.n][1] }));
-    for (const [n, [x, y]] of Object.entries(PARA_PLACES)) terr.push({ n, k: 'para', st: 'para', region: 'para', boss: BOSS.includes(n), x, y, para: true });
+    for (const [n, [x, y]] of Object.entries(PARA_PLACES)) { const pk = openAct('para') && o.para && o.para[n]; terr.push(pk ? { n, k: pk, st: statusOf(pk), region: 'para', boss: BOSS.includes(n), x, y } : { n, k: 'para', st: 'para', region: 'para', boss: BOSS.includes(n), x, y, para: true }); }
     cur = { ...o, terr, openAct };
     let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
 <defs>${ROAD_LABELS.map(([, p], i) => `<path id="kmRd${i}" d="${path(p).slice(0, -1)}"/>`).join('')}${CANALS.map((r, i) => `<path id="kmCn${i}" d="${path(arc(150, 30, r, 3)).slice(0, -1)}"/>`).join('')}<path id="kmRiver" d="M80,268 C300,262 500,286 760,276"/></defs>
@@ -98,7 +99,7 @@ export function createKaasMap() {
 <g class="km-canalnames">${CANAL_NAMES.map((n, i) => `<text dy="3.4"><textPath href="#kmCn${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
 <text class="km-water"><textPath href="#kmRiver" startOffset="50%" text-anchor="middle">D e   K a a s</textPath></text>
 <path class="km-route-case" d="" fill="none"/><path class="km-route" d="" fill="none"/>
-<g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district km-d-${a.r}" data-x="${ACT_AT[a.r][0]}" data-y="${ACT_AT[a.r][1]}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="14" class="km-dsub">${a.r === 'para' ? 'PARAVIM · SHARMA AL GARA' : `LOCKED · ${a.tag.toUpperCase()}`}</text>`}</g>`).join('')}<g class="km-t km-district km-d-bay" data-x="1120" data-y="232"><text text-anchor="middle" class="km-bay">Kaasbaai</text></g></g>
+<g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district km-d-${a.r}" data-x="${ACT_AT[a.r][0]}" data-y="${ACT_AT[a.r][1]}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="14" class="km-dsub">${a.r === 'para' ? 'PARAVIM · RAS AL GARA' : `LOCKED · ${a.tag.toUpperCase()}`}</text>`}</g>`).join('')}<g class="km-t km-district km-d-bay" data-x="1120" data-y="232"><text text-anchor="middle" class="km-bay">Kaasbaai</text></g></g>
 <g class="km-places">`;
     for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" ${t.para ? 'data-para' : 'data-pin'}="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
     for (const w of o.warehouses || []) { const t = terr.find((x) => x.n === w.n); if (t) s += `<g class="km-pl km-wh" data-x="${t.x + 12}" data-y="${t.y - 12}" data-pri="-1"><title>${esc(w.name)}</title>${icon('wh')}</g>`; }
@@ -109,7 +110,7 @@ export function createKaasMap() {
     const ord = { open: 0, lost: 0, own: 1, locked: 2, para: 2 };
     const groups = ACTS.map((a) => {
       const ts = terr.filter((t) => t.region === a.r).sort((x, y) => ord[x.st] - ord[y.st]), mine = ts.filter((t) => t.st === 'own').length + (a.r === 'start' ? 1 : 0), all = ts.length + (a.r === 'start' ? 1 : 0);
-      if (a.r === 'para') return `<div class="km-grp"><button class="km-gh km-gh-para" data-frame="para" title="Show on the map"><b>Paravim · De Zandwijk</b><small>new</small></button><div class="km-pnote">Sharma al Gara's desert clan. Always angry, the toughest crew in Kaasland. Missions come in a later build.</div>${ts.map(row).join('')}</div>`;
+      if (a.r === 'para') return `<div class="km-grp"><button class="km-gh km-gh-para" data-frame="para" title="Show on the map"><b>Paravim · De Zandwijk</b><small>${openAct('para') ? `${mine}/${all}` : 'side act'}</small></button><div class="km-pnote">Ras al Gara's desert clan. Always angry, the toughest crew in Kaasland.${openAct('para') ? ' Optional, and hard: three hits each.' : ' Opens once the Noshgey Kariot are beaten.'}</div>${ts.map(row).join('')}</div>`;
       if (!openAct(a.r)) return `<div class="km-grp km-shut" data-frame="${a.r}"><b>${a.tag} · ${esc(a.name)}</b><small>Locked: ${esc(a.need)}</small></div>`;
       return `<div class="km-grp"><button class="km-gh" data-frame="${a.r}" title="Show on the map"><b>${a.tag} · ${esc(a.name)}</b><small>${mine}/${all}</small></button>${ts.map(row).join('')}</div>`;
     }).join('');
@@ -190,7 +191,7 @@ export function createKaasMap() {
         const r = route([t.x, t.y], t.region);
         ihead.innerHTML = `<b>${esc(t.n)}</b><span class="km-tag km-tag-${t.st}">${STLABEL[t.st]}</span><small>${ACT[t.region].tag} · ${esc(ACT[t.region].name)} · ${Math.max(1, Math.round(r.km * 2.2))} min drive (${r.km.toFixed(1).replace('.', ',')} km${r.via ? ` via ${esc(r.via)}` : ''})${t.st === 'locked' ? `<br>Opens after ${esc(PARENT[t.n] || 'the one before it')}.` : ''}</small>`;
         drawRoute(cur.van ? t : null);
-        if (t.para) { const pi = root.querySelector('#pininfo'); if (pi) pi.innerHTML = `${PARA_TEXT[t.n] || ''}<br><i>Paravim turf. Missions come in a later build.</i>`; }
+        if (t.para) { const pi = root.querySelector('#pininfo'); if (pi) pi.innerHTML = `${PARA_TEXT[t.n] || ''}<br><i>Paravim turf. Opens once the Noshgey Kariot are beaten.</i>`; }
       } else { ihead.innerHTML = '<b>Eddy &amp; Zn warehouse</b><span class="km-tag km-tag-home">You are here</span>'; drawRoute(null); }
       const it = root.querySelector('.km-item.on'); if (it) it.scrollIntoView({ block: 'nearest' });
       apply();

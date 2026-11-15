@@ -693,6 +693,7 @@ export function initMission(ctx) {
     if (opt && opt.shield) { const sh = new THREE.Group(); const tray = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.05, 22), shieldM); tray.rotation.x = Math.PI / 2; sh.add(tray);
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.03, 6, 22), shieldRimM); sh.add(rim); sh.position.set(0.05, 1.12, 0.42); p.add(sh); p.userData.foe.shieldM = sh; p.userData.foe.shieldK = true; }
     if (opt && opt.argue) p.userData.foe.argueK = opt.argue;
+    if (opt && opt.paraSkip) p.userData.foe.paraSkip = true; // De Gouden Molen: with the Paravim settled, Ras's men keep these away
     if (opt && opt.reserve) p.userData.foe.reserve = true; // held off-map until the level calls reinforce() (Couscouskade's boats)
     p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
@@ -1183,6 +1184,7 @@ export function initMission(ctx) {
       let [x, z, r, w] = f.spawn, off = done;
       if (REMIX) { if (REMIX.place[i]) [x, z, r] = REMIX.place[i]; if (i in REMIX.weapons) w = REMIX.weapons[i]; off = !REMIX.keep.has(i); }
       if (f.wave && (HEIST || DEF)) off = true; // the backup car only comes to a raid
+      if (f.paraSkip && state.paravim && !REMIX) off = true;
       const pend = f.wave && !off; // backup: waits off-map until the alarm (waveTick brings it in)
       Object.assign(f, { alive: !off, down: 0, hp: (f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 + (LV.foeHp || 1) - 1 : (LV.foeHp || 1)) + Math.min(2, state.ngp || 0) /* New Game+: tougher every round */, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
       f.pend = pend; f.waveW = w; if (pend) f.alive = false;
@@ -1211,6 +1213,7 @@ export function initMission(ctx) {
     const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position);
     heistSetup(); defendSetup();
+    if (state.paravim && !REMIX && enemies.some((e) => e.userData.foe.paraSkip)) setTimeout(() => { if (M.active) banner('DE PARAVIM ZIJN ER', 'Ras al Gara’s men cleared the garden for you. Settled is settled.', 3); }, 4500);
     P.slot = 1; selectSlot(P.guns[0] ? 2 : P.guns[1] ? 3 : 1, true); hideScreen(); FX.shake = FX.freeze = FX.flash = FX.hurtT = 0; M.snap = true; hud();
   }
   // ================================================================== KRUIDENBLIK (Neon Vice hidden stash): one of Dad's old spice tins per level

@@ -201,7 +201,7 @@ export function paintKaasland({ R = 2.5, still = false } = {}) {
   }
   // the Eddy & Zn warehouse: a big saffron roof
   { const a = -12 * Math.PI / 180, t = [Math.cos(a), Math.sin(a)], n = [-t[1], t[0]]; house(HOME, t, n, 20, 13, '#e8a33d', 'ridge'); ctx.fillStyle = '#2f6fb5'; ctx.save(); ctx.translate(HOME[0] + 2, HOME[1] + 10); ctx.rotate(a); ctx.fillRect(-2, -0.9, 4, 1.8); ctx.restore(); }
-  // Sharma al Gara's kasbah: thick walls, four round towers, a courtyard with a well and the keep
+  // Ras al Gara's kasbah: thick walls, four round towers, a courtyard with a well and the keep
   { const { cx, cy, s: S } = KASBAH, h = S / 2;
     ctx.fillStyle = 'rgba(70,50,25,.3)'; ctx.fillRect(cx - h + 1.5, cy - h + 2, S, S);
     ctx.fillStyle = '#c99a5e'; ctx.fillRect(cx - h, cy - h, S, S); ctx.fillStyle = '#ead3a2'; ctx.fillRect(cx - h + 4, cy - h + 4, S - 8, S - 8);

@@ -79,7 +79,7 @@ export default {
   bossLook: { cap: 0xc8a040, shirt: 0xc8a040, front: '#c8a040', pants: 0x3a2a1a, belly: 1.0 },
   spawns: [ // cell x, cell z, weapon, facing (0 = +z/south), room, boss, enemy type
     [19, 30, 'makarov', Math.PI, 'jetty'], [24, 31, 'bat', Math.PI, 'jetty'],
-    [6, 24.5, 'makarov', Math.PI / 2, 'garden'], [14, 25.5, 'bat', Math.PI, 'garden'], [29, 25, 'makarov', Math.PI, 'garden'], [38, 25.5, 'shotgun', -Math.PI / 2, 'garden'],
+    [6, 24.5, 'makarov', Math.PI / 2, 'garden', false, { paraSkip: true }], [14, 25.5, 'bat', Math.PI, 'garden', false, { paraSkip: true }], [29, 25, 'makarov', Math.PI, 'garden', false, { paraSkip: true }], [38, 25.5, 'shotgun', -Math.PI / 2, 'garden', false, { paraSkip: true }], // with the Paravim settled, Ras's men hold the garden (state.paravim)
     [10, 12, 'makarov', Math.PI, 'shop'], [9, 18, 'bat', Math.PI / 2, 'shop'],
     [21, 19, 'shotgun', Math.PI, 'grindfloor'], [16, 15.5, 'makarov', Math.PI / 2, 'grindfloor'], [27, 15.5, 'bat', -Math.PI / 2, 'grindfloor'],
     [33, 8.5, 'makarov', Math.PI, 'grind'], [35, 15, 'shotgun', Math.PI, 'grind'], [32, 19, 'bat', Math.PI / 2, 'grind'],

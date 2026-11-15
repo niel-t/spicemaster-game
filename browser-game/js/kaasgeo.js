@@ -5,7 +5,7 @@
 //   - Kipkruidenkwartier (home): the 19th-century grid south-west of the canal ring
 //   - Hipsterheuvel (Act 2, Noshgey Kariot): villas and gardens on the north bank, farmland further east
 //   - De Duistere Dokken (Act 3, Abdavissies): harbour basins, sheds and container yards in the south-east
-//   - De Zandwijk (Paravim): a walled desert quarter west of the old centre, Sharma al Gara's turf
+//   - De Zandwijk (Paravim): a walled desert quarter west of the old centre, Ras al Gara's turf
 // One map unit is about 5 m.
 
 export const W = 1200, H = 800, M_PER_UNIT = 5;
@@ -53,8 +53,8 @@ export const PLACES = {
 };
 export const HOME = [300, 600]; // the Eddy & Zn warehouse
 export const ACT_AT = { start: [250, 770], lampas: [600, 560], nosh: [690, 112], abd: [980, 785], para: [150, 528] };
-// De Zandwijk: the Paravim came from the desert and took the west quay. Map-only for now (no missions yet).
-export const KASBAH = { cx: 72, cy: 340, s: 34 }; // Sharma al Gara's fortress
+// De Zandwijk: the Paravim came from the desert and took the west quay. Six missions (main.js PARA), open after Act 2.
+export const KASBAH = { cx: 72, cy: 340, s: 34 }; // Ras al Gara's fortress
 export const SOUK = [[150, 380], [178, 392], [205, 402], [232, 410], [262, 414]];
 export const PARA_PLACES = {
   'Kasbah al Gara': [KASBAH.cx, KASBAH.cy], Couscouskade: [235, 322], "Za'atarmarkt": [180, 396], Harissahof: [96, 452], Sumaksteeg: [278, 432], Dadelplein: [244, 482],

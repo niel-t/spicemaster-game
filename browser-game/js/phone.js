@@ -4,6 +4,7 @@
 //   stock (econ.phoneOrder, paid in the Dagrapport). Hakan is a regular, friendly customer; the joke is the call.
 // - Henk Cijfer rings the day before tax inspector Van der Belasting drops by (js/garage.js asks via warnHenk()).
 // - Cousin Shooki calls for no reason at all, which is the reason.
+// - Ras al Gara rings once, right after the Noshgey Kariot fall: the Paravim want the three shipments Dad never paid (main.js asks via callRas()).
 // Press T to open the Shmokia yourself: call contacts and trade spice (buy at the Kruidenbeurs, Shooki sells blends).
 // At most one random call (Hakan or Shooki) a market day; Henk's warning always gets through.
 
@@ -79,6 +80,21 @@ export function initPhone(d) {
       [HENK, rnd(HENK_CLOSE)],
     ], () => d.save());
   }
+  // ------------------------------------------------------------------ Ras al Gara: the Paravim want their money (once, after Act 2)
+  const RAS = 'Ras al Gara (telefoon)';
+  function talkRas() {
+    dialogue([
+      [RAS, 'Eddy junior. Spreek ik met Eddy junior? Goed. Dan spreek ik met de schuldenaar.'],
+      ['Eddy Jr.', 'Met wie spreek ik?'],
+      [RAS, 'Ras al Gara. Paravim. Wij hebben jouw vader dertig jaar lang kruiden gebracht, op kamelen, door de woestijn. Za’atar, sumak, ras el hanout.'],
+      [RAS, 'Drie zendingen. DRIE. Nooit betaald. Wij zijn de woestijn overgestoken voor dat geld, en het is hier koud, en het regent, en ik ben boos.'],
+      ['Eddy Jr.', 'Mijn vader betaalde altijd. Altijd.'],
+      [RAS, 'Dan heeft hij een hele rare manier van "altijd". Kom maar naar De Zandwijk, kaaskop. Breng geld mee. Met rente.'],
+      ['Eddy Jr.', rnd(['Ik kom eraan. Maar niet met geld.', 'Ik ben niet in Nederland. ...Ok, ik kom.', 'Rente? Op een schuld die niet bestaat?'])],
+      [RAS, 'Iedereen in De Zandwijk weet hoe je eruitziet. Iedereen is boos. Tot zo.'],
+    ], () => { if (d.rasDone) d.rasDone(); d.save(); });
+  }
+  const rasVoicemail = () => { toast('VOICEMAIL: ONBEKEND NUMMER', '"Ras al Gara. Paravim. Je vader is ons drie zendingen schuldig. Kom naar De Zandwijk. Met geld. Met RENTE." De Zandwijk is open on the map.', 7); if (d.rasDone) d.rasDone(); };
   const henkVoicemail = () => toast('VOICEMAIL: HENK CIJFER', '"Eddy. Psst. A tax inspector is coming tomorrow. Van der Belasting. Spend some cash, or hide it."', 5);
 
   // ------------------------------------------------------------------ Shooki: just calling, bro
@@ -233,14 +249,15 @@ export function initPhone(d) {
   const CALLERS = {
     hakan: { name: 'Hakan Et &amp; Döner', img: './assets/face_hakan.jpg', talk: talkHakan, missed: () => toast('GEMISTE OPROEP', 'Hakan Et & Döner. He\'ll call again another day.', 2.4) },
     henk: { name: 'Henk Cijfer', img: './assets/face_henk.jpg', talk: talkHenk, missed: henkVoicemail },
+    ras: { name: 'Onbekend nummer', img: null, talk: talkRas, missed: rasVoicemail },
     shooki: { name: 'Shooki', img: './assets/face_shooki.jpg', talk: talkShooki, missed: () => toast('GEMISTE OPROEP', 'Shooki. Probably nothing. It\'s always nothing.', 2.4) },
   };
-  let ringing = 0, who = null, buzz = 0, wait = 60 + Math.random() * 90, henkDue = false, henkWait = 0;
+  let ringing = 0, who = null, buzz = 0, wait = 60 + Math.random() * 90, henkDue = false, henkWait = 0, rasDue = false, rasWait = 0;
   const randomOk = () => state.step === 'free' && met('shooki') && !(state.tut && !state.tut.done) && econ.ensure().callDay !== econ.ensure().day;
 
   function ring(id = 'hakan') {
     if (ringing) return false;
-    const c = CALLERS[id]; who = id; ringing = id === 'henk' ? 20 : 12; buzz = 0;
+    const c = CALLERS[id]; who = id; ringing = id === 'henk' || id === 'ras' ? 20 : 12; buzz = 0;
     el.querySelector('.ph-name').innerHTML = c.name;
     const face = el.querySelector('.ph-face'), img = face.querySelector('img');
     face.classList.toggle('noimg', !c.img); if (c.img) img.src = c.img;
@@ -250,6 +267,7 @@ export function initPhone(d) {
   function answer() { if (!ringing || busy()) return; const id = who; stop(); CALLERS[id].talk(); }
   // garage.js calls this the day before the inspector comes; returns true when the phone takes over from the toast
   function warnHenk() { henkDue = true; henkWait = 3 + Math.random() * 4; return true; }
+  function callRas() { rasDue = true; rasWait = 8 + Math.random() * 4; }
 
   const keyLabel = () => { el.querySelector('.ph-key').textContent = `[${inputMode() === 'pad' ? glyph('E') : 'T'}]`; };
   onInputMode(keyLabel); keyLabel();
@@ -271,6 +289,7 @@ export function initPhone(d) {
     }
     if (busy()) return;
     if (henkDue) { henkWait -= dt; if (henkWait <= 0 && ring('henk')) henkDue = false; return; }
+    if (rasDue) { rasWait -= dt; if (rasWait <= 0 && ring('ras')) rasDue = false; return; }
     if (!randomOk()) return;
     wait -= dt;
     if (wait > 0) return;
@@ -279,5 +298,5 @@ export function initPhone(d) {
     e.callDay = e.day; // one random call a market day, answered or not
     ring(hakanOk && Math.random() < 0.6 ? 'hakan' : 'shooki');
   }
-  return { update, ring, answer, warnHenk, open, close, get isOpen() { return isOpen; }, get ringing() { return ringing > 0; }, get caller() { return ringing > 0 ? who : null; } };
+  return { update, ring, answer, warnHenk, callRas, open, close, get isOpen() { return isOpen; }, get ringing() { return ringing > 0; }, get caller() { return ringing > 0 ? who : null; } };
 }

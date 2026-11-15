@@ -34,6 +34,7 @@ export const BLENDS = [
 const LAMPAS_JOINTS = ['frietwijk', 'sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt', 'halvekipplein', 'bitterbalbuurt', 'pindasausplein'];
 const NOSH_JOINTS = ['joppiehaven', 'frikandelhaven', 'havermelkhaven', 'kombuchakwartier', 'gembergracht', 'avocadoakkers', 'glutenvrijegaarde', 'quinoaplantage', 'oatoase', 'speltpolder'];
 const ABD_JOINTS = ['komijnkade', 'kaneelsilos', 'paprikapakhuis', 'kruidnagelkade', 'peperhaven', 'kurkumaloods', 'saffraanpier', 'nootmuskade', 'smokkelsloot', 'containerchaos', 'kardemomdok'];
+const PARA_JOINTS = ['couscouskade', 'zaatarmarkt', 'sumaksteeg', 'harissahof', 'dadelplein', 'kasbahalgara'];
 const DISTRICT_KG = 5;
 // Spice orders (Kruidenbeurs, phone, Loods pallets) arrive on the morning ORDER_DAYS market days later; express: 1 day, +EXPRESS
 export const ORDER_DAYS = 2, EXPRESS = 0.25;
@@ -387,6 +388,7 @@ export function createEconomy(deps) {
   // smuggler tolls (stock goes missing from the warehouse; at 80+ they also take a cut of your cash).
   const RIVALS = [
     { id: 'noshgey', name: 'Noshgey Kariot', done: 'act2', joints: ['joppiehaven', 'frikandelhaven', 'havermelkhaven', 'kombuchakwartier', 'gembergracht', 'avocadoakkers', 'glutenvrijegaarde', 'quinoaplantage', 'oatoase', 'speltpolder'] },
+    { id: 'paravim', name: 'Paravim', done: 'paravim', mult: 1.5, joints: ['couscouskade', 'zaatarmarkt', 'sumaksteeg', 'harissahof', 'dadelplein', 'kasbahalgara'] }, // always angry: heat climbs 1.5x as fast
     { id: 'abdavissies', name: 'Abdavissies', done: 'act3', joints: ['komijnkade', 'kaneelsilos', 'paprikapakhuis', 'kruidnagelkade', 'peperhaven', 'kurkumaloods', 'saffraanpier', 'nootmuskade', 'smokkelsloot', 'containerchaos', 'kardemomdok'] },
   ];
   const REVIEWS = ['"Zero stars. The spice is not oat-based."', '"My kombucha tasted of garlic after. Disgusting. One star."', '"Not artisanal. I could smell capitalism."', '"Where is the gluten-free döner? Unfollowing."'];
@@ -402,12 +404,17 @@ export function createEconomy(deps) {
     for (const f of RIVALS) {
       if (state[f.done]) { L[f.id] = 0; continue; }
       const held = rivalsHeld(f), known = e.rivalKnown[f.id] || (e.rivalKnown[f.id] = []);
-      for (const id of held) if (!known.includes(id)) { known.push(id); L[f.id] = (L[f.id] || 0) + 15; } // balance 2026-11-15: was +25
-      L[f.id] = clamp((L[f.id] || 0) + held.length - 4, 0, 100); // was +2 a joint: heat sat at 100 for most of an act
+      const mult = f.mult || 1;
+      for (const id of held) if (!known.includes(id)) { known.push(id); L[f.id] = (L[f.id] || 0) + 15 * mult; } // balance 2026-11-15: was +25
+      L[f.id] = clamp((L[f.id] || 0) + held.length * mult - 4, 0, 100); // was +2 a joint: heat sat at 100 for most of an act
       if (!held.length) continue;
       if (f.id === 'noshgey' && L.noshgey >= 50 && !Object.keys(e.bombed).length && Math.random() < 0.4) { // one campaign at a time
         const pool = activeClients().filter((c) => !e.bombed[c.id] && c.id !== 'schmatzel');
         if (pool.length) { const c = pick(pool); e.bombed[c.id] = 4; out.push(`Noshgey influencers review-bombed ${c.name}: ${pick(REVIEWS)} They pay 40% less for 4 days, or until you raid there.`); }
+      }
+      if (f.id === 'paravim' && L.paravim >= 50 && state.money > 300 && Math.random() < 0.4) { // debt collectors: "drie zendingen!"
+        const cut = Math.min(1500, Math.round(state.money * (L.paravim >= 80 ? 0.08 : 0.04) / 10) * 10); deps.addMoney(-cut);
+        out.push(`Paravim debt collectors stood in the warehouse door shouting "DRIE ZENDINGEN!" until you paid W ${cut}. Interest, they said.`);
       }
       if (f.id === 'abdavissies' && L.abdavissies >= 50 && Math.random() < 0.35) {
         const big = Object.entries(e.stock).sort((a, b) => b[1] - a[1])[0];
@@ -469,7 +476,7 @@ export function createEconomy(deps) {
     const bar = (v, c) => `<span style="display:inline-block;width:120px;height:10px;border:1px solid #808080;background:#fff;vertical-align:middle"><span style="display:block;height:100%;width:${v}%;background:${c}"></span></span>`;
     const stage = h0 >= 80 ? 'retaking joints' : h0 >= 60 ? 'leaning on your clients' : h0 >= 40 ? 'price war' : h0 >= 20 ? 'grumbling' : 'calm';
     let h = state.act1 ? '<b>Lampas</b>: finished' : `<b>Lampas heat</b> ${bar(h0, h0 >= 60 ? '#c00000' : h0 >= 40 ? '#e08000' : '#60a060')} <b>${h0}</b>/100 · ${stage}`;
-    for (const f of RIVALS) { const v = e.heat[f.id] || 0; if (state[f.done] || (!v && !rivalsHeld(f).length)) continue; const st = f.id === 'noshgey' ? (v >= 50 ? 'review-bombing your joints' : 'posting angrily') : (v >= 80 ? 'tolls on stock and cash' : v >= 50 ? 'tolls on your stock' : 'watching'); h += `<br><b>${f.name} heat</b> ${bar(v, v >= 50 ? '#c00000' : '#60a060')} <b>${v}</b>/100 · ${st}${short ? '' : ` <button class="b95" data-tribute="${f.id}" ${v < 10 ? 'disabled' : ''}>Tribute (${fmt(Math.round(v * 40 / 10) * 10)}, -30)</button>`}`; }
+    for (const f of RIVALS) { const v = e.heat[f.id] || 0; if (state[f.done] || (!v && !rivalsHeld(f).length)) continue; const st = f.id === 'noshgey' ? (v >= 50 ? 'review-bombing your joints' : 'posting angrily') : f.id === 'paravim' ? (v >= 50 ? 'debt collectors at your door' : 'shouting') : (v >= 80 ? 'tolls on stock and cash' : v >= 50 ? 'tolls on your stock' : 'watching'); h += `<br><b>${f.name} heat</b> ${bar(v, v >= 50 ? '#c00000' : '#60a060')} <b>${v}</b>/100 · ${st}${short ? '' : ` <button class="b95" data-tribute="${f.id}" ${v < 10 ? 'disabled' : ''}>Tribute (${fmt(Math.round(v * 40 / 10) * 10)}, -30)</button>`}`; }
     if (e.bombed && Object.keys(e.bombed).length) h += `<br><small style="color:#a00">Review-bombed: ${Object.entries(e.bombed).map(([id, d]) => `${(CLIENTS.find((c) => c.id === id) || { name: id }).name} (${d} day${d > 1 ? 's' : ''})`).join(', ')}</small>`;
     if (short) return h + (owned.length ? ` · Control: ${owned.map((c) => `${c.name.replace(/^Snack(paleis|bar) /, '')} ${e.retaken[c.id] ? '<b style="color:#a00">LOST</b>' : controlOf(c.id)}`).join(', ')}` : '');
     h += '<br><small>Heat rises with every joint you hold (+2 a day each in Kipkruidenkwartier, +1 in Oud-Vettenburg, +10 when you take one there) and every remix raid (+5), and cools 4 a day. 40: price war · 60: they lean on clients · 80: they retake a joint · 100: they raid your warehouse.</small>';
@@ -569,7 +576,7 @@ export function createEconomy(deps) {
   function raidDone(raid) {
     const e = ensure();
     addRep(raid.grade === 'S' ? 250 : 100);
-    if (raid.remix) { const rf = NOSH_JOINTS.includes(raid.id) ? 'noshgey' : ABD_JOINTS.includes(raid.id) ? 'abdavissies' : 'lampas'; e.heat[rf] = clamp((e.heat[rf] || 0) + (rf === 'lampas' ? 5 : -15), 0, 100); } // a show of force cools a rival
+    if (raid.remix) { const rf = NOSH_JOINTS.includes(raid.id) ? 'noshgey' : ABD_JOINTS.includes(raid.id) ? 'abdavissies' : PARA_JOINTS.includes(raid.id) ? 'paravim' : 'lampas'; e.heat[rf] = clamp((e.heat[rf] || 0) + (rf === 'lampas' ? 5 : -15), 0, 100); } // a show of force cools a rival
     if (e.bombed && e.bombed[raid.id]) { delete e.bombed[raid.id]; if (deps.toast) deps.toast('REVIEWS FIXED', `After tonight, ${CLIENTS.find((c) => c.id === raid.id)?.name || 'the joint'} trends for the right reasons again: full pay.`, 3.5); }
     if (e.retaken[raid.id]) { delete e.retaken[raid.id]; e.control[raid.id] = 60; e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.toast) deps.toast('TAKEN BACK', `${CLIENTS.find((c) => c.id === raid.id).name} is yours again. Lampas heat -30.`, 4); addRep(150); }
     for (const j of e.jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }

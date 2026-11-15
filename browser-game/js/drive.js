@@ -233,7 +233,7 @@ export function initDrive(ctx) {
   }
   // District themes: the same street grid dressed for each act's destination (start({ theme })). Lampas is the base city;
   // 'nosh' turns the north into Hipsterheuvel (roof gardens, string lights, green signs), 'docks' into De Duistere Dokken
-  // (container stacks, cranes, rust). Each theme is one group that is shown or hidden when a drive starts.
+  // (container stacks, cranes, rust), 'sand' into De Zandwijk (dunes, palms, terracotta roofs). Each theme is one group that is shown or hidden when a drive starts.
   const THEMES = {};
   function buildThemes(lampasSign) {
     const north = blocks.filter((b) => b.kind === 'north');
@@ -268,6 +268,24 @@ export function initDrive(ctx) {
     for (const r of northRoofs) { const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.5, r.w - 0.7), Math.max(0.5, r.d - 0.7)), rustM); m.rotation.x = -Math.PI / 2; m.position.set(r.cx, r.h + 0.4, r.cz); g3.add(m); }
     g3.add(label([{ t: 'DE DUISTERE DOKKEN', size: 54 }, { t: 'ABDAVISSIES · GEEN VRAGEN', size: 28, color: '#c8d8e0' }], '#1a2a3a', '#c8d8e0', 22, 4, 110, 0.1, CANAL.z0 - 6.2, 0, g3, 1024, 190));
     THEMES.docks = { g: g3, hemi: [0xc8d8e8, 0x2a3040] };
+    // De Zandwijk (the Paravim): sand blown into every courtyard, date palms, terracotta flat roofs, striped market awnings
+    const g4 = new THREE.Group(); scene.add(g4);
+    const sandM = lam({ color: 0xd8b884 }), palmM = lam({ color: 0x7a5a3a }), frondM = lam({ color: 0x4a7a2a });
+    for (const b of north) {
+      const D = 10, x0 = b.x0 + D, z0 = b.z0 + D, x1 = b.x1 - D, z1 = b.z1 - D, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      const dune = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), sandM); dune.scale.set((x1 - x0) / 2, 1.2, (z1 - z0) / 2); dune.position.set(cx, 0, cz); g4.add(dune);
+      for (const [x, z] of [[x0 + 2.5, z0 + 2.5], [x1 - 2.5, z1 - 2.5], [x1 - 2.5, z0 + 2.5]]) {
+        const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.4, 7, 7), palmM); tr.position.set(x, 3.5, z); g4.add(tr);
+        for (let f = 0; f < 7; f++) { const fr = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 3.6), frondM); const a = f / 7 * Math.PI * 2; fr.position.set(x + Math.sin(a) * 1.5, 6.8, z + Math.cos(a) * 1.5); fr.rotation.y = a; fr.rotation.x = 0.4; g4.add(fr); }
+      }
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.8), new THREE.MeshBasicMaterial({ map: signTex([{ t: ['ZA’ATAR', 'SUMAK', 'HARISSA', 'DADELS'][(b.i + b.j) % 4], size: 80 }], '#2a2e6a', '#e8a33d', 512, 128), transparent: true }));
+      sign.rotation.x = -Math.PI / 2; sign.position.set(cx, 1.4, cz + 4); g4.add(sign);
+    }
+    const terraT = canvasTex(64, 64, (g) => { g.fillStyle = '#b4542c'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 200; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '90,40,20' : '230,170,110'},${Math.random() * 0.25})`; g.fillRect(Math.random() * 64, Math.random() * 64, 3, 3); } g.fillStyle = '#e8d0a0'; g.fillRect(0, 0, 64, 3); g.fillRect(0, 61, 64, 3); });
+    const terraM = lam({ map: terraT }), awnT = canvasTex(64, 64, (g) => { for (let x = 0; x < 64; x += 16) { g.fillStyle = '#b8301a'; g.fillRect(x, 0, 8, 64); g.fillStyle = '#f3e6c8'; g.fillRect(x + 8, 0, 8, 64); } }), awnM = lam({ map: awnT });
+    for (const r of northRoofs) { const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.5, r.w - 0.7), Math.max(0.5, r.d - 0.7)), terraM); m.rotation.x = -Math.PI / 2; m.position.set(r.cx, r.h + 0.4, r.cz); g4.add(m); if (Math.random() < 0.3) { const a = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(4, r.w * 0.6), 2), awnM); a.rotation.x = -Math.PI / 2; a.position.set(r.cx, r.h + 0.6, r.cz); g4.add(a); } }
+    g4.add(label([{ t: 'WELKOM IN DE ZANDWIJK', size: 54 }, { t: 'PARAVIM · BETAAL JE SCHULDEN', size: 28, color: '#2a2e6a' }], '#e8a33d', '#2a2e6a', 22, 4, 110, 0.1, CANAL.z0 - 6.2, 0, g4, 1024, 190));
+    THEMES.sand = { g: g4, hemi: [0xffe0b0, 0x6a4a2a] };
     THEMES.lampas = { g: null, sign: lampasSign, hemi: [0xffe8d0, 0x4a4060] };
   }
   function applyTheme(name) {
@@ -815,7 +833,7 @@ export function initDrive(ctx) {
     // ambush when you cross into Lampas turf
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0 && opts.van && opts.van.tint) run.ambush = 1; // tinted windows: they don't spot you at the canal
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0) {
-      run.ambush = 1; banner('HINDERLAAG!', `The ${({ nosh: 'Noshgey Kariot', docks: 'Abdavissies' })[opts.theme] || 'Lampas'} want their street back. Ram them into a wall.`, 2.6);
+      run.ambush = 1; banner('HINDERLAAG!', `The ${({ nosh: 'Noshgey Kariot', docks: 'Abdavissies', sand: 'Paravim' })[opts.theme] || 'Lampas'} want their street back. Ram them into a wall.`, 2.6);
       for (const [dx, dz] of [[-30, -46], [26, -52], [0, -80]]) spawnLampas(Math.max(GX[0], Math.min(GX[5], Math.round((van.x + dx) / 44) * 44)) + 2.2, Math.max(GZ[9] + 2, van.z + dz));
     }
     if (!run.over && van.z < GZ[7] && run.ambush === 1) { run.ambush = 2; spawnLampas(GX[5] + 2.2, GZ[9] + 2); spawnLampas(GX[3] - 2.2, GZ[9] + 2); }
@@ -845,7 +863,7 @@ export function initDrive(ctx) {
     sun.position.set(camera.position.x - 30, 60, camera.position.z + 20); sun.target.position.set(camera.position.x, 0, camera.position.z);
     if (D._water) D._water.material.map.offset.x = (performance.now() * 0.00002) % 1; // the canal drifts
     // HUD
-    $('drvStats').innerHTML = `${fmt(run.t)} · ${Math.round(spd * 3.6)} KM/U<br>SMARTENGELD W ${run.smart} · ${({ nosh: 'NOSHGEY', docks: 'ABDAVISSIES' })[opts.theme] || 'LAMPAS'} ${run.wrecked}`;
+    $('drvStats').innerHTML = `${fmt(run.t)} · ${Math.round(spd * 3.6)} KM/U<br>SMARTENGELD W ${run.smart} · ${({ nosh: 'NOSHGEY', docks: 'ABDAVISSIES', sand: 'PARAVIM' })[opts.theme] || 'LAMPAS'} ${run.wrecked}`;
     const hp = $('drvHp'); hp.style.width = van.hp + '%'; hp.style.background = van.hp > 60 ? '#6ed36e' : van.hp > 30 ? '#ffd36b' : '#ff4a4a';
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('drvBanner').style.display = 'none'; }
     drawMinimap();
