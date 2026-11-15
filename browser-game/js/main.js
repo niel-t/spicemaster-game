@@ -14,7 +14,7 @@ import { initDrive } from './drive.js'; // top-down Oofmobiel drive between dist
 import { createEconomy, rankOf } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
 import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
-import { createKaasMap } from './kaasmap.js'; // the zoomable Map of Kaasland (PC + Oofmobiel)
+import { createKaasMap } from './kaasmap.js'; // the Map of Kaasland: aerial view + place list (PC + Oofmobiel)
 import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wheel clamps, the tax inspector
 import { createHaggle, createSpiceStall } from './haggle.js'; // haggling with Tristan's cast (Werkplaats clients, Fenna, Oma Zahra)
 import { createWorkshop } from './workshop.js'; // De Werkplaats: build and repair machines, upgrade the Kaasdows
@@ -1125,7 +1125,7 @@ const heists = createHeists({ rank: rankNow, state, econ, garage, addMoney, toas
     } });
   } });
 function paintVan(c) { oof.traverse((o) => { if (o.userData && o.userData.paint) o.userData.paint.color.setHex(c); }); }
-function openPC(tab = 'sell', mode = 'pc') {
+function openPC(tab = 'sell', mode = 'pc') { kmap.warm(); // paint the aerial map while the desktop is open, so the map tab is instant
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
 }
 function closePC() { state.inPC = false; $('pc').style.display = 'none'; afterPC(); }

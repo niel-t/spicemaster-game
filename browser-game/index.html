@@ -55,77 +55,45 @@
   .mapwrap { position: relative; }
   .mapwrap img { width: 100%; display: block; border: 2px solid #000; }
   .pin { position: absolute; transform: translate(-50%, -50%); width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #000; }
-  /* Kaaskaart (js/kaasmap.js): a street-map app inside the Kaasdows window */
-  .kmap { height: max(380px, calc(100vh - 128px)); margin: -4px; }
-  .km-view { position: relative; height: 100%; overflow: hidden; border: 2px solid; border-color: #808080 #fff #fff #808080; background: #a9d3e8; cursor: grab; touch-action: none; outline: none; font-family: "Rubik", Arial, sans-serif; }
+  /* Map of Kaasland (js/kaasmap.js + kaasaerial.js): Win95 list on the left, aerial map on the right */
+  .kmap { display: flex; gap: 8px; height: max(380px, calc(100vh - 128px)); }
+  .km-side { width: 250px; flex: none; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .km-info { flex: none; max-height: 48%; overflow-y: auto; line-height: 1.35; }
+  .km-ihead b { display: block; font-size: 15px; } .km-ihead small { display: block; color: #444; margin: 3px 0 6px; }
+  .km-tag { display: inline-block; margin-top: 3px; padding: 0 6px; font-size: 11px; font-weight: 700; border: 1px solid #000; }
+  .km-tag-open { background: #ffd36b; } .km-tag-own { background: #8fd18f; } .km-tag-lost { background: #ff8a70; } .km-tag-locked { background: #c0c0c0; } .km-tag-home { background: #9cc3ff; }
+  #pininfo .b95 { display: block; width: 100%; margin-top: 8px; font-weight: 700; }
+  .km-list { flex: 1; min-height: 0; overflow-y: auto; background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080; }
+  .km-grp { border-bottom: 1px solid #c0c0c0; }
+  .km-gh { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 6px; border: 0; background: #000080; color: #fff; font: inherit; cursor: pointer; text-align: left; }
+  .km-gh small { font-weight: 700; }
+  .km-shut { padding: 4px 6px; background: #dcdcdc; color: #555; cursor: pointer; } .km-shut b { display: block; } .km-shut small { font-size: 11px; }
+  .km-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 6px; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+  .km-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .km-item em { font-style: normal; font-size: 11px; color: #666; }
+  .km-item:hover { background: #e8e8f8; } .km-item.on { background: #000080; color: #fff; } .km-item.on em { color: #cfd8ff; }
+  .km-i-open span, .km-i-lost span { font-weight: 700; } .km-i-locked span { color: #666; }
+  .km-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .km-tools { display: flex; align-items: center; gap: 4px; } .km-tools .b95 { padding: 2px 9px; } .km-b { width: 30px; font-weight: 700; }
+  .km-tip { margin-left: auto; color: #444; font-size: 12px; }
+  .km-view { position: relative; flex: 1; min-height: 0; overflow: hidden; border: 2px solid; border-color: #808080 #fff #fff #808080; background: #1f4656; cursor: grab; touch-action: none; outline: none; }
   .km-view.km-drag { cursor: grabbing; }
   .km-svg { width: 100%; height: 100%; display: block; user-select: none; }
-  .km-sat { display: none; } .km-photo-on .km-sat { display: inline; } .km-photo-on .km-base, .km-photo-on .km-streets, .km-photo-on .km-parks, .km-photo-on .km-txt .km-district, .km-photo-on .km-parkname { display: none; }
-  .km-photo-on .km-roads { opacity: .55; }
-  .km-area { cursor: pointer; } .km-area:hover { filter: brightness(.985); }
-  .km-streets { opacity: 0; transition: opacity .2s; pointer-events: none; } .km-z2 .km-streets { opacity: .9; }
-  .km-parks, .km-locks, .km-borders, .km-roads, .km-roadnames, .km-txt { pointer-events: none; }
-  .km-roadnames { display: none; fill: #6b5b2a; font-weight: 500; letter-spacing: .3px; paint-order: stroke; stroke: #fde9a4; stroke-width: calc(var(--k) * 2.5px); } .km-z2 .km-roadnames { display: inline; }
-  .km-parkname { display: none; } .km-z2 .km-parkname { display: inline; } .km-parkname text { font: 500 11px "Rubik", Arial; fill: #3b7a3b; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
-  .km-district text { font: 600 13px "Rubik", Arial; letter-spacing: 2.5px; fill: #5f6368; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
-  .km-district .km-dsub { font-size: 10px; letter-spacing: 1.5px; fill: #9aa0a6; } .km-dlocked text:first-child { fill: #8a8f94; }
-  .km-z3 .km-district { display: none; }
-  .km-route { stroke: #1a73e8; stroke-linecap: round; stroke-linejoin: round; } .km-route-case { stroke: #1557b0; stroke-linecap: round; stroke-linejoin: round; }
-  .km-pl { cursor: pointer; } .km-wh { cursor: default; pointer-events: none; }
-  .km-lab { font: 500 12px "Rubik", Arial, sans-serif; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
-  .km-open .km-lab { fill: #b45309; font-weight: 700; } .km-lost .km-lab { fill: #c5221f; font-weight: 700; } .km-own .km-lab { fill: #137333; } .km-locked .km-lab { fill: #70757a; } .km-boss .km-lab { font-weight: 700; }
-  .km-person .km-lab { fill: #6a4c93; } .km-home .km-lab { fill: #1a73e8; font-weight: 700; }
-  .km-person { display: none; } .km-z3 .km-person { display: inline; }
-  .km-hide-open .km-c-open, .km-hide-own .km-c-own, .km-hide-locked .km-c-locked, .km-hide-wh .km-c-wh, .km-hide-people .km-c-people { display: none !important; }
-  .km-pl:hover > circle:nth-of-type(3) { filter: brightness(1.15); }
+  .km-loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #c0c0c0; border: 2px solid; border-color: #fff #000 #000 #fff; padding: 6px 12px; pointer-events: none; }
+  .km-locks path, .km-locks ellipse { fill: rgba(20,24,28,.45); pointer-events: none; }
+  .km-route { stroke: #4aa3ff; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; } .km-route-case { stroke: #0b3a73; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .km-txt { pointer-events: none; }
+  .km-district text { font: 900 15px "Rubik", Arial, sans-serif; letter-spacing: 3px; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.75); stroke-width: 4px; stroke-linejoin: round; }
+  .km-district .km-dsub { font-size: 10px; letter-spacing: 1.5px; fill: #ffd36b; } .km-near .km-district { display: none; }
+  .km-pl { cursor: pointer; } .km-wh { pointer-events: none; }
+  .km-lab rect { fill: rgba(20,18,16,.78); } .km-lab text { font: 600 12px "Rubik", Arial, sans-serif; fill: #fff; }
+  .km-open .km-lab rect { fill: #e8710a; } .km-lost .km-lab rect { fill: #c5221f; } .km-locked .km-lab text { fill: #cfcfcf; font-weight: 400; }
+  .km-home .km-lab rect { fill: #1a73e8; } .km-sel .km-lab rect { stroke: #fff; stroke-width: 1.5; }
   .km-halo { animation: kmHalo 2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
-  .km-selpin { pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+  .km-selpin { pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
   @keyframes kmHalo { 0% { transform: scale(.5); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
-  /* overlays */
-  .km-top { position: absolute; left: 12px; top: 12px; width: 340px; max-width: calc(100% - 24px); z-index: 2; }
-  .km-search { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 24px; padding: 0 6px 0 14px; height: 44px; box-shadow: 0 2px 4px rgba(0,0,0,.2), 0 -1px 0 rgba(0,0,0,.02); }
-  .km-q { flex: 1; border: 0; outline: 0; font: 15px "Rubik", Arial, sans-serif; color: #202124; background: transparent; min-width: 0; }
-  .km-qx { border: 0; background: none; font-size: 22px; color: #5f6368; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; visibility: hidden; } .km-qx:hover { background: #f1f3f4; }
-  .km-results { display: none; position: absolute; left: 0; right: 0; top: 48px; z-index: 3; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.25); padding: 4px 0; max-height: 320px; overflow-y: auto; }
-  .km-chips { display: flex; gap: 6px; margin-top: 8px; width: max-content; max-width: min(620px, calc(100vw - 260px)); overflow-x: auto; scrollbar-width: none; }
-  .km-chip { flex: none; border: 1px solid #dadce0; background: #fff; color: #3c4043; border-radius: 16px; height: 30px; padding: 0 12px; font: 500 13px "Rubik", Arial; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
-  .km-chip b { font-weight: 700; margin-left: 2px; } .km-chip.on { background: #e8f0fe; border-color: #1a73e8; color: #1967d2; } .km-chip:not(.on) { color: #80868b; text-decoration: line-through; }
-  .km-card { position: absolute; left: 12px; top: 110px; width: 340px; max-width: calc(100% - 24px); max-height: calc(100% - 130px); overflow-y: auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.28); padding: 16px; box-sizing: border-box; color: #202124; z-index: 1; cursor: default; }
-  .km-card .km-c-start, .km-card .km-c-place, .km-card .km-c-area { display: none; }
-  .km-card[data-mode="start"] .km-c-start, .km-card[data-mode="place"] .km-c-place, .km-card[data-mode="area"] .km-c-area { display: block; }
-  .km-card[data-mode="start"] .km-cx { display: none; }
-  .km-cx { position: absolute; right: 8px; top: 8px; border: 0; background: none; font-size: 22px; color: #5f6368; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; } .km-cx:hover { background: #f1f3f4; }
-  .km-ctitle { font: 500 20px "Rubik", Arial; padding-right: 30px; } .km-csub { color: #70757a; font-size: 13px; margin-top: 3px; }
-  .km-sect { margin: 14px 0 4px; font: 500 12px "Rubik", Arial; color: #5f6368; text-transform: uppercase; letter-spacing: .6px; }
-  .km-pill { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 12px; font: 500 12px "Rubik", Arial; }
-  .km-pill-open { background: #feefe3; color: #b45309; } .km-pill-own { background: #e6f4ea; color: #137333; } .km-pill-lost { background: #fce8e6; color: #c5221f; } .km-pill-locked { background: #f1f3f4; color: #5f6368; } .km-pill-home { background: #e8f0fe; color: #1967d2; }
-  .km-eta { margin-top: 10px; font-size: 14px; color: #3c4043; } .km-eta b { color: #188038; font-size: 16px; }
-  .km-hint { margin-top: 4px; font-size: 12px; color: #70757a; } .km-need { margin-top: 8px; padding: 8px 10px; background: #f8f9fa; border-radius: 8px; font-size: 13px; color: #3c4043; }
-  .km-pinfo { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8eaed; font-size: 13px; line-height: 1.45; color: #3c4043; }
-  .km-pinfo .b95, .km-btn { display: block; width: 100%; margin-top: 10px; border: 0; border-radius: 20px; background: #1a73e8; color: #fff; font: 500 14px "Rubik", Arial; padding: 9px 14px; cursor: pointer; box-shadow: none; }
-  .km-pinfo .b95:hover, .km-btn:hover { background: #1765cc; } .km-pinfo .b95:active { border: 0; }
-  .km-prog { margin-top: 10px; height: 6px; border-radius: 3px; background: #e8eaed; overflow: hidden; } .km-prog i { display: block; height: 100%; background: #188038; }
-  .km-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; background: none; text-align: left; cursor: pointer; border-radius: 8px; font: inherit; color: #202124; box-sizing: border-box; }
-  .km-row:hover { background: #f1f3f4; } .km-row svg { flex: none; } .km-row span { display: flex; flex-direction: column; min-width: 0; }
-  .km-row b { font: 500 14px "Rubik", Arial; } .km-row small { color: #70757a; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .km-results .km-row { border-radius: 0; padding: 6px 14px; } .km-empty { color: #70757a; font-size: 13px; padding: 8px; }
-  .km-ctrl { position: absolute; right: 12px; bottom: 24px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-  .km-fab { width: 40px; height: 40px; border-radius: 8px; border: 0; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: pointer; display: grid; place-items: center; } .km-fab:hover { background: #f8f9fa; }
-  .km-zoom { display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.3); overflow: hidden; }
-  .km-zoom button { width: 40px; height: 40px; border: 0; background: #fff; font: 400 24px Arial; color: #5f6368; cursor: pointer; } .km-zoom button:hover { background: #f8f9fa; color: #202124; } .km-zoom button + button { border-top: 1px solid #e8eaed; }
-  .km-layer { position: absolute; left: 12px; bottom: 24px; width: 72px; height: 72px; padding: 0; border: 2px solid #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.35); cursor: pointer; background: #fff; }
-  .km-layer span:last-child { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 0; font: 500 11px "Rubik", Arial; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.65)); }
-  .km-lthumb { position: absolute; inset: 0; background-size: cover; } .km-lthumb.sat { background-image: url(./assets/kaasland_map.jpg); background-position: 30% 60%; background-size: 420%; }
-  .km-lthumb.map { background: repeating-linear-gradient(0deg, transparent 0 9px, #fff 9px 11px), repeating-linear-gradient(90deg, transparent 0 9px, #fff 9px 11px), #efe9df; }
-  .km-lthumb.map::after { content: ""; position: absolute; left: -10%; right: -10%; top: 45%; height: 5px; background: #fde293; transform: rotate(-20deg); }
-  .km-scale { position: absolute; right: 64px; bottom: 6px; display: flex; flex-direction: column; align-items: flex-end; font: 11px "Rubik", Arial; color: #3c4043; pointer-events: none; text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
-  .km-scale i { display: block; height: 4px; border: 1.5px solid #3c4043; border-top: 0; }
-  @media (max-width: 700px) {
-    .kmap { height: calc(100vh - 150px); }
-    .km-card { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-width: none; max-height: 42%; border-radius: 14px 14px 0 0; }
-    .km-chips { max-width: 100%; }
-    .km-ctrl { bottom: calc(42% + 12px); } .km-layer { bottom: calc(42% + 12px); width: 56px; height: 56px; } .km-scale { display: none; }
-  }
+  .km-status { display: flex; gap: 3px; } .km-st { border: 1px solid; border-color: #808080 #fff #fff #808080; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .km-hover { flex: 1; } .km-scale { display: flex; align-items: center; gap: 6px; } .km-scale i { display: block; height: 5px; border: 1.5px solid #000; border-top: 0; }
+  @media (max-width: 760px) { .kmap { flex-direction: column-reverse; height: auto; } .km-view { height: 58vh; flex: none; } .km-side { width: auto; } .km-list { max-height: 40vh; } .km-tip { display: none; } }
   .bid { color: #006400; font-weight: 700; }
   .fly { position: fixed; font: 900 22px "Bungee", "Arial Black", Impact; color: #f2b84b; text-shadow: 2px 2px 0 #000; pointer-events: none; transition: transform 1.2s ease-out, opacity 1.2s; }
   #shop { position: fixed; inset: 0; display: none; background: radial-gradient(circle at 50% 30%, rgba(60,0,60,.75), rgba(0,0,0,.92)); font-family: "Rubik", Arial, sans-serif; color: #fff; }
