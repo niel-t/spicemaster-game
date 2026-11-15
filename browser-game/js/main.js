@@ -19,6 +19,7 @@ import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wh
 import { createHaggle, createSpiceStall } from './haggle.js'; // haggling with Tristan's cast (Werkplaats clients, Fenna, Oma Zahra)
 import { createWorkshop } from './workshop.js'; // De Werkplaats: build and repair machines, upgrade the Kaasdows
 import { initPhone } from './phone.js'; // Hakan calls for kipkraud
+import { createTitleCity } from './titlecity.js'; // the animated city behind the start menu
 import { createTips } from './tips.js'; // Shooki texts a tip the first time each topic comes up
 import { createTutorial } from './tutorial.js'; // the first fifteen minutes: Shooki's tour of the spice trade
 import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades, racking, the heftruck, the hall and the tent
@@ -1659,6 +1660,8 @@ function titleAct(t) {
   else if (t === 'music') { musicPref = !musicPref; try { if (musicPref) music.start(); else music.stop(); } catch (e) { /* audio optional */ } titleMenu(); }
 }
 titleMenu(false);
+let titleCity = null; try { titleCity = createTitleCity($('title')); } catch (e) { console.error(e); }
+function leaveTitle() { $('title').style.display = 'none'; document.body.classList.remove('on-title'); if (titleCity) { titleCity.stop(); titleCity = null; } }
 // hints follow the last device used (keyboard / controller / touch)
 const HELP = {
   mouse: 'WASD move · Shift run · E interact / click · Wheel zoom · M map · N music · I inventory · 1 Maboota · F / click attack · P pause · guns on missions only',
@@ -1725,14 +1728,14 @@ function titleKey(e) {
 function newGame() { clearSave(); savedGame = null; startGame(); }
 function continueGame() {
   if (state.step !== 'title') return;
-  applySave(savedGame); $('title').style.display = 'none'; document.body.classList.remove('on-title'); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); updateObjective(); beep(440, 0.1, 'triangle');
+  applySave(savedGame); leaveTitle(); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); updateObjective(); beep(440, 0.1, 'triangle');
   toast('WELKOM TERUG', `W ${state.money.toLocaleString('nl-NL')} in your pocket.`, 2);
   if (musicPref) { try { music.start(); } catch (e) { /* audio optional */ } }
 }
 function startGame() {
   if (state.step !== 'title') return;
   tutorial.begin(); tips.reset(); setTimeout(() => tips.show('start'), 2600);
-  $('title').style.display = 'none'; document.body.classList.remove('on-title'); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle'); writeSave();
+  leaveTitle(); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle'); writeSave();
   if (musicPref) { try { music.start(); } catch (e) { /* audio optional */ } }
   toast('KIPKRUIDENKWARTIER', 'Eddy Sr. is waiting for you in the warehouse.', 2.6);
 }
@@ -2559,7 +2562,7 @@ let current = null;
 const clock = new THREE.Clock();
 const occl = new THREE.Raycaster();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
-let incomeT = 0, lastStep = state.step;
+let incomeT = 0, lastStep = state.step, titleSkip = 0;
 function tick() {
   if (isPaused()) { clock.getDelta(); if (oofDrive.active) post.render(oofDrive.scene, oofDrive.camera); else post.render(scene, camera); requestAnimationFrame(tick); return; }
   if (oofDrive.active) { oofDrive.update(Math.min(clock.getDelta(), 0.05)); post.render(oofDrive.scene, oofDrive.camera); requestAnimationFrame(tick); return; }
@@ -2693,7 +2696,8 @@ function tick() {
       g.traverse((c) => { if (c.isMesh) { c.material.opacity = g.userData.fade * (c.material.userData.baseOp ?? 1); c.material.depthWrite = g.userData.fade > 0.95 && c.material.userData.baseOp === undefined; } });
     }
   }
-  post.render(scene, camera);
+  // the painted city covers the street on the title screen: keep the 3D scene warm with an occasional frame
+  if (!(state.step === 'title' && titleCity && titleCity.ready && (++titleSkip % 20))) post.render(scene, camera);
   requestAnimationFrame(tick);
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);

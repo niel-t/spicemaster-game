@@ -29,7 +29,8 @@ const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t =
 const trace = (ctx, poly, close = true) => { ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); if (close) ctx.closePath(); };
 function shade(hex, f) { const n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, c = (v) => Math.max(0, Math.min(255, Math.round(v * f))); return `rgb(${c(r)},${c(g)},${c(b)})`; }
 
-export function paintKaasland({ R = 2.5 } = {}) {
+// still: leave out the windmill's sails and the boats under way, so the title screen can animate them on top
+export function paintKaasland({ R = 2.5, still = false } = {}) {
   const rand = rng(1971), pick = (a) => a[Math.floor(rand() * a.length)], rr = (a, b) => a + rand() * (b - a);
   const cv = document.createElement('canvas'); cv.width = Math.round(W * R); cv.height = Math.round(H * R);
   const ctx = cv.getContext('2d'); ctx.scale(R, R); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -254,15 +255,15 @@ export function paintKaasland({ R = 2.5 } = {}) {
   ctx.fillStyle = '#7a5236'; ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 4.4, Math.sin(a) * 4.4); } ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#4b3a2c'; ctx.beginPath(); ctx.arc(0, 0, 2.2, 0, 7); ctx.fill();
   ctx.rotate(0.45);
-  for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.fillStyle = 'rgba(40,40,30,.25)'; ctx.fillRect(1.2, 1.2, 2.4, 12); ctx.fillStyle = '#f4eddc'; ctx.fillRect(0, 0.4, 2.4, 12); ctx.strokeStyle = '#a99b80'; ctx.lineWidth = 0.2; for (let k = 2; k < 12; k += 1.6) { ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(2.4, k); ctx.stroke(); } ctx.fillStyle = '#6b4a30'; ctx.fillRect(-0.3, 0, 0.6, 12.5); }
+  if (!still) for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.fillStyle = 'rgba(40,40,30,.25)'; ctx.fillRect(1.2, 1.2, 2.4, 12); ctx.fillStyle = '#f4eddc'; ctx.fillRect(0, 0.4, 2.4, 12); ctx.strokeStyle = '#a99b80'; ctx.lineWidth = 0.2; for (let k = 2; k < 12; k += 1.6) { ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(2.4, k); ctx.stroke(); } ctx.fillStyle = '#6b4a30'; ctx.fillRect(-0.3, 0, 0.6, 12.5); }
   ctx.restore();
 
   // ---- boats
   const boat = (x, y, l, wd, ang, hull, deck) => { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-l * 0.75, 0, l * 0.55, wd * 0.35, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(30,60,70,.25)'; ctx.beginPath(); ctx.ellipse(0.8, 1, l / 2, wd / 2, 0, 0, 7); ctx.fill(); ctx.fillStyle = hull; ctx.beginPath(); ctx.moveTo(l / 2, 0); ctx.quadraticCurveTo(l * 0.35, -wd / 2, -l / 2, -wd / 2); ctx.lineTo(-l / 2, wd / 2); ctx.quadraticCurveTo(l * 0.35, wd / 2, l / 2, 0); ctx.fill(); if (deck) { ctx.fillStyle = deck; ctx.fillRect(-l * 0.38, -wd * 0.3, l * 0.6, wd * 0.6); } ctx.restore(); };
-  for (const [x, y, a] of [[90, 268, 0.04], [470, 276, -0.05], [700, 278, 0.02], [830, 262, -0.4], [260, 262, 0.05]]) boat(x, y, 20, 4.5, a, '#5c4a3c', '#3f5560');
+  if (!still) for (const [x, y, a] of [[90, 268, 0.04], [470, 276, -0.05], [700, 278, 0.02], [830, 262, -0.4], [260, 262, 0.05]]) boat(x, y, 20, 4.5, a, '#5c4a3c', '#3f5560');
   for (const [x, y, a] of [[1080, 205, 0.6], [1135, 190, 2.4], [955, 225, -0.3], [1170, 240, 1.2], [1050, 270, 3]]) boat(x, y, 6, 2.2, a, '#fbf8f0', '#d7c7a6');
   for (let i = 0; i < 14; i++) boat(MARINA[0] + 6 + (i % 7) * 7.5, MARINA[1] + 10 + Math.floor(i / 7) * 20, 5, 2, Math.PI / 2, '#fbf8f0', '#c8d6de');
-  for (let i = 0; i < 10; i++) { const r = pick(CANALS), a = rr(10, 170), [x, y] = polar(a, r); boat(x, y, 4.5, 1.6, (a + 90) * Math.PI / 180, pick(['#e6dccb', '#3d6b55', '#7a4a3a']), null); }
+  for (let i = 0; i < 10; i++) { const r = pick(CANALS), a = rr(10, 170), [x, y] = polar(a, r); if (!still) boat(x, y, 4.5, 1.6, (a + 90) * Math.PI / 180, pick(['#e6dccb', '#3d6b55', '#7a4a3a']), null); }
 
   // ---- a light paper grain over everything
   const gr = document.createElement('canvas'); gr.width = gr.height = 96; const g = gr.getContext('2d'), gd = g.createImageData(96, 96);
