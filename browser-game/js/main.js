@@ -1544,6 +1544,7 @@ function updateObjective() {
   }[state.step];
   if (state.step === 'hire' && state.table && state.naknik > 0) state.step = 'dad2';
   if (owns('spekbuurt')) tutorial.owned('spekbuurt');
+  if (state.district1 && tutorial.active()) tutorial.skip(); // never got round to Shooki's tour: it stops nagging once the district is Eddy's
   updateKangoo();
   setObjective(tutorial.objective() || t || '');
   if (state.step === 'free' && checkDistrict()) updateObjective();
