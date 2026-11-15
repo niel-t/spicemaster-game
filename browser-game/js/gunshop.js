@@ -3,7 +3,7 @@
 // Every regular piece is always on the shelf; each market day The Russian rolls three pieces: the regular ones are 20% off
 // (DEAL) and an exclusive among them (Golden AK, Golden Deagles, Katana) is the one he can actually sell you that day.
 // Spice Master colours and fonts. Keyboard: ↑ ↓ rows, ← → sections, Enter buy, Esc close. Mouse and touch: tap.
-import { WD, CAL, MODS, ARMOUR, SHOP_PRICE, SHOP_SECS, EXCL, SELL_FRAC, DEAL_OFF, WDESC, gunStats, isGunId } from './arsenal.js';
+import { WD, CAL, MODS, ARMOUR, PLATE, NADES, GEAR_X, SHOP_PRICE, SHOP_SECS, EXCL, SELL_FRAC, DEAL_OFF, WDESC, gunStats, isGunId } from './arsenal.js';
 
 const RU_HI = ['Everything is quality. Everything is cash.', 'No receipts, no questions, no refunds.', 'Your father bought his first knife here. He still owes me for the sharpening.', 'Dolphins are smartest animal. After me.', 'Is not a gun. Is a statement, written in lead.'];
 const RU_BUY = ['Good choice. Very ballistic.', 'Da! Treat her well, she is temperamental.', 'You have taste. Dangerous taste.', 'Pleasure doing business. Mostly the pleasure is mine.'];
@@ -70,40 +70,48 @@ export function createGunShop({ mission, state, $, addMoney, beep, save, kitText
     const day = (state.econ && state.econ.day) | 0;
     if (state.ruStock && state.ruStock.day === day) return state.ruStock.list;
     let a = day * 7919 + 13; const r = () => { a = (a * 16807) % 2147483647; return a / 2147483647; };
-    const pool = Object.keys(SHOP_PRICE).filter((k) => !EXCL.includes(k)).sort(() => r() - 0.5), list = pool.slice(0, 3);
+    const pool = Object.keys(SHOP_PRICE).filter((k) => !EXCL.includes(k) && !WD[k].unlock).sort(() => r() - 0.5), list = pool.slice(0, 3);
     if (r() < 0.4 && state.owned && Object.keys(state.owned).length >= 3) list[Math.floor(r() * 3)] = EXCL[Math.floor(r() * EXCL.length)];
     state.ruStock = { day, list }; return list;
   }
-  const avail = (t) => !WD[t].excl || stock().includes(t);
-  const deal = (t) => !WD[t].excl && stock().includes(t);
+  const UNLOCK_TXT = { act1: 'AFTER ACT 1', act2: 'AFTER ACT 2', act3: 'AFTER ACT 3' };
+  const unlocked = (o) => !o.unlock || !!state[o.unlock]; // the Jackhammer, Dual Uzis, AWP and goggles stay locked until that act is done
+  const avail = (t) => (WD[t].unlock ? unlocked(WD[t]) : !WD[t].excl || stock().includes(t));
+  const deal = (t) => !WD[t].excl && stock().includes(t) && !!SHOP_PRICE[t];
   const price = (t) => (deal(t) ? Math.round(SHOP_PRICE[t] * (1 - DEAL_OFF) / 10) * 10 : SHOP_PRICE[t]);
   const owns = (t) => mission.owns(t);
   const upgPrice = (c) => CAL[c].price * 3 * (1 + (state.upg[c] | 0));
-  const sellPrice = (it) => { const base = Math.round((SHOP_PRICE[it.id] || (ARMOUR[it.id] && ARMOUR[it.id].price) || 0) * SELL_FRAC); return ARMOUR[it.id] && it.plates < ARMOUR[it.id].plates ? Math.round(base / 2) : base; };
+  const sellPrice = (it) => { const base = Math.round((SHOP_PRICE[it.id] || (ARMOUR[it.id] && ARMOUR[it.id].price) || 0) * SELL_FRAC); if (it.id === 'carrier') return base + Math.round((it.plates | 0) * PLATE.price * SELL_FRAC); return ARMOUR[it.id] && it.plates < ARMOUR[it.id].plates ? Math.round(base / 2) : base; };
   function build() {
     const R = [], ar = mission.armour();
     for (const s of SHOP_SECS) {
       const it = [];
       if (s.w) for (const t of s.w) it.push({ k: 'w', t });
       else if (s.id === 'mods') for (const m in MODS) it.push({ k: 'mod', m });
+      else if (s.id === 'nades') for (const n in NADES) it.push({ k: 'nade', n });
+      else if (s.id === 'xgear') for (const x in GEAR_X) it.push({ k: 'xg', x });
       else if (s.id === 'gear') {
         const cs = mission.ownCals(); if (!cs.length) it.push({ k: 'ammo', c: null }); for (const c of cs) it.push({ k: 'ammo', c });
-        it.push({ k: 'vest' }); if (ar.type !== 'carrier') it.push({ k: 'carrier' });
+        if (ar.type !== 'carrier') it.push({ k: 'vest' }); if (ar.type !== 'carrier') it.push({ k: 'carrier' }); it.push({ k: 'plate' });
         for (const c of cs) it.push({ k: 'stash', c }); if (L().guns[0] && L().guns[1]) it.push({ k: 'swap' });
       } else { for (const o of mission.sellables()) it.push({ k: 'sell', o }); if (!it.length) it.push({ k: 'none' }); }
       R.push({ h: 1, sec: s.id, name: s.name }); for (const q of it) { q.sec = s.id; R.push(q); }
     }
     return R;
   }
-  const keyOf = (q) => q.k + ':' + (q.t || q.m || q.c || (q.o && q.o.key) || '');
+  const keyOf = (q) => q.k + ':' + (q.t || q.m || q.c || q.n || q.x || (q.o && q.o.key) || '');
   function label(q) {
     const ar = mission.armour();
-    if (q.k === 'w') { const own = owns(q.t); return { n: WD[q.t].name, p: own ? 'OWNED' : !avail(q.t) ? 'NEXT SHIPMENT' : fmt(price(q.t)), tag: WD[q.t].excl ? (avail(q.t) ? 'EXCLUSIVE' : '') : deal(q.t) ? '-' + Math.round(DEAL_OFF * 100) + '%' : '' }; }
+    if (q.k === 'w') { const own = owns(q.t), w = WD[q.t]; return { n: w.name, p: own ? 'OWNED' : !avail(q.t) ? (w.unlock ? 'LOCKED · ' + UNLOCK_TXT[w.unlock] : 'NEXT SHIPMENT') : fmt(price(q.t)), tag: w.excl ? (avail(q.t) ? 'EXCLUSIVE' : '') : deal(q.t) ? '-' + Math.round(DEAL_OFF * 100) + '%' : '' }; }
+    if (q.k === 'nade') { const N = NADES[q.n], n = state.nades[q.n] | 0; return { n: N.name, p: n >= N.max ? `FULL ${n}/${N.max}` : `${n}/${N.max} · ${fmt(N.price)}` }; }
+    if (q.k === 'xg') { const X = GEAR_X[q.x]; return { n: X.name, p: state.gear[q.x] ? 'OWNED' : !unlocked(X) ? 'LOCKED · ' + UNLOCK_TXT[X.unlock] : fmt(X.price), tag: X.excl && unlocked(X) ? 'EXCLUSIVE' : '' }; }
+    if (q.k === 'plate') { const inC = ar.type === 'carrier' ? ar.plates : 0; return { n: PLATE.name, p: (ar.type === 'carrier' ? `${inC}/${ARMOUR.carrier.plates} +${state.spares | 0} SPARE · ` : `${state.spares | 0}/${PLATE.spare} SPARE · `) + fmt(PLATE.price) }; }
     if (q.k === 'mod') return { n: MODS[q.m].name, p: mission.hasMod(q.m) ? 'FITTED' : fmt(MODS[q.m].price) };
     if (q.k === 'ammo') return q.c ? { n: 'AMMO · ' + CAL[q.c].name, p: `${state.pool[q.c] | 0}/${mission.capOf(q.c)} · ${fmt(CAL[q.c].price)}` } : { n: 'AMMO', p: 'NEEDS A GUN' };
     if (q.k === 'stash') return { n: 'BIGGER ' + CAL[q.c].name + ' STASH', p: fmt(upgPrice(q.c)) };
     if (q.k === 'vest') { const A = ar.type && ARMOUR[ar.type]; return { n: A ? 'REPAIR ' + A.name : 'KEVLAR VEST', p: A && ar.plates >= A.plates ? 'READY' : fmt(A ? A.repair : ARMOUR.vest.price) }; }
     if (q.k === 'carrier') { const A = ar.type && ARMOUR[ar.type]; return { n: (A ? 'TRADE UP: ' : '') + ARMOUR.carrier.name, p: fmt(ARMOUR.carrier.price - (A ? sellPrice({ id: ar.type, plates: ar.plates }) : 0)) }; }
+    if (q.k === 'none') return { n: 'NOTHING TO SELL', p: '' };
     if (q.k === 'swap') return { n: 'SWAP GUN SLOTS', p: 'FREE' };
     if (q.k === 'sell') return { n: WD[q.o.id] ? WD[q.o.id].name : ARMOUR[q.o.id].name, p: '+' + fmt(sellPrice(q.o)) + (q.o.where === 'kluis' ? ' · KLUIS' : '') };
     return { n: 'NOTHING TO SELL', p: '' };
@@ -126,18 +134,23 @@ export function createGunShop({ mission, state, $, addMoney, beep, save, kitText
   }
   const btn = (txt, act, dis, arm) => `<div class="gsAct"><button data-act="${act}"${dis ? ' disabled' : ''}${arm ? ' class="arm"' : ''}>${txt}</button></div>`;
   function card(q) {
+    const ar = mission.armour();
     if (q.k === 'w') {
       const t = q.t, w = WD[t], sec = SHOP_SECS.find((s) => s.id === q.sec), own = owns(t), av = avail(t);
-      const sub = (w.excl ? 'RUSSIAN EXCLUSIVE · ' : '') + (w.toss ? 'THROWN' : sec.kind) + (w.cal ? ' · ' + CAL[w.cal].name : '') + (w.melee ? ' · ONE-HIT KILL' : ' · MAG ' + w.mag) + (w.burst ? ' · FULL AUTO' : w.burst3 ? ' · 3-ROUND BURST' : '') + (w.pierce > 1 ? ' · PIERCES ' + w.pierce : '') + (w.pen ? ' · THROUGH WALLS' : '');
-      const mods = Object.keys(MODS).filter((m) => !w.melee && !w.toss && (MODS[m].gun === t || !MODS[m].gun)).map((m) => `<button data-x="mod" data-c="${m}"${mission.hasMod(m) ? ' class="on"' : ''}>${MODS[m].name}${mission.hasMod(m) ? ' · FITTED' : ' ' + fmt(MODS[m].price)}</button>`).join('');
+      const sub = (w.excl ? 'RUSSIAN EXCLUSIVE · ' : '') + (w.toss ? 'THROWN' : w.scope ? 'SNIPER RIFLE' : w.pel > 1 && w.burst ? 'AUTOMATIC SHOTGUN' : sec.kind) + (w.cal ? ' · ' + CAL[w.cal].name : '') + (w.melee ? ' · ONE-HIT KILL' : ' · MAG ' + w.mag) + (w.burst ? ' · FULL AUTO' : w.burst3 ? ' · 3-ROUND BURST' : '') + (w.pierce > 1 ? ' · PIERCES ' + w.pierce : '') + (w.pen ? ' · THROUGH WALLS' : '');
+      const mods = Object.keys(MODS).filter((m) => !w.melee && !w.toss && (MODS[m].gun === t || !MODS[m].gun || (MODS[m].also || []).includes(t))).map((m) => `<button data-x="mod" data-c="${m}"${mission.hasMod(m) ? ' class="on"' : ''}>${MODS[m].name}${mission.hasMod(m) ? ' · FITTED' : ' ' + fmt(MODS[m].price)}</button>`).join('');
       const ammo = w.cal && mission.ownCals().includes(w.cal) ? `<button data-x="ammo" data-c="${w.cal}">AMMO +${CAL[w.cal].box} ${fmt(CAL[w.cal].price)} (${state.pool[w.cal] | 0}/${mission.capOf(w.cal)})</button>` : '';
       return `<div class="gsDT">${w.name}</div><div class="gsDS">${sub}</div><div class="gsQ">"${WDESC[t] || ''}"</div>${bars(t)}${mods || ammo ? `<div class="gsXtra">${mods}${ammo}</div>` : ''}`
-        + btn(own ? 'OWNED' : !av ? 'NEXT SHIPMENT' : `BUY ${fmt(price(t))}${deal(t) ? `<s>${fmt(SHOP_PRICE[t])}</s>` : ''}`, 'buy', own || !av);
+        + (w.unlock && !av ? `<div class="gsQ">"This one I keep in the back. Prove yourself first: finish ${UNLOCK_TXT[w.unlock].slice(6).toLowerCase().replace('act', 'Act')}."</div>` : '')
+        + btn(own ? 'OWNED' : !av ? (w.unlock ? 'LOCKED · ' + UNLOCK_TXT[w.unlock] : 'NEXT SHIPMENT') : `BUY ${fmt(price(t))}${deal(t) ? `<s>${fmt(SHOP_PRICE[t])}</s>` : ''}`, 'buy', own || !av);
     }
-    if (q.k === 'mod') { const M = MODS[q.m]; return `<div class="gsDT">${M.name}</div><div class="gsDS">ATTACHMENT · ${M.gun ? 'FITS THE ' + WD[M.gun].name : 'FITS EVERY GUN'} · BOUGHT ONCE, ALWAYS FITTED</div><div class="gsQ">${M.info}</div>` + btn(mission.hasMod(q.m) ? 'FITTED' : 'BUY ' + fmt(M.price), 'x:mod:' + q.m, mission.hasMod(q.m)); }
+    if (q.k === 'nade') { const N = NADES[q.n], n = state.nades[q.n] | 0; return `<div class="gsDT">${N.name}</div><div class="gsDS">GRENADE · YOU CARRY ${n}/${N.max} · MISSIONS ONLY</div><div class="gsQ">${N.info}</div><div class="gsQ">Hold G to aim (a ring shows where it lands), let go to throw. Q picks the type.</div>` + btn(n >= N.max ? 'BELT FULL' : 'BUY ' + fmt(N.price), 'x:nade:' + q.n, n >= N.max); }
+    if (q.k === 'xg') { const X = GEAR_X[q.x], own = !!state.gear[q.x], ok = unlocked(X); return `<div class="gsDT">${X.name}</div><div class="gsDS">${X.excl ? 'RUSSIAN EXCLUSIVE · ' : ''}GEAR</div><div class="gsQ">${X.info}</div><div class="gsQ">"Soviet army surplus. The Soviet army does not know it has surplus."</div>` + btn(own ? 'OWNED' : !ok ? 'LOCKED · ' + UNLOCK_TXT[X.unlock] : 'BUY ' + fmt(X.price), 'x:xg:' + q.x, own || !ok); }
+    if (q.k === 'plate') { const inC = ar.type === 'carrier'; return `<div class="gsDT">${PLATE.name}</div><div class="gsDS">STOPS ONE HIT · ${inC ? `CARRIER ${ar.plates}/${ARMOUR.carrier.plates}` : 'NEEDS A PLATE CARRIER'} · SPARES ${state.spares | 0}/${PLATE.spare}</div><div class="gsQ">Goes straight into your plate carrier while there is room, otherwise in your pocket as a spare. On a mission, hold H to slot a spare in.</div>` + btn('BUY ' + fmt(PLATE.price), 'x:plate', (inC ? ar.plates >= ARMOUR.carrier.plates : true) && (state.spares | 0) >= PLATE.spare); }
+    if (q.k === 'mod') { const M = MODS[q.m]; return `<div class="gsDT">${M.name}</div><div class="gsDS">ATTACHMENT · ${M.gun ? 'FITS THE ' + [M.gun, ...(M.also || [])].map((g) => WD[g].name).join(' & ') : 'FITS EVERY GUN'} · BOUGHT ONCE, ALWAYS FITTED</div><div class="gsQ">${M.info}</div>` + btn(mission.hasMod(q.m) ? 'FITTED' : 'BUY ' + fmt(M.price), 'x:mod:' + q.m, mission.hasMod(q.m)); }
     if (q.k === 'ammo') { if (!q.c) return `<div class="gsDT">AMMO</div><div class="gsQ">Bullets need a gun, my friend. Buy one first.</div>`; const C = CAL[q.c]; return `<div class="gsDT">${C.name} AMMO</div><div class="gsDS">+${C.box} ROUNDS A BOX · YOU CARRY ${state.pool[q.c] | 0}/${mission.capOf(q.c)}</div><div class="gsQ">Fresh rounds. Still warm from the factory. Which factory, I do not say.</div>` + btn('BUY ' + fmt(C.price), 'x:ammo:' + q.c); }
     if (q.k === 'stash') { const C = CAL[q.c]; return `<div class="gsDT">BIGGER ${C.name} STASH</div><div class="gsDS">CARRY +${C.up} MORE ${C.name} · NOW ${mission.capOf(q.c)}</div><div class="gsQ">More pouches. You rattle with confidence.</div>` + btn('BUY ' + fmt(upgPrice(q.c)), 'x:upg:' + q.c); }
-    if (q.k === 'vest' || q.k === 'carrier') { const A = ARMOUR[q.k === 'vest' ? 'vest' : 'carrier'], l = label(q); return `<div class="gsDT">${l.n}</div><div class="gsDS">ARMOUR · ${A.plates} PLATE${A.plates > 1 ? 'S' : ''}${A.spd ? ' · A LITTLE SLOWER' : ''}</div><div class="gsQ">${q.k === 'vest' ? 'Kevlar. It stops one bullet. After that, it is just a nice shirt.' : 'Ceramic plates, front and back. Two bullets you never feel.'}</div>` + btn(l.p === 'READY' ? 'READY' : (q.k === 'vest' ? 'BUY ' : 'TRADE UP ') + l.p, 'x:' + q.k, l.p === 'READY'); }
+    if (q.k === 'vest' || q.k === 'carrier') { const A = ARMOUR[q.k === 'vest' ? 'vest' : 'carrier'], l = label(q); return `<div class="gsDT">${l.n}</div><div class="gsDS">ARMOUR · ${q.k === 'vest' ? 'SOFT · STOPS 1 HIT' : 'COMES EMPTY · HOLDS ' + A.plates + ' CERAMIC PLATES'}${A.spd ? ' · A LITTLE SLOWER' : ''}</div><div class="gsQ">${q.k === 'vest' ? 'Kevlar. It stops one bullet. After that, it is just a nice shirt.' : 'Room for four ceramic plates, front and back. Plates you buy separately: each one stops a bullet.'}</div>` + btn(l.p === 'READY' ? 'READY' : (q.k === 'vest' ? 'BUY ' : 'TRADE UP ') + l.p, 'x:' + q.k, l.p === 'READY'); }
     if (q.k === 'swap') return `<div class="gsDT">SWAP GUN SLOTS</div><div class="gsQ">Your other gun goes in slot 2.</div>` + btn('SWAP', 'x:swap');
     if (q.k === 'sell') { const l = label(q); return `<div class="gsDT">SELL ${l.n}</div><div class="gsDS">${q.o.where === 'kluis' ? 'FROM DE KLUIS' : 'FROM YOUR KIT'} · ${Math.round(SELL_FRAC * 100)}% OF ITS PRICE</div><div class="gsQ">Is good piece. I give you fair price. Fair for me.</div>` + btn((sellArm === q.o.key ? 'SURE? SELL FOR +' : 'SELL FOR +') + fmt(sellPrice(q.o)), 'sell:' + q.o.key, false, sellArm === q.o.key); }
     return `<div class="gsDT">NOTHING TO SELL</div><div class="gsQ">Empty pockets, my friend. Is very relaxing.</div>`;
@@ -167,8 +180,15 @@ export function createGunShop({ mission, state, $, addMoney, beep, save, kitText
       if (ar.type) { const A = ARMOUR[ar.type]; if (ar.plates >= A.plates || !pay(A.repair, el)) return; mission.setArmour(ar.type, A.plates); return done('Good as new. Almost. The hole is a feature.'); }
       if (!pay(ARMOUR.vest.price, el)) return; mission.setArmour('vest', 1); if (!state.kit.includes('vest')) state.kit.push('vest'); return done('Kevlar. Stops one bullet. Maybe two. Do not test.');
     }
-    if (k === 'carrier') { const cost = ARMOUR.carrier.price - (ar.type ? sellPrice({ id: ar.type, plates: ar.plates }) : 0); if (!pay(cost, el)) return; mission.setArmour('carrier', 2); return done('Ceramic plates. You walk a little slower, you live a little longer.'); }
+    if (k === 'carrier') { const cost = ARMOUR.carrier.price - (ar.type ? sellPrice({ id: ar.type, plates: ar.plates }) : 0); if (!pay(cost, el)) return; mission.setArmour('carrier', 0); return done('Is empty. Buy plates, or it is just a very expensive waistcoat.'); }
     if (k === 'swap') { mission.swapGuns(); return done(); }
+    if (k === 'nade') { const N = NADES[c]; if ((state.nades[c] | 0) >= N.max || !pay(N.price, el)) return; state.nades[c] = (state.nades[c] | 0) + 1; return done(c === 'he' ? 'Pull pin, count to three, do not count to four.' : c === 'flash' ? 'Very bright. Do not look at it. I am serious.' : 'For making an exit. Or an entrance. Very theatrical.'); }
+    if (k === 'xg') { const X = GEAR_X[c]; if (state.gear[c] || !unlocked(X) || !pay(X.price, el)) return; state.gear[c] = 1; return done('Now you see in the dark. Like a cat. A Soviet cat.'); }
+    if (k === 'plate') {
+      const inC = ar.type === 'carrier' && ar.plates < ARMOUR.carrier.plates; if (!inC && (state.spares | 0) >= PLATE.spare) return; if (!pay(PLATE.price, el)) return;
+      if (inC) mission.setArmour('carrier', ar.plates + 1); else state.spares = (state.spares | 0) + 1;
+      return done(inC ? 'Click. Snug. One more bullet you will never feel.' : 'A spare. Slot it in when the first one breaks.');
+    }
   }
   function sell(key, el) {
     if (sellArm !== key) { sellArm = key; sfx('blip'); select(sel, true); return; }
