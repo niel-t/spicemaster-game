@@ -4,6 +4,8 @@
 //   stock (econ.phoneOrder, paid in the Dagrapport). Hakan is a regular, friendly customer; the joke is the call.
 // - Henk Cijfer rings the day before tax inspector Van der Belasting drops by (js/garage.js asks via warnHenk()).
 // - Cousin Shooki calls for no reason at all, which is the reason.
+// - Razim, Eddy's annoying friend (Game Bible: "keeps calling Eddy every time to meet, eat shoarma, or hang out"),
+//   spams the Shmokia with texts in bursts and sometimes calls. Read them under Razim in the contacts. You can't block him.
 // - Ras al Gara rings once, right after the Noshgey Kariot fall: the Paravim want the three shipments Dad never paid (main.js asks via callRas()).
 // Press T to open the Shmokia yourself: call contacts and trade spice (buy at the Kruidenbeurs, Shooki sells blends).
 // At most one random call (Hakan or Shooki) a market day; Henk's warning always gets through.
@@ -116,6 +118,75 @@ export function initPhone(d) {
   }
   const talkShooki = () => dialogue(shookiLines(), () => d.save());
 
+  // ------------------------------------------------------------------ Razim: the annoying friend. Shoarma? Shoarma.
+  // He texts in bursts (a little SMS card with his portrait, a Nokia double beep), keeps them in Eddy's inbox,
+  // and now and then rings. Good-natured: he just really, really wants to eat shoarma with Eddy.
+  const RAZIM = 'Razim (telefoon)', RAZ_IMG = './assets/face_razim.jpg';
+  const SPAM = [
+    ['eddy', 'eddy', 'EDDY', 'shoarma?'],
+    ['yo eddy you free?', 'shoarma at Schmatzel?', 'i\'m already here', 'i ordered for you', 'you\'re paying btw'],
+    ['eddy where are you', 'Hakan says you\'re "not in Nederland"', 'i can see the Oofmobiel from here', 'i\'m waving', 'wave back'],
+    ['kapsalon tonight?', 'ok shoarma then', 'ok broodje then', 'ok just come sit with me then'],
+    ['are you mad at me', 'you didn\'t reply in 4 minutes', 'it\'s fine', 'shoarma?'],
+    ['eddy i had a dream', 'we opened a shoarma joint together', 'it was called RAZDY\'S', 'think about it'],
+    ['eddy look', '[foto: broodje shoarma]', 'this one is for you', 'i ate it'],
+    ['eddy ik sta voor je deur', 'grapje', 'of toch wel', 'doe open'],
+    ['eddy u up', 'for shoarma'],
+    ['can i come to the warehouse', 'i\'ll bring knoflooksaus', 'the good one', 'i\'m coming', 'ok i\'m not coming. shoarma?'],
+    ['eddy what is a Naknik', 'Shooki told me but i didn\'t understand', 'do they eat shoarma'],
+    ['eddy quick question', 'shoarma?', 'that was the question'],
+    ['bro i got a new phone', 'it\'s the same phone', 'but i put a sticker on it', 'shoarma to celebrate?'],
+  ];
+  const SPAM_BACK = ['you back in Nederland yet?', 'how about now', 'and now?', 'i\'ll wait. at Schmatzel. eating.'];
+  const SPAM_MISSED = ['why u no pick up', 'i called', 'it was about shoarma'];
+  const smsEl = document.createElement('div');
+  smsEl.id = 'razsms';
+  smsEl.style.cssText = 'position:fixed;right:18px;bottom:180px;display:none;align-items:center;gap:10px;max-width:280px;padding:8px 12px 8px 8px;background:rgba(30,20,12,.94);border:2px solid #9bbf5a;border-radius:12px;color:#f3e6c8;font:400 14px Rubik,Arial,sans-serif;z-index:30;box-shadow:0 0 14px rgba(155,191,90,.4);cursor:pointer';
+  smsEl.innerHTML = `<img src="${RAZ_IMG}" alt="Razim" style="width:40px;height:50px;object-fit:cover;border:2px solid #f2c14e;border-radius:6px;flex:none"><div><b style="display:block;color:#b4cc7a;font-weight:700;font-size:12px;letter-spacing:1px">SMS · RAZIM <span class="rz-n"></span></b><span class="rz-t"></span></div>`;
+  document.body.appendChild(smsEl);
+  const raz = () => { const e = econ.ensure(); if (!Array.isArray(e.razimSms)) e.razimSms = []; return e; };
+  let smsQueue = [], smsGap = 0, smsShow = 0, smsBurst = 0;
+  function razimText(lines) { smsQueue.push(...lines); }
+  function popSms() {
+    const t = smsQueue.shift(), e = raz();
+    e.razimSms.push({ t, d: e.day }); if (e.razimSms.length > 40) e.razimSms.splice(0, e.razimSms.length - 40);
+    e.razimUnread = (e.razimUnread || 0) + 1;
+    smsEl.querySelector('.rz-t').textContent = t;
+    smsEl.querySelector('.rz-n').textContent = e.razimUnread > 1 ? `(${e.razimUnread})` : '';
+    smsEl.style.display = 'flex'; smsShow = 3.2; smsGap = 1.4 + Math.random() * 1.6;
+    beep(1760, 0.07, 'square', 0.03); setTimeout(() => beep(1760, 0.07, 'square', 0.03), 120);
+    if (d.tip) d.tip('razim');
+  }
+  smsEl.addEventListener('click', (ev) => { ev.stopPropagation(); smsEl.style.display = 'none'; smsShow = 0; });
+  smsEl.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+  function talkRazim(eddyCalls) {
+    const e = raz(), n = e.razimSms.length;
+    e.razimCalls = (e.razimCalls || 0) + 1;
+    dialogue(eddyCalls ? [
+      [RAZIM, rnd(['EDDY?! You called ME? Wait, let me sit down.', 'Eddy! You never call! Is it shoarma? Tell me it\'s shoarma.'])],
+      ['Eddy Jr.', 'Hey Razim. Just checking in.'],
+      [RAZIM, 'Checking in. Like friends do. Ok. So... shoarma?'],
+    ] : [
+      [RAZIM, n ? 'Eddy! Finally! Did you get my messages?' : 'Eddy! It\'s Razim! Long time! Like, since Tuesday!'],
+      ...(n ? [['Eddy Jr.', `All ${n} of them.`], [RAZIM, 'So you read them. So you know. So... shoarma?']] : [[RAZIM, 'Shoarma? Today? Now? I\'m hungry, you\'re hungry, it\'s science.']]),
+    ], () => choice(RAZIM, '<i>Razim wants to eat shoarma. Razim always wants to eat shoarma.</i>', ['Tamam, after work. You\'re buying.', 'I\'m not in Nederland, Razim.'], (i) => {
+      if (i === 0) {
+        dialogue([['Eddy Jr.', 'Tamam, after work. You\'re buying.'], [RAZIM, rnd([
+          'YES. Schmatzel\'s, seven o\'clock. I\'ll be there at six. Just in case.',
+          'Deal! I\'m buying! ...Can you lend me twenty Wilders?',
+          'Eddy, this is the best day of my week. Don\'t be late. You\'re always late. Be late, I don\'t care, just come.',
+        ])]], () => { razimText(['see you there!!', 'saving you a seat', rnd(['already eating btw', 'ok i started without you', 'they gave me extra knoflooksaus for you. i ate it'])]); d.save(); });
+      } else {
+        dialogue([['Eddy Jr.', 'I\'m not in Nederland, Razim.'], [RAZIM, rnd([
+          'You said that last week. And the week before. Are you EVER in Nederland?',
+          'Eddy. I\'m standing next to your van. I\'m touching it right now.',
+          'Ok... shoarma when you\'re back. I\'ll text you. A little bit.',
+        ])]], () => { razimText(SPAM_BACK.slice(0, 2 + Math.floor(Math.random() * 3))); d.save(); });
+      }
+    }));
+  }
+  const razimMissed = () => { toast('GEMISTE OPROEP', 'Razim. Third time today. He\'ll text.', 2.4); razimText(SPAM_MISSED); };
+
   // ------------------------------------------------------------------ the Shmokia: Eddy's own phone menu (T when it isn't ringing)
   // Contacts you can call yourself, and trade spice with: Hakan takes kipkraud, Shooki runs blends to the Groothandel,
   // the Kruidenbeurs line sells ingredients, Henk tips tomorrow's prices, De Fluisteraar sells a rumour.
@@ -149,6 +220,7 @@ export function initPhone(d) {
     contacts() {
       const e = econ.ensure(), list = [];
       if (met('shooki')) list.push({ l: 'Hakan Et&Döner', go: 'hakan' }, { l: 'Shooki', go: 'shooki' });
+      if (met('shooki') || raz().razimSms.length) list.push({ l: 'Razim', r: raz().razimUnread ? `${raz().razimUnread} sms` : '', go: 'razim' });
       if (state.table) list.push({ l: 'Kruidenbeurs', go: 'beurs' });
       if (econ.has('prognose')) list.push({ l: 'Henk Cijfer', go: 'henk' });
       if (econ.has('geruchten')) list.push({ l: 'De Fluisteraar', go: 'fluist' });
@@ -201,6 +273,18 @@ export function initPhone(d) {
         d.addMoney(-50); e.whisperDay = e.day; d.save(); say(`(fluistert) ${econ.rumour()}.`);
       } }] };
     },
+    razim() {
+      const e = raz(); e.razimUnread = 0;
+      return { t: 'Razim', items: [
+        { l: 'Berichten', r: `${e.razimSms.length}`, go: 'razimsms' },
+        { l: 'Bellen', act: () => { close(); talkRazim(true); } },
+        { l: 'Blokkeren', act: () => say(rnd(['Razim: "did you just try to block me? lol. shoarma?"', 'Nummer geblokkeerd. ...Razim belt via Shooki.', 'Weet u het zeker? Razim weet het niet.'])) },
+      ] };
+    },
+    razimsms() {
+      const e = raz(), list = e.razimSms.slice().reverse();
+      return { t: 'Razim > Berichten', items: list.length ? list.map((m) => ({ l: m.t, act: () => say(`dag ${m.d}: "${m.t}"`) })) : [{ l: '(nog niks... wacht maar)' }], foot: 'Antwoorden? Dat helpt niet.' };
+    },
     gerda() {
       return { t: 'Tante Gerda', items: [{ l: 'Bellen', act: () => say(rnd(['"Eddy! Eet je wel?"', '"Shooki zegt dat je in het buitenland bent. Ik zie je busje, jongen."', '"Kom zondag eten. Neem kipkraud mee."'])) }] };
     },
@@ -250,8 +334,10 @@ export function initPhone(d) {
     hakan: { name: 'Hakan Et &amp; Döner', img: './assets/face_hakan.jpg', talk: talkHakan, missed: () => toast('GEMISTE OPROEP', 'Hakan Et & Döner. He\'ll call again another day.', 2.4) },
     henk: { name: 'Henk Cijfer', img: './assets/face_henk.jpg', talk: talkHenk, missed: henkVoicemail },
     ras: { name: 'Onbekend nummer', img: null, talk: talkRas, missed: rasVoicemail },
+    razim: { name: 'Razim', img: RAZ_IMG, talk: talkRazim, missed: razimMissed },
     shooki: { name: 'Shooki', img: './assets/face_shooki.jpg', talk: talkShooki, missed: () => toast('GEMISTE OPROEP', 'Shooki. Probably nothing. It\'s always nothing.', 2.4) },
   };
+  let razWait = 40 + Math.random() * 60;
   let ringing = 0, who = null, buzz = 0, wait = 60 + Math.random() * 90, henkDue = false, henkWait = 0, rasDue = false, rasWait = 0;
   const randomOk = () => state.step === 'free' && met('shooki') && !(state.tut && !state.tut.done) && econ.ensure().callDay !== econ.ensure().day;
 
@@ -277,7 +363,22 @@ export function initPhone(d) {
     else if (ev.code === 'KeyT' && !isOpen && !ev.repeat) { ev.stopImmediatePropagation(); open(); }
   }, true);
 
+  // Razim's texts run alongside everything else in the hub: bursts every few minutes, at most three a market day
+  function updateSms(dt) {
+    if (smsShow > 0 && (smsShow -= dt) <= 0) smsEl.style.display = 'none';
+    if (busy()) { smsEl.style.display = 'none'; smsShow = 0; return; }
+    if (ringing || isOpen || !usable()) return;
+    if (smsQueue.length) { if ((smsGap -= dt) <= 0) popSms(); return; }
+    if (state.step !== 'free' || !met('shooki') || (state.tut && !state.tut.done)) return;
+    const e = raz();
+    if (e.razimDay !== e.day) { e.razimDay = e.day; smsBurst = 0; }
+    if (smsBurst >= 3 || (razWait -= dt) > 0) return;
+    razWait = 120 + Math.random() * 150; smsBurst++;
+    razimText(rnd(SPAM)); smsGap = 0;
+  }
+
   function update(dt) {
+    updateSms(dt);
     tbtn.classList.toggle('on', usable() && !busy() && !isOpen && !ringing);
     if (isOpen && (busy() || !usable())) close();
     if (isOpen) return; // no calls while Eddy is on his own phone
@@ -296,7 +397,8 @@ export function initPhone(d) {
     wait = 90 + Math.random() * 120;
     const e = econ.ensure(), hakanOk = !e.phoneOrder && e.phoneDay !== e.day;
     e.callDay = e.day; // one random call a market day, answered or not
-    ring(hakanOk && Math.random() < 0.6 ? 'hakan' : 'shooki');
+    const r = Math.random();
+    ring(hakanOk && r < 0.5 ? 'hakan' : r < 0.75 ? 'razim' : 'shooki');
   }
-  return { update, ring, answer, warnHenk, callRas, open, close, get isOpen() { return isOpen; }, get ringing() { return ringing > 0; }, get caller() { return ringing > 0 ? who : null; } };
+  return { update, ring, answer, warnHenk, callRas, razimText, open, close, get isOpen() { return isOpen; }, get ringing() { return ringing > 0; }, get caller() { return ringing > 0 ? who : null; } };
 }

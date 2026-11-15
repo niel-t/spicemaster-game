@@ -33,6 +33,7 @@ export const TIPS = {
   day: ['Plan your day', 'One day, one plan, bro. A <b>raid</b> takes the whole day, and only if you have not worked yet. <b>Racking pallets</b> and <b>deliveries</b> (one van run, Klusbord orders) fit together in one day. Done? <b>Sleep</b> in your bed or hit <b>Dag afsluiten</b> on the PC. The plan for today is under your objective.'],
   order: ['Ordered', 'Nothing arrives the same day, bro. Spice comes on the morning <b>two days</b> later. In a hurry? <b>Express</b> brings it tomorrow for 25% extra. Plan ahead: order before the shelves run empty.'],
   phone: ['Phone', 'Your phone is ringing, bro. Press <b>T</b> to answer. Hakan wants kipkraud: say yes and I bring it tomorrow, if there\'s Kip Shoarma in stock.'],
+  razim: ['Razim', 'That\'s Razim, bro. He wants shoarma. He always wants shoarma. His texts are under <b>Razim</b> in the Shmokia (<b>T</b>). Reply or don\'t, he texts again anyway.'],
   shmokia: ['Shmokia', 'Your phone. Call people, trade a bit. <b>T</b> opens and closes it.'],
   haggle: ['Haggling', 'They want a deal. Offer, counter, walk away. Push too hard and they leave. Be too soft and you lose money.'],
   crew: ['Your Naknikim', 'Each Naknik has a name, skill and mood. Send one on an <b>errand</b> (they skip mixing that day) or give a <b>day off</b> when they\'re tired. Happy Naknikim mess up less.'],
