@@ -1086,7 +1086,7 @@ function nextLine() {
   const [who, line] = dlgQueue.shift();
   $('dlgwho').textContent = who; $('dlgline').textContent = line;
   const f = faces[who];
-  $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f;
+  $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f);
   $('dialogue').style.display = 'block'; beep(520, 0.04, 'triangle');
 }
 $('dialogue').addEventListener('click', nextLine);
@@ -1960,7 +1960,7 @@ let choiceOpen = false, choiceCb = null, choiceCancel = null, choiceN = 0;
 function choice(who, line, options, cb, cancel = options.length - 1) {
   state.inPC = true; choiceOpen = true; choiceCb = cb; choiceCancel = cancel; choiceN = options.length;
   $('dlgwho').textContent = who; $('dlgline').innerHTML = line + '<div id="choices" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>';
-  const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f;
+  const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f);
   options.forEach((o, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + o; b.style.cssText = 'font:700 15px Arial;padding:7px 14px;border-radius:6px;border:2px solid #ffd36b;background:#2a1a0e;color:#fff;cursor:pointer'; b.onclick = (ev) => { ev.stopPropagation(); closeChoice(i); }; $('choices').appendChild(b); });
   $('dialogue').style.display = 'block';
 }
