@@ -8,7 +8,7 @@ import { initMission } from './mission.js';
 import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
 import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning visitors, knacks and outfits (from Neon Vice, in spice colours)
-import { makeOofmobiel, makeCar, KANGOO, setLivery } from './vehicles.js';
+import { makeOofmobiel, makeKangoo, makeCar, setLivery } from './vehicles.js';
 import { signFace } from './livery.js'; // the warehouse sign follows the van's brand // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 import { createEconomy, rankOf } from './economy.js';
@@ -592,7 +592,7 @@ const oof = new THREE.Group(); oof.position.set(BAYS.oof, 0, -11.4); oof.rotatio
 solid(oof.position.x - 1.15, oof.position.x + 1.15, oof.position.z - 3.0, oof.position.z + 3.3);
 // Shooki's Renault Kangoo: parked next to the Oofmobiel once Kipkruidenkwartier is Eddy's (Shooki runs the errands in it)
 const kangoo = (() => {
-  const g = makeCar(THREE, canvasTex, { profile: KANGOO, paint: 0xf2f0ea, plate: 'SH-00-KI', livery: 'shooki', rand: (() => { let a = 7; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })() });
+  const g = makeKangoo(THREE, canvasTex, { plate: 'SH-00-KI', livery: 'shooki' });
   g.position.set(BAYS.kangoo, 0, -11.6); g.rotation.y = -Math.PI / 2; g.visible = false; scene.add(g); // nose to the street, like the Oofmobiel
   g.userData.solid = solid(BAYS.kangoo - 0.9, BAYS.kangoo + 0.9, -13.8, -9.4); g.userData.solid.off = true;
   return g;
