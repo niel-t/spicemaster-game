@@ -123,6 +123,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // deps: state (the game state), addMoney(n, el), toast(title, text, sec), discount() -> 0..0.3, save()
 export function createEconomy(deps) {
   const { state } = deps;
+  const boost = () => (deps.boost ? deps.boost() : null) || {}; // De Loods upgrades (js/loods.js): {cap, mix, care, q, sell, keep}
+  const perNaknik = () => Math.round(PER_NAKNIK * (boost().mix || 1));
   const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
 
   function ensure() {
@@ -152,7 +154,7 @@ export function createEconomy(deps) {
     const made = mix(); // the Naknikim mix overnight with what's on the shelves
     const rep = deliver(); // then the clients get their orders and pay (the day report)
     const strikes = turf(); // the Lampas react to how much of their turf you hold
-    e.day++; e.wholesaleLeft = WHOLESALE_KG; e.lastMix = made; e.report = rep;
+    e.day++; e.wholesaleLeft = WHOLESALE_KG + (boost().sell || 0); e.lastMix = made; e.report = rep;
     rollDay(); // the new day's job board and event (seeded by the day, so a reload shows the same)
     for (const n of e.news) n.days--;
     e.news = e.news.filter((n) => n.days > 0);
@@ -226,7 +228,7 @@ export function createEconomy(deps) {
   function mix() {
     const e = ensure(), n = mixers(), b = BLENDS.find((x) => x.id === e.order);
     if (!n || !b || !blendOpen(b)) return null;
-    let kg = n * PER_NAKNIK;
+    const B = boost(); let kg = n * perNaknik();
     for (const [id, w] of Object.entries(b.mix)) kg = Math.min(kg, Math.floor(have(id) * 10 / w));
     if (kg <= 0) return { name: b.name, kg: 0, why: `not enough ${Object.keys(b.mix).filter((id) => have(id) * 10 / b.mix[id] < 1).map((id) => INGREDIENTS.find((g) => g.id === id).name.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' and $1')}.` };
     const order = e.policy === 'best' ? GRADES.slice().reverse() : GRADES;
@@ -241,9 +243,9 @@ export function createEconomy(deps) {
       }
     }
     let out = kg, oops = null;
-    for (let i = 0; i < n; i++) if (Math.random() < 0.12) { out -= 2; oops = pick(MISTAKES); }
+    for (let i = 0; i < n; i++) if (Math.random() < 0.12 * (B.care ?? 1)) { out -= 2; oops = pick(MISTAKES); }
     out = Math.max(0, out);
-    const q = used ? starKg / used : 1, cur = blendOf(b.id);
+    const q = Math.min(5, (used ? starKg / used : 1) + (B.q || 0)), cur = blendOf(b.id); // the Kruidenmolen grinds it finer
     e.blends[b.id] = { kg: cur.kg + out, q: cur.kg + out ? (cur.kg * cur.q + out * q) / (cur.kg + out) : q };
     return { name: b.name, kg: out, q, oops };
   }
@@ -384,9 +386,9 @@ export function createEconomy(deps) {
   function siegeResult(win) { // the warehouse defence (mission 'warehouse') is over
     const e = ensure(), sg = e.siege; if (!sg) return ''; e.siege = null; const f = sg.faction || 'lampas';
     if (win) { e.heat[f] = clamp((e.heat[f] || 0) - 30, 0, 100); const k = key('paprika', 'lampas'); e.stock[k] = +((e.stock[k] || 0) + 20).toFixed(2); if (deps.save) deps.save(); return 'Heat -30, and they left 20 kg of Lampas paprika behind.'; }
-    const g = guarded(), keep = g ? 0.9 : 0.7; for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * keep); if (!e.stock[k]) delete e.stock[k]; }
+    const g = guarded(), keep = 1 - (g ? 0.1 : 0.3) * (boost().keep || 1); for (const k of Object.keys(e.stock)) { e.stock[k] = Math.floor(e.stock[k] * keep); if (!e.stock[k]) delete e.stock[k]; }
     e.heat[f] = 60; if (deps.save) deps.save();
-    return g ? 'They got in, but your Naknik guard saved most of it: 10% of the spice gone.' : 'They ran off with 30% of your spice.';
+    return `${boost().keep < 1 ? 'The steel roller door held them up. ' : ''}${g ? 'They got in, but your Naknik guard saved most of it' : 'They ran off with some of your spice'}: ${Math.round((1 - keep) * 100)}% of the spice gone.`;
   }
   const siegeDue = () => ensure().siege;
   function heatTomorrow() { const e = ensure(), held = ownedClients().filter((c) => !NOT_TURF.includes(c.id) && !e.retaken[c.id]).length; return clamp(e.heat.lampas + 2 * held - 4, 0, 100); }
@@ -616,7 +618,7 @@ export function createEconomy(deps) {
   }
   // ---- warehouses (home + bought ones). A warehouse in a joint the Lampas retook is shut until you win it back.
   const whOpen = () => WAREHOUSES.filter((w) => ensure().wh[w.id] && !ensure().retaken[w.id]);
-  const cap = () => STOCK_CAP + whOpen().reduce((a, w) => a + w.kg, 0);
+  const cap = () => STOCK_CAP + (boost().cap || 0) + whOpen().reduce((a, w) => a + w.kg, 0);
   const mcap = () => MACHINE_CAP + whOpen().length;
   const mixers = () => Math.max(0, (state.naknik || 0) - (deps.away ? deps.away() : 0)) + whOpen().reduce((a, w) => a + ensure().wh[w.id].naknik - (ensure().wh[w.id].guard ? 1 : 0), 0);
   const guarded = () => whOpen().some((w) => ensure().wh[w.id].guard);
@@ -635,7 +637,7 @@ export function createEconomy(deps) {
   }
   function propertyHTML() {
     const e = ensure();
-    let h = `<div class="well" style="margin-top:8px"><b>Panden · ${state.district1 ? "Eddy's" : "Eddy & Zn"} property</b><br>Home warehouse: <b>${STOCK_CAP} kg</b>, ${MACHINE_CAP} machines, ${state.naknik || 0} Naknik(im). Total now: <b>${cap()} kg</b>, ${mcap()} machines, <b>${mixers()}</b> Naknikim mixing (${mixers() * PER_NAKNIK} kg a day).<br><small>Buy a warehouse in a territory you hold for more space, a machine slot and two more Naknikim. A Naknik on guard duty stops mixing but cuts what a Lampas warehouse raid steals from 30% to 10%. If the Lampas retake that territory, its warehouse shuts until you win it back.</small></div>`;
+    let h = `<div class="well" style="margin-top:8px"><b>Panden · ${state.district1 ? "Eddy's" : "Eddy & Zn"} property</b><br>Home warehouse: <b>${STOCK_CAP + (boost().cap || 0)} kg</b>, ${MACHINE_CAP} machines, ${state.naknik || 0} Naknik(im). Total now: <b>${cap()} kg</b>, ${mcap()} machines, <b>${mixers()}</b> Naknikim mixing (${mixers() * perNaknik()} kg a day).<br><small>Buy a warehouse in a territory you hold for more space, a machine slot and two more Naknikim. A Naknik on guard duty stops mixing but cuts what a Lampas warehouse raid steals from 30% to 10%. If the Lampas retake that territory, its warehouse shuts until you win it back.</small></div>`;
     h += '<table class="list" style="margin-top:6px"><tr><th>Warehouse</th><th>Adds</th><th>Naknikim</th><th></th></tr>';
     for (const w of WAREHOUSES) {
       const own = e.wh[w.id], held = ownedClients().some((c) => c.id === w.id) && !e.retaken[w.id];
@@ -654,6 +656,9 @@ export function createEconomy(deps) {
     });
   }
   const space = () => cap() - stockTotal();
+  function stockIn(id, gradeId, kg) { // a pallet racked by the heftruck (js/loods.js)
+    if (space() < kg) return false; const e = ensure(); e.stock[key(id, gradeId)] = +(stockOf(id, gradeId) + kg).toFixed(2); if (deps.save) deps.save(); return true;
+  }
 
   function buy(id, gradeId, kg, el) {
     const e = ensure(), g = INGREDIENTS.find((x) => x.id === id);
@@ -730,7 +735,7 @@ export function createEconomy(deps) {
   const on = (yes) => (yes ? 'style="font-weight:bold;border-style:inset"' : '');
   function mixHTML() {
     const e = ensure(), n = mixers();
-    let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${n * PER_NAKNIK} kg</b> after every outing` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
+    let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${n * perNaknik()} kg</b> after every outing` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
       Stock: <b>${stockTotal()} / ${cap()} kg</b> (spices + blends)<br>
       <small>Quality = the average stars of the spices that went in. Lampas grade makes ★ blends, Bio makes ★★★★★.</small></div>`;
     if (e.lastMix) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>Last night:</b> ${e.lastMix.kg ? `${e.lastMix.kg} kg ${e.lastMix.name} ${stars(Math.round(e.lastMix.q))}` : `no ${e.lastMix.name}, ${e.lastMix.why}`}${e.lastMix.oops ? `<br><i>Naknik: "${e.lastMix.oops}"</i>` : ''}</div>`;
@@ -738,7 +743,7 @@ export function createEconomy(deps) {
     h += '<table class="list"><tr><th>Blend</th><th>Per 10 kg</th><th>Can mix now</th><th>Order</th></tr>';
     for (const b of BLENDS) {
       if (!blendOpen(b)) { h += `<tr><td><b>${b.name}</b><br><small>${b.mix ? 'Ome Joop by the canal has this page of Dad\'s notebook.' : b.note}</small></td><td>???</td><td>-</td><td><button class="b95" disabled>Locked</button></td></tr>`; continue; }
-      let can = n * PER_NAKNIK || PER_NAKNIK; for (const [id, w] of Object.entries(b.mix)) can = Math.min(can, Math.floor(have(id) * 10 / w));
+      let can = n * perNaknik() || perNaknik(); for (const [id, w] of Object.entries(b.mix)) can = Math.min(can, Math.floor(have(id) * 10 / w));
       h += `<tr><td><b>${b.name}</b><br><small>${b.note}</small></td><td><small>${Object.entries(b.mix).map(([id, w]) => `${w} kg ${INGREDIENTS.find((g) => g.id === id).name}${have(id) * 10 / w < 1 ? ' <b style="color:#a00">!</b>' : ''}`).join('<br>')}</small></td><td>${can} kg</td><td>${e.order === b.id ? '<b>Mixing this</b>' : `<button class="b95" data-order="${b.id}">Mix this</button>`}</td></tr>`;
     }
     h += '</table>';
@@ -758,5 +763,5 @@ export function createEconomy(deps) {
   // Hakan's phone order (js/phone.js): Shooki brings it at the next market day
   function phoneOrder(kg) { const e = ensure(); e.phoneOrder = { kg, day: e.day }; e.phoneDay = e.day; if (deps.save) deps.save(); }
   const phoneQuote = (kg) => Math.round(clientPrice('kip', Math.max(1, blendOf('kip').q || 3), null) * kg * 1.15);
-  return { wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { perNaknik, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }

@@ -23,7 +23,7 @@ export function createCrew(deps) {
   const rnd = (a) => a[Math.floor(Math.random() * a.length)];
   function ensure() {
     const c = Array.isArray(state.crew) ? state.crew : (state.crew = []);
-    const n = Math.max(0, Math.min(3, state.naknik || 0));
+    const n = Math.max(0, Math.min(7, state.naknik || 0));
     while (c.length < n) {
       const used = new Set(c.map((x) => x.name)), free = NAMES.filter((x) => !used.has(x));
       c.push({ name: rnd(free.length ? free : NAMES), skill: 1 + Math.floor(Math.random() * 3), mood: 70, away: null });
