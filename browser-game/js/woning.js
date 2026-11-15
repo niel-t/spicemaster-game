@@ -25,6 +25,14 @@ export const FURN = [
   { k: 'sofa', comfort: 2, t: [null, ['Cumin-brown sofa', 1400, 'Corduroy, 1979, deep enough to lose a remote in.'], ['Saffron chesterfield', 6500, 'Saffron velvet and brass studs.']] },
   { k: 'fish', comfort: 2, t: [null, ['Goldfish tank', 1800, 'Three goldfish: Kurkuma, Kaneel and Kees.'], ['Koi pond', 12000, 'Indoors. On the first floor. The neighbours have questions.']] },
   { k: 'portrait', comfort: 3, t: [null, null, ['Portrait of Eddy Sr.', 6000, 'In oils, in a gold frame. He would hate it. He would love it.']] },
+  // Eddy's own things: Dad's trade, the spice, Kaasland. use: what pressing E next to it does (once per market day where it says so)
+  { k: 'doner', comfort: 1, use: 'eat', t: [["Dad's old döner spit", 450, 'Rusty, on a crate, still turns. Eat a shoarma once a day: +1 hit on your next raid.'], ['Countertop döner grill', 2200, 'Stainless steel, two burners. Eat a shoarma once a day: +1 hit on your next raid.'], ['Golden döner tower', 9000, 'Gold-plated, a spit as tall as Eddy. Eat a shoarma once a day: +1 hit on your next raid.']] },
+  { k: 'vijzel', comfort: 1, use: 'grind', t: [['Stone vijzel', 350, 'Mortar and pestle. Grind a jar once a day and the street smells it: +25 rep.'], ['Brass vijzel', 1600, 'Heavy, shiny, from the Kaasplaats. Grind once a day: +50 rep.'], ["Dad's grinder, restored", 7000, 'The big cast-iron one from 1987, red and brass. Grind once a day: +75 rep.']] },
+  { k: 'kaasdows', comfort: 1, use: 'pc', t: [null, ['Kaasdows 95 desk', 2500, 'A beige PC at home: the whole Kaasdows without walking to the warehouse.'], ['Kaasdows 98 corner office', 6000, 'Tower, CD-ROM, leather chair. The whole Kaasdows from home.']] },
+  { k: 'tv', comfort: 1, use: 'tv', t: [['Portable TV', 300, 'Black and white, on a milk crate. Kaasland TV, mostly snow.'], ['Wood-veneer TV', 1500, 'Colour! Kaasland TV and the cooking channel.', 2], ['Big-screen TV & VCR', 5000, 'A screen the size of a door.', 3]] },
+  { k: 'plants', comfort: 1, use: 'water', t: [['Chillies on the windowsill', 120, 'Three pots of rawit. They like the warehouse heat.'], ['Cardamom plants', 900, 'In terracotta pots. The room smells like Speciaal.', 2], ['Saffron crocus bed', 4000, 'Purple flowers, red threads. A fortune in a planter box.', 3]] },
+  { k: 'trophies', comfort: 1, t: [['Trophy plank', 300, 'One thing taken from every gang boss you beat.'], ['Trophy shelf', 1200, 'One thing taken from every gang boss you beat.'], ['Trophy cabinet', 4000, 'Glass and brass, one thing from every gang boss you beat.']] },
+  { k: 'kaart', comfort: 1, use: 'map', t: [['Paper map of Kaasland', 300, 'Taped to the wall, a pin in every joint you hold. Opens the map.'], ['Cork board map', 1000, 'Pins, string, photos of the bosses. Opens the map.'], ['Framed atlas of Kaasland', 3500, 'Gold frame, hand-painted, your territories in red pins. Opens the map.']] },
   { k: 'kat', perk: 'sense', comfort: 1, global: true, t: [['Saffie the cat', 250, 'A ginger stray from the Kaasplaats. Follows you home, teaches you to move quietly.']] },
 ];
 // knacks (Neon Vice PERKS): one pick of three every time Eddy's name grows (reputation milestones)
@@ -57,6 +65,7 @@ export const STATIONS = [
   { name: 'Radio Kaasland', bpm: 116, key: 0 }, { name: 'Saz FM (slow and sweet)', bpm: 96, key: -3 },
   { name: 'Snackbar Disco', bpm: 128, key: 2 }, { name: 'Zaanse Nachtradio', bpm: 104, key: -5 },
 ];
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 const P = { saff: 0xe8a33d, turm: 0xd9a21b, papr: 0xb83a1e, cumin: 0x6a4a2a, card: 0xa9c46a, cream: 0xf2ead8, copper: 0xb8703a, brass: 0xd8b040, wood: 0x7a4a26, dark: 0x3a2412 };
 const ROOM_Z = -72, ROOM_X = [-40, 0, 40];
@@ -89,9 +98,13 @@ export function createWoning(deps) {
     const e = ensure(); let n = e.perks[k] || 0;
     const o = OUTFITS[e.outfit]; if (o && outfitOK(e.outfit)) n += o.perk[k] || 0;
     for (const it of FURN) if (it.perk === k && owned(it.k)) n += 1;
+    if (k === 'tough' && e.fedDay === today()) n += 1; // a shoarma from the home döner: lasts until the next outing ends the market day
     return n;
   }
-  const comfort = () => FURN.reduce((a, it) => a + (it.comfort && owned(it.k) ? it.comfort : 0), 0);
+  const trophies = () => ['act1', 'act2', 'act3', 'finale'].filter((k) => !!state[k]);
+  const comfortOf = (it, tier) => { const row = itemFor(it, tier); return it.k === 'trophies' ? trophies().length : (row && row[3]) || it.comfort || 0; };
+  const comfort = () => FURN.reduce((a, it) => a + (owned(it.k) ? comfortOf(it, ensure().home) : 0), 0);
+  const today = () => econ.ensure().day;
   const knackLevel = () => { const rep = econ.ensure().rep || 0; let n = 0; while (rep >= repFor(n + 1)) n++; return n; };
   const knacksTaken = () => Object.values(ensure().perks).reduce((a, b) => a + b, 0);
   const pending = () => Math.max(0, knackLevel() - knacksTaken());
@@ -156,8 +169,11 @@ export function createWoning(deps) {
     bed: [[-1.9, -1.6, 0], [-3.1, -2.3, 0], [-4.3, -3.0, 0]], ward: [[2.45, -1.95, 0], [-1.3, -3.1, 0], [-2.1, -4.1, 0]], cat: [[-2.4, 1.6, 0], [-3.8, 2.6, 0], [-5.2, 3.6, 0]],
     radio: [[-0.5, -2.15, 0], [0.5, -3.15, 0], [0.3, -4.1, 0]], coffee: [[0.5, -2.15, 0], [1.8, -3.15, 0], [2.1, -4.1, 0]], rack: [[1.5, -2.38, 0], [3.4, -3.38, 0], [4.3, -4.36, 0]],
     bag: [[2.3, 0.7, 0], [3.7, 1.8, 0], [4.9, 2.6, 0]], target: [[2.92, -0.6, -Math.PI / 2], [4.42, -1.0, -Math.PI / 2], [5.9, -1.4, -Math.PI / 2]],
-    medic: [[-2.92, 0.1, Math.PI / 2], [-4.42, 0.2, Math.PI / 2], [-5.0, 0.7, 0]], rug: [[0, 0.1, 0], [0, 0.2, 0], [0.3, 0.2, 0]],
+    medic: [[-2.92, 1.0, Math.PI / 2], [-4.42, 0.2, Math.PI / 2], [-5.0, 0.7, 0]], rug: [[0, 0.1, 0], [0, 0.2, 0], [0.3, 0.2, 0]],
     weights: [null, [2.3, 0.3, 0], [3.0, 1.0, 0]], sofa: [null, [-0.4, 1.9, Math.PI], [-0.5, 2.4, Math.PI]], fish: [null, [-3.8, 0.4, Math.PI / 2], [-2.6, -0.3, 0]], portrait: [null, null, [-1.0, -4.43, 0]],
+    doner: [[-2.5, 0.0, Math.PI / 2], [4.0, -3.0, 0], [5.3, -3.8, 0]], vijzel: [[1.25, -1.3, 0], [-2.3, -0.9, 0], [-4.8, -1.2, 0]], kaasdows: [null, [2.6, -1.7, 0], [3.6, -2.2, 0]],
+    tv: [[0.3, 1.55, Math.PI], [-0.4, -1.2, 0], [0.3, -1.9, 0]], plants: [[0.8, -2.42, 0], [-2.25, -3.42, 0], [-3.0, 3.95, 0]],
+    trophies: [[-2.92, -0.5, Math.PI / 2], [-4.42, 1.6, Math.PI / 2], [-5.92, -1.3, Math.PI / 2]], kaart: [[2.92, 1.4, -Math.PI / 2], [4.42, 0.9, -Math.PI / 2], [5.92, 1.0, -Math.PI / 2]],
   };
   const B = (g, w, h, d, c, x, y, z, sh = true) => box(w, h, d, typeof c === 'number' ? mt(c) : c, x, y, z, g, sh);
   const C = (g, rt, rb, h, c, x, y, z, seg = 10) => cyl(rt, rb, h, typeof c === 'number' ? mt(c) : c, x, y, z, g, seg);
@@ -265,6 +281,81 @@ export function createWoning(deps) {
       B(g, 0.5, 0.04, 0.06, lam({ color: P.saff, emissive: 0x6a4010 }), 0, 2.62, 0.08, false); return 0;
     },
   };
+  // ---- Eddy's own things
+  const screenTex = (lines, bg = '#0b2a2a', fg = '#e8a33d') => canvasTex(128, 96, (c, w) => { c.fillStyle = bg; c.fillRect(0, 0, w, 96); c.fillStyle = fg; c.font = '900 16px Arial'; c.textAlign = 'center'; lines.forEach((l, i) => c.fillText(l, w / 2, 40 + i * 22)); });
+  const glow = (tex) => lam({ map: tex, emissive: 0xffffff, emissiveMap: tex });
+  Object.assign(DRAW, {
+    doner(g, t) { // a spit of meat, the glowing heater behind it, a knife, a stack of pita
+      const base = [P.wood, 0xc8ccd0, P.brass][t], h0 = [0.55, 0.9, 0.9][t];
+      B(g, 0.7, h0, 0.6, base, 0, h0 / 2, 0);
+      if (t === 2) { for (const sx of [-0.33, 0.33]) B(g, 0.06, 1.9, 0.06, P.brass, sx, h0 + 0.95, -0.2); B(g, 0.72, 0.06, 0.1, P.brass, 0, h0 + 1.9, -0.2); }
+      B(g, 0.5, [0.6, 0.75, 1.3][t], 0.06, lam({ color: 0x8a2a10, emissive: 0x6a1a04 }), 0, h0 + [0.3, 0.38, 0.65][t], -0.24);
+      const meat = C(g, [0.12, 0.15, 0.2][t], [0.07, 0.09, 0.12][t], [0.5, 0.65, 1.2][t], 0x8a4a22, 0, h0 + [0.3, 0.37, 0.65][t], -0.02, 10); meat.userData.spin = 1;
+      C(g, 0.012, 0.012, [0.7, 0.85, 1.5][t], 0xaaaaaa, 0, h0 + [0.35, 0.42, 0.75][t], -0.02, 6);
+      B(g, 0.03, 0.02, 0.28, 0xd8dce0, 0.24, h0 + 0.02, 0.15); for (let k = 0; k < 3; k++) C(g, 0.1, 0.1, 0.015, 0xf2d8a0, -0.2, h0 + 0.01 + k * 0.018, 0.16, 10);
+      return [0.7, 0.6];
+    },
+    vijzel(g, t) {
+      if (t === 0) { B(g, 0.45, 0.45, 0.45, P.wood, 0, 0.22, 0); C(g, 0.14, 0.1, 0.16, 0x8a8a84, 0, 0.53, 0, 12); C(g, 0.11, 0.11, 0.02, 0xc8641e, 0, 0.6, 0, 12); const p = C(g, 0.025, 0.035, 0.26, 0x9a9a94, 0.04, 0.68, 0, 8); p.rotation.z = 0.4; return [0.45, 0.45]; }
+      if (t === 1) { C(g, 0.18, 0.22, 0.75, P.wood, 0, 0.37, 0, 10); C(g, 0.16, 0.11, 0.18, P.brass, 0, 0.84, 0, 14); C(g, 0.13, 0.13, 0.02, P.turm, 0, 0.92, 0, 12); const p = C(g, 0.03, 0.04, 0.3, P.brass, 0.05, 1.0, 0, 8); p.rotation.z = 0.4; return [0.45, 0.45]; }
+      B(g, 0.6, 0.8, 0.5, 0x5a1a10, 0, 0.4, 0); B(g, 0.62, 0.05, 0.52, P.brass, 0, 0.82, 0); C(g, 0.13, 0.09, 0.3, 0x2a2a2a, 0, 1.0, 0, 12); C(g, 0.14, 0.14, 0.02, P.papr, 0, 1.16, 0, 12);
+      const wh = C(g, 0.28, 0.28, 0.04, 0xa8201a, 0.33, 0.95, 0, 18); wh.rotation.z = Math.PI / 2; B(g, 0.04, 0.04, 0.3, P.brass, 0.36, 1.05, 0.12);
+      B(g, 0.2, 0.12, 0.2, P.cream, 0, 0.6, 0.27); return [0.8, 0.55];
+    },
+    kaasdows(g, t) {
+      const w = t === 1 ? 1.2 : 1.5, wc = t === 1 ? P.wood : P.dark; B(g, w, 0.06, 0.65, wc, 0, 0.74, 0); for (const sx of [-w / 2 + 0.05, w / 2 - 0.05]) B(g, 0.05, 0.74, 0.6, wc, sx, 0.37, 0);
+      B(g, 0.42, 0.36, 0.38, 0xd8d0b8, -0.1, 0.97, -0.08); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.25), glow(screenTex(['KAASDOWS', t === 1 ? '95' : '98'], '#0b7b7b', '#ffffff'))); sc.position.set(-0.1, 0.99, 0.115); g.add(sc);
+      B(g, 0.42, 0.03, 0.15, 0xd8d0b8, -0.1, 0.785, 0.2); B(g, 0.07, 0.02, 0.1, 0xd8d0b8, 0.22, 0.785, 0.2);
+      if (t === 2) { B(g, 0.2, 0.45, 0.45, 0xd8d0b8, 0.55, 0.995, -0.05); B(g, 0.55, 0.1, 0.55, P.cumin, 0, 0.5, 0.7); B(g, 0.55, 0.6, 0.1, P.cumin, 0, 0.85, 0.95); C(g, 0.03, 0.03, 0.45, 0x2a2a2a, 0, 0.23, 0.7, 6); }
+      return [w, t === 2 ? 1.1 : 0.65];
+    },
+    tv(g, t) {
+      const ch = screenTex(t === 0 ? ['KAASLAND', 'TV'] : ['KOKEN MET', 'OMA ZAHRA'], t === 0 ? '#3a3a3a' : '#1a2a3a', t === 0 ? '#e8e8e8' : '#e8a33d');
+      if (t === 0) { B(g, 0.5, 0.4, 0.45, P.wood, 0, 0.2, 0); B(g, 0.42, 0.34, 0.36, 0x2a2a2a, 0, 0.57, 0); const s2 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.24), glow(ch)); s2.position.set(0, 0.58, 0.185); g.add(s2); B(g, 0.01, 0.3, 0.01, 0xaaaaaa, 0.1, 0.88, 0); return [0.5, 0.45]; }
+      if (t === 1) { B(g, 0.9, 0.75, 0.55, P.wood, 0, 0.38, 0); const s2 = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.42), glow(ch)); s2.position.set(-0.1, 0.45, 0.28); g.add(s2); for (let k = 0; k < 2; k++) C(g, 0.03, 0.03, 0.02, P.brass, 0.3, 0.55 - k * 0.12, 0.28, 8).rotation.x = Math.PI / 2; return [0.9, 0.55]; }
+      B(g, 1.7, 0.45, 0.5, P.dark, 0, 0.22, 0); B(g, 0.4, 0.08, 0.3, 0x1a1a1a, -0.55, 0.49, 0.05); B(g, 1.5, 0.95, 0.12, 0x1a1a1a, 0, 0.95, -0.12); const s2 = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.82), glow(ch)); s2.position.set(0, 0.95, -0.055); g.add(s2);
+      return [1.7, 0.5];
+    },
+    plants(g, t) {
+      if (t < 2) { // pots on the windowsill
+        B(g, 1.1, 0.05, 0.22, P.cream, 0, 0.92, 0.06, false);
+        for (let k = 0; k < 3; k++) { const x = -0.35 + k * 0.35; C(g, 0.08, 0.06, 0.13, 0xb8602a, x, 1.01, 0.08, 8); C(g, t ? 0.13 : 0.1, 0.06, t ? 0.28 : 0.18, 0x4a7a2a, x, t ? 1.22 : 1.16, 0.08, 7);
+          if (!t) for (let j = 0; j < 3; j++) B(g, 0.02, 0.05, 0.02, 0xd82a1a, x - 0.04 + j * 0.04, 1.14 + (j % 2) * 0.05, 0.14, false); else for (let j = 0; j < 2; j++) C(g, 0.02, 0.02, 0.04, 0x9ac46a, x - 0.04 + j * 0.08, 1.36, 0.1, 6); }
+        return 0;
+      }
+      B(g, 1.6, 0.35, 0.5, P.wood, 0, 0.17, 0); B(g, 1.5, 0.04, 0.42, 0x4a3020, 0, 0.35, 0, false);
+      for (let k = 0; k < 14; k++) { const x = -0.65 + (k % 7) * 0.22, z = -0.1 + Math.floor(k / 7) * 0.2; C(g, 0.006, 0.006, 0.14, 0x5a8a3a, x, 0.43, z, 4); C(g, 0.045, 0.02, 0.06, 0x8a5ac8, x, 0.52, z, 6); B(g, 0.008, 0.04, 0.008, 0xd82a1a, x + 0.02, 0.55, z, false); }
+      return [1.6, 0.5];
+    },
+    trophies(g, t) { // one thing from every boss Eddy beat
+      const got = trophies(), wd = [1.0, 1.3, 1.5][t];
+      if (t === 2) { B(g, wd, 1.2, 0.35, P.brass, 0, 1.55, 0.18); B(g, wd - 0.1, 1.1, 0.3, 0x2a1a0e, 0, 1.55, 0.2); B(g, wd, 1.2, 0.02, lam({ color: 0xbfe0e8, transparent: true, opacity: 0.22 }), 0, 1.55, 0.36, false); }
+      B(g, wd, 0.04, 0.26, t === 2 ? P.brass : P.wood, 0, 1.25, 0.13, false);
+      const at = (i) => -wd / 2 + 0.16 + i * ((wd - 0.32) / 3), y = 1.27;
+      if (!got.length) { C(g, 0.07, 0.04, 0.14, P.brass, 0, y + 0.07, 0.13, 10); C(g, 0.06, 0.06, 0.02, P.wood, 0, y + 0.01, 0.13, 10); } // an old snackbar-bingo cup, until there's a boss to show
+      got.forEach((k, i) => { const x = at(i);
+        if (k === 'act1') { const f = C(g, 0.03, 0.03, 0.22, P.brass, x, y + 0.14, 0.13, 8); f.rotation.z = 0.3; B(g, 0.12, 0.04, 0.1, P.dark, x, y + 0.02, 0.13); } // Jan van Kaas: a golden frikandel
+        else if (k === 'act2') { for (let j = 0; j < 9; j++) { const a = j / 9 * Math.PI * 2; C(g, 0.022, 0.022, 0.03, 0x9a6a3a, x + Math.cos(a) * 0.08, y + 0.1 + Math.sin(a) * 0.08, 0.13, 6); } } // Goeroe Granola's beads
+        else if (k === 'act3') { C(g, 0.1, 0.1, 0.05, 0x1e2a4a, x, y + 0.04, 0.13, 12); C(g, 0.11, 0.11, 0.015, P.brass, x, y + 0.07, 0.13, 12); B(g, 0.12, 0.015, 0.06, 0x1a1a1a, x, y + 0.03, 0.2); } // De Abdavis's captain's cap
+        else { B(g, 0.1, 0.18, 0.1, P.brass, x, y + 0.09, 0.13); for (let j = 0; j < 4; j++) { const v = B(g, 0.02, 0.2, 0.01, P.brass, x, y + 0.2, 0.19); v.rotation.z = j * Math.PI / 4; } } // Oom Gerrit's golden mill
+      });
+      return t === 2 ? [wd, 0.35] : 0;
+    },
+    kaart(g, t) { // Kaasland on the wall, a pin per territory
+      const n = Math.min(30, Object.keys(state.owned || {}).length + (state.spekbuurt ? 1 : 0));
+      const tx = canvasTex(160, 112, (c, w, h) => {
+        c.fillStyle = t === 0 ? '#e8dcc0' : t === 1 ? '#c8a070' : '#f2ead8'; c.fillRect(0, 0, w, h); c.fillStyle = t === 1 ? '#efe4c8' : '#a9c46a';
+        c.beginPath(); c.moveTo(20, 30); c.bezierCurveTo(50, 5, 110, 10, 140, 35); c.bezierCurveTo(150, 70, 120, 100, 80, 98); c.bezierCurveTo(40, 100, 10, 70, 20, 30); c.fill();
+        c.strokeStyle = '#4a7a9a'; c.lineWidth = 3; c.beginPath(); c.moveTo(10, 60); c.bezierCurveTo(60, 50, 90, 75, 150, 62); c.stroke();
+        let r = 7; const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+        for (let i = 0; i < n; i++) { const x = 35 + rnd() * 95, y = 25 + rnd() * 65; c.fillStyle = '#b83a1e'; c.beginPath(); c.arc(x, y, 3.5, 0, 7); c.fill(); }
+        c.fillStyle = '#3a2412'; c.font = '900 11px Arial'; c.fillText('KAASLAND', 52, 106);
+      });
+      const W2 = [0.9, 1.2, 1.4][t], H2 = W2 * 0.7;
+      if (t) B(g, W2 + 0.1, H2 + 0.1, 0.04, t === 2 ? P.brass : 0xa07a4a, 0, 1.65, 0.02);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(W2, H2), lam({ map: tx })); m.position.set(0, 1.65, 0.05); g.add(m); return 0;
+    },
+  });
   // ---- Saffie the cat: wanders the current home, sleeps on the rug
   const kat = new THREE.Group(); kat.visible = false; deps.scene.add(kat);
   B(kat, 0.36, 0.18, 0.16, 0xd8782a, 0, 0.2, 0); B(kat, 0.16, 0.15, 0.15, 0xd8782a, 0.22, 0.3, 0); for (const sz of [-0.05, 0.05]) B(kat, 0.04, 0.06, 0.03, 0xd8782a, 0.24, 0.4, sz);
@@ -336,6 +427,31 @@ export function createWoning(deps) {
   addInteract({ pos: () => (inHome >= 0 ? here('cat')() : new THREE.Vector3(0, -99, 0)), r: 1.3, enabled: () => inHome >= 0, label: () => 'Catalogue & phone · order furniture', act: () => deps.openPC('woning') });
   addInteract({ pos: () => (inHome >= 0 ? here('radio')() : new THREE.Vector3(0, -99, 0)), r: 1.3, enabled: () => inHome >= 0 && owned('radio', inHome), label: () => `Radio · ${STATIONS[ensure().station].name} · change station`, act: nextStation });
 
+  // ---- using Eddy's things: E next to a piece that has a use
+  const TV_LINES = ['Kaasland Journaal: "The Lampas deny everything. Also the sawdust."', 'Koken met Oma Zahra: "Komijn is not a garnish, it is a lifestyle."', 'Weather: rain. Tomorrow: rain. The weekend: you guessed it.', 'Advert: "Frituur Het Gouden Frietje. Now with 10% less grease!"', 'Kaasland Got Talent: a man juggles three wheels of Gouda. The jury cries.', 'Late film: "De Gouden Mix III: Kardemom Rising". You fall asleep at the good part.', 'Police report: "a large man in a blue shirt" seen near a Lampas den. Eddy changes the channel.'];
+  const usable = () => {
+    if (inHome < 0) return null; const r = rooms[inHome]; let best = null, bd = 1.6;
+    for (const it of FURN) {
+      if (!it.use || it.global || !owned(it.k, inHome) || !itemFor(it, inHome)) continue; const sl = S[it.k] && S[it.k][inHome]; if (!sl) continue;
+      const d = Math.hypot(r.ox + sl[0] - player.position.x, r.oz + sl[1] - player.position.z); if (d < bd) { bd = d; best = { it, row: itemFor(it, inHome), pos: new THREE.Vector3(r.ox + sl[0], 0, r.oz + sl[1]) }; }
+    }
+    return best;
+  };
+  const useLabel = (u) => {
+    const e = ensure(), d = today();
+    return { eat: e.fedDay === d ? `${u.row[0]} · you ate today (+1 hit on the next raid)` : `${u.row[0]} · eat a shoarma (+1 hit next raid)`, grind: e.grindDay === d ? `${u.row[0]} · you ground a jar today` : `${u.row[0]} · grind a jar (+${25 * (inHome + 1)} rep)`,
+      pc: `${u.row[0]} · log in to Kaasdows`, tv: `${u.row[0]} · watch TV`, water: `${u.row[0]} · water the plants`, map: `${u.row[0]} · open the map` }[u.it.use];
+  };
+  function useItem(u) {
+    const e = ensure(), d = today();
+    if (u.it.use === 'eat') { if (e.fedDay === d) return deps.toast('VOL', 'One shoarma a day. Eddy Sr. would say two. Mama would say none.', 2.5); e.fedDay = d; deps.beep(520, 0.1, 'triangle', 0.04); deps.toast('LEKKER', 'Shoarma with extra garlic sauce. +1 hit on your next raid.', 3); deps.save(); }
+    else if (u.it.use === 'grind') { if (e.grindDay === d) return deps.toast('VIJZEL', 'Your arms say no. Tomorrow.', 2.2); e.grindDay = d; const n = 25 * (inHome + 1); if (econ.addRep) econ.addRep(n); deps.beep(180, 0.25, 'sawtooth', 0.025); deps.toast('VERS GEMALEN', `The whole street smells your blend. +${n} rep.`, 3); deps.save(); }
+    else if (u.it.use === 'pc') deps.openPC('sell');
+    else if (u.it.use === 'map') deps.openPC('map');
+    else if (u.it.use === 'tv') deps.toast('KAASLAND TV', pick(TV_LINES), 4);
+    else if (u.it.use === 'water') deps.toast('GIETER', pick(['The plants say thank you. Quietly.', 'One chilli is ripe. You eat it. Your eyes water for ten minutes.', 'Saffie knocks a pot over. You blame the cat. The cat blames you.', 'They grow. Slowly. Like your empire.']), 3);
+  }
+  addInteract({ pos: () => { const u = usable(); return u ? u.pos : new THREE.Vector3(0, -99, 0); }, r: 1.6, enabled: () => !!usable(), label: () => useLabel(usable()), act: () => { const u = usable(); if (u) useItem(u); } });
   function nextStation() {
     const e = ensure(); e.station = (e.station + 1) % STATIONS.length; applyStation(); deps.beep(900, 0.04, 'square', 0.03);
     deps.toast('ON THE RADIO', STATIONS[e.station].name + (deps.music.on ? '' : ' · (music is off: M)'), 2.2); deps.save();
@@ -411,6 +527,7 @@ export function createWoning(deps) {
         } else { const st = Math.min(d, 0.7 * dt); kat.position.x += dx / d * st; kat.position.z += dz / d * st; kat.rotation.y = Math.atan2(dx, dz) - Math.PI / 2; u.phase += dt * 10; kat.position.y = Math.abs(Math.sin(u.phase)) * 0.02; }
       }
     }
+    if (inHome >= 0) rooms[inHome].fg.traverse((o) => { if (o.userData.spin) o.rotation.y += dt * 1.5; else if (o.userData.spinX) o.rotation.x += dt * 0.8; });
     if ((perkT -= dt) <= 0) { perkT = 1; if (!picking && pending() > 0 && !deps.busy()) offerKnack(); }
   }
 
@@ -446,7 +563,7 @@ export function createWoning(deps) {
     h += `</table><div class="well" style="margin-top:8px"><b>Inrichting · ${HOMES[tier].name}</b> · comfort ${comfort()}</div><table class="list"><tr><th>Piece</th><th>Gives</th><th></th></tr>`;
     for (const it of FURN) {
       const row = itemFor(it, tier); if (!row) continue; const own = owned(it.k, tier);
-      h += `<tr><td><b>${row[0]}</b><br><small>${row[2]}</small></td><td><small>${it.perk ? PERKS[it.perk].name + ': ' + PERKS[it.perk].desc : 'Comfort +' + it.comfort}</small></td><td>${own ? 'Installed' : `<button class="b95" data-wo="furn:${it.k}" data-need="${row[1]}"${state.money < row[1] ? ' disabled' : ''}>Buy (${fmt(row[1])})</button>`}</td></tr>`;
+      h += `<tr><td><b>${row[0]}</b><br><small>${row[2]}</small></td><td><small>${it.perk ? PERKS[it.perk].name + ': ' + PERKS[it.perk].desc : it.k === 'trophies' ? `Comfort +1 per boss trophy (${trophies().length} now)` : 'Comfort +' + comfortOf(it, tier)}${it.use ? '<br>Use it at home (E)' : ''}</small></td><td>${own ? 'Installed' : `<button class="b95" data-wo="furn:${it.k}" data-need="${row[1]}"${state.money < row[1] ? ' disabled' : ''}>Buy (${fmt(row[1])})</button>`}</td></tr>`;
     }
     const lv = knackLevel(), taken = knacksTaken(), rep = econ.ensure().rep || 0;
     const knacks = Object.keys(PERKS).filter((k) => e.perks[k]).map((k) => `${PERKS[k].name} ${ro[e.perks[k]]}`).join(' · ') || 'none yet';
