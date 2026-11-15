@@ -12,6 +12,8 @@ const GUNSND = {
   revolver: { fire: ['revolver1', 'revolver2'], rl: [[0.03, 'sw_open'], [0.16, 'sw_eject'], [0.52, 'sw_load'], [1, 'sw_close']], dry: 'sw_dry', v: 1 },
   pump: { fire: ['shotgun1', 'shotgun2'], rack: 'pump_cycle', rl: [[0.1, 'pump_shell'], [0.3, 'pump_shell'], [0.5, 'pump_shell'], [0.7, 'pump_shell'], [1, 'pump_cycle']], dry: 'pump_dry', v: 1 },
   shotgun: { fire: ['double1', 'double2'], rl: RL_BRK, dry: 'pump_dry', v: 1 },
+  autosg: { fire: ['shotgun1', 'shotgun2'], rl: [[0.06, 'ak_out'], [0.5, 'ak_in'], [0.82, 'ak_back'], [1, 'ak_fwd']], dry: 'pump_dry', v: 1 },
+  awp: { fire: ['rifle1', 'rifle2'], rack: 'ar_bolt', rl: [[0.06, 'ar_out'], [0.55, 'ar_in'], [1, 'ar_bolt']], dry: 'ar_dry', v: 1.1, rate: 0.72 },
   smg: { fire: ['smg1', 'smg2', 'smg3'], rl: [[0.06, 'smg_out'], [0.55, 'smg_in'], [1, 'smg_bolt']], dry: 'ar_dry', v: 0.75 },
   rifle: { fire: ['rifle1', 'rifle2'], rl: [[0.06, 'ar_out'], [0.55, 'ar_in'], [1, 'ar_bolt']], dry: 'ar_dry', v: 0.9 },
   ak: { fire: ['ak1', 'ak2', 'ak3'], rl: [[0.06, 'ak_out'], [0.5, 'ak_in'], [0.82, 'ak_back'], [1, 'ak_fwd']], dry: 'ar_dry', v: 0.95 },
@@ -55,7 +57,7 @@ export const gunAudio = {
   fire(snd, vol = 1) {
     load(); const S = GUNSND[snd]; if (!S) return false;
     if (!clip(S.fire[Math.floor(Math.random() * S.fire.length)], 0, S.v * vol, (S.rate || 1) * rr(0.96, 1.04))) return false;
-    if (S.rack) clip(S.rack, 0.3, 0.55 * vol, rr(0.97, 1.03));
+    if (S.rack) clip(S.rack, S.rate ? 0.55 : 0.3, 0.55 * vol, rr(0.97, 1.03));
     return true;
   },
   // call every frame while reloading: plays each step as the bar passes it (r.t, r.dur; keeps its cursor in r.si)
