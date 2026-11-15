@@ -1700,7 +1700,7 @@ export function initMission(ctx) {
     }
     let best = null, bd = 1.3;
     for (const it of items) { if (it.flying) continue; const k = Math.hypot(it.g.position.x - player.position.x, it.g.position.z - player.position.z); if (k < bd) { bd = k; best = it; } }
-    if (!best) return P.held ? throwHeld() : false; // nothing to grab: throw what you hold (Neon Vice)
+    if (!best) return P.held && !(ctx.interacting && ctx.interacting()) ? throwHeld() : false; // nothing to grab: throw what you hold (Neon Vice), unless an [E] prompt (the van, a task) is showing: E is for that
     // a gun of a calibre you carry: strip its rounds, unless it's a new gun and a slot is free (then take it)
     const fits = isGun(best.id) && (!P.guns[0] || !P.guns[1]) && !P.guns.some((g) => g && g.id === best.id);
     if (!fits && stripAmmo(best)) return true;
@@ -2168,10 +2168,35 @@ export function initMission(ctx) {
     } else if (A.ph === 'park') {
       if (A.t > 0.45) { A.ph = 'out'; A.t = 0; player.visible = true; player.position.set(OX + LV.van.exit[0], 0, LV.van.exit[1]); player.rotation.y = Math.PI; sfx('door'); }
     } else {
-      const d = START().sub(player.position); d.y = 0; const L2 = d.length();
+      if (!A.route) A.route = arrivePath(player.position, START());
+      while (A.route.length > 1 && player.position.distanceTo(A.route[0]) < 0.15) A.route.shift();
+      const d = A.route[0].clone().sub(player.position); d.y = 0; const L2 = d.length();
       if (L2 > 0.05) { const st = Math.min(L2, 2.6 * dt); player.rotation.y = Math.atan2(d.x, d.z); player.position.addScaledVector(d.normalize(), st); animate(player, 2.6, dt); }
-      if (L2 <= 0.05 || A.t > 3) endArrive();
+      if ((A.route.length === 1 && L2 <= 0.05) || A.t > 6) endArrive();
     }
+  }
+  // the walk from the van door to the start point goes around crates, bikes and lamp posts (any solid), not through them:
+  // a breadth-first search on a 0.25 m grid with the player's radius, then cut down to the corners that matter
+  function arrivePath(a, b) {
+    const R = 0.42, S = 0.25, pad = 5;
+    const x0 = Math.min(a.x, b.x) - pad, z0 = Math.min(a.z, b.z) - pad, nx = Math.ceil((Math.abs(a.x - b.x) + pad * 2) / S) + 1, nz = Math.ceil((Math.abs(a.z - b.z) + pad * 2) / S) + 1;
+    const near = ctx.solids.filter((q) => !q.off && q.maxx > x0 - R && q.minx < x0 + nx * S + R && q.maxz > z0 - R && q.minz < z0 + nz * S + R);
+    const hit = (px, pz) => near.some((q) => px > q.minx - R && px < q.maxx + R && pz > q.minz - R && pz < q.maxz + R);
+    const clear = (p, q) => { const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / 0.1); for (let i = 1; i <= n; i++) if (hit(p.x + (q.x - p.x) * i / n, p.z + (q.z - p.z) * i / n)) return false; return true; };
+    const end = new THREE.Vector3(b.x, 0, b.z);
+    if (clear(a, end)) return [end];
+    const id = (i, k) => k * nx + i, ci = (x) => Math.round((x - x0) / S), ck = (z) => Math.round((z - z0) / S);
+    const s0 = id(ci(a.x), ck(a.z)), g = id(ci(b.x), ck(b.z)), prev = new Int32Array(nx * nz).fill(-1), q = new Int32Array(nx * nz); let h = 0, t = 0;
+    const blocked = new Uint8Array(nx * nz); for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) blocked[id(i, k)] = hit(x0 + i * S, z0 + k * S) ? 1 : 0;
+    q[t++] = s0; prev[s0] = s0;
+    while (h < t) { const c = q[h++]; if (c === g) break; const i = c % nx, k = (c / nx) | 0;
+      for (const [di, dk] of NB) { const ni = i + di, nk = k + dk, n = id(ni, nk); if (ni < 0 || nk < 0 || ni >= nx || nk >= nz || prev[n] !== -1) continue;
+        if (blocked[n] && n !== g) continue; if (di && dk && (blocked[id(i + di, k)] || blocked[id(i, k + dk)])) continue; prev[n] = c; q[t++] = n; } }
+    if (prev[g] === -1) return [end]; // no way round: walk straight (the old behaviour) and let the timeout place him
+    const pts = []; for (let c = g; c !== s0; c = prev[c]) pts.push(new THREE.Vector3(x0 + (c % nx) * S, 0, z0 + ((c / nx) | 0) * S)); pts.reverse(); pts[pts.length - 1] = end;
+    const out = []; let from = a.clone(), j = 0;
+    while (j < pts.length) { let far = j; for (let m = pts.length - 1; m > j; m--) if (clear(from, pts[m])) { far = m; break; } out.push(pts[far]); from = pts[far]; j = far + 1; }
+    return out;
   }
 
   // ================================================================== DE KLUIS (stash at the warehouse: store and swap gear between missions)
@@ -2242,6 +2267,7 @@ export function initMission(ctx) {
   // test hooks: where the Lampas stand, and a forced clear (results screen) for remix/best-score checks
   M.debugFoes = () => enemies.map((e) => ({ alive: e.userData.foe.alive, x: +e.position.x.toFixed(1), z: +e.position.z.toFixed(1), w: e.userData.foe.weapon }));
   M.debugPark = () => ({ on: PK.on, paid: PK.paid, how: PK.how, t: +PK.t.toFixed(1), scanAt: +PK.scanAt.toFixed(1), scanned: PK.scanned, clamped: PK.clamped, warden: !!PK.ws, setScan: (t) => { PK.scanAt = t; } });
+  M.debugArr = () => ARR && { ph: ARR.ph, t: +ARR.t.toFixed(2), route: ARR.route && ARR.route.map((v) => [+(v.x - OX).toFixed(2), +v.z.toFixed(2)]) };
   M.debugWave = () => ({ fired: WV.fired, arrived: WV.arrived, t: +WV.t.toFixed(1), pending: pendingN(), room: navRoom, arrow: arrow.visible });
   M.debugClear = () => { for (const e of enemies) e.userData.foe.alive = false; R.score = R.score || 9000; results(); };
   buildLevel(spekbuurt); // Mission 1 is built up front (as before); other levels replace it when they're launched
