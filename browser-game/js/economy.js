@@ -15,6 +15,11 @@ export const INGREDIENTS = [
   { id: 'kaneel', name: 'Kaneel', base: 14, supply: 30, from: "Abdavissies (Kaneelsilo's)" },
   { id: 'kardemom', name: 'Kardemom', base: 28, supply: 15, from: 'Abdavissies (Kardemomdok)' },
   { id: 'saffraan', name: 'Saffraan', base: 90, supply: 3, from: 'Abdavissies (Saffraanpier)' },
+  // the Woestijnkruiden: only the Paravim bring these, on their caravans, once Eddy has settled with Ras al Gara (gate: state.paravim)
+  { id: 'raselhanout', name: 'Ras el hanout', base: 22, supply: 20, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
+  { id: 'sumak', name: 'Sumak', base: 16, supply: 25, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
+  { id: 'zaatar', name: "Za'atar", base: 14, supply: 25, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
+  { id: 'harissa', name: 'Harissa', base: 12, supply: 30, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
 ];
 export const GRADES = [
   { id: 'lampas', name: 'Lampas', mult: 0.6, stars: 1, note: 'cheap, diluted, smells of flour' },
@@ -28,6 +33,7 @@ export const BLENDS = [
   { id: 'kebab', name: 'Kebab Kruiden', mix: { paprika: 3, komijn: 2, koriander: 2, knoflook: 2, kaneel: 1 }, value: 60, note: 'Needs a pinch of Abdavissies kaneel.' },
   { id: 'slager', name: 'Slagerskruiden', mix: { knoflook: 3, koriander: 3, paprika: 2, komijn: 2 }, value: 45, note: "Eddy Sr.'s butcher blend, from page 1 of his notebook.", page: 1 },
   { id: 'speciaal', name: 'Shoarma Speciaal', mix: { paprika: 3, komijn: 2, knoflook: 2, kurkuma: 2, kardemom: 1 }, value: 80, note: 'Page 2 of the notebook. Kardemom makes it sing.', page: 2 },
+  { id: 'woestijn', name: 'Woestijn Shoarma', mix: { paprika: 3, komijn: 2, raselhanout: 2, sumak: 1, zaatar: 1, harissa: 1 }, value: 95, note: "Ras al Gara's caravan blend. The joints in De Zandwijk want nothing else.", gate: 'paravim' },
   { id: 'gouden', name: 'De Gouden Mix', mix: null, value: 0, note: "The legendary blend. Eddy Sr.'s notebook holds the clues." },
 ];
 // Acts 1-3: every joint Eddy owns there buys DISTRICT_KG of its district's blend a market day (balance 2026-11-15)
@@ -38,7 +44,9 @@ const PARA_JOINTS = ['couscouskade', 'zaatarmarkt', 'sumaksteeg', 'harissahof', 
 const DISTRICT_KG = 5;
 // Spice orders (Kruidenbeurs, phone, Loods pallets) arrive on the morning ORDER_DAYS market days later; express: 1 day, +EXPRESS
 export const ORDER_DAYS = 2, EXPRESS = 0.25;
-const DISTRICT_SALES = [{ name: 'Joints in Oud-Vettenburg', ids: LAMPAS_JOINTS, blend: 'kip' }, { name: 'Joints on Hipsterheuvel', ids: NOSH_JOINTS, blend: 'lams' }, { name: 'Joints in De Duistere Dokken', ids: ABD_JOINTS, blend: 'kebab' }];
+const DISTRICT_SALES = [{ name: 'Joints in Oud-Vettenburg', ids: LAMPAS_JOINTS, blend: 'kip' }, { name: 'Joints on Hipsterheuvel', ids: NOSH_JOINTS, blend: 'lams' }, { name: 'Joints in De Duistere Dokken', ids: ABD_JOINTS, blend: 'kebab' }, { name: 'Joints in De Zandwijk', ids: PARA_JOINTS, blend: 'woestijn' }];
+// spices behind a story gate (the Woestijnkruiden) stay off the market until it opens
+export const ingOpen = (g, st) => !g.gate || !!(st && st[g.gate]);
 const PER_NAKNIK = 10; // kg of blend each Naknik mixes per market day
 const WHOLESALE_KG = 40;
 // Clients: the joints Eddy owns (plus Schmatzel, Dad's oldest friend). Each orders one blend a day.
@@ -252,7 +260,7 @@ export function createEconomy(deps) {
     const drift = {}; for (const g of INGREDIENTS) drift[g.id] = (Math.random() * 2 - 1) * 0.15;
     let news = null;
     if (Math.random() < 0.45) {
-      const g = pick(INGREDIENTS), up = Math.random() < 0.55, size = 0.25 + Math.random() * 0.2;
+      const g = pick(INGREDIENTS.filter((x) => ingOpen(x, state))), up = Math.random() < 0.55, size = 0.25 + Math.random() * 0.2;
       news = { id: g.id, f: up ? 1 + size : 1 - size, days: 2 + Math.floor(Math.random() * 2), text: cap((up ? pick(NEWS_UP) : pick(NEWS_DOWN))(g.name.toLowerCase())) };
     }
     return (e.next = { drift, news });
@@ -487,7 +495,7 @@ export function createEconomy(deps) {
   }
   const machineVol = (cid) => 1 + (ensure().installed[cid] || []).reduce((a, id) => a + MACHINES.find((m) => m.id === id).vol, 0);
   const blendFor = (c) => (c.alt && !blendOpen(BLENDS.find((b) => b.id === c.blend)) ? c.alt : c.blend);
-  const blendOpen = (b) => !!b.mix && (!b.page || has(b.page === 1 ? 'recept1' : 'recept2'));
+  const blendOpen = (b) => !!b.mix && (!b.page || has(b.page === 1 ? 'recept1' : 'recept2')) && (!b.gate || !!state[b.gate]);
   const orderKg = (c) => { const ev = ensure().event; return Math.round(c.kg * machineVol(c.id) * (ev && ev.vol && (!ev.only || ev.only === c.id) ? ev.vol : 1)); };
   // ---- machine trade
   const machineCount = () => Object.values(ensure().machines).reduce((a, b) => a + b, 0);
@@ -730,6 +738,7 @@ export function createEconomy(deps) {
 
   function buy(id, gradeId, kg, el, express = ensure().express) { // an order: paid now, delivered in 2 days (express 1)
     const e = ensure(), g = INGREDIENTS.find((x) => x.id === id);
+    if (!ingOpen(g, state)) return { ok: false, why: 'Only the Paravim bring this, and they do not trade with you yet.' };
     kg = Math.min(kg, orderRoom(), g.supply ? e.supply[id] : Infinity);
     if (kg <= 0) return { ok: false, why: orderRoom() <= 0 ? (inboundKg() ? 'The warehouse is full once the orders on their way arrive.' : 'The warehouse is full.') : 'Sold out for today.' };
     const cost = expressCost(price(id, gradeId) * kg, express);
@@ -771,12 +780,13 @@ export function createEconomy(deps) {
     const e = ensure(), disc = deps.discount ? deps.discount() : 0;
     let h = `<div class="well" style="margin-bottom:8px"><b>Kruidenbeurs Kipkruidenkwartier</b> · Market day <b>${e.day}</b> · Balance <b data-bal>${fmt(state.money)}</b><br>
       Warehouse stock: <b>${stockTotal()} / ${cap()} kg</b>${disc > 0 ? ` · Home turf discount <b>${Math.round(disc * 100)}%</b>` : ''}<br>
-      <small>Prices move every market day. Orders arrive on the morning <b>two days</b> later (express: tomorrow, +${Math.round(EXPRESS * 100)}%). Lampas grade is cheap and diluted, Bio is the Noshgey Kariot's overpriced best. Dock spices come through the Abdavissies, a few kilos a day.</small></div>`;
+      <small>Prices move every market day. Orders arrive on the morning <b>two days</b> later (express: tomorrow, +${Math.round(EXPRESS * 100)}%). Lampas grade is cheap and diluted, Bio is the Noshgey Kariot's overpriced best. Dock spices come through the Abdavissies, a few kilos a day.${state.paravim ? ' Desert spices come on the Paravim caravans.' : ''}</small></div>`;
     if (e.news.length) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>KAASLAND SPICE NEWS</b><br>${e.news.map((n) => `· ${n.text} <b style="color:${n.f > 1 ? '#b00000' : '#007000'}">${n.f > 1 ? '▲' : '▼'} ${Math.round(Math.abs(n.f - 1) * 100)}%</b>`).join('<br>')}</div>`;
     h += planHTML() + inboundHTML();
     h += `<div style="margin-bottom:6px">Buy per click: ${[1, 5, 25].map((q) => `<button class="b95" data-qty="${q}" ${q === qty ? 'style="font-weight:bold;border-style:inset"' : ''}>${q} kg</button>`).join(' ')} · Delivery: <button class="b95" data-exp="0" ${!e.express ? 'style="font-weight:bold;border-style:inset"' : ''}>2 days</button> <button class="b95" data-exp="1" ${e.express ? 'style="font-weight:bold;border-style:inset"' : ''}>Express, tomorrow (+${Math.round(EXPRESS * 100)}%)</button></div>`;
     h += '<table class="list"><tr><th>Spice</th>' + GRADES.map((g) => `<th title="${g.note}">${g.name}<br><small>${stars(g.stars)}</small></th>`).join('') + '<th>Trend</th><th>In stock</th></tr>';
     for (const g of INGREDIENTS) {
+      if (!ingOpen(g, state)) continue; // the Woestijnkruiden: after the settlement with Ras al Gara
       const left = g.supply ? e.supply[g.id] : null;
       h += `<tr><td><b>${g.name}</b><br><small>${g.from}${left !== null ? ` · ${left} kg left today` : ''}</small></td>`;
       for (const gr of GRADES) h += `<td>${fmt(price(g.id, gr.id) * (e.express ? 1 + EXPRESS : 1))}/kg<br><button class="b95" data-buy="${g.id}:${gr.id}" ${left === 0 ? 'disabled' : ''}>Buy</button></td>`;
@@ -813,7 +823,7 @@ export function createEconomy(deps) {
     h += `<div style="margin-bottom:6px">Grades: <button class="b95" data-pol="cheap" ${on(e.policy === 'cheap')}>Cheapest first</button> <button class="b95" data-pol="best" ${on(e.policy === 'best')}>Best first</button></div>`;
     h += '<table class="list"><tr><th>Blend</th><th>Per 10 kg</th><th>Can mix now</th><th>Order</th></tr>';
     for (const b of BLENDS) {
-      if (!blendOpen(b)) { h += `<tr><td><b>${b.name}</b><br><small>${b.mix ? 'Ome Joop by the canal has this page of Dad\'s notebook.' : b.note}</small></td><td>???</td><td>-</td><td><button class="b95" disabled>Locked</button></td></tr>`; continue; }
+      if (!blendOpen(b)) { h += `<tr><td><b>${b.name}</b><br><small>${b.gate ? 'Only the Paravim bring these spices. Settle with Ras al Gara in De Zandwijk first.' : b.mix ? 'Ome Joop by the canal has this page of Dad\'s notebook.' : b.note}</small></td><td>???</td><td>-</td><td><button class="b95" disabled>Locked</button></td></tr>`; continue; }
       let can = n * perNaknik() || perNaknik(); for (const [id, w] of Object.entries(b.mix)) can = Math.min(can, Math.floor(have(id) * 10 / w));
       h += `<tr><td><b>${b.name}</b><br><small>${b.note}</small></td><td><small>${Object.entries(b.mix).map(([id, w]) => `${w} kg ${INGREDIENTS.find((g) => g.id === id).name}${have(id) * 10 / w < 1 ? ' <b style="color:#a00">!</b>' : ''}`).join('<br>')}</small></td><td>${can} kg</td><td>${e.order === b.id ? '<b>Mixing this</b>' : `<button class="b95" data-order="${b.id}">Mix this</button>`}</td></tr>`;
     }
@@ -834,5 +844,5 @@ export function createEconomy(deps) {
   // Hakan's phone order (js/phone.js): Shooki brings it at the next market day
   function phoneOrder(kg) { const e = ensure(); e.phoneOrder = { kg, day: e.day }; e.phoneDay = e.day; if (deps.save) deps.save(); }
   const phoneQuote = (kg) => Math.round(clientPrice('kip', Math.max(1, blendOf('kip').q || 3), null) * kg * 1.15);
-  return { today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { ingOpen: (g) => ingOpen(g, state), today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }

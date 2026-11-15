@@ -179,7 +179,7 @@ export function initPhone(d) {
         { l: 'Per keer', r: `${qty} kg`, act: () => { qty = qty === 1 ? 5 : qty === 5 ? 25 : 1; render(); } },
         { l: 'Levering', r: econ.ensure().express ? 'morgen+25%' : '2 dagen', act: () => { const e = econ.ensure(); e.express = !e.express; d.save(); render(); } },
         { l: 'Kwaliteit', r: econ.GRADES.find((g) => g.id === grade).name.slice(0, 9), act: () => { const i = econ.GRADES.findIndex((g) => g.id === grade); grade = econ.GRADES[(i + 1) % econ.GRADES.length].id; render(); } },
-        ...econ.INGREDIENTS.map((g) => ({ l: g.name, r: `W${econ.expressCost(econ.price(g.id, grade), econ.ensure().express)}${econ.has('prognose') ? (econ.forecast(g.id) > 0 ? '▲' : '▼') : ''}`, act: () => {
+        ...econ.INGREDIENTS.filter((g) => econ.ingOpen(g)).map((g) => ({ l: g.name, r: `W${econ.expressCost(econ.price(g.id, grade), econ.ensure().express)}${econ.has('prognose') ? (econ.forecast(g.id) > 0 ? '▲' : '▼') : ''}`, act: () => {
           const r = econ.buy(g.id, grade, qty);
           say(r.ok ? `${r.kg}kg ${g.name} -W${r.cost}, komt dag ${r.day}` : r.why);
         } })),
@@ -188,7 +188,7 @@ export function initPhone(d) {
     },
     henk() {
       return { t: 'Henk Cijfer', items: [{ l: 'Bel: tip?', act: () => {
-        const ids = econ.INGREDIENTS.map((g) => g.id).sort((a, b) => Math.abs(econ.forecast(b)) - Math.abs(econ.forecast(a)));
+        const ids = econ.INGREDIENTS.filter((g) => econ.ingOpen(g)).map((g) => g.id).sort((a, b) => Math.abs(econ.forecast(b)) - Math.abs(econ.forecast(a)));
         const up = econ.forecast(ids[0]) > 0;
         say(`Henk: "${ingName(ids[0])} ${up ? 'gaat omhoog. Koop vandaag.' : 'zakt. Wacht een dag.'}"`);
       } }] };

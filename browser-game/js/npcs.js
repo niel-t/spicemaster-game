@@ -61,7 +61,7 @@ export function initNpcs(d) {
             ['Henk Cijfer', 'Spice prices aren\'t random. They only look random. I have a spreadsheet. From now on the Kruidenbeurs shows an arrow for every spice: up or down, tomorrow.'],
           ], () => { econ.learn('prognose'); d.save(); });
         }
-        const ids = econ.INGREDIENTS.map((g) => g.id).sort((a, b) => Math.abs(econ.forecast(b)) - Math.abs(econ.forecast(a)));
+        const ids = econ.INGREDIENTS.filter((g) => econ.ingOpen(g)).map((g) => g.id).sort((a, b) => Math.abs(econ.forecast(b)) - Math.abs(econ.forecast(a)));
         const id = ids[0], up = econ.forecast(id) > 0;
         dialogue([['Henk Cijfer', `${name(id)} goes ${up ? 'up' : 'down'} tomorrow. ${up ? 'Buy today.' : 'Wait a day.'} My spreadsheet is never wrong. Except in 1998.`]]);
       },

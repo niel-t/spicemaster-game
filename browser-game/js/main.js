@@ -1291,7 +1291,7 @@ const PARA_BONUS = 25000;
 function checkPara() { // Kasbah al Gara has fallen: the Paravim are settled (no more Paravim heat), and they trade with Eddy now
   if (state.paravim || !owns('kasbahalgara') || (mission && mission.active)) return false;
   state.paravim = true; addMoney(PARA_BONUS);
-  toast('THE PARAVIM ARE SETTLED', `De Zandwijk is yours. Bonus: W ${PARA_BONUS.toLocaleString('nl-NL')}. The ledger proved it: Dad paid every shipment, Oom Gerrit kept the money for the last three. Ras al Gara swears at Gerrit now, not at you, and his men will be at De Gouden Molen.`, 11);
+  toast('THE PARAVIM ARE SETTLED', `De Zandwijk is yours. Bonus: W ${PARA_BONUS.toLocaleString('nl-NL')}. The ledger proved it: Dad paid every shipment, Oom Gerrit kept the money for the last three. Ras al Gara swears at Gerrit now, not at you, and his men will be at De Gouden Molen. The Paravim caravans sell you ras el hanout, sumak, za’atar and harissa on the Kruidenbeurs: mix Woestijn Shoarma for the joints in De Zandwijk.`, 13);
   [523, 659, 784, 1046, 1318, 1568, 2093].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.06), i * 120));
   writeSave(); return true;
 }
