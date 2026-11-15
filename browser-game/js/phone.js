@@ -235,7 +235,7 @@ export function initPhone(d) {
     shooki: { name: 'Shooki', img: null, talk: talkShooki, missed: () => toast('GEMISTE OPROEP', 'Shooki. Probably nothing. It\'s always nothing.', 2.4) },
   };
   let ringing = 0, who = null, buzz = 0, wait = 60 + Math.random() * 90, henkDue = false, henkWait = 0;
-  const randomOk = () => state.step === 'free' && met('shooki') && econ.ensure().callDay !== econ.ensure().day;
+  const randomOk = () => state.step === 'free' && met('shooki') && !(state.tut && !state.tut.done) && econ.ensure().callDay !== econ.ensure().day;
 
   function ring(id = 'hakan') {
     if (ringing) return false;

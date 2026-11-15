@@ -34,6 +34,9 @@
   #pc .icon { width: 86px; text-align: center; color: #fff; cursor: pointer; }
   #pc .icon .g { width: 44px; height: 40px; margin: 0 auto 4px; border: 2px solid #fff; background: #c0c0c0; box-shadow: 2px 2px 0 #000; display: grid; place-items: center; font: 900 20px "Rubik", Arial; color: #000; }
   #pc .icon span { background: #0b7b7b; padding: 0 2px; }
+  #pc .icon .g { position: relative; }
+  #pc .icon .g .new { position: absolute; top: -8px; right: -14px; background: #e8a33d; color: #000; border: 1px solid #000; font: 700 9px "Press Start 2P", monospace; padding: 2px 3px; box-shadow: 1px 1px 0 #000; animation: newblink 1s steps(2) infinite; }
+  @keyframes newblink { 50% { opacity: .55; } }
   #pc .icon.sel span { background: #000080; }
   .win { position: absolute; left: 130px; top: 22px; right: 22px; bottom: 54px; background: #c0c0c0; border: 2px solid; border-color: #fff #000 #000 #fff; box-shadow: 1px 1px 0 #808080 inset; display: flex; flex-direction: column; }
   .win .tb { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: 700; padding: 3px 6px; display: flex; justify-content: space-between; align-items: center; }

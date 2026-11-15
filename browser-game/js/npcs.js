@@ -4,7 +4,7 @@
 // built on the same character engine as the rest of the cast (makePerson in main.js).
 
 export function initNpcs(d) {
-  const { THREE, scene, makePerson, addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf } = d;
+  const { tutorial, THREE, scene, makePerson, addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf } = d;
   const rank = () => rankOf(econ.ensure().rep).i;
   const met = (id) => !!(state.npcs && state.npcs[id]);
   const meet = (id) => { state.npcs = state.npcs && typeof state.npcs === 'object' ? state.npcs : {}; state.npcs[id] = true; };
@@ -17,9 +17,12 @@ export function initNpcs(d) {
       id: 'shooki', who: 'Shooki', label: 'Talk to cousin Shooki',
       look: { lampas: true, front: '#2f6a3a', shirt: 0x2f6a3a, pants: 0x2f6a3a, chain: true, ballcap: 0x1a1a1a, head: { skin: 0xd8a07a, hair: '#1a1410', brow: '#14100c', hairLine: 64, mouth: 'laugh', iris: '#3a2a1a' }, belly: 0.3, skin: 0xd8a07a },
       pos: () => (met('shooki') ? [-0.6, -8.6, Math.PI] : [3.2, -5.6, 0]),
-      show: () => met('shooki') || owns('spekbuurt'),
-      news: () => !met('shooki'),
+      show: () => met('shooki') || owns('spekbuurt') || (state.step === 'free' && tutorial && tutorial.at('shooki')),
+      news: () => !met('shooki') || (owns('spekbuurt') && !econ.has('koerier')),
       talk() {
+        if (!met('shooki') && tutorial && tutorial.at('shooki')) { meet('shooki'); return tutorial.shooki(() => d.save()); } // the tour starts here
+        const tip = tutorial && tutorial.shookiTip(); if (tip) return dialogue([['Shooki', tip]]);
+        if (met('shooki') && !econ.has('koerier') && owns('spekbuurt')) return dialogue([['Shooki', 'Bro! Spekbuurt! Respect. Now I run errands for you: pick-ups, drop-offs, whatever. Family price.'], ['Shooki', 'Every day I put one extra job on your Klusbord. You do the job, I take a little kebab. Deal? Deal.']], () => { econ.learn('koerier'); d.save(); });
         if (!met('shooki')) {
           meet('shooki');
           return dialogue([
@@ -90,8 +93,10 @@ export function initNpcs(d) {
             ['Ome Joop', 'Eh? Speak up, my hearing aid is whistling. ... Eddy? Little Eddy\'s boy?'],
             ['Ome Joop', 'I ground spice for your father for forty years. Before the machines. Before the Lampas.'],
             ['Ome Joop', 'He left his notebook with me. Pages for the right man. Make a name for yourself, then come back.'],
-          ], () => d.save());
+            ...(tutorial && tutorial.at('joop') ? [['Eddy Jr.', 'A name? How?'], ['Ome Joop', 'Sell good spice. Take joints. Do the jobs on that Klusbord. Kaasland talks, and every Wilder you earn the honest way is reputation. Your rank is on the PC, under My Wilders.'], ['Ome Joop', 'Hulpje first. Then Mengmeester, Kruidenhandelaar, Kruidenbaron. Each rank, people trust you with more. Come back a Mengmeester, or with the whole Kipkruidenkwartier, and you get page one.']] : []),
+          ], () => { if (tutorial) tutorial.metJoop(); d.save(); });
         }
+        if (tutorial && tutorial.at('joop')) return dialogue([['Ome Joop', 'Shooki sent you? Good boy, Shooki. Listen: sell good spice, take joints, do the jobs on that Klusbord. Every honest Wilder is reputation. Your rank is on the PC, under My Wilders.'], ['Ome Joop', 'Hulpje first. Then Mengmeester, Kruidenhandelaar, Kruidenbaron. Come back a Mengmeester, or with the whole Kipkruidenkwartier, and you get page one of the notebook.']], () => { tutorial.metJoop(); d.save(); });
         const pg = this.page();
         const T = {
           recept1: [['Ome Joop', 'They say the Kipkruidenkwartier listens to you now. Hm. Here, page one. Slagerskruiden. The butchers will love you.']],
