@@ -2342,13 +2342,15 @@ function updateInspector(dt) {
 }
 
 // ================================================================== RAZIM drops by unannounced (js/phone.js has his texts and calls)
-// Some market days Eddy's annoying friend just turns up, at the warehouse, at home, wherever Eddy is: "EDDY! Surprise!"
+// Some market days Eddy's annoying friend (Neon Vice's Money Man) just turns up, at the warehouse, at home, wherever Eddy is: "EDDY! Surprise!"
 // Buy him a broodje, let him tag along (he follows Eddy around asking questions, then leaves and texts), or claim
 // you're not in Nederland while he's standing right in front of you. Good-natured: he just wants shoarma with Eddy.
 let razim = null;
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
-const RAZIM_LOOK = { head: { skin: 0xd6a888, hair: '#1e1814', brow: '#1a1410', hairLine: 64, sideLine: 112, backLine: 140, mouth: 'smile', glasses: true, iris: '#3a2a1e' }, shirt: 0x1c1c22, pants: 0x2c3446, shoes: 0x1a1a1a, belly: 0.1, skin: 0xd6a888 }; // buzzcut (hairLine <= 66 = 'buzz' in characters.js), thin glasses, black sweater (assets/face_razim.jpg)
-const RAZ_ASK = ['What does this machine do?', 'Is that a Naknik? Hi Naknik!', 'Eddy. Shoarma after this?', 'Can I press this button?', 'Your dad still has that moustache?', 'I could work here. I\'d be good.', 'Ok but after this, shoarma.', 'Eddy, look, I can do a cartwheel. ...No I can\'t.'];
+const RAZIM_LOOK = { head: { skin: 0xd6a888, hair: '#1e1814', brow: '#1a1410', hairLine: 64, sideLine: 112, backLine: 140, mouth: 'smile', glasses: true, iris: '#3a2a1e' }, suit: true, suitShirt: 0xffffff, shirt: 0xf1efe8, pants: 0xe9e6de, shoes: 0xcfc7b6, belly: 0.05, skin: 0xd6a888 };
+// Razim is Neon Vice's Money Man (same person): slim, cream suit, white shirt, glasses, buzzcut (hairLine <= 66 = 'buzz'). Portrait: assets/face_razim.jpg.
+// He talks like him too: fast, transactional, always pricing something. And shoarma.
+const RAZ_ASK = ['That machine? W 400. I\'d give you 350. Today only.', 'Everybody has a price, Eddy. Your Naknikim? Priceless. Also W 9 an hour.', 'You know what this place needs? A receipt printer.', 'What does this machine do?', 'Is that a Naknik? Hi Naknik!', 'Eddy. Shoarma after this?', 'Can I press this button?', 'Your dad still has that moustache?', 'I could work here. I\'d be good.', 'Ok but after this, shoarma.', 'Eddy, look, I can do a cartwheel. ...No I can\'t.'];
 function razimVisit() {
   if (razim || state.step !== 'free' || state.inPC || state.inDialogue || mission.active) return false;
   const from = Math.random() < 0.5 ? -1 : 1;
@@ -2356,7 +2358,7 @@ function razimVisit() {
   const z = Math.abs(player.position.z - LANES.N[0]) < 10 ? player.position.z : LANES.N[0];
   p.position.set(player.position.x + from * 14, 0, z); scene.add(p);
   razim = { p, t: 0, talked: false, follow: 0, ask: 4 };
-  personBubble(p, rnd(['EDDY! Surprise!', 'Eddyyy! I was in the neighbourhood!', 'Eddy! Don\'t pretend you didn\'t see me!']), '#b4cc7a');
+  personBubble(p, rnd(['EDDY! Surprise!', 'Eddyyy! I was in the neighbourhood! Pricing things!', 'Eddy! Don\'t pretend you didn\'t see me!']), '#b4cc7a');
   return true;
 }
 function updateRazim(dt) {
@@ -2383,7 +2385,7 @@ function updateRazim(dt) {
   else if (!razim.talked && !state.inDialogue && !state.inPC) {
     razim.talked = true; animate(p, 0, dt);
     tips.show('razimVisit');
-    dialogue([['Razim', rnd(['EDDY! I was just walking by. For forty minutes. Around your place.', 'Surprise! You didn\'t answer, so I came. That\'s what friends do.', 'Eddy! I texted, you didn\'t reply, so I thought: he\'s probably dead. You\'re not dead! Shoarma?'])]],
+    dialogue([['Razim', rnd(['EDDY! I was just walking by. For forty minutes. Around your place.', 'Surprise! You didn\'t answer, so I came. A taxi here was W 22, so you owe me a broodje. Minimum.', 'Eddy! I priced your warehouse on the way in. Don\'t worry about it. Shoarma?', 'Eddy! I texted, you didn\'t reply, so I thought: he\'s probably dead. You\'re not dead! Shoarma?'])]],
       () => choice('Razim', '<i>Razim is here. In person. Razim wants shoarma.</i>', ['Tamam, one broodje. Quick. (W 15)', 'I\'m working, Razim.', 'I\'m not in Nederland.'], (i) => {
         if (i === 0) {
           if (state.money >= 15) addMoney(-15);
@@ -2396,6 +2398,36 @@ function updateRazim(dt) {
         }
       }, null));
   }
+}
+
+// Razim at a mission: some raids he is already standing by the Oofmobiel when Eddy parks ("I was in the area. Pricing
+// things."), chats whenever Eddy walks past, and sometimes makes it rain: the Money Man's stack of cash, a few Wilders
+// "for luck". mission.js calls arrived() after the drive-in and left() on the way out. Never on a Nachtklus or a siege.
+let razimM = null;
+const RAZ_M_HI = ['Eddy! Small world. I was in the area. Pricing things.', 'You\'re going in there? I give you good odds. W 300 on you, W 200 on the fryer.', 'Eddy! I\'ll watch the van. Five Wilders an hour, first hour free.', 'EDDY! I followed the Oofmobiel. Don\'t make it weird. Shoarma after?'];
+const RAZ_M_TALK = ['That door is worth W 80. The hinges alone, W 12.', 'If there\'s a fryer in there, I give you forty for it. Fifty if it\'s clean.', 'After this: shoarma. You\'re paying, you\'re the one with a job.', 'I\'d come in, but these shoes cost more than the building.', 'Everybody has a price, Eddy. The Lampas? Cheap. Very cheap.', 'I priced your van. Don\'t ask.', 'Receipts, Eddy. Ask them for receipts.', 'Is it loud in there? It sounds loud. Is there shoarma in there?', 'I\'m not here. If anyone asks, I was never here. I was at Schmatzel.'];
+function razimArrived(info) {
+  if (razimM || info.heist || info.defend || state.step !== 'free' || !npcs.met('shooki')) return;
+  const e = econ.ensure();
+  if (!razimM && !window.__razimForce && (e.razimMissionDay === e.day || Math.random() > 0.3)) return;
+  e.razimMissionDay = e.day; window.__razimForce = false;
+  const p = makePS2Person(lookFromPerson(RAZIM_LOOK, HEADS), { scene });
+  p.position.set(info.start.x + 1.8, 0, info.start.z + 0.4); p.rotation.y = Math.PI * 1.5; scene.add(p);
+  razimM = { p, hi: false, talk: 0, rain: Math.random() < 0.4 };
+}
+function razimLeft() { if (razimM) { scene.remove(razimM.p); razimM = null; } }
+function updateRazimMission(dt) {
+  if (!razimM) return;
+  const p = razimM.p, dx = player.position.x - p.position.x, dz = player.position.z - p.position.z, L = Math.hypot(dx, dz);
+  animate(p, 0, dt); razimM.talk -= dt;
+  if (L < 6) p.rotation.y = Math.atan2(dx, dz);
+  if (L > 3.2 || razimM.talk > 0) return;
+  if (!razimM.hi) {
+    razimM.hi = true; razimM.talk = 5; personBubble(p, rnd(RAZ_M_HI), '#b4cc7a');
+    if (razimM.rain) setTimeout(() => { if (!razimM) return; const n = 15 + Math.floor(Math.random() * 4) * 5; addMoney(n); coins(p.position); personBubble(p, `Make it rain! W ${n}, for luck. I want ${n + 5} back.`, '#b4cc7a'); }, 2600);
+    return;
+  }
+  razimM.talk = 7 + Math.random() * 5; personBubble(p, rnd(RAZ_M_TALK), '#b4cc7a');
 }
 
 // ================================================================== SEAGULLS (they poop on people)
@@ -2689,7 +2721,7 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); updateSiege(); mission.street(dt); } else mission.update(dt);
+  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); updateSiege(); mission.street(dt); } else { mission.update(dt); updateRazimMission(dt); }
   const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then stir
   for (const n of naknikim) {
@@ -2783,6 +2815,7 @@ mission = initMission({ perk: (k) => (woning ? woning.perk(k) : 0), THREE, scene
   tip: (k) => tips.show(k), choiceOpen: () => choiceOpen, // Shooki's tips; the clamp choice must not lose its keys to the mission
   parkTicket: () => garage.addTicket(mission.levelName()), clampVan: () => writeSave(), parkDone: () => garage.parkingDone(), // paid bays (js/garage.js)
   clampChoice: (cb) => { tips.show('clamp'); const tix = garage.ticketSum(); choice('Oofmobiel', `The handhaver left a <b>wheel clamp</b> on the front wheel. Pay at the parking office (W ${garage.CLAMP_FINE + tix}${tix ? ', with your open tickets' : ''}) or get Monteur Mo to cut it off (W ${garage.MO_CLAMP})?`, ['Pay the fine', 'Call Mo', 'Leave it'], (i) => cb(i < 2 && garage.unclamp(i ? 'mo' : 'pay'))); },
+  arrived: (i) => razimArrived(i), left: () => razimLeft(), // Razim sometimes waits by the van (above)
   makeVan: () => oof.clone(true), brand: () => liveryNow(), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
 // top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
@@ -2833,5 +2866,5 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get npcs() { return npcs; }, get phone() { return phone; } };
+window.__sme = { tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; } };
 tick();

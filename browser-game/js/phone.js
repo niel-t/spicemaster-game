@@ -120,7 +120,8 @@ export function initPhone(d) {
 
   // ------------------------------------------------------------------ Razim: the annoying friend. Shoarma? Shoarma.
   // He texts in bursts (a little SMS card with his portrait, a Nokia double beep), keeps them in Eddy's inbox,
-  // and now and then rings. Good-natured: he just really, really wants to eat shoarma with Eddy.
+  // and now and then rings. Good-natured: he just really, really wants to eat shoarma with Eddy. He is Neon Vice's
+  // Money Man (same person), so he prices everything too.
   const RAZIM = 'Razim (telefoon)', RAZ_IMG = './assets/face_razim.jpg';
   const SPAM = [
     ['eddy', 'eddy', 'EDDY', 'shoarma?'],
@@ -135,6 +136,9 @@ export function initPhone(d) {
     ['can i come to the warehouse', 'i\'ll bring knoflooksaus', 'the good one', 'i\'m coming', 'ok i\'m not coming. shoarma?'],
     ['eddy what is a Naknik', 'Shooki told me but i didn\'t understand', 'do they eat shoarma'],
     ['eddy quick question', 'shoarma?', 'that was the question'],
+    ['eddy i priced your warehouse', 'W 40.000', 'i\'d pay 38', 'cash', 'shoarma first though'],
+    ['shoarma at Schmatzel is W 7,50', 'i got it for 6', 'ask me how', 'everybody has a price eddy'],
+    ['make it rain tonight?', 'i mean shoarma', 'i always mean shoarma'],
     ['bro i got a new phone', 'it\'s the same phone', 'but i put a sticker on it', 'shoarma to celebrate?'],
   ];
   const SPAM_BACK = ['you back in Nederland yet?', 'how about now', 'and now?', 'i\'ll wait. at Schmatzel. eating.'];
