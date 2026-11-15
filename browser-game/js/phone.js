@@ -204,7 +204,7 @@ export function initPhone(d) {
   }
   const move = (k) => { sel = (sel + k + cur.items.length) % cur.items.length; render(); };
   function back() { beep(900, 0.03, 'square', 0.03); if (stack.length > 1) { stack.pop(); sel = 0; msg = ''; render(); } else close(); }
-  function open() { if (isOpen || ringing || busy() || !usable()) return; isOpen = true; stack = ['contacts']; sel = 0; msg = ''; render(); shm.style.display = 'block'; beep(1200, 0.05, 'square', 0.03); }
+  function open() { if (isOpen || ringing || busy() || !usable()) return; isOpen = true; if (d.tip) d.tip('shmokia'); stack = ['contacts']; sel = 0; msg = ''; render(); shm.style.display = 'block'; beep(1200, 0.05, 'square', 0.03); }
   function close() { if (!isOpen) return; isOpen = false; shm.style.display = 'none'; }
   shm.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -243,7 +243,7 @@ export function initPhone(d) {
     el.querySelector('.ph-name').innerHTML = c.name;
     const face = el.querySelector('.ph-face'), img = face.querySelector('img');
     face.classList.toggle('noimg', !c.img); if (c.img) img.src = c.img;
-    el.style.display = 'flex'; return true;
+    el.style.display = 'flex'; if (d.tip) d.tip('phone'); return true;
   }
   function stop() { ringing = 0; el.style.display = 'none'; }
   function answer() { if (!ringing || busy()) return; const id = who; stop(); CALLERS[id].talk(); }
