@@ -1,5 +1,6 @@
 // Garage Mo: the Oofmobiel gets stats, two trade-ups and add-ons, plus the street-life nuisances that come with
-// owning a van and a pile of cash: parking fines (a wheel clamp after a mission) and tax inspector Van der Belasting.
+// owning a van and a pile of cash: parking fines (a wheel clamp after a mission), parking tickets from levels with a paid
+// bay (def.parking in js/levels: the gemeente scan car), and tax inspector Van der Belasting, who also collects unpaid tickets.
 // Van stats feed the top-down drive (js/drive.js): top speed, how hard hits dent it, and whether the Lampas spot
 // you early. Cargo is shown now and caps Nachtklus hauls once those exist. Everything lives in state.van.
 
@@ -15,6 +16,7 @@ export const MODS = [
   { id: 'ramen', rank: 1, name: 'Tinted windows', price: 800, text: 'The Lampas spot you later: the first ambush on a drive never happens.' },
 ];
 const CLAMP_FINE = 150, MO_CLAMP = 100;
+const TICKET = 95, CLAMP_AT = 2, COLLECT = 1.5; // a naheffingsaanslag; open tickets that bring the handhaver; the inspector's collection markup
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 const INSPECTOR_CASH = 8000; // he only bothers with people who carry this much
 const HIDE = 5000;
@@ -27,7 +29,7 @@ export function createGarage(deps) {
   function ensure() {
     const v = state.van && typeof state.van === 'object' ? state.van : (state.van = {});
     if (!VANS.some((x) => x.id === v.tier)) v.tier = 'blauw';
-    v.mods = v.mods || {}; v.fines = +v.fines || 0;
+    v.mods = v.mods || {}; v.fines = +v.fines || 0; if (!Array.isArray(v.tickets)) v.tickets = [];
     return v;
   }
   const van = () => VANS.find((x) => x.id === ensure().tier);
@@ -56,17 +58,36 @@ export function createGarage(deps) {
     if (deps.save) deps.save();
   }
 
+  // ---- parking tickets: the scan car in a level with a paid bay (js/mission.js parking). Two open ones: the handhaver clamps.
+  function addTicket(where) {
+    const v = ensure(); v.tickets.push({ amt: TICKET, day: econ.ensure().day, where: where || '' });
+    const clamp = !v.clamp && v.tickets.length >= CLAMP_AT; if (clamp) v.clamp = true;
+    if (deps.save) deps.save();
+    return { fine: TICKET, n: v.tickets.length, clamp };
+  }
+  const ticketSum = () => ensure().tickets.reduce((a, t) => a + (t.amt || TICKET), 0);
+  function payTickets(el) {
+    const v = ensure(), sum = ticketSum(); if (!sum) return true;
+    if (state.money < sum) { if (deps.toast) deps.toast('PARKEERBONNEN', 'Not enough Wilders for the open tickets.', 2.5); return false; }
+    deps.addMoney(-sum, el); v.fines += v.tickets.length; v.tickets = [];
+    if (deps.toast) deps.toast('PARKEERBONNEN', `Paid ${fmt(sum)} to the gemeente. The handhavers have lost interest in you. For now.`, 3.5);
+    if (deps.save) deps.save(); return true;
+  }
+  // a mission in a level with a paid bay settles its own parking: no random clamp on top of it
+  function parkingDone() { ensure().skipClamp = true; }
   // ---- parking fines: after a long time away on a mission, the van may come back clamped
   function afterMission() {
-    const v = ensure(); if (v.clamp) return;
+    const v = ensure(); if (v.skipClamp) { v.skipClamp = false; return; } if (v.clamp) return;
     if (Math.random() < 0.22) { v.clamp = true; if (deps.toast) deps.toast('WIELKLEM!', 'You left the Oofmobiel on the pavement with the hazards on. There\'s a clamp on the front wheel.', 4.5); if (deps.save) deps.save(); }
   }
   function unclamp(how, el) { // how: 'pay' | 'mo'
     const v = ensure(); if (!v.clamp) return true;
     const cost = how === 'mo' ? MO_CLAMP : CLAMP_FINE;
     if (state.money < cost) { if (deps.toast) deps.toast('WIELKLEM', 'Not enough Wilders. The clamp stays.', 2.5); return false; }
-    deps.addMoney(-cost, el); v.clamp = false; v.fines++;
-    if (deps.toast) deps.toast('WIELKLEM', how === 'mo' ? 'Mo turns up with an angle grinder and a sigh. "Don\'t tell anyone." −' + fmt(cost) : `Fine paid at the Kaasland parking office: −${fmt(cost)}. The clamp is gone.`, 3.5);
+    const tix = how === 'pay' ? ticketSum() : 0; // the parking office wants the open tickets as well; Mo just cuts the clamp
+    if (state.money < cost + tix) { if (deps.toast) deps.toast('WIELKLEM', `The parking office wants ${fmt(cost + tix)}: the clamp and your open tickets. Not enough Wilders.`, 3); return false; }
+    deps.addMoney(-(cost + tix), el); v.clamp = false; v.fines++; if (tix) { v.fines += v.tickets.length; v.tickets = []; }
+    if (deps.toast) deps.toast('WIELKLEM', how === 'mo' ? 'Mo turns up with an angle grinder and a sigh. "Don\'t tell anyone." −' + fmt(cost) + (ticketSum() ? '. The tickets are still open.' : '') : `Paid at the Kaasland parking office: −${fmt(cost + tix)}${tix ? ' (the clamp and your open tickets)' : ''}. The clamp is gone.`, 3.5);
     if (deps.save) deps.save(); return true;
   }
 
@@ -75,6 +96,7 @@ export function createGarage(deps) {
     const v = ensure(), day = econ.ensure().day;
     if (v.inspector && v.inspector.day < day - 1) v.inspector = null; // he gave up
     if (v.inspector || (v.lastInspector && day - v.lastInspector < 6)) return;
+    if (v.tickets.length >= 3 && Math.random() < 0.5) { v.inspector = { day, tickets: true }; return; } // a pile of unpaid tickets: he comes to collect
     if (state.money < INSPECTOR_CASH) return;
     if (v.warned === day) { v.inspector = { day }; v.warned = null; return; } // Henk warned yesterday: here he is
     if (Math.random() < 0.25) {
@@ -82,12 +104,13 @@ export function createGarage(deps) {
       else v.inspector = { day };
     }
   }
-  function dayCheck() { const v = ensure(), d = econ.ensure().day; if ((state.ngp || 0) !== (v.ngpSeen || 0)) { v.ngpSeen = state.ngp || 0; v.clamp = false; v.inspector = null; } /* New Game+: a clean slate on the street */ if (v.seenDay === undefined) { v.seenDay = d; return; } if (v.seenDay !== d) { v.seenDay = d; onMarketDay(); } }
+  function dayCheck() { const v = ensure(), d = econ.ensure().day; if ((state.ngp || 0) !== (v.ngpSeen || 0)) { v.ngpSeen = state.ngp || 0; v.clamp = false; v.inspector = null; v.tickets = []; } /* New Game+: a clean slate on the street */ if (v.seenDay === undefined) { v.seenDay = d; return; } if (v.seenDay !== d) { v.seenDay = d; onMarketDay(); } }
   const inspectorDue = () => !!ensure().inspector;
-  function inspectorFine() { const s = stats(); return Math.min(2500, Math.round(Math.max(0, state.money - s.hidden) * 0.1 / 10) * 10); }
+  const ticketsDue = () => Math.round(ticketSum() * COLLECT / 10) * 10; // open parking tickets, plus collection costs
+  function inspectorFine() { const s = stats(); return Math.min(2500, Math.round(Math.max(0, state.money - s.hidden) * 0.1 / 10) * 10) + ticketsDue(); }
   function settleInspector(how) { // how: 'pay' | 'bribe' | 'saus'; returns the line he says
     const v = ensure(); if (!v.inspector) return '';
-    const fine = inspectorFine(); v.inspector = null; v.lastInspector = econ.ensure().day;
+    const fine = inspectorFine(), hadTix = v.tickets.length; v.inspector = null; v.lastInspector = econ.ensure().day;
     let line;
     if (how === 'bribe') {
       if (state.money >= 500 && Math.random() < 0.6) { deps.addMoney(-500); line = '(pockets the envelope) I see nothing. I was never here. Lovely weather.'; }
@@ -96,6 +119,7 @@ export function createGarage(deps) {
       if (Math.random() < 0.35) line = '(eats it, closes his eyes) ...Garlic. Real garlic. I will report that everything here is in order.';
       else { deps.addMoney(-fine); line = `Delicious. Also: ${fmt(fine)}. Sauce is not a currency in Kaasland.`; }
     } else { deps.addMoney(-fine); line = fine ? `${fmt(fine)}, thank you. Your paperwork is a disgrace, but your cash is real.` : 'Hm. Nothing to find. Suspicious, but nothing to find.'; }
+    if (hadTix && !/I see nothing|in order/.test(line)) { v.fines += v.tickets.length; v.tickets = []; line += ` (${hadTix} parking ticket${hadTix > 1 ? 's' : ''} settled, with collection costs.)`; }
     if (deps.save) deps.save();
     return line;
   }
@@ -104,6 +128,7 @@ export function createGarage(deps) {
   function html() {
     const v = ensure(), s = stats(), cur = van();
     let h = `<div class="well"><b>Garage Mo</b> · under the railway · "No phone. Just come by."<br>Your van: <b>${s.name}</b> · cargo <b>${s.cargo} kg</b> · top speed <b>${s.maxV}</b> · damage taken <b>${Math.round(s.dmg * 100)}%</b>${v.clamp ? ' · <b style="color:#a00">clamped!</b>' : ''}<br><small>Speed and armour count on every Oofmobiel drive. Cargo will cap what one Nachtklus can carry home. Fines paid so far: ${v.fines}.</small></div>`;
+    if (v.tickets.length) h += `<div class="well" style="margin-top:8px"><b style="color:#a00">${v.tickets.length} open parking ticket${v.tickets.length > 1 ? 's' : ''}</b> (${v.tickets.map((t) => t.where || '?').join(', ')}): ${fmt(ticketSum())}. <small>At ${CLAMP_AT} open tickets a handhaver clamps the van. Leave them and Van der Belasting adds them to his bill, with ${Math.round((COLLECT - 1) * 100)}% collection costs.</small> <button class="b95" data-vantix="1">Pay the tickets</button></div>`;
     h += '<table class="list" style="margin-top:8px"><tr><th>Van</th><th>Cargo</th><th>Speed</th><th>Damage taken</th><th>Price (Mo takes yours for half)</th><th></th></tr>';
     for (const V of VANS) {
       const cost = Math.max(0, V.price - Math.round(cur.price * 0.5));
@@ -113,7 +138,7 @@ export function createGarage(deps) {
     h += '</table><table class="list" style="margin-top:8px"><tr><th>Add-on</th><th>What it does</th><th>Price</th><th></th></tr>';
     for (const M of MODS) h += `<tr><td><b>${M.name}</b></td><td><small>${M.text}</small></td><td>${fmt(M.price)}</td><td>${v.mods[M.id] ? '<b style="color:#070">fitted</b>' : locked(M) ? `<small style="color:#888">at rank ${RANK_NAMES[M.rank]}</small>` : `<button class="b95" data-vanmod="${M.id}">Fit it</button>`}</td></tr>`;
     h += '</table>';
-    if (v.clamp) h += `<div class="well" style="margin-top:8px"><b style="color:#a00">Wheel clamp on the Oofmobiel.</b> <button class="b95" data-vanclamp="pay">Pay the fine (${fmt(CLAMP_FINE)})</button> <button class="b95" data-vanclamp="mo">Ask Mo (${fmt(MO_CLAMP)})</button></div>`;
+    if (v.clamp) h += `<div class="well" style="margin-top:8px"><b style="color:#a00">Wheel clamp on the Oofmobiel.</b> <button class="b95" data-vanclamp="pay">Pay the fine (${fmt(CLAMP_FINE + ticketSum())}${ticketSum() ? ' with the tickets' : ''})</button> <button class="b95" data-vanclamp="mo">Ask Mo (${fmt(MO_CLAMP)})</button></div>`;
     return h;
   }
   function bind(body, rerender) {
@@ -121,6 +146,7 @@ export function createGarage(deps) {
     body.querySelectorAll('[data-vanbuy]').forEach((b) => b.onclick = () => msg(buyVan(b.dataset.vanbuy, b)));
     body.querySelectorAll('[data-vanmod]').forEach((b) => b.onclick = () => msg(buyMod(b.dataset.vanmod, b)));
     body.querySelectorAll('[data-vanclamp]').forEach((b) => b.onclick = () => { unclamp(b.dataset.vanclamp, b); rerender(); });
+    body.querySelectorAll('[data-vantix]').forEach((b) => b.onclick = () => { payTickets(b); rerender(); });
   }
-  return { ensure, stats, has, buyVan, buyMod, afterMission, unclamp, onMarketDay, dayCheck, inspectorDue, inspectorFine, settleInspector, html, bind, CLAMP_FINE, MO_CLAMP };
+  return { ensure, stats, has, buyVan, buyMod, afterMission, unclamp, addTicket, payTickets, ticketSum, parkingDone, TICKET, onMarketDay, dayCheck, inspectorDue, inspectorFine, settleInspector, html, bind, CLAMP_FINE, MO_CLAMP };
 }

@@ -41,7 +41,7 @@ const WHOLESALE_KG = 40;
 // kind: loyal (never complains), haggler (angles for discounts), late (pays a day or two late), picky (high minimum quality)
 export const CLIENTS = [
   { id: 'schmatzel', name: 'Shoarma Schmatzel', blend: 'kip', kg: 8, minQ: 1, kind: 'loyal', who: 'Schmatzel' },
-  { id: 'spekbuurt', name: 'Snackpaleis Spekbuurt', blend: 'kip', kg: 15, minQ: 2, kind: 'haggler', who: 'Manager Kees' },
+  { id: 'spekbuurt', name: 'Slager & Shoarma Spekbuurt', blend: 'kip', kg: 15, minQ: 2, kind: 'haggler', who: 'Manager Kees' },
   { id: 'kroketkade', name: 'Snackbar Kroketkade', blend: 'lams', kg: 10, minQ: 3, kind: 'picky', who: 'Frituurbaas Ruud' },
   { id: 'uitjesbuurt', name: 'Snackbar Uitjesbuurt', blend: 'kebab', kg: 8, minQ: 2, kind: 'late', who: 'Mevrouw Ui' },
   { id: 'bram', name: 'Slagerij Bram', blend: 'slager', alt: 'lams', kg: 10, minQ: 3, kind: 'picky', who: 'Slager Bram' }, // joins through Slager Bram (NPC)
@@ -70,7 +70,7 @@ export const STOCK_CAP = 200; // kg in the home warehouse
 export const WAREHOUSES = [
   { id: 'kroketkade', name: 'Loods Kroketkade', cost: 6000, kg: 150, slots: 2, desc: 'An old fish store on the quay. Damp, but big.' },
   { id: 'uitjesbuurt', name: 'Kelder Uitjesbuurt', cost: 4500, kg: 100, slots: 2, desc: 'The onion cellar under De Zure Ui. Smells of onions forever.' },
-  { id: 'spekbuurt', name: 'Opslag Spekbuurt', cost: 5000, kg: 120, slots: 2, desc: "The Snackpaleis' old storeroom, behind the gym." },
+  { id: 'spekbuurt', name: 'Opslag Spekbuurt', cost: 5000, kg: 120, slots: 2, desc: "The butcher's old storeroom, behind the back office." },
 ];
 const WH_NAKNIK_COST = 450;
 // Ranks: reputation (rep) comes from client sales, raids, S grades, jobs and retakes. Shown on the PC and the start menu.

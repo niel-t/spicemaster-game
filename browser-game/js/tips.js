@@ -34,7 +34,8 @@ export const TIPS = {
   shmokia: ['Shmokia', 'Your phone. Call people, trade a bit. <b>T</b> opens and closes it.'],
   haggle: ['Haggling', 'They want a deal. Offer, counter, walk away. Push too hard and they leave. Be too soft and you lose money.'],
   crew: ['Your Naknikim', 'Each Naknik has a name, skill and mood. Send one on an <b>errand</b> (they skip mixing that day) or give a <b>day off</b> when they\'re tired. Happy Naknikim mess up less.'],
-  clamp: ['Wheel clamp', 'Parked like a tourist, bro. Pay the fine, or Mo cuts it off. Mo is more expensive but quicker.'],
+  clamp: ['Wheel clamp', 'Parked like a tourist, bro. The parking office wants the fine <i>and</i> your open tickets. Mo cuts it off cheaper, but the tickets stay open.'],
+  parking: ['Paid parking', 'Bro, that bay is <b>betaald parkeren</b>. The meter is cheap but it\'s right in front of their window. The app (<b>B</b>) costs a bit more. Skip it and the scan car writes you a ticket. Two open tickets and they clamp the van.'],
   inspector: ['Tax inspector', 'Van der Belasting. Pay, bribe, or offer him garlic sauce. A hidden compartment in the van keeps cash out of his sight.'],
 };
 const STEP_KEYS = ['start', 'step:list', 'step:sell', 'step:hire', 'step:russian', 'step:free'];

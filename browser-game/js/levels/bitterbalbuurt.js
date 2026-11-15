@@ -88,7 +88,7 @@ export default {
     [4, 18.5, 'bat', Math.PI, 'shop'], [8, 15, 'makarov', -Math.PI / 2, 'shop'], [5, 10, 'bat', 0, 'hall'], [6, 5, 'makarov', Math.PI, 'kitchen'],
     [18, 12.4, 'makarov', 0, 'cafe'], [14, 17, 'bat', Math.PI / 2, 'cafe'], [24, 15, 'makarov', Math.PI, 'cafe'], [27.5, 20, 'bat', -Math.PI / 2, 'cafe'], [19, 21, 'makarov', Math.PI, 'cafe'], [12, 14.5, 'bat', Math.PI / 2, 'cafe'],
     [20, 9, 'bat', Math.PI / 2, 'mixing'], [28, 9, 'makarov', Math.PI, 'stairs'],
-    [15, 3, 'bat', Math.PI / 2, 'cellar'], [22, 4, 'makarov', -Math.PI / 2, 'cellar'], [28, 4.5, 'bat', Math.PI / 2, 'cellar'],
+    [15, 3, 'bat', Math.PI / 2, 'cellar'], [22, 3.5, null, -Math.PI / 2, 'cellar', true, 'zeegaal'], [28, 4.5, 'bat', Math.PI / 2, 'cellar'],
     [35, 3, 'shotgun', Math.PI, 'vault', true], [33, 7.5, 'makarov', 0, 'vault'], [37, 6, 'bat', -Math.PI / 2, 'vault'],
     [35, 18.5, 'makarov', Math.PI, 'office'], [33, 21, 'bat', Math.PI / 2, 'office'],
   ],

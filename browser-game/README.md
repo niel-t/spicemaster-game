@@ -33,6 +33,7 @@ If the project is private, Pages may be limited to project members: Settings > G
 | Inventory | I | D-pad ▼ | INV |
 | Back / close windows | Esc | B | ✕ buttons |
 | Restart mission | Backspace | Back | OPNIEUW |
+| Pay for parking by app (levels with a paid bay) | B | - | the blue P button |
 | Pause menu (resume, inventory, map, music, restart, controls) | P / Esc | Start | II |
 | Music on / off | N | pause menu | pause menu |
 | Menus (PC, shop, kluis, choices, title) | Mouse | D-pad / left stick + A, B back | Tap |

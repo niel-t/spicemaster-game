@@ -107,7 +107,7 @@ export function initMission(ctx) {
   const glassM = new THREE.MeshPhongMaterial({ color: 0x9ad8ff, transparent: true, opacity: 0.32, shininess: 120, specular: 0xffffff, depthWrite: false });
   const frameM = lam({ color: 0xe8e8f0 }), barrelM = lam({ color: 0xc81e1e });
   let wallM = null, capM = null, pristine = null;
-  let glass = new Map(), barrels = new Map(), lights = [], van = null, levelTick = null, START = null, VAN_PARK = 0;
+  let glass = new Map(), barrels = new Map(), lights = [], van = null, levelTick = null, levelReset = null, START = null, VAN_PARK = 0;
 
   // builds a level into a fresh root group; the previous level is torn down first
   function buildLevel(def) {
@@ -182,7 +182,7 @@ export function initMission(ctx) {
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
     const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt }) || {};
-    levelShot = deco.onShot || null;
+    levelShot = deco.onShot || null; levelReset = deco.reset || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;
     // neon: one strip per room, top of the walls
@@ -197,6 +197,7 @@ export function initMission(ctx) {
     buildDoors(def);
     spawnEnemies(def);
     buildLoot(def);
+    buildExtras(def, carIn);
     pristine = { glass: new Map(glass), barrels: new Map(barrels) };
     Object.assign(M, { enemies, doors, glass, barrels, lootCrates, L, G, level: def.id, def, W, H, Z0 });
   }
@@ -570,7 +571,8 @@ export function initMission(ctx) {
     { front: '#f2efe6', shirt: 0xf2efe6, pants: 0xe8641a }, { front: '#ff7a1a', shirt: 0xff7a1a, pants: 0xf2efe6 },
   ];
   // Enemy types (data-driven): a level's spawn entry may name one as its 7th field (js/levels/*.js). Any level can place them.
-  //   zeegaal: STEVEN ZEEGAAL, a 90s action-star parody mini-boss. Unarmed and slow, never picks up guns, takes 4 hits,
+  //   zeegaal: STEVEN ZEEGAAL, a 90s action-star parody mini-boss (Jan van Kaas's hired muscle, in the Bitterbalbuurt cellar before
+  //   the vault; not in Spekbuurt any more: he turns up later in Act 1). Unarmed and slow, never picks up guns, takes 4 hits,
   //   lazily leans out of the way of bullets, and his grab is a wrist lock that twists the gun out of Eddy's hand.
   const FOE_TYPES = {
     //   gerrit: OOM GERRIT, Eddy Sr.'s old partner who sold him out (the finale, De Gouden Molen). Gold waistcoat, white hair; 6 hits.
@@ -617,7 +619,7 @@ export function initMission(ctx) {
       name: 'STEVEN ZEEGAAL', ps2: 'zeegaal', hp: 4, speed: 0.62, dodge: 0.4, grab: true, noWeapons: true, mass: 2.4, score: 2500,
       look: { head: { skin: 0xe9c2a2, hair: '#0d0b0a', brow: '#14100c', browW: 5, hairLine: 70, sideLine: 112, backLine: 150, mouth: 'smile', squint: true, glasses: true, tint: 'rgba(70,40,30,.62)', goatee: '#17120e', iris: '#2a1c14', slick: true, ponytail: true },
         front: '#1d1a24', shirt: 0x1d1a24, pants: 0x121016, shoes: 0x050505, skirt: 0x1d1a24, belt: 0xc8a040, mandarin: 0xd8b04a, belly: 0.6, scale: 1.1 },
-      alert: ['Ik vecht niet. Ik maak het af.', 'Jij hebt de verkeerde snackbar gekozen.', 'Dit wordt... onaangenaam.', 'Rustig. Ik ben getraind.'],
+      alert: ['Ik vecht niet. Ik maak het af.', 'Jan van Kaas betaalt mij per minuut.', 'Dit wordt... onaangenaam.', 'Rustig. Ik ben getraind.'],
       hurt: ['Interessant.', 'Dat... was een vergissing.', 'Ik voelde niets.', 'Mijn chi is ongedeerd.'],
       dodgeSay: ['Te traag.', 'Hmm.', 'Ik zag het aankomen.'],
       disarm: ['Je pistool... is van mij.', 'Pols. Draaien. Klaar.', 'Dat hoort hier niet.'],
@@ -666,7 +668,7 @@ export function initMission(ctx) {
     scene.remove(p); root.add(p);
     const hand = new THREE.Group(); hand.position.set(0, -0.68, 0.05); p.userData.arms[0].add(hand);
     const laser = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 1), laserM.clone()); laser.visible = false; root.add(laser);
-    p.userData.foe = { id: i, spawn: [x, z, rot, w], room, boss: !!boss, type: type || null, hand, laser, skin, shirt, pers: ['rush', 'careful', 'normal'][i % 3], mass: FT ? FT.mass : boss ? 2.6 : 1 + (i % 3) * 0.15 };
+    p.userData.foe = { id: i, spawn: [x, z, rot, w], room, boss: !!boss, type: type || null, wave: !!(opt && opt.wave), hand, laser, skin, shirt, pers: ['rush', 'careful', 'normal'][i % 3], mass: FT ? FT.mass : boss ? 2.6 : 1 + (i % 3) * 0.15 };
     p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0);
     p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
@@ -682,7 +684,7 @@ export function initMission(ctx) {
     if (!t || t.done) return; t.done = true; if (t.act) t.act();
     R.score += t.score || 750; sfx('thud'); shake(0.35); popup(t.pos, t.doneText || 'SABOTAGED!', '#e8a33d', true);
     const n = tasksLeft(); if (t.optional) { /* a bonus: no banner */ } else if (n) banner(`${n} TO GO`, LV.text.taskHint || '', 1.6);
-    else if (!alive().length && !R.cleared) { R.cleared = true; popup(t.pos, 'FLOOR CLEAR', '#e8a33d', true); setTimeout(results, 1500); }
+    else if (!alive().length && !wavePending() && !R.cleared) { R.cleared = true; popup(t.pos, 'FLOOR CLEAR', '#e8a33d', true); setTimeout(results, 1500); }
     else banner(LV.text.tasksDone || 'ALL DONE', `Now finish off the ${LV.factionName || 'Lampas'}.`, 2);
     hud();
   }
@@ -729,6 +731,7 @@ export function initMission(ctx) {
     sfx(byPlayer ? sndOf(id) : W2.snd, byPlayer ? 1 : 0.7);
     if (byPlayer) { P.bloom = Math.min(W2.bloomMax || 0.18, P.bloom + W2.bloom); shake(W2.kick * 1.2); FX.kick.set(-sa * W2.kick * 0.6, 0, -ca * W2.kick * 0.6); }
     alertNoise(from, byPlayer ? loudOf(id) : W2.loud);
+    if (byPlayer && !q && id !== 'silenced') callBackup(); // a loud shot: someone phones for backup
     if (byPlayer && HEIST) { const silent = q || id === 'silenced'; if (!silent) heistAlarm(30, 'BANG! THEY HEARD THAT'); else HS.quietShots = (HS.quietShots || 0) + 1; } // a Nachtklus wants a silencer
   }
   function bulletHitsCell(b, px, pz, nx, nz) {
@@ -763,7 +766,7 @@ export function initMission(ctx) {
     #nvHud .hp i{font-style:normal;color:rgba(255,255,255,.2)}
     #nvHud .w{font-size:11px;margin-top:8px}#nvHud .w span{margin-right:12px}
     #nvScore{position:fixed;right:24px;top:70px;z-index:5;display:none;text-align:right;color:#f08a3c;text-shadow:3px 3px 0 #7a2e1a,5px 5px 0 #3b1d0e;font-size:20px;font-family:'Press Start 2P',ui-monospace,monospace}
-    #nvScore .c{font-size:14px;color:#ffd36b;text-shadow:2px 2px 0 #000;margin-top:8px}#nvScore .l{font-size:10px;color:#7a2e1a;text-shadow:2px 2px 0 #000;margin-top:8px}
+    #nvScore .c{font-size:14px;color:#ffd36b;text-shadow:2px 2px 0 #000;margin-top:8px}#nvScore .l{font-size:10px;color:#7a2e1a;text-shadow:2px 2px 0 #000;margin-top:8px}#nvScore .r{font-size:11px;color:#e8a33d;text-shadow:2px 2px 0 #000;margin-top:6px}
     #nvGrain{position:fixed;inset:0;pointer-events:none;z-index:4;display:none;opacity:.22;mix-blend-mode:overlay;background-size:160px 160px;animation:nvg .25s steps(4) infinite}
     #nvScan{position:fixed;inset:0;pointer-events:none;z-index:4;display:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
     @keyframes nvg{0%{background-position:0 0}25%{background-position:-40px 30px}50%{background-position:30px -50px}75%{background-position:-60px -20px}100%{background-position:10px 40px}}
@@ -819,10 +822,11 @@ export function initMission(ctx) {
     if (wbox) wbox.style.visibility = M.active ? 'hidden' : 'visible';
     if (wbox && state.kit.includes('maboota')) wbox.innerHTML = `<span style="color:${state.armed ? '#e8a33d' : '#888'}">[1] MABOOTA</span><br><span style="color:#888;font-size:.8em">[I] INVENTORY</span>`;
     const on = M.active; hudEl.style.display = scoreEl.style.display = grainEl.style.display = scanEl.style.display = on ? 'block' : 'none';
+    mapEl.style.display = on && LV && LV.minimap && !ARR ? 'block' : 'none'; parkUi();
     if (!on) return;
     let hp = ''; for (let i = 0; i < P.maxhp; i++) hp += i < P.hp ? '♥' : '<i>♥</i>';
-    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ` <span style="color:#ffd23a;font-size:12px">${P.armourT === 'carrier' ? 'PLATES ' + '▮'.repeat(P.armor) : 'VEST'}</span>` : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD[P.melee.id].name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ` <i style="font-style:normal;color:#777">/ ${WD[P.melee.id].name}</i>` : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">${LV.faction || 'LAMPAS'} LEFT: ${alive().length}${tasks.some((t) => !t.optional) ? ` <span style="color:#e8a33d;margin-left:10px">${(LV.taskName || 'TARGET')}S: ${tasks.filter((t) => !t.optional && t.done).length}/${tasks.filter((t) => !t.optional).length}</span>` : ''}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
-    scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">${LV.text.area}</div>`;
+    hudEl.innerHTML = `<div class="hp">${hp}${P.armor ? ` <span style="color:#ffd23a;font-size:12px">${P.armourT === 'carrier' ? 'PLATES ' + '▮'.repeat(P.armor) : 'VEST'}</span>` : ''}</div><div class="w"><span style="color:${P.slot === 1 ? '#e8a33d' : '#777'}">[1] ${P.slot === 1 && P.useBat ? WD[P.melee.id].name : 'MABOOTA'}${P.melee && !(P.slot === 1 && P.useBat) ? ` <i style="font-style:normal;color:#777">/ ${WD[P.melee.id].name}</i>` : ''}</span><span style="color:${P.slot === 2 ? '#a9c46a' : '#777'}">${gunLabel(2)}</span><span style="color:${P.slot === 3 ? '#a9c46a' : '#777'}">${gunLabel(3)}</span></div><div class="w" style="color:#ff7a1a">${LV.faction || 'LAMPAS'} LEFT: ${alive().length + pendingN()}${tasks.some((t) => !t.optional) ? ` <span style="color:#e8a33d;margin-left:10px">${(LV.taskName || 'TARGET')}S: ${tasks.filter((t) => !t.optional && t.done).length}/${tasks.filter((t) => !t.optional).length}</span>` : ''}${state.loot ? ` <span style="color:#ffd23a;margin-left:10px">SPICE ×${state.loot}</span>` : ''}</div>`;
+    scoreEl.innerHTML = `W ${R.score.toLocaleString('nl-NL')}${R.combo > 1 ? `<div class="c">${R.combo}× COMBO</div>` : ''}<div class="l">${LV.text.area}</div>${navRoom ? `<div class="r">${navRoom}</div>` : ''}`;
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }
   function hideScreen() { screenEl.style.display = 'none'; }
@@ -1081,7 +1085,7 @@ export function initMission(ctx) {
   function rollRemix(opt) {
     const r = rng32(opt.seed ^ 0x9e3779b9), m = REMIX_MODS[opt.mod] || REMIX_MODS.normaal;
     const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-    const grunts = enemies.map((e, i) => i).filter((i) => !enemies[i].userData.foe.boss && !enemies[i].userData.foe.type);
+    const grunts = enemies.map((e, i) => i).filter((i) => !enemies[i].userData.foe.boss && !enemies[i].userData.foe.type && !enemies[i].userData.foe.wave);
     const spots = shuffle(grunts.map((i) => enemies[i].userData.foe.spawn));
     const arms = shuffle(grunts.map((i) => enemies[i].userData.foe.spawn[3]));
     const place = {}, weapons = {}, keep = new Set(enemies.map((e, i) => i).filter((i) => !grunts.includes(i)));
@@ -1105,9 +1109,12 @@ export function initMission(ctx) {
       const f = e.userData.foe, u = e.userData, i = enemies.indexOf(e);
       let [x, z, r, w] = f.spawn, off = done;
       if (REMIX) { if (REMIX.place[i]) [x, z, r] = REMIX.place[i]; if (i in REMIX.weapons) w = REMIX.weapons[i]; off = !REMIX.keep.has(i); }
+      if (f.wave && (HEIST || DEF)) off = true; // the backup car only comes to a raid
+      const pend = f.wave && !off; // backup: waits off-map until the alarm (waveTick brings it in)
       Object.assign(f, { alive: !off, down: 0, hp: (f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 + (LV.foeHp || 1) - 1 : (LV.foeHp || 1)) + Math.min(2, state.ngp || 0) /* New Game+: tougher every round */, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
-      setFoeWeapon(e, off ? null : w);
-      e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !off; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
+      f.pend = pend; f.waveW = w; if (pend) f.alive = false;
+      setFoeWeapon(e, off || pend ? null : w);
+      e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !off && !pend; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false;
     }
     for (const it of items) root.remove(it.g, it.ring); items.length = 0;
     for (const b of bullets) root.remove(b.m); bullets.length = 0;
@@ -1119,8 +1126,8 @@ export function initMission(ctx) {
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = REMIX ? !REMIX.loot.has(i) : (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     for (const t of tasks) { t.done = !!done; if (t.reset) t.reset(t.done); }
-    smoke.clear();
-    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, tin: false, foes: Math.max(1, alive().length) });
+    smoke.clear(); if (levelReset) levelReset(); waveReset();
+    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, tin: false, foes: Math.max(1, alive().length + pendingN()) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
     Object.assign(P, { hp: EASY.hp + Math.min(3, pk('tough')), maxhp: EASY.hp + Math.min(3, pk('tough')), armor: armourOf(state.loadout) ? state.loadout.vest : 0, armourT: armourOf(state.loadout), invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
@@ -1183,7 +1190,7 @@ export function initMission(ctx) {
       if (REMIX && REMIX.m.dark) { lights.forEach(([l, k]) => { l.intensity = k * 0.2; }); hemi.intensity *= 0.45; sun.intensity *= 0.4; }
       setBounds({ x0: OX + LV.bounds[0], x1: OX + LV.bounds[1], z0: LV.bounds[2], z1: LV.bounds[3] });
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
-      resetFloor(); placeTin();
+      resetFloor(); placeTin(); parkSetup();
       setArea(LV.text.area);
       $('objective').innerHTML = DEF ? '<b>SPICE WAR</b>: hold the warehouse against three waves. Keep them away from the Naknikim under the mixing tables.' : HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0';
@@ -1193,6 +1200,7 @@ export function initMission(ctx) {
   function exit() {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
+      if (ctx.parkDone && PK.on) ctx.parkDone({ paid: PK.paid, how: PK.how, level: LV.id }); PK.on = false; parkUi();
       saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; HEIST = null; heistSetup(); heistHud(); DEF = null; defendSetup(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; if (saved.hemiC) { hemi.color.copy(saved.hemiC[0]); hemi.groundColor.copy(saved.hemiC[1]); } sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
@@ -1209,7 +1217,206 @@ export function initMission(ctx) {
     }, 480);
   }
   addInteract({ get obj() { const t = nearTask(); return t ? t.obj : van; }, pos: () => (nearTask() || { pos: van.position }).pos, r: 2.5, enabled: () => M.active && !P.dead && !R.results && !ARR && !!nearTask(), label: () => nearTask().label, act: () => doTask(nearTask()) });
-  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => DEF ? 'Oofmobiel · give up the warehouse' : HEIST ? (HS.bag.filter((x) => x !== '-').length ? 'Oofmobiel · stash the bag' : HS.banked.length || HS.cash ? 'Oofmobiel · drive home with the haul' : 'Oofmobiel · give up, drive home') : ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: () => (DEF ? defendEnd(false) : HEIST ? heistVan() : exit()) });
+  addInteract({ get obj() { return van; }, pos: () => van.position, r: 4.2, enabled: () => M.active && !P.dead && !R.results && !ARR, label: () => DEF ? 'Oofmobiel · give up the warehouse' : HEIST ? (HS.bag.filter((x) => x !== '-').length ? 'Oofmobiel · stash the bag' : HS.banked.length || HS.cash ? 'Oofmobiel · drive home with the haul' : 'Oofmobiel · give up, drive home') : ownsLevel(LV.id) ? 'Oofmobiel · drive home' : 'Oofmobiel · retreat to Kipkruidenkwartier', act: () => (DEF ? defendEnd(false) : HEIST ? heistVan() : PK.clamped && ctx.clampChoice ? ctx.clampChoice((ok) => { if (ok) { PK.clamped = false; if (PK.clampM) PK.clampM.visible = false; exit(); } }) : exit()) });
+
+  // ================================================================== BACKUP (spawns with { wave: 1 } + def.waveCar)
+  // Backup Lampas wait off-map. The first loud shot (or the floor running low: def.waveAt) calls them: a car pulls up on the
+  // street a few seconds later and they jump out searching for Eddy. The floor only clears once they are down too.
+  const WV = { fired: false, t: 0, arrived: false, car: null, solid: null };
+  const pendingN = () => enemies.filter((e) => e.userData.foe.pend).length;
+  const wavePending = () => enemies.some((e) => e.userData.foe.pend);
+  function callBackup(soon) {
+    if (WV.fired) { if (soon && !WV.arrived && WV.t < -1.5) WV.t = -1.5; return; } // already on its way: the floor running low hurries it
+    if (!M.active || !LV || HEIST || DEF || R.results || !wavePending()) return;
+    WV.fired = true; WV.arrived = false; WV.t = soon ? -1.5 : -5; // seconds until the car turns into the street
+  }
+  function waveReset() {
+    Object.assign(WV, { fired: false, t: 0, arrived: false });
+    if (WV.car) WV.car.visible = false;
+    if (WV.solid) WV.solid.off = true;
+  }
+  function waveTick(dt) {
+    if (!WV.fired || WV.arrived) return;
+    const t0 = WV.t; WV.t += dt; const c = LV.waveCar;
+    if (t0 < 0 && WV.t >= 0) { beep(70, 1.6, 'sawtooth', 0.05); beep(48, 1.6, 'square', 0.035); }
+    if (WV.t < 0) return;
+    const u = c ? Math.min(1, WV.t / 2.2) : 1, k = 1 - Math.pow(1 - u, 3);
+    if (WV.car) { WV.car.visible = true; WV.car.position.set(OX + c.from[0] + (c.to[0] - c.from[0]) * k, 0, c.from[1] + (c.to[1] - c.from[1]) * k); }
+    if (u < 1) return;
+    WV.arrived = true; if (WV.solid) WV.solid.off = false;
+    beep(1900, 0.25, 'triangle', 0.02); sfx('door'); shake(0.2);
+    const T2 = LV.text.waveBanner || ['BACKUP', 'More of them, out on the street.']; banner(T2[0], T2[1], 2.4);
+    for (const e of enemies) {
+      const f = e.userData.foe; if (!f.pend) continue;
+      f.pend = false; f.alive = true; e.visible = true; setFoeWeapon(e, f.waveW);
+      f.state = 'search'; f.wary = true; f.sx = player.position.x; f.sz = player.position.z; f.searchT = 0; f.path = null;
+      say(e.userData.bubble, ['Waar is hij?!', 'Kees belde. Waar is die Eddy?', 'Lampas! Achter me aan!'][f.id % 3], '#ff7a1a');
+    }
+    hud();
+  }
+
+  // ================================================================== PARKING (def.parking: the van stops in a paid bay)
+  // Pay at the parkeermeter (walk there: def.parking.cost) or by app (B or the HUD button: def.parking.app, a fee for the
+  // convenience). The gemeente scan car drives by once per visit; an unpaid bay gets a ticket (ctx.parkTicket: js/garage.js keeps
+  // them). When tickets pile up, a handhaver walks over and clamps the Oofmobiel (ctx.clampVan); it won't drive off until paid or cut.
+  const PK = { on: false, paid: false, how: null, t: 0, paidT: -9, scanAt: 50, hinted: false, warned: false, scanned: false, clamped: false, car: null, cam: null, warden: null, ws: null, clampM: null, meter: null };
+  const meterHit = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2, 0.8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  const parkEl = mk('nvPark');
+  css.textContent += `#nvPark{position:fixed;left:22px;bottom:92px;z-index:6;display:none;font:9px 'Press Start 2P',monospace;color:#fff;background:#1f4fa0;border:2px solid #9ab8ff;box-shadow:3px 3px 0 #0a1a3a;padding:8px 10px;cursor:pointer;line-height:1.5;text-shadow:1px 1px 0 #000}
+    #nvPark.paid{background:#2a5a2a;border-color:#8ad88a;cursor:default}#nvPark small{display:block;font-size:8px;color:#c8d8ff}#nvPark .p{background:#fff;color:#1f4fa0;padding:1px 4px;margin-right:4px}
+    body.touch #nvPark{bottom:auto;top:calc(150px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left))}`;
+  parkEl.addEventListener('click', (e) => { e.stopPropagation(); payParking('app'); });
+  function parkUi() {
+    const show = M.active && PK.on && !ARR && !R.results && (PK.paid ? PK.t - PK.paidT < 3 : !PK.scanned); // gone once paid, or once the scan car has been
+    parkEl.style.display = show ? 'block' : 'none'; if (!show) return;
+    const P2 = LV.parking;
+    parkEl.className = PK.paid ? 'paid' : '';
+    parkEl.innerHTML = PK.paid ? `<b class="p">P</b> BETAALD${PK.how === 'app' ? ' VIA APP' : ''}` : `<b class="p">P</b> PARKEREN · ${glyph('B')} APP W ${P2.app}<small>or the meter by the shop: W ${P2.cost}${PK.warned && !PK.scanned ? ' · SCANAUTO!' : ''}</small>`;
+  }
+  function parkSetup() {
+    Object.assign(PK, { on: !!(LV.parking && !HEIST && !DEF), paid: false, how: null, t: 0, paidT: -9, scanAt: 42 + Math.random() * 25, hinted: false, warned: false, scanned: false, clamped: false });
+    if (PK.car) { PK.car.visible = false; PK.car.position.x = OX + W + 30; }
+    if (PK.warden) { PK.warden.visible = false; PK.ws = null; }
+    if (PK.clampM) PK.clampM.visible = false;
+    if (PK.on && ctx.tip) setTimeout(() => { if (M.active && PK.on) ctx.tip('parking'); }, 9000);
+    parkUi();
+  }
+  function payParking(how) {
+    if (!M.active || !PK.on || PK.paid || P.dead || ARR) return;
+    const cost = how === 'app' ? LV.parking.app : LV.parking.cost;
+    if ((state.money || 0) < cost) { popup(player.position, 'GEEN GELD', '#e46a4c'); sfx('empty'); return; }
+    addMoney(-cost); PK.paid = true; PK.how = how; PK.paidT = PK.t;
+    sfx('pick'); popup(how === 'app' || !PK.meter ? player.position : PK.meter, how === 'app' ? `BETAALD · −W ${cost}` : `KAARTJE · −W ${cost}`, '#8ad88a', true);
+    if (how === 'meter') alertNoise(PK.meter || player.position, 2.5); // the meter beeps
+    parkUi();
+  }
+  function parkTick(dt) {
+    if (!PK.on) return;
+    PK.t += dt;
+    if (!PK.hinted && PK.t > 5.5) { PK.hinted = true; if (!PK.paid) banner('BETAALD PARKEREN', `The meter by the shop window: W ${LV.parking.cost} (E). Or the app: W ${LV.parking.app} (${glyph('B')}). The scan car comes by.`, 4); }
+    if (!PK.scanned && !PK.paid && !PK.warned && PK.t > PK.scanAt - 9) { PK.warned = true; banner('SCANAUTO', `The gemeente scan car is turning into the street. Pay now: app (${glyph('B')}) or the meter.`, 3); beep(660, 0.12, 'square', 0.03); }
+    if (PK.car && PK.t >= PK.scanAt && PK.car.position.x > OX - 30) { // the scan car drives east → west along the far lane
+      const was = PK.car.position.x; PK.car.visible = true; PK.car.position.x -= 7 * dt;
+      if (PK.cam) PK.cam.rotation.y += dt * 4;
+      if (!PK.scanned && was >= VAN_PARK && PK.car.position.x < VAN_PARK) { PK.scanned = true; if (!PK.paid) ticket(); }
+      if (PK.car.position.x <= OX - 30) PK.car.visible = false;
+    }
+    if (PK.ws) wardenTick(dt);
+    if (Math.floor(PK.t * 4) !== Math.floor((PK.t - dt) * 4)) parkUi();
+  }
+  function ticket() {
+    const r = ctx.parkTicket ? ctx.parkTicket(LV.id) : { fine: 95, n: 1, clamp: false };
+    popup(van.position, `BON · W ${r.fine}`, '#ffd36b', true); beep(1200, 0.08, 'square', 0.03); setTimeout(() => beep(900, 0.1, 'square', 0.03), 110);
+    banner('NAHEFFINGSAANSLAG', r.clamp ? `Ticket: W ${r.fine}. That's ${r.n} open tickets: a handhaver is coming for the van.` : `Ticket: W ${r.fine}. Pay it in the Garage tab on the PC, or the tax inspector collects it with interest.`, 3.5);
+    if (r.clamp && PK.warden) { PK.warden.visible = true; PK.warden.position.set(OX - 3, 0, 1.6); PK.ws = { st: 'walk', t: 0 }; }
+  }
+  const bubbleOf = (p) => { if (!p.userData.bubble) { p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0); } return p.userData.bubble; };
+  function wardenTick(dt) {
+    const p = PK.warden, s = PK.ws, to = s.st === 'leave' ? new THREE.Vector3(OX - 6, 0, 1.6) : new THREE.Vector3(VAN_PARK - 2.3, 0, 2.6);
+    if (s.st === 'clamp') {
+      s.t += dt; p.userData.body.rotation.x = -0.5;
+      if (s.t > 3.2) {
+        p.userData.body.rotation.x = 0; s.st = 'leave'; PK.clamped = true; if (PK.clampM) PK.clampM.visible = true; if (ctx.clampVan) ctx.clampVan();
+        sfx('thud'); popup(van.position, 'WIELKLEM!', '#ffd23a', true); banner('WIELKLEM', 'The handhaver clamped the Oofmobiel. Pay the fine at the van, or call Mo.', 3.5); say(bubbleOf(p), 'Fijne dag nog, meneer.', '#9ab8ff');
+      }
+      return;
+    }
+    const d = to.clone().sub(p.position); d.y = 0; const L2 = d.length();
+    if (L2 < 0.1) { if (s.st === 'walk') { s.st = 'clamp'; s.t = 0; p.rotation.y = Math.PI / 2; } else { p.visible = false; PK.ws = null; } return; }
+    p.rotation.y = Math.atan2(d.x, d.z); p.position.addScaledVector(d.normalize(), Math.min(L2, 1.7 * dt)); animate(p, 1.7, dt);
+  }
+  addInteract({ obj: meterHit, pos: () => meterHit.position, r: 1.6, enabled: () => M.active && PK.on && !PK.paid && !P.dead && !ARR && !R.results, label: () => `Parkeermeter · pay W ${LV.parking.cost}`, act: () => payParking('meter') });
+
+  // ================================================================== NAVIGATION (def.roomNames, def.minimap, def.guide)
+  // The room you're in shows under the score; a minimap sits in the corner; when only a few enemies are left (or the floor is
+  // clear), an amber arrow on the floor points the way: to the nearest one, or back to the van.
+  let navRoom = '', navT = 0, navTarget = null, mapBase = null;
+  const ROAD = 7; // the minimap also shows this many metres of road below the grid (the van)
+  const MC = 4;   // minimap pixels per cell
+  const mapEl = document.createElement('canvas'); mapEl.id = 'nvMap'; document.body.appendChild(mapEl);
+  css.textContent += `#nvMap{position:fixed;right:24px;bottom:20px;z-index:5;display:none;border:2px solid #e8a33d;box-shadow:4px 4px 0 #7a2e1a;background:#120c14;image-rendering:pixelated;opacity:.9;pointer-events:none}
+    @media (max-width:820px),(max-height:500px){#nvMap{transform:scale(.75);transform-origin:right bottom;right:10px;bottom:10px}}
+    body.touch #nvMap{bottom:auto;top:calc(150px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));transform:scale(.75);transform-origin:right top}`;
+  const arrow = (() => {
+    const s = new THREE.Shape(); s.moveTo(0, 0.55); s.lineTo(0.38, 0.05); s.lineTo(0.14, 0.05); s.lineTo(0.14, -0.4); s.lineTo(-0.14, -0.4); s.lineTo(-0.14, 0.05); s.lineTo(-0.38, 0.05); s.closePath();
+    const m = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({ color: 0xe8a33d, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2;
+    const g = new THREE.Group(); g.add(m); g.visible = false; m.renderOrder = 3; return g;
+  })();
+  function buildExtras(def, carIn) {
+    root.add(arrow, meterHit); arrow.visible = false; navRoom = ''; navTarget = null;
+    // the backup car
+    WV.car = null; WV.solid = null;
+    if (def.waveCar) { const c = def.waveCar; WV.car = carIn(OX + c.from[0], c.from[1], c.color, c.rot || 0, false, -1); WV.car.visible = false; WV.solid = solid(OX + c.to[0] - 2.3, OX + c.to[0] + 2.3, c.to[1] - 0.95, c.to[1] + 0.95); WV.solid.off = true; }
+    // parking: the scan car, the handhaver, the clamp, the meter's hitbox
+    PK.car = PK.warden = PK.clampM = PK.meter = PK.cam = null; PK.ws = null;
+    if (def.parking) {
+      const [mx, mz] = def.parking.meter; PK.meter = L(mx + 0.5, mz + 0.5); meterHit.position.copy(PK.meter).setY(1);
+      PK.car = carIn(OX + W + 30, 8.6, 0xf2f2f2, Math.PI, false, -1); PK.car.visible = false;
+      const rig = new THREE.Group(); rig.position.y = 1.75; PK.car.add(rig);
+      box(1.4, 0.12, 0.9, lam({ color: 0xe8e8e8 }), 0, 0, 0, rig, false);
+      const cam = new THREE.Group(); cam.position.y = 0.25; rig.add(cam); PK.cam = cam;
+      for (const s of [-1, 1]) box(0.22, 0.2, 0.3, lam({ color: 0x1a1a1a }), s * 0.45, 0, 0, cam, false);
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.22), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'HANDHAVING · GEMEENTE KAASLAND', size: 26 }], '#1f4fa0', '#ffd23a', 512, 48), side: THREE.DoubleSide }));
+      strip.position.set(0, 0.25, 0.47); rig.add(strip);
+      PK.warden = makePerson({ head: { skin: 0xd8a880, hair: '#2a2a2a', brow: '#222', hairLine: 88, sideLine: 116, backLine: 150, mouth: 'smile', iris: '#3a3a3a' }, capColor: 0x1a2a4a, front: '#1a2a4a', shirt: 0x1a2a4a, pants: 0x1a1a22, shoes: 0x111111, belly: 0.5, skin: 0xd8a880 });
+      scene.remove(PK.warden); root.add(PK.warden); PK.warden.visible = false;
+      const cl = new THREE.Group(); cl.position.set(VAN_PARK - 1.8, 0, 3.32);
+      box(0.5, 0.5, 0.12, lam({ color: 0xffd23a }), 0, 0.38, 0, cl, false); box(0.12, 0.12, 0.5, lam({ color: 0xffd23a }), 0, 0.38, 0.22, cl, false);
+      const tri = new THREE.Mesh(new THREE.CircleGeometry(0.14, 3), new THREE.MeshBasicMaterial({ color: 0xc8202a })); tri.position.set(0, 0.42, -0.07); tri.rotation.y = Math.PI; cl.add(tri);
+      cl.visible = false; root.add(cl); PK.clampM = cl;
+    }
+    // the minimap's background: walls, doors, glass, furniture, floor, the road
+    mapBase = null;
+    if (def.minimap) {
+      const c = document.createElement('canvas'); c.width = W * MC; c.height = (H + ROAD) * MC; const g = c.getContext('2d');
+      g.fillStyle = '#2a2830'; g.fillRect(0, H * MC, W * MC, ROAD * MC); // the road
+      g.fillStyle = '#d8d8d8'; for (let x = 0; x < W; x += 4) g.fillRect(x * MC, (H + 7.2) * MC, 2 * MC, 1);
+      for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+        const ch = G[z][x]; g.fillStyle = ch === '#' ? '#120c14' : ch === '%' ? '#7ac8f0' : ch === 'D' ? '#e8a33d' : isBlock(ch) ? '#6a5048' : '#c8b49a';
+        g.fillRect(x * MC, z * MC, MC, MC);
+      }
+      mapEl.width = c.width; mapEl.height = c.height; mapBase = c;
+    }
+  }
+  function roomOf(px, pz) {
+    const x = Math.floor(px - OX), z = Math.floor(pz - Z0);
+    for (const [name, x0, z0, x1, z1] of LV.rooms) if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return name;
+    return null;
+  }
+  function navTick(dt) {
+    navT -= dt;
+    if (LV.roomNames) { const r = roomOf(player.position.x, player.position.z), n = r ? LV.roomNames[r] || '' : player.position.z > 0 ? 'DE STRAAT' : navRoom; if (n !== navRoom) { navRoom = n; hud(); } }
+    // the guide arrow: recomputed twice a second
+    if (LV.guide && navT <= 0) {
+      navT = 0.5; navTarget = null;
+      const left = alive(), busy = left.some((e) => e.userData.foe.state === 'chase' && e.userData.foe.seeT < 2);
+      if (!P.dead && !HEIST && !DEF && !busy) {
+        let p = null;
+        if (R.cleared && !wavePending()) p = path(player.position, L(LV.validateFrom[0], LV.validateFrom[1]));
+        else if (left.length && left.length <= (LV.waveAt ?? 3) && !wavePending()) for (const e of left) { const q = path(player.position, e.position); if (q && (!p || q.length < p.length)) p = q; }
+        navTarget = p && p.length > 3 ? p[Math.min(2, p.length - 1)] : null;
+      }
+    }
+    arrow.visible = !!navTarget && !P.dead;
+    if (arrow.visible) {
+      const a = Math.atan2(navTarget.x - player.position.x, navTarget.z - player.position.z);
+      arrow.rotation.y = a; arrow.position.set(player.position.x + Math.sin(a) * 1.25, 0.06, player.position.z + Math.cos(a) * 1.25);
+      arrow.children[0].material.opacity = 0.55 + Math.sin(R.time * 6) * 0.25;
+    }
+    // the minimap: ten frames a second
+    if (mapBase && Math.floor(R.time * 10) !== Math.floor((R.time - dt) * 10)) drawMap();
+  }
+  function drawMap() {
+    const g = mapEl.getContext('2d'), toX = (wx) => (wx - OX) * MC, toZ = (wz) => (wz - Z0) * MC;
+    g.drawImage(mapBase, 0, 0);
+    g.fillStyle = '#ffd23a'; lootCrates.forEach((l) => { if (!l.taken && l.c.visible) g.fillRect(toX(l.c.position.x) - 1, toZ(l.c.position.z) - 1, 3, 3); });
+    g.fillStyle = PK.clamped ? '#ffd23a' : '#3a6ad8'; g.fillRect(toX(van.position.x) - 3 * MC, toZ(van.position.z) - MC / 2, 6 * MC, MC * 1.2); // the Oofmobiel
+    const few = alive().length <= (LV.waveAt ?? 3), blink = Math.floor(R.time * 3) % 2;
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || !e.visible) continue; if (f.state !== 'chase' && (!few || blink)) continue; g.fillStyle = '#ff3a3a'; g.fillRect(toX(e.position.x) - 1.5, toZ(e.position.z) - 1.5, 3, 3); }
+    const px = toX(player.position.x), pz = toZ(player.position.z), a = player.rotation.y;
+    g.strokeStyle = '#ffffff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(px, pz); g.lineTo(px + Math.sin(a) * 6, pz + Math.cos(a) * 6); g.stroke();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(px, pz, 2.6, 0, 7); g.fill();
+  }
 
   // ================================================================== KILLS, KNOCKDOWNS, SCORE
   function addKillScore(e, type) {
@@ -1242,9 +1449,11 @@ export function initMission(ctx) {
     R.kills++; if (type === 'exec') R.execs++; addKillScore(e, type);
     if (f.type) { const FT = FOE_TYPES[f.type]; banner(FT.down[0], FT.down[1], 2.5); shake(0.6); FX.freeze = 0.3; R.score += FT.score; }
     else if (f.boss) { banner(LV.text.bossDown[0], LV.text.bossDown[1], 2.5); shake(0.6); FX.freeze = 0.3; }
-    const left = alive().length;
-    if (left === 1 && !R.lastOneShown) { R.lastOneShown = true; popup(alive()[0].position, 'LAST ONE', '#e8a33d', true); }
-    if (left === 0 && !tasksLeft() && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#e8a33d', true); shake(0.5); setTimeout(results, 1500); }
+    const left = alive().length, pend = wavePending();
+    if (pend && left <= (LV.waveAt ?? 2)) callBackup(true);
+    if (left === 1 && !pend && !R.lastOneShown) { R.lastOneShown = true; popup(alive()[0].position, 'LAST ONE', '#e8a33d', true); }
+    if (left === 0 && pend) popup(e.position, 'BACKUP INCOMING', '#ff7a1a', true);
+    else if (left === 0 && !tasksLeft() && !R.cleared) { R.cleared = true; popup(e.position, 'FLOOR CLEAR', '#e8a33d', true); shake(0.5); setTimeout(results, 1500); }
     else if (left === 0 && tasksLeft()) popup(e.position, `${tasksLeft()} ${LV.taskName || 'TARGET'}${tasksLeft() > 1 ? 'S' : ''} LEFT`, '#e8a33d', true);
     hud();
   }
@@ -1399,7 +1608,7 @@ export function initMission(ctx) {
 
   // ================================================================== INPUT (capture phase: runs before main.js)
   addEventListener('keydown', (e) => {
-    if (state.inDialogue || state.inPC || state.step === 'title') return;
+    if (state.inDialogue || state.inPC || state.step === 'title' || (ctx.choiceOpen && ctx.choiceOpen())) return;
     const stop = () => { e.stopImmediatePropagation(); e.preventDefault(); };
     if (e.code === 'KeyI') { stop(); invOpen ? closeInv() : openInv(); return; }
     if (invOpen) { if (e.code === 'Escape') { stop(); closeInv(); } else if (!['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight'].includes(e.code)) stop(); return; }
@@ -1411,6 +1620,7 @@ export function initMission(ctx) {
     if (e.code === 'Backspace') { stop(); if (!ownsLevel(LV.id)) resetFloor(); return; }
     if (P.dead) { stop(); return; }
     if (e.code === 'KeyR') { stop(); if (!e.repeat) reloadInput(); return; }
+    if (e.code === 'KeyB' && PK.on && !PK.paid) { stop(); payParking('app'); return; }
     if (e.code === 'Digit1' || e.code === 'Numpad1') { stop(); selectSlot(1); }
     else if (e.code === 'Digit2' || e.code === 'Numpad2') { stop(); selectSlot(2); }
     else if (e.code === 'Digit3' || e.code === 'Numpad3') { stop(); selectSlot(3); }
@@ -1506,7 +1716,7 @@ export function initMission(ctx) {
     vigEl.style.background = `radial-gradient(ellipse at center, rgba(255,0,30,0) 45%, rgba(255,0,30,${vig.toFixed(3)}) 100%)`; vigEl.style.opacity = 1;
     for (const l of lootCrates) if (!l.taken) l.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
     if (levelTick) levelTick(dt);
-    heistTick(dt); defendTick(dt);
+    heistTick(dt); defendTick(dt); waveTick(dt); parkTick(dt); navTick(dt);
     for (let i = pops.length - 1; i >= 0; i--) {
       const p = pops[i]; p.t += dt; p.p.y += dt * 0.8;
       const v = p.p.clone().project(camera); p.el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; p.el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; p.el.style.opacity = Math.min(1, 2.2 - p.t * 1.6);
@@ -1748,7 +1958,7 @@ export function initMission(ctx) {
   function letterbox(on) {
     lbTop.innerHTML = `<span>${LV.text.area}</span>`; lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`;
     lbTop.className = lbBot.className = on ? 'on' : '';
-    hudEl.style.opacity = scoreEl.style.opacity = on ? 0 : 1; $('objective').style.opacity = on ? 0 : 1;
+    hudEl.style.opacity = scoreEl.style.opacity = on ? 0 : 1; $('objective').style.opacity = on ? 0 : 1; mapEl.style.opacity = on ? 0 : 0.9; if (!on) setTimeout(hud, 0);
   }
   function startArrive(then) {
     ARR = { ph: 'drive', t: 0, x0: OX + LV.van.from, then };
@@ -1846,6 +2056,8 @@ export function initMission(ctx) {
   Object.defineProperty(M, 'van', { get: () => van, enumerable: true });
   // test hooks: where the Lampas stand, and a forced clear (results screen) for remix/best-score checks
   M.debugFoes = () => enemies.map((e) => ({ alive: e.userData.foe.alive, x: +e.position.x.toFixed(1), z: +e.position.z.toFixed(1), w: e.userData.foe.weapon }));
+  M.debugPark = () => ({ on: PK.on, paid: PK.paid, how: PK.how, t: +PK.t.toFixed(1), scanAt: +PK.scanAt.toFixed(1), scanned: PK.scanned, clamped: PK.clamped, warden: !!PK.ws, setScan: (t) => { PK.scanAt = t; } });
+  M.debugWave = () => ({ fired: WV.fired, arrived: WV.arrived, t: +WV.t.toFixed(1), pending: pendingN(), room: navRoom, arrow: arrow.visible });
   M.debugClear = () => { for (const e of enemies) e.userData.foe.alive = false; R.score = R.score || 9000; results(); };
   buildLevel(spekbuurt); // Mission 1 is built up front (as before); other levels replace it when they're launched
   hud();
