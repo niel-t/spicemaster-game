@@ -1093,7 +1093,7 @@ const rankNow = () => rankOf(econ.ensure().rep).i;
 const UNLOCK = {
   werk: { ok: () => econ.has('opknappen') || !!(state.ws && (state.ws.built || state.ws.repaired)), why: 'Sell your first machine (Kaasplaats), then go and see Monteur Mo under the railway.' },
   garage: { ok: () => !!(state.drives && Object.keys(state.drives).length) || !!state.district1, why: 'Take the Oofmobiel for a drive first.' },
-  plan: { ok: () => !!state.district1, why: 'Take all of Kipkruidenkwartier first. Then Kevin and the Fluisteraar start talking about night work.' },
+  plan: { ok: () => !!state.district1 || !!state.ngp, why: 'Take all of Kipkruidenkwartier first. Then Kevin and the Fluisteraar start talking about night work.' }, // New Game+ keeps the night work you already opened
 };
 const canDo = (k) => (k === 'rank1' ? rankNow() >= 1 : k === 'heist' ? !!(state.heists && state.heists.done && state.heists.done.tutorial) : UNLOCK[k] ? UNLOCK[k].ok() : true);
 const ws = createWorkshop({ rank: rankNow, state, econ, addMoney, toast, beep, haggle, save: () => writeSave() });
@@ -1394,8 +1394,8 @@ function talkNaknik(n) { // name, skill and mood; send them out on an errand or 
   if (crew.napping(i)) return choice(m.name, `<i>(snoring on a sack of paprika)</i> Mood: <b>${m.moodWord}</b> (${m.mood}). Skill ${m.stars}. A day off would help.`, ['Give a day off', 'Let them sleep'], (k) => { if (k === 0) crew.dayOff(i); });
   choice(m.name, `"${NAK_LINES[Math.floor(Math.random() * NAK_LINES.length)]}" <br><small>Skill ${m.stars} · mood <b>${m.moodWord}</b> (${m.mood}) · an errand takes one market day, and they don't mix meanwhile.</small>`, ['Back to work', 'Send on an errand', 'Give a day off'], (k) => {
     if (k === 2) crew.dayOff(i);
-    if (k === 1) setTimeout(() => choice(m.name, 'Where to, boss?', [...crew.errands().map((e) => e.name), 'Never mind'], (e) => { const list = crew.errands(); if (e < list.length) crew.send(i, list[e].id); }), 50);
-  });
+    if (k === 1) setTimeout(() => choice(m.name, 'Where to, boss?', [...crew.errands().map((e) => e.name), 'Never mind'], (e) => { const list = crew.errands(); if (e >= 0 && e < list.length) crew.send(i, list[e].id); }), 50);
+  }, 0); // Escape: back to work
 }
 function spiceCloud(at) { // a mixing mistake: a puff of paprika
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshBasicMaterial({ color: 0xc2412d, transparent: true, opacity: 0.7, depthWrite: false }));
@@ -1633,7 +1633,7 @@ addEventListener('keydown', (e) => {
     if (choiceOpen) return;
     if (!state.inPC && current) current.act();
   }
-  if (e.code === 'Escape' && choiceOpen) { closeChoice(-1); return; }
+  if (e.code === 'Escape' && choiceOpen) { if (choiceCancel !== null) closeChoice(choiceCancel); return; }
   if (e.code === 'Escape' && state.inPC) { if ($('shop').style.display === 'block') closeShop(); else closePC(); }
   if (e.code === 'KeyN') { const on = music.toggle(); toast(on ? 'MUSIC ON' : 'MUSIC OFF', '', 1); writeSave(); }
   if (e.code === 'KeyM' && !state.inDialogue && !choiceOpen) state.inPC ? closePC() : openPC('map', 'pc');
@@ -1917,17 +1917,18 @@ function gripe(pool) { let k; do k = Math.floor(Math.random() * pool.length); wh
 const LINES_NPC = [...GRIPES, 'Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say the old Eddy had a secret recipe.'];
 walkers.forEach((w, i) => addInteract({ obj: w, pos: () => w.position, r: 1.4, label: () => 'Say hi', act: () => { w.userData.walk.wait = 2.5; w.rotation.y = Math.atan2(player.position.x - w.position.x, player.position.z - w.position.z); const P_ = w.userData.walk.police, L_ = P_ ? LINES_POLICE : LINES_NPC; toast('"' + gripe(L_) + '"', P_ ? 'Politie' : 'Passer-by', 3.2); } }));
 // ================================================================== SHOARMA SCHMATZEL
-// A small choice menu in the dialogue box (used by Nabil)
-let choiceOpen = false, choiceCb = null;
-function choice(who, line, options, cb) {
-  state.inPC = true; choiceOpen = true; choiceCb = cb;
+// A small choice menu in the dialogue box. Escape (B on a controller) picks the cancel option, the last one by default;
+// cancel = null means there is no way out (Kevin's siege call, the tax inspector), so Escape leaves the menu open.
+let choiceOpen = false, choiceCb = null, choiceCancel = null, choiceN = 0;
+function choice(who, line, options, cb, cancel = options.length - 1) {
+  state.inPC = true; choiceOpen = true; choiceCb = cb; choiceCancel = cancel; choiceN = options.length;
   $('dlgwho').textContent = who; $('dlgline').innerHTML = line + '<div id="choices" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>';
   const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f;
   options.forEach((o, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + o; b.style.cssText = 'font:700 15px Arial;padding:7px 14px;border-radius:6px;border:2px solid #ffd36b;background:#2a1a0e;color:#fff;cursor:pointer'; b.onclick = (ev) => { ev.stopPropagation(); closeChoice(i); }; $('choices').appendChild(b); });
   $('dialogue').style.display = 'block';
 }
 function closeChoice(i) { if (!choiceOpen) return; choiceOpen = false; state.inPC = false; $('dialogue').style.display = 'none'; const cb = choiceCb; choiceCb = null; if (cb) cb(i); }
-addEventListener('keydown', (e) => { if (!choiceOpen) return; const n = { Digit1: 0, Numpad1: 0, Digit2: 1, Numpad2: 1 }[e.code]; if (n !== undefined) { e.stopImmediatePropagation(); closeChoice(n); } }, true);
+addEventListener('keydown', (e) => { if (!choiceOpen) return; const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code), n = m ? +m[1] - 1 : -1; if (n >= 0 && n < choiceN) { e.stopImmediatePropagation(); closeChoice(n); } }, true); // number keys 1-9 pick an option
 
 // seated pose for diners and card players (not driven by animate())
 function sit(p, y = 0.47) { const u = p.userData; u.legs.forEach((l) => { l.rotation.x = -1.45; }); u.body.position.y = y - 0.9; u.seated = true; }
@@ -2225,9 +2226,9 @@ function updateSiege() {
       setTimeout(() => choice('Eddy Jr.', 'And one red oil drum by a door, to shoot when they come through?', ['By the front shutter', 'By the loading bay', 'By the side door'], (t) => {
         const names = (state.crew || []).map((c) => c && c.name).filter(Boolean);
         mission.enter('warehouse', { defend: { faction: 'Lampas', barricade: bar, trap: ['front', 'bay', 'side'][t], naknik: state.naknik || 0, names, onEnd: siegeOver } });
-      }), 60);
-    }), 60);
-  });
+      }, null), 60);
+    }, null), 60);
+  }, null); // no Escape out of a siege: fight or let them in
 }
 function siegeOver(res) {
   const m = econ.siegeResult(res.win); if (res.win && econ.addRep) econ.addRep(200);
@@ -2261,7 +2262,7 @@ function updateInspector(dt) {
     choice('Van der Belasting', `Van der Belasting, Kaasland tax office. That is a lot of cash for a man who "sells old shoarma junk". I count a fine of <b>W ${fine.toLocaleString('nl-NL')}</b>${garage.has('luik') ? ' <small>(he doesn\'t find the hidden compartment in the Oofmobiel)</small>' : ''}.`, [`Pay W ${fine.toLocaleString('nl-NL')}`, 'Slip him W 500', 'Offer a free garlic sauce'], (i) => {
       const line = garage.settleInspector(['pay', 'bribe', 'saus'][i]);
       dialogue([['Van der Belasting', line]], () => { inspector.left = p.position.x > player.position.x ? 1 : -1; });
-    });
+    }, null); // you don't walk away from the tax office
   }
 }
 
