@@ -6,6 +6,7 @@
 // for that limb until they stop touching it. head.visible = false and arms[i].visible = false cut the head / arm off.
 import * as THREE from '../vendor/three.module.min.js';
 import * as P from './ps2c.js';
+import { Gait, mocap } from './mocap.js';
 
 const TAU = Math.PI * 2;
 const live = new Set(), queue = [];
@@ -190,6 +191,13 @@ export function ps2Animate(p, speed, dt) {
   const u = p.userData, q = u.ps2;
   q.moving = speed > 0.05;
   if (q.moving) u.phase += dt * (5 + speed * 1.2);
+  if (mocap.on) {
+    // travel speed actually covered (a blocked character runs on the spot otherwise), in the body's own scale
+    const pos = p.position, lp = q.lastPos || (q.lastPos = pos.clone());
+    const moved = dt > 0 ? Math.hypot(pos.x - lp.x, pos.z - lp.z) / dt : 0; lp.copy(pos);
+    const v = speed > 0.05 ? (u.inPlace || moved >= 2 * speed ? speed : moved) : 0; // teleports count as the requested speed
+    q.gaitV = v / (u.body.scale.y || 1); q.gaitDt = (q.gaitDt || 0) + dt;
+  }
   // a limb rotation nobody set since the last call relaxes back to the built-in animation
   const vals = [u.arms[0].rotation.x, u.arms[0].rotation.z, u.arms[1].rotation.x, u.arms[1].rotation.z, u.legs[0].rotation.x, u.legs[1].rotation.x];
   const set = [(v) => (u.arms[0].rotation.x = v), (v) => (u.arms[0].rotation.z = v), (v) => (u.arms[1].rotation.x = v), (v) => (u.arms[1].rotation.z = v), (v) => (u.legs[0].rotation.x = v), (v) => (u.legs[1].rotation.x = v)];
@@ -205,6 +213,15 @@ function poseOf(p, now) {
   const u = p.userData, q = u.ps2;
   const walk = q.moving && !u.seated;
   const t = walk ? u.phase / (TAU * 0.95) : now * 0.001 + q.seed;
+  let base = null;
+  if (mocap.on) {
+    if (!q.gait2) q.gait2 = new Gait(q.look.body === 'fat');
+    // characters not driven by animate() (seated diners, card players) still get the clock
+    const dt = Math.min(0.1, q.gaitDt || (now - (q.gaitT || now)) / 1000); q.gaitT = now; q.gaitDt = 0;
+    const g = q.gait2.update(q.moving ? q.gaitV || 0 : 0, !!u.seated, dt, p.rotation.y);
+    base = { R: g.R, root: g.root };
+    if (g.lean || g.bank) base.R.spine = P.M4.mul(P.M4.mul(P.M4.R(X, g.lean), P.M4.R(Z, g.bank)), base.R.spine);
+  }
   // read the old-style arm angles the game sets and play Neon Vice's matching arm pose instead:
   // right arm raised (-1.45) = aim one-handed, both raised = two-handed / grab, wound back (< -2.2) / swung through (> 0.3) = melee swing
   const a0 = u.arms[0].rotation.x, a1 = u.arms[1].rotation.x;
@@ -214,7 +231,7 @@ function poseOf(p, now) {
     else if (a0 > 0.3) { arms = 'melee'; kick = 1; }
     else if (a0 < -1.2) arms = a1 < -1.0 ? (Math.abs(a0 - a1) < 0.2 ? 'dual' : 'rifle') : 'aim1';
   }
-  const W = P.pose(t, walk ? 'walk' : 'idle', undefined, arms, kick, q.gait, (R, rot, lower, hinge) => {
+  const W = P.pose(t, base || (walk ? 'walk' : 'idle'), undefined, arms, kick, q.gait, (R, rot, lower, hinge) => {
     for (let i = 0; i < 2; i++) {
       const a = u.arms[i], A = ARM[i];
       if (!arms && (Math.abs(a.rotation.x) > 0.02 || Math.abs(a.rotation.z) > 0.02)) {
@@ -223,7 +240,7 @@ function poseOf(p, now) {
         rot(A.f, hinge(A.s), a.rotation.x < -0.6 ? 0.12 : 0.3);
       }
       const l = u.legs[i], Lg = LEG[i];
-      if (Math.abs(l.rotation.x) > 0.02) {
+      if (Math.abs(l.rotation.x) > 0.02 && !(base && u.seated)) { // seated mocap clips bring their own legs
         delete R[Lg.t]; delete R[Lg.s]; delete R[Lg.f];
         rot(Lg.t, X, l.rotation.x);
         if (l.rotation.x < -0.6) rot(Lg.s, X, Math.min(-l.rotation.x, 1.6)); // seated / riding: shins hang down

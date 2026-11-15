@@ -374,7 +374,8 @@ const X=[1,0,0],Y=[0,1,0],Z=[0,0,1];
 function pose(t,anim,jab,arms,kick,gait,extra){const R={},rot=(b,ax,a)=>{R[b]=M4.mul(M4.R(ax,a),R[b]||M4.id());};let root=[0,0,0];const fem=gait==='fem';
  const armHinge=s=>V.norm(V.cross([AD[0]*s,AD[1],0],Z));
  const lower=(s,a)=>rot(s>0?'uarmL':'uarmR',Z,-a*s);
- if(anim==='idle'&&fem){/* contrapposto: weight on the right leg, hip up on that side, left knee eased, shoulders counter-tilted */
+ if(anim&&anim.R){/* Spice Master: a motion-capture base pose (js/mocap.js); everything below layers on top */for(const k in anim.R)R[k]=anim.R[k].slice();root=anim.root.slice();}
+ else if(anim==='idle'&&fem){/* contrapposto: weight on the right leg, hip up on that side, left knee eased, shoulders counter-tilted */
   const br=Math.sin(t*1.6),sw=Math.sin(t*0.45)*0.012;lower(1,0.6);lower(-1,0.58);rot('uarmL',X,-0.04);rot('uarmR',X,-0.08);rot('farmL',armHinge(1),0.3);rot('farmR',armHinge(-1),0.38);
   rot('pelvis',Z,-0.07-sw);rot('pelvis',Y,0.06);rot('thighR',Z,0.075+sw);rot('thighL',Z,0.03+sw);rot('thighL',X,-0.1);rot('shinL',X,0.2);rot('footL',X,-0.08);rot('thighR',X,0.02);
   rot('spine',Z,0.05+sw*0.6);rot('chest',Z,0.035);rot('chest',X,-0.02*br);rot('spine',X,0.01);rot('neck',Z,-0.02);rot('neck',Y,Math.sin(t*0.5)*0.06);rot('head',X,Math.sin(t*0.37)*0.05);

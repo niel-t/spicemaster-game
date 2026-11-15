@@ -28,12 +28,15 @@ const SETS = { lampas: [
 const set = SETS[q.get('set')];
 const names = set ? set.map((_, i) => 'set' + i) : (q.get('looks') || Object.keys(LOOKS).join(',')).split(',');
 if (set) set.forEach((o, i) => { LOOKS['set' + i] = lookFromPerson(o); });
-const people = names.map((n, i) => { const p = makePS2Person(LOOKS[n], { scene }); p.position.x = (i - (names.length - 1) / 2) * 1.1; return p; });
+const people = names.map((n, i) => { const p = makePS2Person(LOOKS[n], { scene }); p.position.x = (i - (names.length - 1) / 2) * 1.1; p.userData.inPlace = true; return p; });
+// ?mode=walk|jog|run|sit, ?speed=m/s overrides; ?mocap=0 shows the old procedural walk
+const SPEED = { walk: 1.4, jog: 4.2, run: 7.5, aimrun: 4.2 };
+const seats = people.map((p) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.47, 0.45), new THREE.MeshStandardMaterial({ color: 0x6a4428 })); b.position.set(p.position.x, 0.235, -0.12); b.visible = false; scene.add(b); return b; });
 // a pistol where mission.js puts handGun (old arm space), to check props land in the fist
 for (const p of people) { const g = new THREE.Group(); g.position.set(0, -0.68, 0.05); const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.2), new THREE.MeshStandardMaterial({ color: 0x222222 })); m.position.z = 0.06; g.add(m); p.userData.arms[0].add(g); }
 let mode = q.get('mode') || 'idle', spin = q.get('spin') !== '0', angle = +(q.get('angle') || 0), view = q.get('view') || 'front';
 const ui = document.getElementById('ui');
-for (const [k, v] of [['mode', 'idle'], ['mode', 'walk'], ['mode', 'aim'], ['view', 'front'], ['view', 'top']]) { const b = document.createElement('button'); b.textContent = v; b.onclick = () => { if (k === 'mode') mode = v; else view = v; }; ui.appendChild(b); }
+for (const [k, v] of [['mode', 'idle'], ['mode', 'walk'], ['mode', 'jog'], ['mode', 'run'], ['mode', 'sit'], ['mode', 'aim'], ['view', 'front'], ['view', 'top']]) { const b = document.createElement('button'); b.textContent = v; b.onclick = () => { if (k === 'mode') mode = v; else view = v; }; ui.appendChild(b); }
 const spinB = document.createElement('button'); spinB.textContent = 'spin'; spinB.onclick = () => (spin = !spin); ui.appendChild(spinB);
 const clock = new THREE.Clock();
 function tick() {
@@ -41,8 +44,12 @@ function tick() {
   if (spin) angle += dt * 0.6;
   for (const p of people) {
     p.rotation.y = angle;
-    ps2Animate(p, mode === 'walk' ? 3 : 0, dt);
-    if (mode === 'aim') p.userData.arms[0].rotation.x += (-1.45 - p.userData.arms[0].rotation.x) * 0.3;
+    const sit = mode === 'sit', u = p.userData;
+    if (sit !== !!u.seated) { u.seated = sit; u.body.position.y = sit ? 0.47 - 0.9 : 0; u.legs.forEach((l) => { l.rotation.x = sit ? -1.45 : 0; }); }
+    seats[people.indexOf(p)].visible = sit; seats[people.indexOf(p)].rotation.y = angle; seats[people.indexOf(p)].position.z = -Math.cos(angle) * 0.12; seats[people.indexOf(p)].position.x = p.position.x - Math.sin(angle) * 0.12;
+    if (sit) u.legs.forEach((l) => { l.rotation.x = -1.45; });
+    ps2Animate(p, SPEED[mode] ? +(q.get('speed') || SPEED[mode]) : 0, dt);
+    if (mode === 'aim' || mode === 'aimrun') p.userData.arms[0].rotation.x += (-1.45 - p.userData.arms[0].rotation.x) * 0.3;
     if (mode === 'wind') p.userData.arms[0].rotation.x = -2.6;
     if (mode === 'strike') p.userData.arms[0].rotation.x = 0.6;
     if (mode === 'rifle') { p.userData.arms[0].rotation.x = -1.45; p.userData.arms[1].rotation.x = -1.2; }
@@ -50,6 +57,7 @@ function tick() {
   }
   const w = Math.max(2.4, names.length * 1.2);
   if (view === 'top') { camera.position.set(0, 9, 4.5); camera.lookAt(0, 0.6, 0); }
+  else if (view === 'side') { camera.position.set(w * 1.9, 1.1, 0); camera.lookAt(0, 0.85, 0); }
   else { camera.position.set(0, 1.25, w * 1.9); camera.lookAt(0, 0.95, 0); }
   renderer.render(scene, camera); requestAnimationFrame(tick);
 }
