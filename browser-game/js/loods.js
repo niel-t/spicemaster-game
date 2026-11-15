@@ -8,7 +8,9 @@
 const C = { blue: 0x2a5aa8, orange: 0xe8742a, pallet: 0xc49a62, slat: 0x8a6438, steel: 0x3a3e44, cream: 0xf2ead8, saffron: 0xf2b21a, paprika: 0xc2412d, cumin: 0x7a4a22, cardamom: 0x8aa04a, turmeric: 0xe2a21a };
 const ING_COL = { paprika: 0xc2412d, komijn: 0x8a5a2a, knoflook: 0xe8e0c8, koriander: 0x9aa04a, kurkuma: 0xe2a21a, kaneel: 0xa0562a, kardemom: 0x7a9a4a, saffraan: 0xe86a1a };
 const PALLET_KG = 50, RACK_KG = 120;
-const HX = 0, HZ = -110; // the hall is built off the street map (like the woning rooms), behind a door in the shed's back wall
+const HX = 0, HZ = -28.4; // the hall stands on the plot behind the shed (Tristan 2026-11-15), reached through a doorway in the shed's back wall
+const DX = -4.6; // x of the doorway / corridor between the shed and the hall
+const PLOT = { x0: -33.5, x1: 11.5, z0: -37.4, z1: -21.2 }; // the bouwkavel: for sale at the start
 const HALL = { x0: -11, x1: 11, z0: -7, z1: 7, h: 4.8 }, TENT = { x0: -33, x1: -11, z0: -8.7, z1: 7 };
 // rack bays: shed (1), hall (6, along the north wall), tent (6, along its north wall). [x, z, rotY] of the bay centre, world coords
 const BAYS = [[-10.3, -15.05, Math.PI / 2],
@@ -21,7 +23,8 @@ export const UPGRADES = [
   { id: 'rek', name: 'Palletstelling', what: `One bay of pallet racking: blue uprights, orange beams, 6 pallet places. +${RACK_KG} kg stock space.`, days: 1, rank: 0, repeat: true },
   { id: 'menger1', name: 'Mengmachine', what: 'An electric drum mixer next to the table. Every Naknik mixes 15 kg a market day instead of 10.', cost: 1500, days: 2, rank: 1, need: ['junk'] },
   { id: 'roldeur', name: 'Stalen roldeur + camera', what: 'A steel roller door and a camera over the entrance. A raid on the warehouse steals half as much.', cost: 1800, days: 1, rank: 1, need: ['junk'] },
-  { id: 'hal', name: 'De Hal', what: 'Knock through the back wall into the empty hall behind it: a steel portal hall with room for 6 racking bays, a dock door and a second mixing table. +100 kg floor space.', cost: 6000, days: 3, rank: 1, need: ['rek', 'menger1'], stage: 2 },
+  { id: 'kavel', name: 'Bouwkavel', what: 'The empty plot behind the shed, TE KOOP for years. Buy it and the warehouse can grow onto it: De Hal first, De Overkapping later.', cost: 2500, days: 1, rank: 1, need: ['junk'] },
+  { id: 'hal', name: 'De Hal', what: 'A steel portal hall on the plot, through a new doorway in the shed\'s back wall: room for 6 racking bays, a dock door and a second mixing table. +100 kg floor space.', cost: 6000, days: 3, rank: 1, need: ['kavel', 'rek', 'menger1'], stage: 2 },
   { id: 'heftruck', name: 'Heftruck', what: 'A second-hand forklift for the hall. Buy bulk pallet deals (30% under the Kruidenbeurs) and rack them yourself.', cost: 2500, days: 1, rank: 1, need: ['hal'] },
   { id: 'tafel2', name: 'Tweede mengtafel', what: 'A second mixing table in the hall: room for 2 more Naknikim at home.', cost: 2500, days: 2, rank: 1, need: ['hal'] },
   { id: 'molen', name: 'Kruidenmolen', what: 'A stone spice mill: the Naknikim grind everything fresh. Blends come out half a star better.', cost: 3500, days: 2, rank: 2, need: ['menger1'] },
@@ -29,7 +32,7 @@ export const UPGRADES = [
   { id: 'dock', name: 'Laadperron', what: 'A proper loading dock with a leveller and dock lights: the Groothandel buys 40 kg more a day, and three pallet deals a day instead of two.', cost: 4000, days: 2, rank: 2, need: ['heftruck'] },
   { id: 'tent', name: 'De Overkapping', what: 'A huge tent hall on the west side of the hall: 6 more racking bays, a third mixing table (2 more Naknikim), +200 kg floor space. Eddy\'s is a real groothandel now.', cost: 15000, days: 4, rank: 3, need: ['hal', 'dock'], stage: 3 },
 ];
-const NEED_TEXT = { junk: "sell all of Dad's junk first", rek: 'needs a Palletstelling', menger1: 'needs the Mengmachine', hal: 'needs De Hal', heftruck: 'needs the Heftruck', dock: 'needs the Laadperron' };
+const NEED_TEXT = { kavel: 'buy the Bouwkavel first', junk: "sell all of Dad's junk first", rek: 'needs a Palletstelling', menger1: 'needs the Mengmachine', hal: 'needs De Hal', heftruck: 'needs the Heftruck', dock: 'needs the Laadperron' };
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 
 // deps: THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank(), addMoney, toast, beep, save,
@@ -46,7 +49,7 @@ export function createLoods(deps) {
     L.built = L.built || {}; L.racks = +L.racks || 0; L.job = L.job || null; L.dock = Array.isArray(L.dock) ? L.dock : [];
     return L;
   }
-  const has = (id) => !!ensure().built[id];
+  const has = (id) => !!ensure().built[id] || (id === 'kavel' && !!ensure().built.hal); // halls built before the plot existed own it
   const stage = () => (has('tent') ? 3 : has('hal') ? 2 : 1);
   const bayLimit = () => STAGE_BAYS[stage() - 1];
   const rackCost = () => 600 + 350 * ensure().racks;
@@ -94,7 +97,6 @@ export function createLoods(deps) {
   const ribTex = (base, rib) => { const t = canvasTex(128, 32, (g, w, h) => { g.fillStyle = base; g.fillRect(0, 0, w, h); g.fillStyle = rib; for (let x = 0; x < w; x += 8) g.fillRect(x, 0, 3, h); }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
   {
     const W = HALL.x1 - HALL.x0, D = HALL.z1 - HALL.z0, H = HALL.h;
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(90, 50), mt(0x15100a)); ground.rotation.x = -Math.PI / 2; ground.position.set(-10, 0.002, 0); hall.add(ground);
     const ft = concrete.clone(); ft.needsUpdate = true; ft.repeat.set(W / 4, D / 4);
     const fl = new THREE.Mesh(new THREE.PlaneGeometry(W, D), lam({ map: ft, color: 0xd0d6dc })); fl.rotation.x = -Math.PI / 2; fl.position.y = 0.01; fl.receiveShadow = true; hall.add(fl);
     // painted floor lines (aisles and pallet spots), like the Stage 02 art
@@ -121,10 +123,19 @@ export function createLoods(deps) {
     const roll = canvasTex(64, 256, (g, w, h) => { for (let y = 0; y < h; y += 8) { g.fillStyle = y % 16 ? '#8c9298' : '#a8aeb4'; g.fillRect(0, y, w, 8); } });
     box(0.1, 3.6, 5.2, lam({ map: roll }), HALL.x1 + 0.05, 1.8, 1.8, east);
     // the cutaway south wall: a low strip, the door back into the shed in the middle
-    box(W / 2 - 0.8, 0.6, 0.15, mt(0x5a7088), HALL.x0 + (W / 2 - 0.8) / 2, 0.3, HALL.z1, hall); box(W / 2 - 0.8, 0.6, 0.15, mt(0x5a7088), HALL.x1 - (W / 2 - 0.8) / 2, 0.3, HALL.z1, hall);
-    box(1.6, 0.03, 0.7, mt(C.paprika), 0, 0.02, HALL.z1 - 0.45, hall, false);
+    const a0 = DX - 0.8 - HALL.x0, a1 = HALL.x1 - DX - 0.8;
+    box(a0, 0.6, 0.15, mt(0x5a7088), HALL.x0 + a0 / 2, 0.3, HALL.z1, hall); box(a1, 0.6, 0.15, mt(0x5a7088), HALL.x1 - a1 / 2, 0.3, HALL.z1, hall);
+    box(1.6, 0.03, 0.7, mt(C.paprika), DX, 0.02, HALL.z1 - 0.45, hall, false);
+    // seen from the street: the full south wall and a roof (they lift when Eddy walks in, like the shed's)
+    const hi = new THREE.Group(); hall.add(hi); hall.userData.hi = hi;
+    const sl = lowT.clone(); sl.needsUpdate = true; sl.repeat.set(W / 2, 1); const sh = hiT.clone(); sh.needsUpdate = true; sh.repeat.set(W / 2, 1);
+    box(a0, 1.8, 0.15, lam({ map: sl }), HALL.x0 + a0 / 2, 1.5, HALL.z1, hi); box(a1, 1.8, 0.15, lam({ map: sl }), HALL.x1 - a1 / 2, 1.5, HALL.z1, hi);
+    box(W, H - 2.4, 0.15, lam({ map: sh }), 0, 2.4 + (H - 2.4) / 2, HALL.z1, hi);
+    const roofT = ribTex('#7a8290', '#6a7280'); roofT.repeat.set(W / 1.5, 1);
+    box(W + 0.6, 0.22, D + 0.6, lam({ map: roofT }), 0, H + 0.11, 0, hi); for (let k = 0; k < 3; k++) box(1.6, 0.4, 1.0, mt(0x8a8f94), -6 + k * 6, H + 0.4, -1, hi);
+    const rs = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.1), lam({ map: signTex([{ t: "EDDY'S · DE HAL", size: 46 }], '#2a1a0e', '#f2b21a', 640, 110) })); rs.position.set(4, 3.4, HALL.z1 + 0.1); hi.add(rs);
     const ds = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.5), lam({ map: signTex([{ t: 'NAAR DE LOODS', size: 40 }], '#1e120a', '#f2b21a', 512, 116) }));
-    ds.rotation.x = -Math.PI / 2; ds.position.set(0, 0.03, HALL.z1 - 1.2); hall.add(ds);
+    ds.rotation.x = -Math.PI / 2; ds.position.set(DX, 0.03, HALL.z1 - 1.3); hall.add(ds);
     const hs = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.0), lam({ map: signTex([{ t: "EDDY'S · DE HAL", size: 44 }], '#2a1a0e', '#f2b21a', 640, 128) }));
     hs.scale.set(0.8, 0.6, 1); hs.position.set(-4.4, 4.42, HALL.z0 + 0.25); hall.add(hs);
     // ceiling lights (hanging high bays), only two real lights for speed
@@ -136,8 +147,15 @@ export function createLoods(deps) {
   const hallSol = [
     solid(HX + HALL.x0 - 0.3, HX + HALL.x1 + 0.3, HZ + HALL.z0 - 0.3, HZ + HALL.z0 + 0.1), // north
     solid(HX + HALL.x1 - 0.1, HX + HALL.x1 + 0.3, HZ + HALL.z0, HZ + HALL.z1), // east
-    solid(HX + HALL.x0 - 0.3, HX + HALL.x1 + 0.3, HZ + HALL.z1 - 0.1, HZ + HALL.z1 + 0.3), // south
+    solid(HX + HALL.x0 - 0.3, HX + DX - 0.8, HZ + HALL.z1 - 0.1, HZ + HALL.z1 + 0.3), solid(HX + DX + 0.8, HX + HALL.x1 + 0.3, HZ + HALL.z1 - 0.1, HZ + HALL.z1 + 0.3), // south, with the doorway
   ];
+  // the short corridor from the shed's back wall to the hall (z -19 .. -21.4)
+  const corr = new THREE.Group(); corr.visible = false; scene.add(corr);
+  { const len = -19.15 - (HZ + HALL.z1), cz = (-19.15 + HZ + HALL.z1) / 2;
+    for (const x of [DX - 0.95, DX + 0.95]) box(0.15, 2.8, len, mt(0x5a7088), x, 1.4, cz, corr);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.8, len + 0.3), lam({ color: 0x9a9890 })); fl.rotation.x = -Math.PI / 2; fl.position.set(DX, 0.012, cz); corr.add(fl);
+    corr.userData.roof = box(2.3, 0.15, len + 0.2, mt(0x7a8290), DX, 2.85, cz, corr);
+    corr.userData.sol = [solid(DX - 1.05, DX - 0.85, HZ + HALL.z1, -19), solid(DX + 0.85, DX + 1.05, HZ + HALL.z1, -19)]; }
   const hallWestSol = solid(HX + HALL.x0 - 0.3, HX + HALL.x0 + 0.1, HZ + HALL.z0, HZ + HALL.z1);
   // ---- De Overkapping: white membrane on a steel truss frame, black-wrapped pallets along the walls
   {
@@ -150,6 +168,10 @@ export function createLoods(deps) {
     for (let k = 0; k <= 6; k++) { const x = TENT.x0 + k * (W / 6); box(0.14, 5.5, 0.14, truss, x, 2.75, TENT.z0 + 0.1, tent); for (let y = 0.8; y < 5.4; y += 1.1) { const d = box(0.05, 1.3, 0.05, truss, x + 0.45, y, TENT.z0 + 0.12, tent, false); d.rotation.z = 0.7; } }
     for (let k = 0; k <= 4; k++) box(0.14, 5.5, 0.14, truss, TENT.x0 + 0.1, 2.75, TENT.z0 + k * (D / 4), tent);
     box(1.6, 0.6, 0.15, memb, cx, 0.3, TENT.z1, tent); box(W, 0.5, 0.15, mt(0xd8d0bc), cx, 0.25, TENT.z1, tent);
+    const thi = new THREE.Group(); tent.add(thi); tent.userData.hi = thi;
+    box(W, 5.0, 0.08, memb, cx, 3.0, TENT.z1, thi);
+    box(W + 0.4, 0.16, D + 0.4, lam({ color: 0xece4d0 }), cx, 5.6, cz, thi); for (let k = 0; k <= 6; k++) box(0.12, 0.2, D + 0.4, truss, TENT.x0 + k * (W / 6), 5.75, cz, thi, false);
+    const tsS = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.2), lam({ map: signTex([{ t: "EDDY'S GROOTHANDEL", size: 46 }], '#2a1a0e', '#f2b21a', 768, 132) })); tsS.position.set(cx, 3.6, TENT.z1 + 0.06); thi.add(tsS);
     for (let k = 0; k < 9; k++) { const p = pallet(0x141414, tent); p.position.set(TENT.x0 + 0.9, 0, TENT.z0 + 3.4 + k * 1.2); p.rotation.y = Math.PI / 2; p.userData.load.material = mt(0x161616); if (k % 3 === 1) { const q = pallet(0x141414, tent); q.position.set(TENT.x0 + 0.9, 1.1, TENT.z0 + 3.4 + k * 1.2); q.rotation.y = Math.PI / 2; q.userData.load.material = mt(0x161616); } }
     // an orange hand pallet truck, like the one in the art
     { const j = new THREE.Group(); j.position.set(TENT.x0 + 2.6, 0, TENT.z1 - 1.6); j.rotation.y = 0.4; tent.add(j); for (const x of [-0.18, 0.18]) box(0.16, 0.08, 1.2, mt(C.orange), x, 0.06, 0.4, j); box(0.5, 0.25, 0.25, mt(C.orange), 0, 0.15, -0.25, j); const h = box(0.05, 1.0, 0.05, mt(C.orange), 0, 0.6, -0.35, j); h.rotation.x = -0.35; }
@@ -160,10 +182,26 @@ export function createLoods(deps) {
   const tentSol = [
     solid(HX + TENT.x0 - 0.3, HX + TENT.x1, HZ + TENT.z0 - 0.3, HZ + TENT.z0 + 0.1),
     solid(HX + TENT.x0 - 0.3, HX + TENT.x0 + 0.1, HZ + TENT.z0, HZ + TENT.z1),
-    solid(HX + TENT.x0 - 0.3, HX + TENT.x1, HZ + TENT.z1 - 0.1, HZ + TENT.z1 + 0.3),
+    solid(HX + TENT.x0 - 0.3, HX + TENT.x1, HZ + TENT.z1 - 0.1, HZ + TENT.z1 + 0.3), // south
     solid(HX + TENT.x0 + 0.4, HX + TENT.x0 + 1.4, HZ + TENT.z0 + 2.7, HZ + TENT.z1 - 0.6), // the wrapped pallets
   ];
   const tentNotch = solid(HX + HALL.x0 - 0.2, HX + HALL.x1 + 0.3, HZ + TENT.z0 - 0.3, HZ + HALL.z0 - 0.1); // north of the hall wall: outside
+
+  // ================================================================== the plot behind the shed (bouwkavel): TE KOOP, then VERKOCHT, then built on
+  const plot = new THREE.Group(); scene.add(plot);
+  { const W = PLOT.x1 - PLOT.x0, D = PLOT.z1 - PLOT.z0, cx = (PLOT.x0 + PLOT.x1) / 2, cz = (PLOT.z0 + PLOT.z1) / 2;
+    const dirt = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#7a6a4a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 1600; i++) { g.fillStyle = Math.random() < 0.35 ? `rgba(90,120,50,${0.3 + Math.random() * 0.4})` : `rgba(${60 + Math.random() * 60},${50 + Math.random() * 40},30,0.35)`; g.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 7, 1 + Math.random() * 4); } });
+    dirt.wrapS = dirt.wrapT = THREE.RepeatWrapping; dirt.repeat.set(W / 6, D / 6);
+    const gr = new THREE.Mesh(new THREE.PlaneGeometry(W, D), lam({ map: dirt })); gr.rotation.x = -Math.PI / 2; gr.position.set(cx, 0.006, cz); gr.receiveShadow = true; plot.add(gr);
+    const wild = new THREE.Group(); plot.add(wild); plot.userData.wild = wild; let r = 11; const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+    for (let k = 0; k < 70; k++) { const c = new THREE.Mesh(geo('weed', () => new THREE.ConeGeometry(0.22, 0.5, 5)), mt([0x6a8a3a, 0x8aa04a, 0x5a7a30][k % 3])); c.position.set(PLOT.x0 + 1 + rnd() * (W - 2), 0.25, PLOT.z0 + 1 + rnd() * (D - 2)); wild.add(c); }
+    for (let k = 0; k < 6; k++) box(0.6 + rnd(), 0.3, 0.5, mt(0x8a8478), PLOT.x0 + 4 + rnd() * (W - 8), 0.15, PLOT.z0 + 2 + rnd() * (D - 4), wild); // rubble
+    for (let x = PLOT.x0; x <= PLOT.x1 + 0.01; x += 2.5) { cyl(0.05, 0.05, 1.2, mt(0x8a6a4a), x, 0.6, PLOT.z1 - 0.1, wild, 6); cyl(0.05, 0.05, 1.2, mt(0x8a6a4a), x, 0.6, PLOT.z0 + 0.1, wild, 6); }
+    for (const z of [PLOT.z1 - 0.1, PLOT.z0 + 0.1]) for (const y of [0.5, 1.0]) box(W, 0.03, 0.03, mt(0x9a9a9a), cx, y, z, wild, false);
+    const board = new THREE.Group(); board.position.set(DX - 2.6, 0, PLOT.z1 - 3.2); plot.add(board); plot.userData.board = board;
+    for (const x of [-1.5, 1.5]) box(0.12, 3.0, 0.12, mt(0x6a4a2a), x, 1.5, 0, board);
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.0), lam({ map: signTex([{ t: 'TE KOOP', size: 54 }, { t: 'BOUWGROND · 720 m²', size: 26, color: '#2a1a0e' }, { t: 'Makelaardij Kaasvast', size: 22, color: '#2a1a0e' }], '#f2ead8', '#b83a1e', 512, 300) })); face.position.set(0, 2.4, 0.06); face.rotation.x = -0.55; board.add(face);
+    plot.userData.face = face; plot.userData.sold = signTex([{ t: 'VERKOCHT', size: 54 }, { t: "aan Eddy's", size: 30, color: '#2a1a0e' }, { t: 'Makelaardij Kaasvast', size: 22, color: '#2a1a0e' }], '#f2ead8', '#2f7a3a', 512, 300); }
 
   // ================================================================== the Mengkamer machines (shed) and the extra tables (hall, tent)
   const shed = new THREE.Group(); scene.add(shed);
@@ -230,7 +268,7 @@ export function createLoods(deps) {
   function siteSpot(id) {
     const L = ensure();
     if (id === 'rek') { const b = BAYS[L.racks]; return b ? [b[0], b[1], Math.abs(Math.sin(b[2])) > 0.5 ? 1.4 : 3.0, Math.abs(Math.sin(b[2])) > 0.5 ? 3.0 : 1.4] : null; }
-    return { menger1: [-3.2, -14.7, 2.2, 1.4], menger2: [-3.2, -14.7, 2.2, 1.4], molen: [-6.3, -14.9, 1.6, 1.4], roldeur: [-4.75, -7.9, 4.2, 0.9], hal: [-4.6, -18.1, 3.6, 1.4], heftruck: [HX + 4.5, HZ + 4.2, 3, 2], tafel2: [HX - 6.5, HZ + 3.6, 3.2, 2], dock: [HX + 9.6, HZ + 1.8, 2.4, 5.4], tent: [HX + HALL.x0 + 1, HZ, 2, 10] }[id] || null;
+    return { menger1: [-3.2, -14.7, 2.2, 1.4], menger2: [-3.2, -14.7, 2.2, 1.4], molen: [-6.3, -14.9, 1.6, 1.4], roldeur: [-4.75, -7.9, 4.2, 0.9], hal: [HX - 2, HZ + 1, 12, 8], kavel: [DX - 2.6, PLOT.z1 - 3.2, 4, 1.4], heftruck: [HX + 4.5, HZ + 4.2, 3, 2], tafel2: [HX - 6.5, HZ + 3.6, 3.2, 2], dock: [HX + 9.6, HZ + 1.8, 2.4, 5.4], tent: [HX + HALL.x0 + 1, HZ, 2, 10] }[id] || null;
   }
   function showSite() {
     const j = ensure().job, s = j && siteSpot(j.id); site.visible = !!s; if (!s) return;
@@ -331,34 +369,30 @@ export function createLoods(deps) {
     shedSol.menger.off = !has('menger1'); shedSol.mill.off = !has('molen');
     cam.visible = has('roldeur'); if (deps.shutter && has('roldeur')) deps.shutter.material.color.setHex(0x6a7078);
     if (deps.hideShelf) deps.hideShelf(has('hal'));
-    hallDoor.visible = has('hal');
+    hallDoor.visible = corr.visible = hall.visible = has('hal'); corr.userData.sol.forEach((x) => { x.off = !has('hal'); }); hallSol.forEach((x) => { x.off = !has('hal'); });
+    plot.userData.wild.visible = !has('hal'); plot.userData.board.visible = !has('hal'); plot.userData.face.material.map = has('kavel') ? plot.userData.sold : plot.userData.face.material.map; plot.userData.face.material.needsUpdate = true;
     table2.visible = has('tafel2'); tableSol[0].off = !has('tafel2'); table3.visible = has('tent'); tableSol[1].off = !has('tent');
     dock.visible = has('dock');
-    hall.userData.west.visible = !has('tent'); tent.visible = inHall && has('tent'); if (inHall) deps.setBounds(bounds()); hallWestSol.off = has('tent'); tentSol.forEach((s) => { s.off = !has('tent'); }); tentNotch.off = !has('tent');
+    hall.userData.west.visible = !has('tent'); tent.visible = has('tent'); hallWestSol.off = has('tent') || !has('hal'); tentSol.forEach((s) => { s.off = !has('tent'); }); tentNotch.off = !has('tent');
     fork.visible = has('heftruck'); placeFork();
     refreshSlots(); showDock(); showSite(); rollDeals();
   }
 
   // ================================================================== the door between the shed and the hall
   const hallDoor = new THREE.Group(); hallDoor.position.set(-4.6, 0, -18.83); hallDoor.visible = false; scene.add(hallDoor);
-  { box(2.2, 2.6, 0.05, mt(0x3a3e44), 0, 1.3, 0, hallDoor, false); box(1.0, 2.4, 0.06, mt(0x5a7088), -0.52, 1.2, 0.02, hallDoor, false); box(1.0, 2.4, 0.06, mt(0x5a7088), 0.52, 1.2, 0.02, hallDoor, false);
+  { for (const x of [-1.0, 1.0]) box(0.12, 2.6, 0.2, mt(0x3a3e44), x, 1.3, 0.05, hallDoor, false); box(2.12, 0.14, 0.2, mt(0x3a3e44), 0, 2.6, 0.05, hallDoor, false);
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.36), lam({ map: signTex([{ t: 'DE HAL', size: 44 }], '#f2b21a', '#1a1a1a', 256, 58) })); pl.position.set(0, 2.85, 0.05); hallDoor.add(pl); }
   let inHall = false;
   const fadeEl = document.createElement('div'); fadeEl.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40'; document.body.appendChild(fadeEl);
   const fadeTo = (fn) => { fadeEl.style.opacity = '1'; setTimeout(() => { fn(); setTimeout(() => { fadeEl.style.opacity = '0'; }, 60); }, 380); };
   function bounds() { return { x0: HX + (has('tent') ? TENT.x0 : HALL.x0) + 0.3, x1: HX + HALL.x1 - 0.3, z0: HZ + (has('tent') ? TENT.z0 : HALL.z0) + 0.3, z1: HZ + HALL.z1 - 0.3 }; }
-  function enterHall() {
-    if (!has('hal')) return; deps.beep(300, 0.08, 'triangle', 0.04);
-    fadeTo(() => { inHall = true; hall.visible = true; tent.visible = has('tent'); player.position.set(HX, 0, HZ + HALL.z1 - 0.9); player.rotation.y = Math.PI; deps.setBounds(bounds()); refreshSlots(); showDock(); if (deps.snapCam) deps.snapCam(); });
-  }
-  function leaveHall() {
-    if (F.drive) getOff();
-    deps.beep(260, 0.08, 'triangle', 0.04);
-    fadeTo(() => { inHall = false; hall.visible = tent.visible = false; deps.setBounds(null); player.position.set(-4.6, 0, -17.9); player.rotation.y = 0; if (deps.snapCam) deps.snapCam(); });
-  }
+  // the hall is walked into through the doorway (no fade): these two are shortcuts for tests
+  function enterHall() { if (!has('hal')) return; player.position.set(DX, 0, HZ + HALL.z1 - 0.9); player.rotation.y = Math.PI; if (deps.snapCam) deps.snapCam(); }
+  function leaveHall() { if (F.drive) getOff(); player.position.set(DX, 0, -17.9); player.rotation.y = 0; if (deps.snapCam) deps.snapCam(); }
+  const inRect = (p, x0, x1, z0, z1) => p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1;
+  const hallHere = (p) => has('hal') && (inRect(p, HX + HALL.x0, HX + HALL.x1, HZ + HALL.z0, -19) && (p.z < HZ + HALL.z1 || Math.abs(p.x - DX) < 1)) || (has('tent') && inRect(p, HX + TENT.x0, HX + TENT.x1, HZ + TENT.z0, HZ + TENT.z1));
   const far = new THREE.Vector3(0, -99, 0);
-  deps.addInteract({ pos: () => (has('hal') && !inHall ? new THREE.Vector3(-4.6, 0, -17.9) : far), r: 1.3, enabled: () => has('hal') && !inHall && deps.inWarehouse() && !deps.blocked(), label: () => 'Go into De Hal', act: enterHall });
-  deps.addInteract({ pos: () => (inHall ? new THREE.Vector3(HX, 0, HZ + HALL.z1 - 0.6) : far), r: 1.2, enabled: () => inHall && !F.drive, label: () => 'Back to the shed', act: leaveHall });
+  deps.addInteract({ pos: () => (has('kavel') || !deps.inWarehouse() ? far : new THREE.Vector3(DX, 0, -17.9)), r: 1.4, enabled: () => !has('kavel') && deps.inWarehouse(), label: () => 'Behind this wall: an empty plot, TE KOOP · Loods tab', act: () => deps.toast('BOUWKAVEL', 'The plot behind the shed is for sale. Buy it on the Loods tab and the warehouse can grow onto it.', 3) });
   deps.addInteract({ pos: () => (inHall && fork.visible && !F.drive ? new THREE.Vector3(F.x, 0, F.z) : far), r: 1.9, enabled: () => inHall && fork.visible && !F.drive, label: () => (A.phase ? `Take over the heftruck from ${A.who}` : 'Drive the heftruck'), act: getOn });
   deps.addInteract({ pos: () => (F.drive ? player.position : far), r: 5, enabled: () => F.drive && !F.busy, label: () => forkAction().label, act: () => forkAction().act() });
   // the dock pallets can be looked at on foot too
@@ -510,7 +544,9 @@ export function createLoods(deps) {
   let lastDay = -1, slotT = 0;
   function update(dt) {
     const L = ensure();
-    if (inHall && deps.away()) { inHall = false; hall.visible = tent.visible = false; F.drive = false; } // a mission or a drive took Eddy away
+    const here = !deps.away() && hallHere(player.position); // walking in and out of the hall
+    if (here !== inHall) { inHall = here; hall.userData.hi.visible = tent.userData.hi.visible = corr.userData.roof.visible = !here; if (here) { refreshSlots(); showDock(); } }
+    if (deps.away() && F.drive) F.drive = false; // a mission or a drive took Eddy away
     if (L.job && day() >= L.job.done) finish();
     if (day() !== lastDay) { const first = lastDay < 0; lastDay = day(); showSite(); rollDeals(); showDock(); if (!first) { const n = nightShift(); if (n) deps.toast('NACHTPLOEG', `${crewName()} racked ${n} pallet${n > 1 ? 's' : ''} from the dock overnight.`, 3); } } // the morning truck may have dropped pallets
     slotT -= dt; if (slotT <= 0) { slotT = 1; refreshSlots(); }
@@ -547,6 +583,6 @@ export function createLoods(deps) {
   return {
     UPGRADES, ensure, boost, has, stage, naknikCap, html, bind, update, apply, order, finish, buyDeal, rollDeals, enterHall, leaveHall, getOn, getOff, forkAction,
     inside: () => inHall, driving: () => F.drive, fork: F, auto: A, nightShift, spots: () => SPOTS, bays, refreshSlots,
-    camFocus: (p) => p.clone(), loaded: () => { if (inHall) { inHall = false; hall.visible = tent.visible = false; } F.drive = false; F.carry = null; carried.visible = false; apply(); },
+    camFocus: (p) => p.clone(), loaded: () => { F.drive = false; F.carry = null; carried.visible = false; apply(); },
   };
 }

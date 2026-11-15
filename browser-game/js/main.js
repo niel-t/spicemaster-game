@@ -158,7 +158,7 @@ function collide(p, r) {
       }
     }
   }
-  const B = BOUNDS.cur || { x0: -33, x1: 33, z0: -27.5, z1: 10.6 + RC };
+  const B = BOUNDS.cur || { x0: -33, x1: 33, z0: -37.2, z1: 10.6 + RC }; // z0: the hall and tent on the plot behind the shed
   p.x = Math.max(B.x0, Math.min(B.x1, p.x));
   p.z = Math.max(B.z0, Math.min(B.z1, p.z));
 }
@@ -432,7 +432,8 @@ for (const [a, b] of [[LOT.x1, PS.x0], [PS.x1, 64]]) for (const w of spanWidths(
   nx += w; hi++;
 }
 // back row behind the street (only the roofs show) so nothing looks empty from the camera
-for (let x = -64, i = 0; x < 64; i++) { const w = 5 + (i % 3); house(x + w / 2, -25.5, w, 9, 10 + (i % 4) * 1.2, 0, i + 7, null, { simple: true }); x += w; }
+for (let x = -64, i = 0; x < 64; i++) { const w = 5 + (i % 3); if (x + w < -34 || x > 12) house(x + w / 2, -25.5, w, 9, 10 + (i % 4) * 1.2, 0, i + 7, null, { simple: true }); x += w; } // behind the shed: the bouwkavel (js/loods.js)
+for (let x = -34, i = 0; x < 12; i++) { const w = 5 + (i % 3); house(x + w / 2, -42, w, 9, 10 + (i % 4) * 1.2, 0, i + 3, null, { simple: true }); x += w; } // and the row behind the plot
 // backdrop houses across the canal
 for (let x = -60, i = 0; x < 60; i++) { const w = 5 + (i % 3); house(x + w / 2, CZ + 8.5, w, 8, 9 + (i % 4), Math.PI, i + 2, i === 13 ? 'SHOARMA HABIBI' : null); x += w; }
 
@@ -447,11 +448,14 @@ const corrS = new THREE.MeshStandardMaterial({ map: corrTex, bumpMap: corrTex, b
 const whFloor = new THREE.Mesh(new THREE.PlaneGeometry(WH.x1 - WH.x0, WH.z1 - WH.z0), pbr('concrete_floor.jpg', 3, 3, 0xc8c6c0, 0.8, 0.5));
 whFloor.rotation.x = -Math.PI / 2; whFloor.position.set((WH.x0 + WH.x1) / 2, 0.03, (WH.z0 + WH.z1) / 2); whFloor.receiveShadow = true; wh.add(whFloor);
 // back + side walls
-box(WH.x1 - WH.x0, WH.h, 0.3, corr, (WH.x0 + WH.x1) / 2, WH.h / 2, WH.z0, wh);
+// back wall: a doorway at x -4.6 into the corridor to De Hal (plugged until the hall is built)
+box(-5.7 - WH.x0, WH.h, 0.3, corr, (WH.x0 - 5.7) / 2, WH.h / 2, WH.z0, wh); box(WH.x1 + 3.5, WH.h, 0.3, corr, (WH.x1 - 3.5) / 2, WH.h / 2, WH.z0, wh); box(2.2, WH.h - 2.6, 0.3, corr, -4.6, 2.6 + (WH.h - 2.6) / 2, WH.z0, wh);
+const backPlug = box(2.2, 2.6, 0.3, corr, -4.6, 1.3, WH.z0, wh);
 box(0.3, WH.h, WH.z1 - WH.z0, corr, WH.x0, WH.h / 2, (WH.z0 + WH.z1) / 2, wh);
 // east wall: a doorway into Het Hok at z -16.6 (js/woning.js builds the room behind the parking)
 box(0.3, WH.h, -17.15 - WH.z0, corr, WH.x1, WH.h / 2, (WH.z0 - 17.15) / 2, wh); box(0.3, WH.h, WH.z1 + 16.05, corr, WH.x1, WH.h / 2, (WH.z1 - 16.05) / 2, wh); box(0.3, WH.h - 2.3, 1.1, corr, WH.x1, 2.3 + (WH.h - 2.3) / 2, -16.6, wh);
-solid(WH.x0 - 0.2, WH.x1 + 0.2, WH.z0 - 0.3, WH.z0 + 0.15);
+solid(WH.x0 - 0.2, -5.7, WH.z0 - 0.3, WH.z0 + 0.15); solid(-3.5, WH.x1 + 0.2, WH.z0 - 0.3, WH.z0 + 0.15);
+const backPlugSolid = solid(-5.7, -3.5, WH.z0 - 0.3, WH.z0 + 0.15);
 solid(WH.x0 - 0.15, WH.x0 + 0.15, WH.z0, WH.z1);
 solid(WH.x1 - 0.15, WH.x1 + 0.15, WH.z0, -17.15); solid(WH.x1 - 0.15, WH.x1 + 0.15, -16.05, WH.z1);
 const hokDoorSolid = solid(WH.x1 - 0.15, WH.x1 + 0.15, -17.15, -16.05);
@@ -2737,7 +2741,7 @@ loods = createLoods({ tip: (k) => tips.show(k), makeDriver: () => makePerson({ p
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), shutter,
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || oofDrive.active,
   away: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),
-  hideShelf: (on) => { for (const m of backShelf.meshes) m.visible = !on; backShelf.sol.off = on; } });
+  hideShelf: (on) => { for (const m of backShelf.meshes) m.visible = !on; backShelf.sol.off = on; backPlug.visible = !on; backPlugSolid.off = on; } });
 woning = createWoning({ endDay: () => endDay(), hokDoor: (open) => { hokDoorSolid.off = open; hokDoor.leaf.visible = !open; hokDoor.pl.material.map = open ? hokDoor.plOpen : hokDoor.plShut; hokDoor.pl.material.needsUpdate = true; },
   vanStand: () => ({ x: oof.position.x, z: oof.position.z + 1.9 }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, openPC: (tab) => openPC(tab), doors: HOME_DOORS,
