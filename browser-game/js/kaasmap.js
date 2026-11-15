@@ -1,38 +1,11 @@
-// Map of Kaasland on the Kaasdows 95 PC and in the Oofmobiel: a sketched aerial view of the city (painted by
-// kaasaerial.js: rowhouses, canals, villas, fields, sheds, containers, main roads, boats) with the places on it.
-// Left: a plain list of every place per district (missions first) and the selected place's details and Drive
-// button. Right: the map; drag to move, scroll to zoom, it always opens on the whole city.
-//
-// Drawn in the 1024x572 space of assets/kaasland_map.jpg. main.js keeps the game logic: it hands over each
-// territory's kind and binds the [data-pin] clicks (bindMap fills #pininfo), then calls bind().
+// Map of Kaasland on the Kaasdows 95 PC and in the Oofmobiel: an illustrated city map (laid out in kaasgeo.js,
+// painted by kaasaerial.js) with the places on it. Left: a plain list of every place per district (missions
+// first) and the selected place's details and Drive button. Right: the map; drag to move, scroll to zoom, and
+// it always opens on the whole city. main.js keeps the game logic: it hands over each territory's kind and
+// binds the [data-pin] clicks (bindMap fills #pininfo), then calls bind().
 import { paintKaasland } from './kaasaerial.js';
+import * as G from './kaasgeo.js';
 
-const W = 1024, H = 572, S = 0.64; // shapes were traced on the 1600 px painted map
-const P = (pts) => pts.map(([x, y]) => [x * S, y * S]);
-const REGIONS = {
-  nosh: P([[190, 250], [230, 165], [390, 95], [590, 55], [840, 35], [1100, 45], [1330, 60], [1590, 15], [1597, 105], [1500, 140], [1420, 190], [1300, 240], [1100, 268], [900, 272], [700, 268], [480, 262], [420, 255], [395, 315], [300, 330], [245, 300]]),
-  lampas: P([[100, 265], [160, 250], [245, 300], [330, 345], [985, 345], [975, 420], [860, 520], [790, 545], [255, 590], [255, 785], [130, 810], [65, 580], [75, 400]]),
-  start: P([[255, 590], [790, 545], [790, 800], [500, 835], [140, 800], [255, 785]]),
-  abd: P([[800, 545], [960, 440], [1000, 410], [1100, 345], [1500, 335], [1515, 385], [1490, 450], [1510, 620], [1480, 740], [1300, 800], [850, 830], [795, 800]]),
-};
-const MOLEN = { cx: 965 * S, cy: 318 * S, rx: 40 * S, ry: 17 * S };
-const PARKS = [ // [name, cx, cy, rx, ry] in 1600 px coords
-  ['Kaaspark', 470, 470, 46, 26], ['Granolabos', 1330, 130, 95, 30], ['Speltvelden', 1500, 75, 55, 18], ['Hofje van Eddy Sr.', 640, 715, 34, 16], ['Duinen', 110, 520, 26, 60],
-];
-// main roads: nodes (1600 px coords, region) and named edges. Routes run over this graph.
-const N = {
-  home: [375, 690, 'start'], hc: [530, 640, 'start'], hw: [262, 650, 'start'], he: [770, 690, 'start'],
-  lsw: [160, 560, 'lampas'], lsn: [180, 330, 'lampas'], l1: [420, 365, 'lampas'], l2: [735, 365, 'lampas'], l3: [590, 470, 'lampas'], l4: [900, 410, 'lampas'],
-  a1: [1000, 470, 'abd'], a2: [1210, 440, 'abd'], a3: [1390, 352, 'abd'], a4: [1100, 650, 'abd'], a5: [1350, 640, 'abd'], a6: [900, 700, 'abd'],
-  n1: [445, 250, 'nosh'], n2: [735, 255, 'nosh'], n3: [1390, 235, 'nosh'], n4: [300, 205, 'nosh'], n5: [590, 200, 'nosh'], n6: [900, 185, 'nosh'], n7: [1150, 175, 'nosh'], n8: [1460, 110, 'nosh'],
-};
-const ROADS = [ // [from, to, name, bridge?]
-  ['home', 'hc', 'Kipkruidenlaan'], ['hc', 'he', 'Kipkruidenlaan'], ['home', 'hw', 'Eddystraat'], ['hc', 'l3', 'Vettenburgerweg'], ['he', 'a6', 'Dokweg'],
-  ['hw', 'lsw', 'Duinweg'], ['lsw', 'lsn', 'Duinweg'], ['lsn', 'l1', 'Frietkade'], ['l1', 'l3', 'Sausgracht'], ['l3', 'l2', 'Mayolaan'], ['l3', 'l4', 'Bitterbalweg'], ['l4', 'a1', 'Dokweg'],
-  ['a1', 'a2', 'Kadeweg'], ['a2', 'a3', 'Kadeweg'], ['a1', 'a4', 'Containerweg'], ['a2', 'a4', 'Kruidenkade'], ['a4', 'a5', 'Havenstraat'], ['a5', 'a2', 'Havenstraat'], ['a4', 'a6', 'Containerweg'],
-  ['l1', 'n1', 'Westerbrug', 1], ['l2', 'n2', 'Kaasbrug', 1], ['a3', 'n3', 'Oosterbrug', 1],
-  ['lsn', 'n4', 'Havenpad'], ['n4', 'n1', 'Hipsterlaan'], ['n1', 'n5', 'Hipsterlaan'], ['n5', 'n2', 'Hipsterlaan'], ['n2', 'n6', 'Avocadoweg'], ['n6', 'n7', 'Avocadoweg'], ['n7', 'n3', 'Oatlaan'], ['n7', 'n8', 'Speltdijk'],
-];
 const ACTS = [
   { r: 'start', name: 'Kipkruidenkwartier', tag: 'Prologue', faction: 'Lampas', heat: 'lampas', open: () => true, need: '' },
   { r: 'lampas', name: 'Oud-Vettenburg', tag: 'Act 1', faction: 'Lampas', heat: 'lampas', open: (d) => d.district1, need: 'Take all of Kipkruidenkwartier first' },
@@ -41,7 +14,6 @@ const ACTS = [
   { r: 'fin', name: 'De Gouden Molen', tag: 'Finale', faction: 'everyone', heat: null, open: (d) => d.act3, need: 'Beat the Abdavissies first' },
 ];
 const ACT = Object.fromEntries(ACTS.map((a) => [a.r, a]));
-const ACT_AT = { start: [522, 612], lampas: [600, 410], nosh: [800, 120], abd: [1180, 560], fin: [965, 292] };
 const PARENT = { // shown on the place card: "opens after ..."
   Kroketkade: 'Spekbuurt', Uitjesbuurt: 'Spekbuurt', Frietwijk: 'all of Kipkruidenkwartier',
   Sauzenbuurt: 'Frietwijk', Knoflooksteeg: 'Frietwijk', Mayonaisemarkt: 'Frietwijk', 'Halve Kip Plein': 'two of Sauzenbuurt, Knoflooksteeg, Mayonaisemarkt', Bitterbalbuurt: 'two of Sauzenbuurt, Knoflooksteeg, Mayonaisemarkt', Pindasausplein: 'the other six Lampas joints',
@@ -49,13 +21,6 @@ const PARENT = { // shown on the place card: "opens after ..."
   Komijnkade: 'the end of Act 2', "Kaneelsilo's": 'Komijnkade', Paprikapakhuis: 'Komijnkade', Kruidnagelkade: 'Komijnkade', Peperhaven: "two of Kaneelsilo's, Paprikapakhuis, Kruidnagelkade", Kurkumaloods: "two of Kaneelsilo's, Paprikapakhuis, Kruidnagelkade", Saffraanpier: 'Peperhaven or Kurkumaloods', Nootmuskade: 'Peperhaven or Kurkumaloods', Smokkelsloot: 'Peperhaven or Kurkumaloods', Containerchaos: 'two of Saffraanpier, Nootmuskade, Smokkelsloot', Kardemomdok: 'the other ten dock joints', 'De Gouden Molen': 'the end of Act 3',
 };
 const BOSS = ['Pindasausplein', 'Speltpolder', 'Kardemomdok', 'De Gouden Molen'];
-const HOME = [240, 442];
-const PEOPLE = [
-  ['Schmatzel', 'Shoarma Schmatzel · free broodje, old stories', 262, 434],
-  ['Nabil', 'Card table in Schmatzel’s · lends and borrows', 270, 449],
-  ['The Russian', 'Pandjeshuis Spasibo · weapons', 292, 430],
-  ['Garage Mo', 'Oofmobiel upgrades', 216, 454],
-];
 const C = {
   water: '#a9d3e8', land: '#f3f0ea', street: '#ffffff', park: '#cde8c4', parkInk: '#3b7a3b',
   tint: { start: '#f3f0ea', lampas: '#f6eee8', nosh: '#eef3e6', abd: '#ebf0f3', fin: '#f6efd6' },
@@ -67,28 +32,6 @@ const statusOf = (k) => STATUS[k] || 'locked';
 const STLABEL = { open: 'Mission open', own: 'Yours', lost: 'Retaken', locked: 'Locked' };
 const path = (poly) => 'M' + poly.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L') + 'Z';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-const pt = (id) => [N[id][0] * S, N[id][1] * S];
-const bbox = (r) => (r === 'fin' ? [MOLEN.cx - 60, MOLEN.cy - 34, MOLEN.cx + 60, MOLEN.cy + 34] : REGIONS[r].reduce((b, [x, y]) => [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)], [1e9, 1e9, -1e9, -1e9]));
-function inPoly([x, y], poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
-
-// shortest way over the main roads, from the warehouse to a place
-function route(to, region) {
-  const adj = {}; for (const [a, b, name] of ROADS) { const d = Math.hypot(pt(a)[0] - pt(b)[0], pt(a)[1] - pt(b)[1]); (adj[a] = adj[a] || []).push([b, d, name]); (adj[b] = adj[b] || []).push([a, d, name]); }
-  const near = Object.keys(N).filter((id) => N[id][2] === (region === 'fin' ? 'nosh' : region)).sort((a, b) => Math.hypot(pt(a)[0] - to[0], pt(a)[1] - to[1]) - Math.hypot(pt(b)[0] - to[0], pt(b)[1] - to[1]))[0];
-  const dist = { home: 0 }, prev = {}, via = {}, todo = new Set(Object.keys(N));
-  while (todo.size) {
-    let u = null; for (const v of todo) if (dist[v] !== undefined && (u === null || dist[v] < dist[u])) u = v;
-    if (u === null || u === near) break; todo.delete(u);
-    for (const [v, d, name] of adj[u] || []) if (todo.has(v) && (dist[v] === undefined || dist[u] + d < dist[v])) { dist[v] = dist[u] + d; prev[v] = u; via[v] = name; }
-  }
-  const ids = [near]; while (prev[ids[0]]) ids.unshift(prev[ids[0]]);
-  const pts = [HOME, ...ids.map(pt), to];
-  const names = {}; for (const id of ids) if (via[id]) names[via[id]] = (names[via[id]] || 0) + 1;
-  const main = Object.entries(names).sort((a, b) => b[1] - a[1])[0];
-  let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-  return { pts, km: len * 6.2 / 1000, via: main ? main[0] : '' };
-}
-
 // place icons (screen px around 0,0)
 function icon(kind, st) {
   const c = kind === 'wh' ? '#8d6e63' : kind === 'person' ? '#7b5ea7' : C.st[st];
@@ -104,19 +47,28 @@ function icon(kind, st) {
 const ICON_DOT = `<circle class="km-halo" r="16" fill="rgba(26,115,232,.18)"/><circle r="7.5" fill="#fff"/><circle r="5.5" fill="${C.blue}"/>`;
 const ICON_SEL = '<path d="M0,0 C-3,-8 -11,-13 -11,-22 A11,11 0 0 1 11,-22 C11,-13 3,-8 0,0Z" fill="#ea4335" stroke="#a52714" stroke-width="1"/><circle cy="-22" r="4" fill="#7a1a0e"/>';
 
-// the aerial picture is painted once per session, then reused (a blob URL for an SVG <image>)
+const { W, H, PLACES, HOME, REGIONS, ISLAND, ROADS, CANALS, CANAL_NAMES, ACT_AT, M_PER_UNIT, route, bboxOf, arc } = G;
+
+// the city picture is painted once per session, then reused (a blob URL for an SVG <image>)
 let aerialURL = null, aerialBusy = null;
 function aerial() {
-  if (aerialURL || aerialBusy) return aerialBusy || Promise.resolve(aerialURL);
+  if (aerialURL) return Promise.resolve(aerialURL);
+  if (aerialBusy) return aerialBusy;
   aerialBusy = new Promise((done) => setTimeout(() => {
     try {
-      const cv = paintKaasland({ W, H, REGIONS, MOLEN, PARKS, ROADS, pt, S });
-      cv.toBlob((b) => { aerialURL = b ? URL.createObjectURL(b) : cv.toDataURL('image/jpeg', 0.9); done(aerialURL); }, 'image/jpeg', 0.9);
-    } catch (e) { done(null); }
+      const cv = paintKaasland({ R: 2.5 });
+      cv.toBlob((b) => { aerialURL = b ? URL.createObjectURL(b) : cv.toDataURL('image/jpeg', 0.92); done(aerialURL); }, 'image/jpeg', 0.92);
+    } catch (e) { console.error(e); done(null); }
   }, 0));
   return aerialBusy;
 }
-const LAND = [30, 6, 1024, 540]; // the part of the map with land on it: "fit" shows this, not the open sea
+// one label per road name, on its longest piece, written left to right
+const ROAD_LABELS = (() => {
+  const best = {};
+  for (const r of ROADS) { if (r.ring) continue; const [a, b] = [r.pts[0], r.pts[r.pts.length - 1]], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l > 40 && (!best[r.name] || l > best[r.name].l)) best[r.name] = { l, pts: a[0] <= b[0] ? r.pts : r.pts.slice().reverse() }; }
+  const ring = arc(160, 110, G.RING_R, 4);
+  return [...Object.entries(best).map(([n, v]) => [n, v.pts]), ['Ringweg', ring], ['Ringweg', arc(70, 20, G.RING_R, 4)]];
+})();
 
 export function createKaasMap() {
   let cur = null, sel = null, view = null;
@@ -124,22 +76,24 @@ export function createKaasMap() {
   function html(o) {
     const d = o.done || {};
     const openAct = (r) => !!ACT[r].open(d);
-    const terr = o.terr.filter((t) => t.n !== 'Kipkruidenkwartier').map((t) => ({ ...t, st: statusOf(t.k), boss: BOSS.includes(t.n), x: t.region === 'fin' ? MOLEN.cx : (t.box[0] + t.box[2]) / 2, y: t.region === 'fin' ? MOLEN.cy : (t.box[1] + t.box[3]) / 2 }));
+    const terr = o.terr.filter((t) => t.n !== 'Kipkruidenkwartier' && PLACES[t.n]).map((t) => ({ ...t, st: statusOf(t.k), boss: BOSS.includes(t.n), x: PLACES[t.n][0], y: PLACES[t.n][1] }));
     cur = { ...o, terr, openAct };
-    let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="${LAND[0]} ${LAND[1]} ${LAND[2] - LAND[0]} ${LAND[3] - LAND[1]}" preserveAspectRatio="xMidYMid meet">
-<rect x="-3000" y="-3000" width="${W + 6000}" height="${H + 6000}" fill="#1f4656"/>
-<g class="km-sketch">${Object.values(REGIONS).map((p) => `<path d="${path(p)}" fill="#8a8172"/>`).join('')}</g>
+    let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+<defs>${ROAD_LABELS.map(([, p], i) => `<path id="kmRd${i}" d="${path(p).slice(0, -1)}"/>`).join('')}${CANALS.map((r, i) => `<path id="kmCn${i}" d="${path(arc(150, 30, r, 3)).slice(0, -1)}"/>`).join('')}<path id="kmRiver" d="M80,268 C300,262 500,286 760,276"/></defs>
+<rect x="-3000" y="-3000" width="${W + 6000}" height="${H + 6000}" fill="#94c9d7"/>
 <image class="km-air" href="${aerialURL || ''}" width="${W}" height="${H}" ${aerialURL ? '' : 'style="opacity:0"'}/>
-<g class="km-locks">${ACTS.filter((a) => !openAct(a.r)).map((a) => (a.r === 'fin' ? `<ellipse cx="${MOLEN.cx}" cy="${MOLEN.cy}" rx="${MOLEN.rx}" ry="${MOLEN.ry}"/>` : `<path d="${path(REGIONS[a.r])}"/>`)).join('')}</g>
+<g class="km-locks">${ACTS.filter((a) => !openAct(a.r)).map((a) => (a.r === 'fin' ? `<ellipse cx="${ISLAND.cx}" cy="${ISLAND.cy}" rx="${ISLAND.rx}" ry="${ISLAND.ry}"/>` : `<path d="${path(REGIONS[a.r])}"/>`)).join('')}</g>
+<g class="km-roadnames">${ROAD_LABELS.map(([n], i) => `<text dy="3.4"><textPath href="#kmRd${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
+<g class="km-canalnames">${CANAL_NAMES.map((n, i) => `<text dy="3.4"><textPath href="#kmCn${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
+<text class="km-water"><textPath href="#kmRiver" startOffset="50%" text-anchor="middle">D e   K a a s</textPath></text>
 <path class="km-route-case" d="" fill="none"/><path class="km-route" d="" fill="none"/>
-<g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district" data-x="${ACT_AT[a.r][0] * S}" data-y="${ACT_AT[a.r][1] * S}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="15" class="km-dsub">LOCKED · ${a.tag.toUpperCase()}</text>`}</g>`).join('')}</g>
+<g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district km-d-${a.r}" data-x="${ACT_AT[a.r][0]}" data-y="${ACT_AT[a.r][1]}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="14" class="km-dsub">LOCKED · ${a.tag.toUpperCase()}</text>`}</g>`).join('')}<g class="km-t km-district km-d-bay" data-x="1120" data-y="232"><text text-anchor="middle" class="km-bay">Kaasbaai</text></g></g>
 <g class="km-places">`;
-    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="3"/><text x="14" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
+    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
     for (const w of o.warehouses || []) { const t = terr.find((x) => x.n === w.n); if (t) s += `<g class="km-pl km-wh" data-x="${t.x + 12}" data-y="${t.y - 12}" data-pri="-1"><title>${esc(w.name)}</title>${icon('wh')}</g>`; }
-    s += `<g class="km-pl km-home" data-pin="Kipkruidenkwartier" data-k="own" data-x="${HOME[0]}" data-y="${HOME[1]}" data-pri="4"><circle r="14" fill="transparent"/>${ICON_DOT}<g class="km-lab"><rect x="11" y="-8" height="16" rx="3"/><text x="15" y="4">You are here</text></g></g>`;
+    s += `<g class="km-pl km-home" data-pin="Kipkruidenkwartier" data-k="own" data-x="${HOME[0]}" data-y="${HOME[1]}" data-pri="4"><circle r="14" fill="transparent"/>${ICON_DOT}<g class="km-lab"><rect x="11" y="-8" height="16" rx="8"/><text x="17" y="4">You are here</text></g></g>`;
     s += `<g class="km-selpin" style="display:none">${ICON_SEL}</g></g></svg>`;
 
-    // the list on the left: every place you can go, per district, missions first
     const row = (t) => `<button class="km-item km-i-${t.st}${sel === t.n ? ' on' : ''}" data-go="${esc(t.n)}"><svg width="20" height="20" viewBox="-10 -10 20 20">${icon(t.boss ? 'boss' : 'joint', t.st)}</svg><span>${esc(t.n)}</span><em>${STLABEL[t.st]}</em></button>`;
     const ord = { open: 0, lost: 0, own: 1, locked: 2 };
     const groups = ACTS.map((a) => {
@@ -155,7 +109,7 @@ export function createKaasMap() {
   </div>
   <div class="km-main">
     <div class="km-tools"><button class="b95 km-b" data-z="in" title="Zoom in">+</button><button class="b95 km-b" data-z="out" title="Zoom out">−</button><button class="b95" data-z="fit">Whole city</button><button class="b95" data-z="home">You are here</button><span class="km-tip">Drag to move · scroll to zoom</span></div>
-    <div class="km-view" tabindex="0">${s}<div class="km-loading">Loading aerial photo…</div></div>
+    <div class="km-view" tabindex="0">${s}<div class="km-loading">Drawing Kaasland…</div></div>
     <div class="km-status"><span class="km-st km-hover">${own}/${terr.length + 1} territories yours</span><span class="km-st km-scale"><i></i><span></span></span></div>
   </div>
 </div>`;
@@ -165,36 +119,39 @@ export function createKaasMap() {
     const vp = root.querySelector('.km-view'), svg = vp && vp.querySelector('.km-svg'); if (!svg) return;
     const pls = [...svg.querySelectorAll('.km-pl')], txts = [...svg.querySelectorAll('.km-t')], selpin = svg.querySelector('.km-selpin');
     const rt = svg.querySelector('.km-route'), rtc = svg.querySelector('.km-route-case'), hov = root.querySelector('.km-hover'), hovIdle = hov.textContent;
+    const rn = svg.querySelector('.km-roadnames'), cn = svg.querySelector('.km-canalnames'), wn = svg.querySelector('.km-water');
     const ihead = root.querySelector('.km-ihead'), sbar = root.querySelector('.km-scale i'), stxt = root.querySelector('.km-scale span');
-    const ZMAX = 6; let sc = 1, s0 = 1, vw = 800, vh = 450;
-    view = { cx: (LAND[0] + LAND[2]) / 2, cy: (LAND[1] + LAND[3]) / 2, z: 1 }; // always opens on the whole city
+    const ZMAX = 5; let sc = 1, s0 = 1, vw = 800, vh = 450;
+    view = { cx: W / 2, cy: H / 2, z: 1 }; // always opens on the whole city
     const lw = new Map();
-    function measure() { for (const g of pls) { const t = g.querySelector('.km-lab text'), r = g.querySelector('.km-lab rect'); if (!t) continue; try { const w = t.getComputedTextLength(); if (w) { lw.set(g, w); r.setAttribute('width', w + 8); } } catch (e) { /* hidden */ } } }
+    function measure() { for (const g of pls) { const t = g.querySelector('.km-lab text'), r = g.querySelector('.km-lab rect'); if (!t) continue; try { const w = t.getComputedTextLength(); if (w) { lw.set(g, w); r.setAttribute('width', w + 12); } } catch (e) { /* hidden */ } } }
     function apply() {
       const r = vp.getBoundingClientRect(); vw = r.width || 800; vh = r.height || 450;
-      const LW = LAND[2] - LAND[0], LH = LAND[3] - LAND[1];
-      s0 = Math.min(vw / LW, vh / LH); view.z = Math.max(1, Math.min(ZMAX, view.z)); sc = s0 * view.z;
+      s0 = Math.max(vw / W, vh / H); // fill the window: no empty bands around the city
+      view.z = Math.max(1, Math.min(ZMAX, view.z)); sc = s0 * view.z;
       const bw = vw / sc, bh = vh / sc;
-      view.cx = bw >= LW ? LAND[0] + LW / 2 : Math.max(LAND[0] + bw / 2, Math.min(LAND[2] - bw / 2, view.cx));
-      view.cy = bh >= LH ? LAND[1] + LH / 2 : Math.max(LAND[1] + bh / 2, Math.min(LAND[3] - bh / 2, view.cy));
+      view.cx = Math.max(bw / 2, Math.min(W - bw / 2, view.cx)); view.cy = Math.max(bh / 2, Math.min(H - bh / 2, view.cy));
       const x0 = view.cx - bw / 2, y0 = view.cy - bh / 2;
       svg.setAttribute('viewBox', `${x0} ${y0} ${bw} ${bh}`);
       const k = 1 / sc;
-      svg.style.setProperty('--k', k); svg.classList.toggle('km-near', sc >= 2.6);
+      svg.style.setProperty('--k', k); svg.classList.toggle('km-z2', sc >= 1.6); svg.classList.toggle('km-z3', sc >= 2.6);
+      rn.setAttribute('font-size', 10 * k); cn.setAttribute('font-size', 9.5 * k); wn.setAttribute('font-size', Math.max(13, 15 * k));
       for (const g of txts) g.setAttribute('transform', `translate(${g.dataset.x},${g.dataset.y}) scale(${k})`);
-      // names: missions always, the rest only where they fit, most important first
       const placed = [], hit = (b) => placed.some((p) => b[0] < p[2] && b[2] > p[0] && b[1] < p[3] && b[3] > p[1]);
       const pri = (g) => +g.dataset.pri + (g.classList.contains('km-sel') ? 9 : 0);
       const order = pls.slice().sort((a, b) => pri(b) - pri(a));
       for (const g of order) { g.setAttribute('transform', `translate(${g.dataset.x},${g.dataset.y}) scale(${k})`); const px = (g.dataset.x - x0) * sc, py = (g.dataset.y - y0) * sc; placed.push([px - 8, py - 8, px + 8, py + 8]); }
       for (const g of order) {
         const l = g.querySelector('.km-lab'); if (!l) continue;
-        const px = (g.dataset.x - x0) * sc, py = (g.dataset.y - y0) * sc, b = [px + 10, py - 8, px + 18 + (lw.get(g) || 60), py + 8];
-        const show = pri(g) >= 3 || !hit(b); l.style.display = show ? '' : 'none'; if (show) placed.push(b);
+        // the name goes right of the icon, or left when the right side is taken
+        const px = (g.dataset.x - x0) * sc, py = (g.dataset.y - y0) * sc, w = lw.get(g) || 60, right = [px + 10, py - 8, px + 22 + w, py + 8], left = [px - 22 - w, py - 8, px - 10, py + 8];
+        const side = !hit(right) ? 'r' : !hit(left) ? 'l' : pri(g) >= 3 ? 'r' : '', b = side === 'l' ? left : right;
+        l.style.display = side ? '' : 'none'; if (!side) continue; placed.push(b);
+        if (l.dataset.side !== side) { const rc = l.querySelector('rect'), tx = l.querySelector('text'); l.dataset.side = side; rc.setAttribute('x', side === 'l' ? -(w + 22) : 10); tx.setAttribute('x', side === 'l' ? -16 : 16); tx.setAttribute('text-anchor', side === 'l' ? 'end' : 'start'); }
       }
       if (sel) { const g = pls.find((x) => x.dataset.pin === sel); selpin.style.display = ''; selpin.setAttribute('transform', `translate(${g.dataset.x},${g.dataset.y}) scale(${k})`); } else selpin.style.display = 'none';
       rt.setAttribute('stroke-width', 4.5 * k); rtc.setAttribute('stroke-width', 7.5 * k);
-      { const mpp = 6.2 / sc, nice = [25, 50, 100, 200, 250, 500, 1000, 2000].find((m) => m / mpp >= 50) || 2000; sbar.style.width = (nice / mpp) + 'px'; stxt.textContent = nice >= 1000 ? String(nice / 1000).replace('.', ',') + ' km' : nice + ' m'; }
+      { const mpp = M_PER_UNIT / sc, nice = [25, 50, 100, 200, 250, 500, 1000, 2000].find((m) => m / mpp >= 50) || 2000; sbar.style.width = (nice / mpp) + 'px'; stxt.textContent = nice >= 1000 ? String(nice / 1000).replace('.', ',') + ' km' : nice + ' m'; }
     }
     function zoomAt(f, px, py) {
       const r = vp.getBoundingClientRect(), mx = view.cx + (px - r.left - r.width / 2) / sc, my = view.cy + (py - r.top - r.height / 2) / sc;
@@ -207,10 +164,10 @@ export function createKaasMap() {
       const step = (t) => { if (id !== anim) return; const u = Math.min(1, (t - t0) / 450), e = 1 - Math.pow(1 - u, 3); view.cx = a.cx + (b.cx - a.cx) * e; view.cy = a.cy + (b.cy - a.cy) * e; view.z = a.z + (b.z - a.z) * e; apply(); if (u < 1) requestAnimationFrame(step); };
       requestAnimationFrame(step);
     }
-    function frame(r) { const [x0, y0, x1, y1] = bbox(r), LW = LAND[2] - LAND[0], LH = LAND[3] - LAND[1]; flyTo((x0 + x1) / 2, (y0 + y1) / 2, Math.min(LW / (x1 - x0), LH / (y1 - y0)) * 0.9); }
+    function frame(r) { const [x0, y0, x1, y1] = bboxOf(r); flyTo((x0 + x1) / 2, (y0 + y1) / 2, Math.min(vw / ((x1 - x0) * s0), vh / ((y1 - y0) * s0)) * 0.92); }
     function drawRoute(t) {
       if (!t) { rt.setAttribute('d', ''); rtc.setAttribute('d', ''); return; }
-      const d = 'M' + route([t.x, t.y], t.region).pts.map((p) => p.join(',')).join('L'); rt.setAttribute('d', d); rtc.setAttribute('d', d);
+      const d = 'M' + route([t.x, t.y], t.region).pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join('L'); rt.setAttribute('d', d); rtc.setAttribute('d', d);
     }
     function select(n) {
       sel = n === 'Kipkruidenkwartier' ? null : n;
@@ -219,7 +176,7 @@ export function createKaasMap() {
       const t = sel && cur.terr.find((x) => x.n === sel);
       if (t) {
         const r = route([t.x, t.y], t.region);
-        ihead.innerHTML = `<b>${esc(t.n)}</b><span class="km-tag km-tag-${t.st}">${STLABEL[t.st]}</span><small>${ACT[t.region].tag} · ${esc(ACT[t.region].name)} · ${Math.max(1, Math.round(r.km * 2.2))} min drive (${r.km.toFixed(1).replace('.', ',')} km)${t.st === 'locked' ? `<br>Opens after ${esc(PARENT[t.n] || 'the one before it')}.` : ''}</small>`;
+        ihead.innerHTML = `<b>${esc(t.n)}</b><span class="km-tag km-tag-${t.st}">${STLABEL[t.st]}</span><small>${ACT[t.region].tag} · ${esc(ACT[t.region].name)} · ${Math.max(1, Math.round(r.km * 2.2))} min drive (${r.km.toFixed(1).replace('.', ',')} km${r.via ? ` via ${esc(r.via)}` : ''})${t.st === 'locked' ? `<br>Opens after ${esc(PARENT[t.n] || 'the one before it')}.` : ''}</small>`;
         drawRoute(cur.van ? t : null);
       } else { ihead.innerHTML = '<b>Eddy &amp; Zn warehouse</b><span class="km-tag km-tag-home">You are here</span>'; drawRoute(null); }
       const it = root.querySelector('.km-item.on'); if (it) it.scrollIntoView({ block: 'nearest' });
@@ -227,7 +184,6 @@ export function createKaasMap() {
     }
     const clickPin = (n) => { const el = svg.querySelector(`.km-pl[data-pin="${CSS.escape(n)}"]`); if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true })); };
 
-    // drag to move, wheel or pinch to zoom; a drag never counts as a click
     const pts = new Map(); let dragged = false, start = null, pinch = null;
     vp.addEventListener('pointerdown', (e) => {
       anim++; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -259,12 +215,11 @@ export function createKaasMap() {
     });
     root.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => {
       const r = vp.getBoundingClientRect(), mx = r.left + r.width / 2, my = r.top + r.height / 2, z = b.dataset.z;
-      if (z === 'in') zoomAt(1.6, mx, my); else if (z === 'out') zoomAt(1 / 1.6, mx, my); else if (z === 'fit') flyTo(view.cx, view.cy, 1); else flyTo(HOME[0], HOME[1], 4);
+      if (z === 'in') zoomAt(1.6, mx, my); else if (z === 'out') zoomAt(1 / 1.6, mx, my); else if (z === 'fit') flyTo(W / 2, H / 2, 1); else flyTo(HOME[0], HOME[1], 3.2);
     });
-    root.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { const t = cur.terr.find((x) => x.n === b.dataset.go); if (!t) return; clickPin(t.n); flyTo(t.x, t.y, Math.max(view.z, 3)); });
+    root.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { const t = cur.terr.find((x) => x.n === b.dataset.go); if (!t) return; clickPin(t.n); flyTo(t.x, t.y, Math.max(view.z, 2.6)); });
     root.querySelectorAll('[data-frame]').forEach((b) => b.onclick = () => frame(b.dataset.frame));
 
-    // the aerial photo: instant when it's been painted before, otherwise it fades in
     const img = svg.querySelector('.km-air'), loading = root.querySelector('.km-loading');
     if (aerialURL) loading.remove();
     else aerial().then((u) => { if (!u || !img.isConnected) return; img.setAttribute('href', u); img.style.transition = 'opacity .35s'; img.style.opacity = 1; loading.remove(); });

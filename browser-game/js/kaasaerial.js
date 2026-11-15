@@ -1,192 +1,233 @@
-// Kaasland from the air: paints a sketched satellite view of the whole city onto a canvas, once per session.
-// Old-town rowhouses with canals for Kipkruidenkwartier and Oud-Vettenburg, villas, gardens, fields and
-// greenhouses on Hipsterheuvel, sheds, container yards and tanks in De Duistere Dokken, main roads and bridges
-// on top, boats in the harbours. Everything comes from a seeded random generator, so the city looks the same
-// every time. Drawn in the 1024x572 map space at R pixels per unit.
+// Paints the Map of Kaasland: a clean illustrated city map (kaasgeo.js has the layout). Houses are placed lot by
+// lot along the streets so the blocks follow the street pattern: gabled canal houses in Oud-Vettenburg, brick
+// terraces on the Kipkruidenkwartier grid, villas in gardens on Hipsterheuvel, long sheds and container yards in
+// the docks. Then trees, parks, farmland, cranes, boats and the windmill. Seeded, so it looks the same every time.
+// Painted once per session into a canvas at R pixels per map unit.
+import * as G from './kaasgeo.js';
 
-const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-function inPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
-const trace = (ctx, poly) => { ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); };
+const { W, H, C0, polar, arc, RIVER, ISLAND, CANALS, BASINS, MARINA, SLOOT, YARDS, SILOS, PARKS, FIELDS, REGIONS, ROADS, HOME, inPoly } = G;
 
-const STYLE = {
-  start: { kind: 'town', block: [15, 10], angle: 10, ground: '#6f6b64', walk: '#a39b8e', yard: '#6d8650', roofs: ['#9c5034', '#8a4630', '#a8623f', '#7a4a3a', '#6b625a', '#b0734b', '#5d5a58'] },
-  lampas: { kind: 'town', block: [13, 9], angle: -8, ground: '#6d6962', walk: '#a59c8d', yard: '#6a8450', roofs: ['#a3553a', '#8f4a33', '#b36a45', '#7d4636', '#9b8270', '#6a5f57', '#c07d52'] },
-  nosh: { kind: 'villa', block: [24, 17], angle: 4, ground: '#80776a', walk: '#7b9a58', yard: '#86a660', roofs: ['#c9c2b4', '#8c5a44', '#5d6670', '#b07a52', '#e3ddd0', '#2f3d55', '#7b6a5a'] },
-  abd: { kind: 'docks', block: [26, 17], angle: 0, ground: '#5f6365', walk: '#85898a', yard: '#7d8182', roofs: ['#7d8a93', '#9aa3a8', '#6e7f6e', '#8a5a44', '#b8bcbd', '#5e6d7a'] },
+const PAL = {
+  land: '#efe7d6', water: '#94c9d7', shore: '#b6dce6', quay: '#d8ccb2',
+  street: '#fffdf8', streetCase: '#d6cbb8', main: '#f8de98', mainCase: '#cfa95f',
+  park: '#c2d99d', parkEdge: '#a6c47f', path: '#f6f0e0', pond: '#a5d3de',
+  field: ['#ead68f', '#d6dd98', '#c4d68a', '#e7cb83', '#dfe3a8', '#cfd28c'],
+  tree: ['#93b86f', '#86ad63', '#9cbf76', '#7ea55c', '#8bb168'],
+  ground: { start: '#ebe2cf', lampas: '#e7dfc9', nosh: '#e1e8c9', abd: '#e0ddd4' },
+  roofs: {
+    lampas: ['#c8704c', '#b9603f', '#d3875e', '#a95a3d', '#c97b55', '#9f6a55', '#d79a6c', '#8c6b5c', '#b07a5e'],
+    start: ['#bf7a5c', '#b06d52', '#c98a66', '#a76a55', '#cf9a75', '#9a6f5f', '#b98568', '#8f7466'],
+    nosh: ['#f1ece2', '#e2dbcd', '#d2c9b8', '#c78e6a', '#5c6b80', '#ece4d4', '#b9a68e', '#e9e1cf'],
+    abd: ['#9fb0b8', '#b6c1c6', '#8b9ea8', '#a7a59b', '#c2c7c6', '#8d9a93', '#b48a70', '#a9b5a2'],
+  },
+  container: ['#c4604a', '#4a80ad', '#5c9e66', '#dc9a45', '#9aa1a6', '#8b5f8a', '#c9b052'],
 };
-const CONTAINERS = ['#b5442f', '#2f6aa3', '#3f8a4a', '#d0892c', '#8d9196', '#7a3f6e', '#c7b23b'];
+const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const trace = (ctx, poly, close = true) => { ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); if (close) ctx.closePath(); };
+function shade(hex, f) { const n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, c = (v) => Math.max(0, Math.min(255, Math.round(v * f))); return `rgb(${c(r)},${c(g)},${c(b)})`; }
 
-export function paintKaasland({ W, H, REGIONS, MOLEN, PARKS, ROADS, pt, S, R = 2.5 }) {
+export function paintKaasland({ R = 2.5 } = {}) {
+  const rand = rng(1971), pick = (a) => a[Math.floor(rand() * a.length)], rr = (a, b) => a + rand() * (b - a);
   const cv = document.createElement('canvas'); cv.width = Math.round(W * R); cv.height = Math.round(H * R);
-  const ctx = cv.getContext('2d'); ctx.scale(R, R);
-  const rand = rng(1971);
-  const pick = (a) => a[Math.floor(rand() * a.length)];
+  const ctx = cv.getContext('2d'); ctx.scale(R, R); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const parkPolys = PARKS.map((p) => p[1]);
+  const inPark = (x, y) => parkPolys.some((p) => inPoly(x, y, p));
+  const inBasin = (x, y) => BASINS.some(([bx, by, bw, bh]) => x > bx && x < bx + bw && y > by && y < by + bh) || (x > MARINA[0] && x < MARINA[0] + MARINA[2] && y > MARINA[1] && y < MARINA[1] + MARINA[3]);
+  const wet = (x, y) => inPoly(x, y, RIVER) || inBasin(x, y);
 
-  // ---- water: deep in the middle of the channels, lighter near the quays, small wave marks
-  ctx.fillStyle = '#1f4656'; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = 'rgba(160,200,215,.10)'; ctx.lineWidth = 0.6;
-  for (let i = 0; i < 1400; i++) { const x = rand() * W, y = rand() * H, l = 2 + rand() * 4; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + l / 2, y - 0.8, x + l, y); ctx.stroke(); }
-  // shallow rim around every coast
-  ctx.save(); ctx.lineJoin = 'round';
-  for (const p of Object.values(REGIONS)) { trace(ctx, p); ctx.strokeStyle = 'rgba(70,130,140,.45)'; ctx.lineWidth = 14; ctx.stroke(); ctx.strokeStyle = 'rgba(90,150,150,.5)'; ctx.lineWidth = 6; ctx.stroke(); }
+  // ---- streets, per district (polylines with a width)
+  const streets = [];
+  const keepRuns = (pts, ok, w, region) => { let run = []; for (const p of pts) { if (ok(p[0], p[1])) run.push(p); else { if (run.length > 1) streets.push({ pts: run, w, region }); run = []; } } if (run.length > 1) streets.push({ pts: run, w, region }); };
+  const line = (a, b, step = 2) => { const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step)); return Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]); };
+  // Oud-Vettenburg: streets on both quays of every canal, radial streets, an inner ring and crooked alleys in the core
+  const inOld = (x, y) => Math.hypot(x - C0[0], y - C0[1]) < 258 && y > C0[1] + 2;
+  for (const r of CANALS) for (const s of [-7.5, 7.5]) keepRuns(arc(3, 177, r + s, 1.5), inOld, 3, 'lampas');
+  keepRuns(arc(4, 176, 62, 2), inOld, 2.6, 'lampas');
+  for (let a = 5; a < 178; a += 7.5) { if (rand() < 0.22) continue; keepRuns(line(polar(a, a % 15 < 7.5 ? 22 : 64), polar(a, 258)), inOld, 2.6, 'lampas'); }
+  for (let i = 0; i < 12; i++) { let p = polar(rr(15, 165), rr(18, 40)), h = rr(0, Math.PI * 2); const pts = [p]; for (let k = 0; k < 7; k++) { h += rr(-0.7, 0.7); p = [p[0] + Math.cos(h) * 6, p[1] + Math.sin(h) * 6]; pts.push(p); } keepRuns(pts, (x, y) => inOld(x, y) && Math.hypot(x - C0[0], y - C0[1]) < 95, 2, 'lampas'); }
+  // Kipkruidenkwartier: a grid at an angle
+  const grid = (cx, cy, ang, su, sv, ext, ok, w, region) => {
+    const ca = Math.cos(ang), sa = Math.sin(ang), to = (u, v) => [cx + u * ca - v * sa, cy + u * sa + v * ca];
+    for (let v = -ext; v <= ext; v += sv) keepRuns(line(to(-ext, v), to(ext, v)), ok, w, region);
+    for (let u = -ext; u <= ext; u += su) keepRuns(line(to(u, -ext), to(u, ext)), ok, w, region);
+  };
+  const okStart = (x, y) => inPoly(x, y, REGIONS.start) && Math.hypot(x - C0[0], y - C0[1]) > 268 && !inPark(x, y) && !wet(x, y);
+  grid(330, 600, -12 * Math.PI / 180, 26, 18, 460, okStart, 3, 'start');
+  // Hipsterheuvel: winding lanes and cross streets, farmland further east
+  const okNosh = (x, y) => inPoly(x, y, REGIONS.nosh) && x < 885 && !inPark(x, y) && !wet(x, y) && y < G.NORTH_BANK.reduce((m, [bx, by], i, a) => (i && x >= a[i - 1][0] && x <= bx ? a[i - 1][1] + (by - a[i - 1][1]) * (x - a[i - 1][0]) / (bx - a[i - 1][0]) : m), 230) - 3;
+  for (let k = 0; k < 9; k++) { const y0 = 18 + k * 25, ph = rand() * 6; const pts = []; for (let x = -10; x <= 900; x += 3) pts.push([x, y0 + 6 * Math.sin(x / 55 + ph) + 3 * Math.sin(x / 21 + ph * 2)]); keepRuns(pts, okNosh, 2.8, 'nosh'); }
+  for (let x = 20; x < 890; x += rr(38, 62)) { const pts = [], ph = rand() * 6; for (let y = -10; y < 250; y += 3) pts.push([x + 7 * Math.sin(y / 30 + ph), y]); keepRuns(pts, okNosh, 2.6, 'nosh'); }
+  const tracks = [];
+  { const okF = (x, y) => inPoly(x, y, FIELDS) && !wet(x, y); const a = 8 * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    for (let v = -200; v < 200; v += 34) { const pts = line([1050 - 300 * ca - v * sa, 80 - 300 * sa + v * ca], [1050 + 300 * ca - v * sa, 80 + 300 * sa + v * ca]); let run = []; for (const p of pts) { if (okF(p[0], p[1])) run.push(p); else { if (run.length > 1) tracks.push(run); run = []; } } if (run.length > 1) tracks.push(run); } }
+  // De Duistere Dokken: wide truck roads on a straight grid
+  const inYard = (x, y) => YARDS.some(([yx, yy, yw, yh]) => x > yx - 2 && x < yx + yw + 2 && y > yy - 2 && y < yy + yh + 2);
+  const okAbd = (x, y) => inPoly(x, y, REGIONS.abd) && Math.hypot(x - C0[0], y - C0[1]) > 270 && !wet(x, y) && !inYard(x, y);
+  grid(1000, 560, 0, 46, 36, 420, okAbd, 3.6, 'abd');
+
+  // ---- where nothing may be built: water, streets, parks, fields, yards (an occupancy mask at M px per unit)
+  const M = 2, MW = W * M, MH = H * M, mk = document.createElement('canvas'); mk.width = MW; mk.height = MH;
+  const m = mk.getContext('2d'); m.scale(M, M); m.fillStyle = '#000'; m.strokeStyle = '#000'; m.lineCap = 'round'; m.lineJoin = 'round';
+  trace(m, RIVER); m.fill(); for (const [x, y, w, h] of [...BASINS, MARINA, ...YARDS]) m.fillRect(x, y, w, h);
+  m.beginPath(); m.ellipse(ISLAND.cx, ISLAND.cy, ISLAND.rx + 2, ISLAND.ry + 2, 0, 0, 7); m.fill();
+  for (const r of CANALS) { trace(m, arc(0, 180, r, 1.5), false); m.lineWidth = 9.5; m.stroke(); }
+  trace(m, SLOOT, false); m.lineWidth = 9; m.stroke();
+  for (const p of parkPolys) { trace(m, p); m.fill(); }
+  trace(m, FIELDS); m.fill();
+  for (const s of streets) { trace(m, s.pts, false); m.lineWidth = s.w + (s.region === 'nosh' ? 6 : s.region === 'abd' ? 3 : s.region === 'start' ? 2.2 : 1); m.stroke(); }
+  for (const r of ROADS) { trace(m, r.pts, false); m.lineWidth = r.ring ? 10 : 8; m.stroke(); }
+  m.beginPath(); m.arc(600, 352, 15, 0, 7); m.fill(); // the market square
+  m.beginPath(); m.arc(SILOS[0], SILOS[1], 16, 0, 7); m.fill();
+  m.save(); m.translate(HOME[0], HOME[1]); m.rotate(-12 * Math.PI / 180); m.fillRect(-12, -9, 24, 18); m.restore(); // the warehouse
+  m.beginPath(); m.arc(362, 300, 18, 0, 7); m.fill(); // the fort
+  const md = m.getImageData(0, 0, MW, MH).data, occ = new Uint8Array(MW * MH);
+  for (let i = 0; i < occ.length; i++) occ[i] = md[i * 4 + 3] > 20 ? 1 : 0;
+  const free = (x, y) => { const i = Math.floor(x * M), j = Math.floor(y * M); return i >= 0 && j >= 0 && i < MW && j < MH && !occ[j * MW + i]; };
+  const take = (x, y) => { const i = Math.floor(x * M), j = Math.floor(y * M); if (i >= 0 && j >= 0 && i < MW && j < MH) occ[j * MW + i] = 1; };
+
+  // ---- ground
+  ctx.fillStyle = PAL.land; ctx.fillRect(0, 0, W, H);
+  for (const [r, poly] of Object.entries(REGIONS)) { trace(ctx, poly); ctx.fillStyle = PAL.ground[r]; ctx.fill(); }
+  // farmland
+  ctx.save(); trace(ctx, FIELDS); ctx.clip();
+  { const a = 8 * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    for (let u = -300; u < 300; u += 50) for (let v = -200; v < 200; v += 34) {
+      const corner = (du, dv) => [1050 + (u + du) * ca - (v + dv) * sa, 80 + (u + du) * sa + (v + dv) * ca];
+      const q = [corner(0, 0), corner(50, 0), corner(50, 34), corner(0, 34)], col = pick(PAL.field);
+      trace(ctx, q); ctx.fillStyle = col; ctx.fill();
+      ctx.save(); trace(ctx, q); ctx.clip(); ctx.strokeStyle = shade(col, 0.93); ctx.lineWidth = 0.5; const along = rand() < 0.5;
+      for (let k = 0; k < 50; k += 2.2) { const p0 = along ? corner(k, 0) : corner(0, k * 0.68), p1 = along ? corner(k, 34) : corner(50, k * 0.68); ctx.beginPath(); ctx.moveTo(...p0); ctx.lineTo(...p1); ctx.stroke(); }
+      ctx.restore();
+    } }
+  ctx.strokeStyle = '#efe4c4'; ctx.lineWidth = 2; for (const t of tracks) { trace(ctx, t, false); ctx.stroke(); }
   ctx.restore();
-
-  // ---- land, one district at a time, clipped to its outline
-  for (const [r, poly] of Object.entries(REGIONS)) {
-    const st = STYLE[r];
-    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1.5; trace(ctx, poly); ctx.fillStyle = '#b3a88f'; ctx.fill(); ctx.restore(); // quay edge
+  // parks
+  for (const [, poly, pond] of PARKS) {
+    trace(ctx, poly); ctx.fillStyle = PAL.park; ctx.fill(); ctx.strokeStyle = PAL.parkEdge; ctx.lineWidth = 1.2; ctx.stroke();
+    const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2, rx = (Math.max(...xs) - Math.min(...xs)) / 2, ry = (Math.max(...ys) - Math.min(...ys)) / 2;
     ctx.save(); trace(ctx, poly); ctx.clip();
-    ctx.fillStyle = st.ground; ctx.fillRect(0, 0, W, H);
-    const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2, ext = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-    const a = st.angle * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
-    const [bw0, bh0] = st.block;
-    for (let gy = -ext / 2 - bh0, row = 0; gy < ext / 2 + bh0; row++) {
-      const bh = bh0 * (0.8 + rand() * 0.45), wide = row % 4 === 0 ? 1.1 : 0; // every fourth street is wider
-      for (let gx = -ext / 2 - bw0 + (row % 2) * bw0 * 0.4; gx < ext / 2 + bw0;) {
-        const bw = bw0 * (0.7 + rand() * 0.6), mx = gx + bw / 2, my = gy + bh / 2;
-        const wx = cx + mx * ca - my * sa, wy = cy + mx * sa + my * ca; // block centre on the map
-        if (inPoly(wx, wy, poly)) block(ctx, st, gx + 1.1, gy + 1.1 + wide, bw - 2.2, bh - 2.2 - wide, rand, pick);
-        gx += bw;
-      }
-      gy += bh;
+    ctx.strokeStyle = PAL.path; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.62, ry * 0.55, 0.25, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - rx, cy + ry * 0.2); ctx.quadraticCurveTo(cx, cy - ry * 0.4, cx + rx, cy + ry * 0.1); ctx.stroke();
+    if (pond) { ctx.beginPath(); ctx.ellipse(cx + rx * 0.2, cy + ry * 0.1, rx * 0.22, ry * 0.2, 0.4, 0, 7); ctx.fillStyle = PAL.pond; ctx.fill(); ctx.strokeStyle = '#8fc0cc'; ctx.lineWidth = 0.6; ctx.stroke(); }
+    ctx.restore();
+  }
+  // yards
+  for (const [x, y, w, h] of YARDS) { ctx.fillStyle = '#d3cdc0'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = '#bdb6a6'; ctx.lineWidth = 0.6; ctx.strokeRect(x, y, w, h); }
+
+  // ---- water
+  const water = (fn) => { fn(); ctx.fillStyle = PAL.water; ctx.fill(); };
+  water(() => trace(ctx, RIVER));
+  ctx.save(); trace(ctx, RIVER); ctx.clip();
+  for (const bank of [G.NORTH_BANK, G.SOUTH_BANK]) { trace(ctx, bank, false); ctx.strokeStyle = 'rgba(182,220,230,.8)'; ctx.lineWidth = 7; ctx.stroke(); ctx.strokeStyle = '#cbe7ee'; ctx.lineWidth = 2; ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 0.5;
+  for (let i = 0; i < 260; i++) { const x = rand() * W, y = rr(150, 320), l = rr(2, 5); ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + l / 2, y - 0.7, x + l, y); ctx.stroke(); }
+  ctx.restore();
+  for (const [x, y, w, h] of [...BASINS, MARINA]) { ctx.fillStyle = PAL.water; ctx.fillRect(x, y, w, h); ctx.strokeStyle = PAL.quay; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + 4); ctx.stroke(); }
+  for (const r of CANALS) { trace(ctx, arc(0, 180, r, 1.5), false); ctx.strokeStyle = PAL.quay; ctx.lineWidth = 9; ctx.stroke(); ctx.strokeStyle = PAL.water; ctx.lineWidth = 6.5; ctx.stroke(); }
+  trace(ctx, SLOOT, false); ctx.strokeStyle = PAL.quay; ctx.lineWidth = 8; ctx.stroke(); ctx.strokeStyle = '#86b9c4'; ctx.lineWidth = 5.5; ctx.stroke();
+  // the windmill island
+  ctx.beginPath(); ctx.ellipse(ISLAND.cx, ISLAND.cy, ISLAND.rx, ISLAND.ry, 0, 0, 7); ctx.fillStyle = '#e6d9b4'; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(ISLAND.cx, ISLAND.cy, ISLAND.rx - 3, ISLAND.ry - 3, 0, 0, 7); ctx.fillStyle = PAL.park; ctx.fill();
+  ctx.strokeStyle = PAL.path; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.ellipse(ISLAND.cx, ISLAND.cy, 12, 7, 0, 0, 7); ctx.stroke();
+  ctx.strokeStyle = '#a08d70'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(ISLAND.cx - ISLAND.rx + 2, ISLAND.cy + 4); ctx.lineTo(ISLAND.cx - ISLAND.rx - 8, ISLAND.cy + 6); ctx.stroke(); // jetty
+
+  // ---- streets: casings first, then the white tops; main roads on top in yellow
+  const strokeAll = (list, color, extra) => { ctx.strokeStyle = color; for (const s of list) { trace(ctx, s.pts, false); ctx.lineWidth = s.w + extra; ctx.stroke(); } };
+  strokeAll(streets, PAL.streetCase, 1.1); strokeAll(streets, PAL.street, 0);
+  ctx.strokeStyle = PAL.streetCase; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(600, 352, 14, 0, 7); ctx.fillStyle = '#efe5cf'; ctx.fill(); ctx.stroke(); // market square
+  for (const r of ROADS.filter((x) => x.bridge)) { trace(ctx, r.pts.map(([x, y]) => [x + 1.4, y + 1.8]), false); ctx.strokeStyle = 'rgba(40,80,95,.25)'; ctx.lineWidth = 7; ctx.stroke(); }
+  for (const r of ROADS) { trace(ctx, r.pts, false); ctx.strokeStyle = r.bridge ? '#a89a80' : PAL.mainCase; ctx.lineWidth = r.ring ? 8.2 : 6.6; ctx.stroke(); }
+  for (const r of ROADS) { trace(ctx, r.pts, false); ctx.strokeStyle = PAL.main; ctx.lineWidth = r.ring ? 6.6 : 5; ctx.stroke(); }
+  ctx.setLineDash([2.2, 2.2]); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 0.45; for (const r of ROADS.filter((x) => x.ring)) { trace(ctx, r.pts, false); ctx.stroke(); } ctx.setLineDash([]);
+
+  // ---- buildings, lot by lot along the streets
+  const house = (c, t, n, w, d, col, kind) => {
+    const P = (u, v) => [c[0] + t[0] * u + n[0] * v, c[1] + t[1] * u + n[1] * v], q = [P(-w / 2, -d / 2), P(w / 2, -d / 2), P(w / 2, d / 2), P(-w / 2, d / 2)];
+    trace(ctx, q.map(([x, y]) => [x + 0.6, y + 0.8])); ctx.fillStyle = 'rgba(70,52,34,.22)'; ctx.fill();
+    trace(ctx, q); ctx.fillStyle = col; ctx.fill();
+    ctx.fillStyle = shade(col, 0.87);
+    if (kind === 'gable') trace(ctx, [P(0, -d / 2), P(w / 2, -d / 2), P(w / 2, d / 2), P(0, d / 2)]); // ridge runs back from the street
+    else trace(ctx, [P(-w / 2, 0), P(w / 2, 0), P(w / 2, d / 2), P(-w / 2, d / 2)]);
+    if (kind !== 'flat') ctx.fill();
+    if (kind === 'shed') { ctx.strokeStyle = shade(col, 0.82); ctx.lineWidth = 0.18; for (let u = -w / 2 + 1.2; u < w / 2; u += 1.2) { ctx.beginPath(); ctx.moveTo(...P(u, -d / 2)); ctx.lineTo(...P(u, d / 2)); ctx.stroke(); } }
+    trace(ctx, q); ctx.strokeStyle = shade(col, 0.72); ctx.lineWidth = 0.22; ctx.stroke();
+  };
+  const fits = (c, t, n, w, d) => { for (let u = -w / 2 + 0.45; u <= w / 2 - 0.45; u += 0.5) for (let v = -d / 2 + 0.45; v <= d / 2 - 0.45; v += 0.5) if (!free(c[0] + t[0] * u + n[0] * v, c[1] + t[1] * u + n[1] * v)) return false; return true; };
+  const claim = (c, t, n, w, d) => { for (let u = -w / 2 + 0.25; u <= w / 2 - 0.25; u += 0.4) for (let v = -d / 2 + 0.25; v <= d / 2 - 0.25; v += 0.4) take(c[0] + t[0] * u + n[0] * v, c[1] + t[1] * u + n[1] * v); };
+  const LOT = {
+    lampas: { w: [2.8, 4.6], d: [8, 12], set: 0.5, gap: [0, 0.15], skip: 0.03, kind: 'gable' },
+    start: { w: [4, 6.5], d: [5, 6.5], set: 1.5, gap: [0, 0.35], skip: 0.03, kind: 'ridge' },
+    nosh: { w: [5.5, 9], d: [5.5, 8.5], set: 4.5, gap: [3, 9], skip: 0.18, kind: 'ridge' },
+    abd: { w: [10, 26], d: [8, 12.5], set: 2, gap: [1.5, 4], skip: 0.08, kind: 'shed' },
+  };
+  const stats = {};
+  // two passes: full-size lots first, then smaller ones fill the gaps
+  const FILL = { lampas: { w: [2.4, 3.4], d: [5, 7.5], set: 0.5, gap: [0, 0.1], skip: 0, kind: 'gable' }, abd: { w: [6, 12], d: [5, 8], set: 2, gap: [1, 3], skip: 0.1, kind: 'shed' }, start: LOT.start, nosh: { ...LOT.nosh, skip: 0.5 } };
+  for (const pass of [LOT, FILL]) for (const s of streets) {
+    const L = pass[s.region], st = stats[s.region] = stats[s.region] || { try: 0, ok: 0, region: 0, fit: 0 }, cum = [0]; for (let i = 1; i < s.pts.length; i++) cum.push(cum[i - 1] + Math.hypot(s.pts[i][0] - s.pts[i - 1][0], s.pts[i][1] - s.pts[i - 1][1]));
+    const total = cum[cum.length - 1];
+    const at = (d) => { let i = 1; while (i < cum.length - 1 && cum[i] < d) i++; const a = s.pts[i - 1], b = s.pts[i], f = (d - cum[i - 1]) / Math.max(1e-6, cum[i] - cum[i - 1]), len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [[a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], [(b[0] - a[0]) / len, (b[1] - a[1]) / len]]; };
+    for (const side of [-1, 1]) for (let d = rand() * 3; d < total - 1;) {
+      const w = rr(...L.w), dep = rr(...L.d);
+      if (rand() < L.skip) { d += w; continue; }
+      const [p, t] = at(Math.min(total, d + w / 2)), n = [-t[1] * side, t[0] * side], off = s.w / 2 + L.set + dep / 2, c = [p[0] + n[0] * off, p[1] + n[1] * off];
+      st.try++; const inR = inPoly(c[0], c[1], REGIONS[s.region]); if (!inR) st.region++; const fit = inR && fits(c, t, n, w, dep); if (inR && !fit) st.fit++; if (fit) st.ok++;
+      if (fit) { house(c, t, n, w, dep, pick(PAL.roofs[s.region]), s.region === 'nosh' && rand() < 0.2 ? 'flat' : L.kind); claim(c, t, n, w, dep); if (s.region === 'nosh' && rand() < 0.15) { ctx.fillStyle = '#7fd0e0'; const pc = [c[0] + n[0] * (dep / 2 + 2.4), c[1] + n[1] * (dep / 2 + 2.4)]; ctx.fillRect(pc[0] - 1.3, pc[1] - 0.8, 2.6, 1.6); } }
+      d += w + rr(...L.gap);
     }
-    ctx.restore();
-    if (st.kind === 'town') canals(ctx, r, S, rand);
-    if (r === 'nosh') marinaLand(ctx, S, rand);
-    ctx.restore();
-    trace(ctx, poly); ctx.strokeStyle = '#8f846f'; ctx.lineWidth = 0.9; ctx.stroke();
   }
-
-  // ---- parks
-  for (const [, x, y, rx, ry] of PARKS) {
-    ctx.save(); ctx.beginPath(); ctx.ellipse(x * S, y * S, rx * S, ry * S, 0, 0, Math.PI * 2); ctx.fillStyle = '#5f8d45'; ctx.fill(); ctx.clip();
-    for (let i = 0; i < rx * ry * 0.12; i++) tree(ctx, x * S + (rand() - 0.5) * rx * S * 2, y * S + (rand() - 0.5) * ry * S * 2, 0.9 + rand() * 1.4, rand);
-    ctx.strokeStyle = 'rgba(220,210,180,.7)'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.ellipse(x * S, y * S, rx * S * 0.6, ry * S * 0.55, 0.3, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
+  // the Eddy & Zn warehouse: a big saffron roof
+  { const a = -12 * Math.PI / 180, t = [Math.cos(a), Math.sin(a)], n = [-t[1], t[0]]; house(HOME, t, n, 20, 13, '#e8a33d', 'ridge'); ctx.fillStyle = '#2f6fb5'; ctx.save(); ctx.translate(HOME[0] + 2, HOME[1] + 10); ctx.rotate(a); ctx.fillRect(-2, -0.9, 4, 1.8); ctx.restore(); }
+  // the fort on the pier (Pindasausplein)
+  { const pts = []; for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 9 : 16; pts.push([362 + Math.cos(a) * r, 300 + Math.sin(a) * r * 0.8]); }
+    trace(ctx, pts.map(([x, y]) => [x + 0.8, y + 1])); ctx.fillStyle = 'rgba(40,60,70,.25)'; ctx.fill(); trace(ctx, pts); ctx.fillStyle = '#cdbd9c'; ctx.fill(); ctx.strokeStyle = '#9b8a6a'; ctx.lineWidth = 0.6; ctx.stroke();
+    ctx.fillStyle = '#b55f42'; ctx.fillRect(357, 296, 10, 7); }
+  // container stacks, silos, tanks
+  for (const [x, y, w, h] of YARDS) for (let yy = y + 2; yy < y + h - 2; yy += 3.4) for (let xx = x + 2; xx < x + w - 3; xx += 3.1) if (rand() < 0.86) { ctx.fillStyle = 'rgba(60,50,40,.25)'; ctx.fillRect(xx + 0.4, yy + 0.5, 2.8, 1.25); ctx.fillStyle = pick(PAL.container); ctx.fillRect(xx, yy, 2.8, 1.25); ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(xx, yy, 2.8, 0.35); }
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2, x = SILOS[0] + Math.cos(a) * 8, y = SILOS[1] + Math.sin(a) * 8; ctx.fillStyle = 'rgba(60,50,40,.3)'; ctx.beginPath(); ctx.arc(x + 0.8, y + 1, 4, 0, 7); ctx.fill(); ctx.fillStyle = '#c98a5a'; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); ctx.fillStyle = '#d9a274'; ctx.beginPath(); ctx.arc(x - 0.8, y - 0.8, 2.2, 0, 7); ctx.fill(); }
+  // cranes along the basins, and a ship in the long basin
+  for (const [x, y, w, h] of BASINS) for (const side of [0, 1]) for (let yy = y + 14; yy < y + h - 4; yy += 24) {
+    const qx = side ? x + w + 2.5 : x - 2.5, dir = side ? -1 : 1;
+    ctx.fillStyle = 'rgba(40,40,40,.25)'; ctx.fillRect(qx - 2 + 1, yy - 2.5 + 1.2, 4, 5);
+    ctx.fillStyle = '#d0613f'; ctx.fillRect(qx - 2, yy - 2.5, 4, 5);
+    ctx.strokeStyle = '#a84a30'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(qx, yy); ctx.lineTo(qx + dir * 11, yy); ctx.stroke();
   }
+  { const [bx, by, bw, bh] = BASINS[1]; ctx.fillStyle = 'rgba(30,60,70,.3)'; ctx.fillRect(bx + 6, by + 40, bw - 10, 120); ctx.fillStyle = '#7a3a2e'; ctx.fillRect(bx + 5, by + 38, bw - 10, 120); for (let yy = by + 46; yy < by + 150; yy += 3.2) for (let xx = bx + 7; xx < bx + bw - 7; xx += 3) { ctx.fillStyle = pick(PAL.container); ctx.fillRect(xx, yy, 2.7, 2.8); } ctx.fillStyle = '#f2eee6'; ctx.fillRect(bx + 7, by + 150, bw - 14, 6); }
 
-  // ---- the island with the windmill
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 5; ctx.beginPath(); ctx.ellipse(MOLEN.cx, MOLEN.cy, MOLEN.rx, MOLEN.ry, 0, 0, Math.PI * 2); ctx.fillStyle = '#c9b98e'; ctx.fill(); ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.ellipse(MOLEN.cx, MOLEN.cy, MOLEN.rx - 2, MOLEN.ry - 2, 0, 0, Math.PI * 2); ctx.fillStyle = '#6f9a4c'; ctx.fill(); ctx.clip();
-  for (let i = 0; i < 40; i++) tree(ctx, MOLEN.cx + (rand() - 0.5) * MOLEN.rx * 2, MOLEN.cy + (rand() - 0.5) * MOLEN.ry * 2, 0.8 + rand(), rand);
+  // ---- trees
+  const tree = (x, y, r) => { ctx.fillStyle = 'rgba(60,72,40,.22)'; ctx.beginPath(); ctx.arc(x + r * 0.35, y + r * 0.45, r, 0, 7); ctx.fill(); ctx.fillStyle = pick(PAL.tree); ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,230,.16)'; ctx.beginPath(); ctx.arc(x - r * 0.3, y - r * 0.32, r * 0.5, 0, 7); ctx.fill(); };
+  for (const r of CANALS) for (const s of [-4.6, 4.6]) { const pts = arc(4, 176, r + s, 360 * 2.7 / (2 * Math.PI * (r + s))); for (const [x, y] of pts) if (y > C0[1] + 3) tree(x, y, rr(1.1, 1.45)); }
+  for (const [, poly] of PARKS) { const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]); for (let c = 0; c < 9; c++) { const cx = rr(Math.min(...xs), Math.max(...xs)), cy = rr(Math.min(...ys), Math.max(...ys)); for (let i = 0; i < 16; i++) { const x = cx + rr(-9, 9), y = cy + rr(-6, 6); if (inPoly(x, y, poly)) tree(x, y, rr(1.3, 2.4)); } } }
+  const scatter = (n, region, prob, r0, r1, extra = () => true) => { for (let i = 0; i < n; i++) { const x = rand() * W, y = rand() * H; if (rand() < prob && free(x, y) && free(x + r1, y) && free(x - r1, y) && inPoly(x, y, REGIONS[region]) && extra(x, y)) { tree(x, y, rr(r0, r1)); take(x, y); } } };
+  scatter(26000, 'nosh', 0.6, 1.2, 2.3, (x) => x < 885);
+  scatter(14000, 'lampas', 0.5, 0.9, 1.3);
+  scatter(18000, 'start', 0.45, 1, 1.6);
+  scatter(9000, 'abd', 0.25, 1, 1.5);
+  for (const t of tracks) for (let i = 0; i < t.length; i += 4) if (rand() < 0.5) tree(t[i][0] + 2, t[i][1] + 2, rr(1, 1.6));
+  for (let i = 0; i < 26; i++) { const a = rand() * Math.PI * 2, x = ISLAND.cx + Math.cos(a) * rr(16, 30), y = ISLAND.cy + Math.sin(a) * rr(9, 15); tree(x, y, rr(1.2, 2)); }
+
+  // ---- the windmill
+  ctx.save(); ctx.translate(ISLAND.cx, ISLAND.cy);
+  ctx.fillStyle = 'rgba(40,40,30,.3)'; ctx.beginPath(); ctx.arc(1.2, 1.6, 4.6, 0, 7); ctx.fill();
+  ctx.fillStyle = '#7a5236'; ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 4.4, Math.sin(a) * 4.4); } ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#4b3a2c'; ctx.beginPath(); ctx.arc(0, 0, 2.2, 0, 7); ctx.fill();
+  ctx.rotate(0.45);
+  for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.fillStyle = 'rgba(40,40,30,.25)'; ctx.fillRect(1.2, 1.2, 2.4, 12); ctx.fillStyle = '#f4eddc'; ctx.fillRect(0, 0.4, 2.4, 12); ctx.strokeStyle = '#a99b80'; ctx.lineWidth = 0.2; for (let k = 2; k < 12; k += 1.6) { ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(2.4, k); ctx.stroke(); } ctx.fillStyle = '#6b4a30'; ctx.fillRect(-0.3, 0, 0.6, 12.5); }
   ctx.restore();
-  ctx.save(); ctx.translate(MOLEN.cx, MOLEN.cy); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(1, 1, 3.4, 0, 7); ctx.fill();
-  ctx.fillStyle = '#6b4a30'; ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, 7); ctx.fill(); ctx.fillStyle = '#8a6440'; ctx.beginPath(); ctx.arc(-0.6, -0.6, 1.8, 0, 7); ctx.fill();
-  ctx.strokeStyle = '#f4ead2'; ctx.lineWidth = 1.1; ctx.rotate(0.5); for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -9); ctx.stroke(); }
-  ctx.restore();
 
-  // ---- main roads and bridges over everything
-  const seg = (a, b) => { const [x1, y1] = pt(a), [x2, y2] = pt(b); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); };
-  ctx.lineCap = 'round';
-  for (const [a, b, , br] of ROADS) { seg(a, b); ctx.strokeStyle = br ? 'rgba(0,0,0,.5)' : '#4c4944'; ctx.lineWidth = br ? 5.2 : 4.4; ctx.stroke(); }
-  for (const [a, b, , br] of ROADS) { seg(a, b); ctx.strokeStyle = br ? '#b9b2a4' : '#57534d'; ctx.lineWidth = 3.4; ctx.stroke(); }
-  ctx.setLineDash([1.6, 1.6]); ctx.strokeStyle = 'rgba(240,235,220,.75)'; ctx.lineWidth = 0.35;
-  for (const [a, b] of ROADS) { seg(a, b); ctx.stroke(); }
-  ctx.setLineDash([]);
-  // a few cars on the main roads
-  for (const [a, b] of ROADS) { const [x1, y1] = pt(a), [x2, y2] = pt(b), n = Math.floor(Math.hypot(x2 - x1, y2 - y1) / 14); for (let i = 0; i < n; i++) { if (rand() < 0.5) continue; const t = rand(); ctx.fillStyle = pick(['#e8e4dc', '#c23b2c', '#2d5d9a', '#222', '#d8b23a', '#9aa0a6']); ctx.save(); ctx.translate(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t); ctx.rotate(Math.atan2(y2 - y1, x2 - x1)); ctx.fillRect(-0.9, rand() < 0.5 ? -1.3 : 0.3, 1.8, 0.9); ctx.restore(); } }
+  // ---- boats
+  const boat = (x, y, l, wd, ang, hull, deck) => { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-l * 0.75, 0, l * 0.55, wd * 0.35, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(30,60,70,.25)'; ctx.beginPath(); ctx.ellipse(0.8, 1, l / 2, wd / 2, 0, 0, 7); ctx.fill(); ctx.fillStyle = hull; ctx.beginPath(); ctx.moveTo(l / 2, 0); ctx.quadraticCurveTo(l * 0.35, -wd / 2, -l / 2, -wd / 2); ctx.lineTo(-l / 2, wd / 2); ctx.quadraticCurveTo(l * 0.35, wd / 2, l / 2, 0); ctx.fill(); if (deck) { ctx.fillStyle = deck; ctx.fillRect(-l * 0.38, -wd * 0.3, l * 0.6, wd * 0.6); } ctx.restore(); };
+  for (const [x, y, a] of [[90, 268, 0.04], [470, 276, -0.05], [700, 278, 0.02], [830, 262, -0.4], [260, 262, 0.05]]) boat(x, y, 20, 4.5, a, '#5c4a3c', '#3f5560');
+  for (const [x, y, a] of [[1080, 205, 0.6], [1135, 190, 2.4], [955, 225, -0.3], [1170, 240, 1.2], [1050, 270, 3]]) boat(x, y, 6, 2.2, a, '#fbf8f0', '#d7c7a6');
+  for (let i = 0; i < 14; i++) boat(MARINA[0] + 6 + (i % 7) * 7.5, MARINA[1] + 10 + Math.floor(i / 7) * 20, 5, 2, Math.PI / 2, '#fbf8f0', '#c8d6de');
+  for (let i = 0; i < 10; i++) { const r = pick(CANALS), a = rr(10, 170), [x, y] = polar(a, r); boat(x, y, 4.5, 1.6, (a + 90) * Math.PI / 180, pick(['#e6dccb', '#3d6b55', '#7a4a3a']), null); }
 
-  // ---- boats: a marina off Hipsterheuvel's west end, ships at the docks, barges on the river
-  for (let i = 0; i < 26; i++) boat(ctx, (205 + rand() * 60) * S * 1.0, (215 + rand() * 40) * S, 1.6 + rand(), rand() * 0.4 - 0.2, '#f2efe8');
-  for (const [x, y, ang] of [[1530, 470, 1.3], [1525, 610, 1.4], [1450, 790, 0.4], [1250, 830, 0.1], [1560, 700, 1.5]]) ship(ctx, x * S, y * S, ang, rand, pick);
-  for (const [x, y, ang] of [[560, 320, 0.08], [1060, 300, -0.04], [880, 330, 0.02], [300, 335, -0.1]]) boat(ctx, x * S, y * S, 5, ang, '#6a5848');
+  // ---- a light paper grain over everything
+  const gr = document.createElement('canvas'); gr.width = gr.height = 96; const g = gr.getContext('2d'), gd = g.createImageData(96, 96);
+  for (let i = 0; i < gd.data.length; i += 4) { const v = 200 + rand() * 55; gd.data[i] = gd.data[i + 1] = gd.data[i + 2] = v; gd.data[i + 3] = 255; }
+  g.putImageData(gd, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = 0.18; ctx.fillStyle = ctx.createPattern(gr, 'repeat'); ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  cv.stats = stats;
   return cv;
-}
-
-function shadowRect(ctx, x, y, w, h, fill) { ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.fillRect(x + 0.45, y + 0.55, w, h); ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
-function roof(ctx, x, y, w, h, fill, rand) { // a pitched roof: lit side and shaded side
-  shadowRect(ctx, x, y, w, h, fill);
-  ctx.fillStyle = 'rgba(0,0,0,.18)'; if (w > h) ctx.fillRect(x, y + h / 2, w, h / 2); else ctx.fillRect(x + w / 2, y, w / 2, h);
-  if (rand() < 0.08) { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x + w * 0.2, y + h * 0.15, Math.min(0.8, w * 0.2), Math.min(0.8, h * 0.2)); } // a skylight
-}
-function tree(ctx, x, y, r, rand) {
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.arc(x + r * 0.35, y + r * 0.4, r, 0, 7); ctx.fill();
-  ctx.fillStyle = ['#3f6a33', '#4a7a3a', '#557f3c', '#3a5f30'][Math.floor(rand() * 4)]; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,220,.13)'; ctx.beginPath(); ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.55, 0, 7); ctx.fill();
-}
-function block(ctx, st, x, y, w, h, rand, pick) {
-  if (w < 2 || h < 2) return;
-  if (st.kind === 'town') {
-    const roll = rand();
-    shadowRect(ctx, x, y, w, h, st.walk);
-    if (roll < 0.06) { // a little square with trees
-      ctx.fillStyle = '#b9ad98'; ctx.fillRect(x + 0.5, y + 0.5, w - 1, h - 1);
-      for (let i = 0; i < 4; i++) tree(ctx, x + 1.5 + rand() * (w - 3), y + 1.5 + rand() * (h - 3), 0.9 + rand() * 0.5, rand);
-      return;
-    }
-    if (roll < 0.09) { roof(ctx, x + 0.6, y + 0.6, w - 1.2, h - 1.2, pick(['#4f5458', '#6b5a50']), rand); return; } // church or school
-    ctx.fillStyle = st.yard; ctx.fillRect(x + 0.4, y + 0.4, w - 0.8, h - 0.8);
-    const d = Math.min(h * 0.4, 3.6), n = Math.max(2, Math.round(w / (1.8 + rand() * 0.8)));
-    for (const side of [0, 1]) for (let i = 0; i < n; i++) { // rowhouses along both long sides
-      const hw = (w - 0.8) / n, hd = d * (0.8 + rand() * 0.35);
-      roof(ctx, x + 0.4 + i * hw, side ? y + h - 0.4 - hd : y + 0.4, hw - 0.12, hd, pick(st.roofs), rand);
-    }
-    const ends = Math.max(1, Math.round((h - 2 * d) / 2.2)); // and the short ends
-    for (const side of [0, 1]) for (let i = 0; i < ends; i++) { const eh = (h - 0.8 - 2 * d) / ends; if (eh > 0.6) roof(ctx, side ? x + w - 0.4 - d * 0.9 : x + 0.4, y + 0.4 + d + i * eh, d * 0.9, eh - 0.12, pick(st.roofs), rand); }
-    if (rand() < 0.7) tree(ctx, x + w / 2 + (rand() - 0.5) * w * 0.3, y + h / 2, 0.8 + rand() * 0.5, rand);
-  } else if (st.kind === 'villa') {
-    const roll = rand();
-    if (roll < 0.16) { // a field in stripes
-      const cs = pick([['#9fae5c', '#8ea050'], ['#c9b560', '#b8a452'], ['#7d9c4c', '#6f8e43']]);
-      for (let i = 0; i < w; i += 1.4) { ctx.fillStyle = cs[Math.floor(i / 1.4) % 2]; ctx.fillRect(x + i, y, Math.min(1.4, w - i), h); }
-      return;
-    }
-    shadowRect(ctx, x, y, w, h, st.yard);
-    if (roll < 0.25) { // greenhouses
-      for (let i = 0; i < 3; i++) { const gx = x + 0.6 + i * (w - 1.2) / 3, gw = (w - 1.2) / 3 - 0.4; shadowRect(ctx, gx, y + 0.6, gw, h - 1.2, '#cfe0dc'); ctx.strokeStyle = 'rgba(120,150,150,.55)'; ctx.lineWidth = 0.15; for (let k = 0.8; k < gw; k += 0.8) { ctx.beginPath(); ctx.moveTo(gx + k, y + 0.6); ctx.lineTo(gx + k, y + h - 0.6); ctx.stroke(); } }
-      return;
-    }
-    const nH = 2 + Math.floor(rand() * 3);
-    for (let i = 0; i < nH; i++) {
-      const hw = 2.6 + rand() * 2.4, hh = 2.2 + rand() * 1.8, hx = x + 0.6 + rand() * Math.max(0.1, w - hw - 1.2), hy = y + 0.6 + rand() * Math.max(0.1, h - hh - 1.2);
-      roof(ctx, hx, hy, hw, hh, pick(st.roofs), rand);
-      if (rand() < 0.18) { ctx.fillStyle = '#5fc4d8'; ctx.fillRect(hx + hw + 0.5, hy + 0.4, 1.6, 1); } // a pool
-    }
-    for (let i = 0; i < 4 + rand() * 6; i++) tree(ctx, x + rand() * w, y + rand() * h, 0.6 + rand() * 0.9, rand);
-  } else { // docks
-    const roll = rand();
-    shadowRect(ctx, x, y, w, h, st.walk);
-    if (roll < 0.45) { // one or two sheds
-      const two = rand() < 0.4, sw = two ? (w - 1.6) / 2 : w - 1.2;
-      for (let i = 0; i < (two ? 2 : 1); i++) {
-        const sx = x + 0.6 + i * (sw + 0.4), fill = pick(st.roofs);
-        shadowRect(ctx, sx, y + 0.6, sw, h - 1.2, fill);
-        ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 0.15; for (let k = 0.7; k < sw; k += 0.7) { ctx.beginPath(); ctx.moveTo(sx + k, y + 0.6); ctx.lineTo(sx + k, y + h - 0.6); ctx.stroke(); }
-      }
-    } else if (roll < 0.82) { // container yard
-      for (let cy = y + 0.6; cy < y + h - 1.2; cy += 1.25) for (let cx = x + 0.6; cx < x + w - 2.6; cx += 2.7) if (rand() < 0.85) shadowRect(ctx, cx, cy, 2.5, 1.05, CONTAINERS[Math.floor(rand() * CONTAINERS.length)]);
-    } else if (roll < 0.92) { // tanks
-      for (let i = 0; i < 4; i++) { const r = 1.6 + rand() * 1.2, tx = x + 2 + rand() * (w - 4), ty = y + 2 + rand() * (h - 4); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(tx + 0.6, ty + 0.6, r, 0, 7); ctx.fill(); ctx.fillStyle = '#d4d3cc'; ctx.beginPath(); ctx.arc(tx, ty, r, 0, 7); ctx.fill(); ctx.fillStyle = '#b7b6af'; ctx.beginPath(); ctx.arc(tx, ty, r * 0.55, 0, 7); ctx.fill(); }
-    } else { ctx.fillStyle = '#8f8a7c'; ctx.fillRect(x + 0.5, y + 0.5, w - 1, h - 1); } // empty lot
-  }
-}
-function canals(ctx, r, S, rand) { // grachten: rings of canals lined with trees
-  const rings = r === 'lampas' ? [[740, 640, 225, 3.6], [740, 640, 300, 3.2], [740, 640, 370, 2.8]] : [[520, 900, 230, 3.0]];
-  for (const [x, y, rad, wdt] of rings) {
-    ctx.beginPath(); ctx.arc(x * S, y * S, rad * S, 0, Math.PI * 2);
-    ctx.strokeStyle = '#8c8270'; ctx.lineWidth = wdt + 1.6; ctx.stroke();
-    ctx.strokeStyle = '#2b5866'; ctx.lineWidth = wdt; ctx.stroke();
-    const n = Math.floor(rad * S * Math.PI * 2 / 2.2);
-    for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; for (const o of [-1, 1]) { const rr = rad * S + o * (wdt / 2 + 1.1); tree(ctx, x * S + Math.cos(t) * rr, y * S + Math.sin(t) * rr, 0.75 + rand() * 0.35, rand); } }
-  }
-}
-function marinaLand(ctx, S, rand) { // jetties on Hipsterheuvel's west end
-  ctx.strokeStyle = '#c8bca2'; ctx.lineWidth = 0.6;
-  for (let i = 0; i < 5; i++) { const x = (230 + i * 14) * S, y = 205 * S; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 20 * S); ctx.stroke(); }
-}
-function boat(ctx, x, y, len, ang, fill) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(-len * 0.9, 0, len * 0.8, len * 0.16, 0, 0, 7); ctx.fill(); // wake
-  ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(len / 2, 0); ctx.quadraticCurveTo(0, -len * 0.22, -len / 2, -len * 0.18); ctx.lineTo(-len / 2, len * 0.18); ctx.quadraticCurveTo(0, len * 0.22, len / 2, 0); ctx.fill();
-  ctx.restore();
-}
-function ship(ctx, x, y, ang, rand, pick) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(-15, -3, 31, 7);
-  ctx.fillStyle = '#7a2e22'; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(12, -3.2); ctx.lineTo(-15, -3.2); ctx.lineTo(-15, 3.2); ctx.lineTo(12, 3.2); ctx.closePath(); ctx.fill();
-  for (let cx = -11; cx < 9; cx += 2.6) for (const cy of [-2.6, -1.3, 0, 1.3]) ctx.fillStyle = CONTAINERS[Math.floor(rand() * CONTAINERS.length)], ctx.fillRect(cx, cy, 2.4, 1.2);
-  ctx.fillStyle = '#e8e4dc'; ctx.fillRect(-14.5, -2.6, 3, 5.2);
-  ctx.restore();
 }
