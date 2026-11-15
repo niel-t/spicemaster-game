@@ -1090,7 +1090,7 @@ $('dialogue').addEventListener('click', nextLine);
 const BUYERS = ['Snackbar Bij Henk', 'Mo van de markt', 'Grillroom Zuid', 'Tante Gerda', 'Frituur Het Gouden Frietje', 'Restaurant De Lepel', 'Anonymous (Lampas?)', 'Kees from Spekbuurt'];
 const bids = {};
 function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math.random() * BUYERS.length)], amount: Math.round(d.price * (0.9 + Math.random() * 0.25) / 5) * 5 }; return bids[d.id]; }
-const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 30;
+const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 0; // balance 2026-11-15: no passive timer, Naknikim earn by mixing
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
 const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['woning', 'H', 'Woning'], ['bank', 'W', 'My Wilders']];
@@ -1160,7 +1160,7 @@ function renderPC() {
   } else if (pcTab === 'hire') {
     title.textContent = 'Naknik Uitzendbureau · "They get it done. Mostly."';
     body.innerHTML = `<div class="well"><b>Naknikim</b>: hard workers, soft heads. They mix, restock and deliver so you don't have to.<br><br>
-      Hire: <b>${fmt(NAKNIK_COST)}</b> one-off · Earns about <b>${fmt(NAKNIK_INCOME)}</b> per 6 seconds of mixing.<br>
+      Hire: <b>${fmt(NAKNIK_COST)}</b> one-off · Mixes <b>10 kg</b> of spice blend every market day, from what's on your shelves. Clients pay for the blend.<br>
       Employed: <b>${state.naknik}</b> ${state.table ? '' : '<br><span style="color:#a00">You need a mixing table first (Buy mixing table).</span>'}</div><br>
       <button class="b95" id="hireBtn" ${!state.table || state.naknik >= 3 ? 'disabled' : `data-need="${NAKNIK_COST}"${state.money < NAKNIK_COST ? ' disabled' : ''}`}>Hire a Naknik (${fmt(NAKNIK_COST)})</button>
       ${state.naknik >= 3 ? '<p>No room for more Naknikim in this warehouse. Buy a second warehouse later.</p>' : ''}`;
@@ -1206,7 +1206,7 @@ function renderPC() {
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Passive income: <b>${fmt(state.income)}</b> per 6 sec<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
+    body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Mixing: <b>${(state.naknik || 0) * 10} kg</b> a market day<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
     econ.propertyBind(body, renderPC);
   }
 }
@@ -1389,7 +1389,7 @@ function hireNaknik() {
   if (!state.table || state.money < NAKNIK_COST || state.naknik >= 3) return;
   addMoney(-NAKNIK_COST, $('hireBtn'));
   spawnNaknik(true);
-  toast('NAKNIK HIRED', 'He\'s heading to the mixing table. Passive income is running!');
+  toast('NAKNIK HIRED', 'He\'s heading to the mixing table. Every market day he mixes 10 kg of spice blend.');
   updateObjective(); renderPC(); writeSave();
 }
 function spawnNaknik(walk) {
@@ -2604,12 +2604,7 @@ function tick() {
   if (npcs) npcs.update(dt);
   if (phone) phone.update(dt);
   if (woning && !mOn) woning.update(dt);
-  // passive income
-  if (state.income > 0) {
-    incomeT += dt;
-    if (incomeT > 6) { incomeT = 0; addMoney(state.income); }
-  }
-  ui.income.textContent = state.income ? `+W ${state.income} / 6 sec · ${state.naknik} Naknik${state.naknik > 1 ? 'im' : ''}` : '';
+  ui.income.textContent = state.naknik ? `${state.naknik} Naknik${state.naknik > 1 ? 'im' : ''} · mixing ${state.naknik * 10} kg a market day` : ''; // (the old W 30 / 6 sec timer is gone)
   // money counter
   if (state.shown !== state.money) { const d = state.money - state.shown; state.shown += Math.sign(d) * Math.max(1, Math.ceil(Math.abs(d) * dt * 4)); if (Math.sign(state.money - state.shown) !== Math.sign(d)) state.shown = state.money; }
   ui.money.textContent = 'W ' + String(Math.max(0, state.shown)).padStart(7, '0');

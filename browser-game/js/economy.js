@@ -29,6 +29,12 @@ export const BLENDS = [
   { id: 'speciaal', name: 'Shoarma Speciaal', mix: { paprika: 3, komijn: 2, knoflook: 2, kurkuma: 2, kardemom: 1 }, value: 80, note: 'Page 2 of the notebook. Kardemom makes it sing.', page: 2 },
   { id: 'gouden', name: 'De Gouden Mix', mix: null, value: 0, note: "The legendary blend. Eddy Sr.'s notebook holds the clues." },
 ];
+// Acts 1-3: every joint Eddy owns there buys DISTRICT_KG of its district's blend a market day (balance 2026-11-15)
+const LAMPAS_JOINTS = ['frietwijk', 'sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt', 'halvekipplein', 'bitterbalbuurt', 'pindasausplein'];
+const NOSH_JOINTS = ['joppiehaven', 'frikandelhaven', 'havermelkhaven', 'kombuchakwartier', 'gembergracht', 'avocadoakkers', 'glutenvrijegaarde', 'quinoaplantage', 'oatoase', 'speltpolder'];
+const ABD_JOINTS = ['komijnkade', 'kaneelsilos', 'paprikapakhuis', 'kruidnagelkade', 'peperhaven', 'kurkumaloods', 'saffraanpier', 'nootmuskade', 'smokkelsloot', 'containerchaos', 'kardemomdok'];
+const DISTRICT_KG = 5;
+const DISTRICT_SALES = [{ name: 'Joints in Oud-Vettenburg', ids: LAMPAS_JOINTS, blend: 'kip' }, { name: 'Joints on Hipsterheuvel', ids: NOSH_JOINTS, blend: 'lams' }, { name: 'Joints in De Duistere Dokken', ids: ABD_JOINTS, blend: 'kebab' }];
 const PER_NAKNIK = 10; // kg of blend each Naknik mixes per market day
 const WHOLESALE_KG = 40;
 // Clients: the joints Eddy owns (plus Schmatzel, Dad's oldest friend). Each orders one blend a day.
@@ -68,7 +74,7 @@ export const WAREHOUSES = [
 ];
 const WH_NAKNIK_COST = 450;
 // Ranks: reputation (rep) comes from client sales, raids, S grades, jobs and retakes. Shown on the PC and the start menu.
-export const RANKS = [[0, 'Hulpje'], [500, 'Mengmeester'], [1500, 'Kruidenhandelaar'], [4000, 'Kruidenbaron'], [10000, 'Spice Master']];
+export const RANKS = [[0, 'Hulpje'], [500, 'Mengmeester'], [1500, 'Kruidenhandelaar'], [3000, 'Kruidenbaron'], [10000, 'Spice Master']];
 export const rankOf = (rep) => { let r = RANKS[0], i = 0; RANKS.forEach((x, k) => { if ((rep || 0) >= x[0]) { r = x; i = k; } }); return { name: r[1], i, next: RANKS[i + 1] || null }; };
 const HISTORY = 8; // days of price history shown in the trend column
 const CRATE_KG = 10; // a Lampas spice crate unpacks into 10 kg of Lampas-grade spice
@@ -276,6 +282,14 @@ export function createEconomy(deps) {
       if (trustOf(c.id) < 20 && !e.pause[c.id]) { e.pause[c.id] = 2; rows.at(-1).note += '. Fed up: back to the Lampas for 2 days'; }
     }
     for (const c of ownedClients().filter((x) => e.retaken[x.id])) rows.push({ name: c.name, note: 'TAKEN BACK BY THE LAMPAS: raid it to win it back', pay: 0 });
+    for (const g of DISTRICT_SALES) { // the joints Eddy took in Acts 1-3 buy their district's blend (Kip as a fallback); none in stock, no sale, no hard feelings
+      const n = (deps.joints ? deps.joints() : []).filter((id) => g.ids.includes(id)).length; if (!n) continue;
+      const want = n * DISTRICT_KG, bl = blendOf(g.blend).kg >= 1 ? g.blend : 'kip', have = blendOf(bl), kg = Math.min(want, Math.floor(have.kg)), bn = BLENDS.find((x) => x.id === bl).name;
+      if (kg <= 0) { rows.push({ name: `${g.name} (${n} joint${n > 1 ? 's' : ''})`, want: `${want} kg ${BLENDS.find((x) => x.id === g.blend).name}`, note: 'nothing in stock: they bought elsewhere today', pay: 0 }); continue; }
+      have.kg -= kg; if (have.kg <= 0) delete e.blends[bl]; else e.blends[bl] = have;
+      const pay = Math.round(clientPrice(bl, have.q, null) * kg);
+      rows.push({ name: `${g.name} (${n} joint${n > 1 ? 's' : ''})`, want: `${want} kg ${bn}`, kg, q: have.q, note: kg < want ? `short ${want - kg} kg` : 'on time', pay }); paid += pay;
+    }
     const po = e.phoneOrder; // Hakan's kipkruiden, ordered by phone yesterday: Shooki drops it off after the joints are served
     if (po) {
       e.phoneOrder = null;
@@ -323,7 +337,7 @@ export function createEconomy(deps) {
   function rivals() {
     const e = ensure(), out = [], L = e.heat;
     if ((state.ngp || 0) !== (e.ngpSeen || 0)) { // New Game+: every faction starts fresh
-      e.ngpSeen = state.ngp || 0; for (const k of Object.keys(L)) L[k] = 0; e.retaken = {}; e.known = null; e.rivalKnown = {}; e.bombed = {};
+      e.ngpSeen = state.ngp || 0; for (const k of Object.keys(L)) L[k] = 0; e.retaken = {}; e.known = null; e.knownOV = []; e.rivalKnown = {}; e.bombed = {};
     }
     e.rivalKnown = e.rivalKnown || {}; e.bombed = e.bombed || {};
     for (const id of Object.keys(e.bombed)) { e.bombed[id]--; if (e.bombed[id] <= 0) delete e.bombed[id]; }
@@ -331,8 +345,8 @@ export function createEconomy(deps) {
     for (const f of RIVALS) {
       if (state[f.done]) { L[f.id] = 0; continue; }
       const held = rivalsHeld(f), known = e.rivalKnown[f.id] || (e.rivalKnown[f.id] = []);
-      for (const id of held) if (!known.includes(id)) { known.push(id); L[f.id] = (L[f.id] || 0) + 25; }
-      L[f.id] = clamp((L[f.id] || 0) + 2 * held.length - 4, 0, 100);
+      for (const id of held) if (!known.includes(id)) { known.push(id); L[f.id] = (L[f.id] || 0) + 15; } // balance 2026-11-15: was +25
+      L[f.id] = clamp((L[f.id] || 0) + held.length - 4, 0, 100); // was +2 a joint: heat sat at 100 for most of an act
       if (!held.length) continue;
       if (f.id === 'noshgey' && L.noshgey >= 50 && !Object.keys(e.bombed).length && Math.random() < 0.4) { // one campaign at a time
         const pool = activeClients().filter((c) => !e.bombed[c.id] && c.id !== 'schmatzel');
@@ -353,7 +367,10 @@ export function createEconomy(deps) {
     if (!e.known) { e.known = owned.slice(); L.lampas = clamp(L.lampas + 15 * owned.length, 0, 100); } // first look at an older save
     for (const id of owned) if (!e.known.includes(id)) { e.known.push(id); e.control[id] = 60; L.lampas += 25; }
     const held = owned.filter((id) => !e.retaken[id]);
-    L.lampas = clamp(L.lampas + 2 * held.length - 4, 0, 100);
+    const ov = (deps.joints ? deps.joints() : []).filter((id) => LAMPAS_JOINTS.includes(id));
+    if (!e.knownOV) e.knownOV = ov.slice(); // an older save: what's already held doesn't spike the heat
+    for (const id of ov) if (!e.knownOV.includes(id)) { e.knownOV.push(id); L.lampas += 10; }
+    L.lampas = clamp(L.lampas + 2 * held.length + ov.length - 4, 0, 100);
     const name = (id) => CLIENTS.find((c) => c.id === id).name;
     if (L.lampas >= 40) { for (const id of held) if (!e.wh[id]) addControl(id, -5); if (!e.event) { const bl = pick(BLENDS.filter(blendOpen)); e.event = { id: 'pricewar', text: `The Lampas dump cheap ${bl.name} on your turf: clients pay 25% less for it today`, pay: 0.75, blend: bl.id }; } }
     if (L.lampas >= 60 && held.length && Math.random() < 0.5) { const id = pick(held); addControl(id, -10); out.push(`Lampas thugs leaned on ${name(id)} (control -10).`); }
@@ -398,7 +415,7 @@ export function createEconomy(deps) {
     for (const f of RIVALS) { const v = e.heat[f.id] || 0; if (state[f.done] || (!v && !rivalsHeld(f).length)) continue; const st = f.id === 'noshgey' ? (v >= 50 ? 'review-bombing your joints' : 'posting angrily') : (v >= 80 ? 'tolls on stock and cash' : v >= 50 ? 'tolls on your stock' : 'watching'); h += `<br><b>${f.name} heat</b> ${bar(v, v >= 50 ? '#c00000' : '#60a060')} <b>${v}</b>/100 · ${st}${short ? '' : ` <button class="b95" data-tribute="${f.id}" ${v < 10 ? 'disabled' : ''}>Tribute (${fmt(Math.round(v * 40 / 10) * 10)}, -30)</button>`}`; }
     if (e.bombed && Object.keys(e.bombed).length) h += `<br><small style="color:#a00">Review-bombed: ${Object.entries(e.bombed).map(([id, d]) => `${(CLIENTS.find((c) => c.id === id) || { name: id }).name} (${d} day${d > 1 ? 's' : ''})`).join(', ')}</small>`;
     if (short) return h + (owned.length ? ` · Control: ${owned.map((c) => `${c.name.replace(/^Snack(paleis|bar) /, '')} ${e.retaken[c.id] ? '<b style="color:#a00">LOST</b>' : controlOf(c.id)}`).join(', ')}` : '');
-    h += '<br><small>Heat rises with every joint you hold (+2 a day each) and every raid (+5), and cools 4 a day. 40: price war · 60: they lean on clients · 80: they retake a joint · 100: they raid your warehouse.</small>';
+    h += '<br><small>Heat rises with every joint you hold (+2 a day each in Kipkruidenkwartier, +1 in Oud-Vettenburg, +10 when you take one there) and every remix raid (+5), and cools 4 a day. 40: price war · 60: they lean on clients · 80: they retake a joint · 100: they raid your warehouse.</small>';
     if (owned.length) h += '<table class="list" style="margin-top:4px"><tr><th>Territory</th><th>Control</th><th>Pay</th></tr>' + owned.map((c) => `<tr><td>${c.name}</td><td>${e.retaken[c.id] ? '<b style="color:#a00">Taken back by the Lampas</b>' : bar(controlOf(c.id), '#2e8b2e') + ' ' + controlOf(c.id)}</td><td>x${ctlMult(c.id).toFixed(2)}</td></tr>`).join('') + '</table>';
     if (has('lampastips')) h += `<div style="margin-top:4px;background:#fff0e0;padding:3px"><b>Kevin:</b> "${kevinTip()}"${e.kevinBribe ? ' <i>(your next retake will be a quiet night)</i>' : ''}</div>`;
     if (!state.act1) h += `<div style="margin-top:6px"><button class="b95" id="tribute" ${h0 < 10 ? 'disabled' : ''}>Pay tribute to the Lampas (${fmt(Math.round(h0 * 40 / 10) * 10)}, heat -30)</button> <small>Winning a joint back also drops heat by 30.</small></div>`;
@@ -469,7 +486,7 @@ export function createEconomy(deps) {
     const levels = (deps.joints ? deps.joints() : []).filter((id) => id !== 'schmatzel' && CLIENTS.some((c) => c.id === id));
     const name = (id) => CLIENTS.find((c) => c.id === id).name;
     const cand = [];
-    if (levels.length) { const lv = rp(levels); cand.push({ kind: 'stash', level: lv, reward: 300 + Math.round(r() * 8) * 50, title: `Hit the Lampas stash at ${name(lv)}`, desc: `The Lampas moved a fresh stash into ${name(lv)}. Do tonight's remix raid there.` }); }
+    if (levels.length) { const lv = rp(levels); cand.push({ kind: 'stash', level: lv, reward: 300 + Math.round(r() * 8) * 50, title: `Hit the stash at ${name(lv)}`, desc: `The Lampas moved a fresh stash into ${name(lv)}. Do tonight's remix raid there.` }); }
     const debtor = e.owed.find((o) => levels.includes(CLIENTS.find((c) => c.name === o.name)?.id));
     if (debtor) { const id = CLIENTS.find((c) => c.name === debtor.name).id; cand.push({ kind: 'debt', level: id, reward: Math.round(debtor.amount * 1.25), title: `Collect from ${debtor.name}`, desc: `They owe you W ${debtor.amount}. Raid ${name(id)} tonight and they'll pay now, plus 25% for the trouble.` }); }
     const b = rp(BLENDS.filter(blendOpen)), kg = 10 + Math.floor(r() * 3) * 5;
@@ -495,7 +512,7 @@ export function createEconomy(deps) {
   function raidDone(raid) {
     const e = ensure();
     addRep(raid.grade === 'S' ? 250 : 100);
-    if (raid.remix) e.heat.lampas = clamp(e.heat.lampas + 5, 0, 100);
+    if (raid.remix) { const rf = NOSH_JOINTS.includes(raid.id) ? 'noshgey' : ABD_JOINTS.includes(raid.id) ? 'abdavissies' : 'lampas'; e.heat[rf] = clamp((e.heat[rf] || 0) + (rf === 'lampas' ? 5 : -15), 0, 100); } // a show of force cools a rival
     if (e.bombed && e.bombed[raid.id]) { delete e.bombed[raid.id]; if (deps.toast) deps.toast('REVIEWS FIXED', `After tonight, ${CLIENTS.find((c) => c.id === raid.id)?.name || 'the joint'} trends for the right reasons again: full pay.`, 3.5); }
     if (e.retaken[raid.id]) { delete e.retaken[raid.id]; e.control[raid.id] = 60; e.heat.lampas = clamp(e.heat.lampas - 30, 0, 100); if (deps.toast) deps.toast('TAKEN BACK', `${CLIENTS.find((c) => c.id === raid.id).name} is yours again. Lampas heat -30.`, 4); addRep(150); }
     for (const j of e.jobs || []) if (!j.done && (j.kind === 'stash' || j.kind === 'debt') && j.level === raid.id && raid.remix) finishJob(j); }
