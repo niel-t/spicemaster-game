@@ -181,7 +181,7 @@ export function initMission(ctx) {
     }
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
-    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt }) || {};
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt }) || {};
     levelShot = deco.onShot || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;

@@ -6,6 +6,7 @@
 //   street → front shutter → hall (mixing tables, racks)        hall ↔ office ↔ storeroom
 //   street → loading bay → storeroom;  alley → side door → storeroom
 
+import { signFace } from '../livery.js'; // the shop sign follows the van's brand
 const W = 33, H = 22;
 
 export default {
@@ -54,7 +55,7 @@ export default {
   ],
   loot: [],
   text: {
-    area: 'KAASLAND · EDDY & ZN WAREHOUSE',
+    area: 'KAASLAND · THE WAREHOUSE',
     banner: ['SPICE WAR', 'They are coming for the warehouse.'],
     objective: 'Hold the warehouse. Stop every wave before they drag off your Naknikim.',
     objectiveOwned: 'The warehouse is safe. Drive... no, walk home: you are home.',
@@ -62,9 +63,9 @@ export default {
     resultsTitle: 'THE WAREHOUSE HELD', resultsHint: '', ownedBanner: ['HOME', 'The warehouse is yours.'], bossDown: ['', ''],
     tips: ['Three ways in: the front shutter, the loading bay and the side door off the alley.', 'An oil drum by a door goes up when you shoot it.', 'The mixing tables are low: bullets fly over them.'],
   },
-  decorate({ THREE, root, OX, Z0, box, lam, signTex }) {
+  decorate({ THREE, root, OX, Z0, box, lam, signTex, canvasTex, brand }) {
     // the shop front: the old EDDY & ZN sign over the shutter, neighbours on the street
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.1), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'EDDY & ZN · SPECERIJEN', size: 80 }], '#4a0a0a', '#e8a33d', 1024, 120) }));
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.1), new THREE.MeshBasicMaterial({ map: brand === 'eddys' ? signFace(canvasTex, 'eddys', 1024, 124, 'SPICE MASTER · SPECERIJEN') : signTex([{ t: 'EDDY & ZN · SPECERIJEN', size: 80 }], '#4a0a0a', '#e8a33d', 1024, 120) }));
     sign.position.set(OX + 9, 2.9, Z0 + 16.03); root.add(sign);
     for (let i = 0; i < 6; i++) { const c = [0x5a2a22, 0x3a3a44, 0x6a4a30][i % 3]; box(5.2, 6 + (i % 3), 4, lam({ color: c }), OX + 2.6 + i * 5.4, 3, Z0 + 23.5, root); }
     return { tick() {} };

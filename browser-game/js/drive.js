@@ -27,6 +27,7 @@ const LAMPAS_LINES = ['DIT IS ONZE STRAAT!', 'LAMPAS!', 'STOP DAT BUSJE!', 'VERD
 const ROOF_ADS = [['LAMPAS SPICE', '99% ZOUT · 1% SPICE'], ['FRIKANDEL XXL', 'NU MET MEER FRIKANDEL'], ['KAASLAND VERZEKERT', 'OOK UW BUSJE (NIET)'], ['KIPKRUIDENKWARTIER', 'GEKRUID SINDS 1652'], ['KAASDOWS 95', 'NU MET MUIS'], ['GOUDA GAMES', 'WIE KAAS ZEGT...']];
 
 import { makeOofmobiel, makeCar as makeStreetCar, setLivery } from './vehicles.js';
+import { signFace } from './livery.js';
 
 export function initDrive(ctx) {
   const { THREE, renderer, canvasTex, signTex, beep, virt, isPaused } = ctx;
@@ -97,7 +98,7 @@ export function initDrive(ctx) {
   const solids = []; // {x0,x1,z0,z1}
   const solid = (x0, x1, z0, z1) => { const s = { x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1) }; solids.push(s); return s; };
   const blocks = []; // {i, j, x0, x1, z0, z1, kind}
-  let built = false, targetRing, arrow, plazaGlow, parkLabel;
+  let built = false, homeSign = null, targetRing, arrow, plazaGlow, parkLabel;
   const segOpen = (k) => !CLOSED.has(k);
   const BW = SW; // bridge half width: road plus both sidewalks, so you never snag on a railing end
   const isWater = (x, z) => z > CANAL.z0 && z < CANAL.z1 && !OPEN_BRIDGES.some((i) => Math.abs(x - GX[i]) < BW - 0.2);
@@ -163,7 +164,7 @@ export function initDrive(ctx) {
     edgeRow(XMIN - 40, XMIN, ZMIN - 40, ZMAX + 40, 'v'); edgeRow(XMAX, XMAX + 40, ZMIN - 40, ZMAX + 40, 'v');
     edgeRow(XMIN, XMAX, ZMIN - 40, ZMIN, 'h'); edgeRow(XMIN, XMAX, ZMAX, ZMAX + 40, 'h', true);
     // Eddy & Zn on the south edge, where the drive starts
-    label([{ t: 'EDDY & ZN', size: 66 }, { t: 'SPECERIJEN · SINDS 1987', size: 30, color: '#ffffff' }], '#6b1410', '#ffd36b', 16, 4.5, 14, 21, 16);
+    homeSign = label([{ t: 'EDDY & ZN', size: 66 }, { t: 'SPECERIJEN · SINDS 1987', size: 30, color: '#ffffff' }], '#6b1410', '#ffd36b', 16, 4.5, 14, 21, 16);
     // welcome sign on the north quay
     const lampasSign = label([{ t: 'WELKOM IN OUD-VETTENBURG', size: 54 }, { t: 'LAMPAS GEBIED · VERDUNNEN VERPLICHT', size: 28, color: '#1a0a10' }], '#ff7a1a', '#1a0a10', 22, 4, 110, 0.09, CANAL.z0 - 6.2, 0, scene, 1024, 190);
     buildThemes(lampasSign);
@@ -729,7 +730,7 @@ export function initDrive(ctx) {
   function reset() {
     if (!built) build();
     if (!van.g) { van.g = makeVan(); scene.add(van.g); }
-    if (opts && opts.van && opts.van.livery) setLivery(van.g, opts.van.livery, canvasTex); // Eddy & Zn or Eddy's
+    if (opts && opts.van && opts.van.livery) { setLivery(van.g, opts.van.livery, canvasTex); if (homeSign) { homeSign.material.map = signFace(canvasTex, opts.van.livery, 512, 144); homeSign.material.needsUpdate = true; } } // Eddy & Zn or Eddy's, van and home sign
     if (opts && opts.van && opts.van.paint !== undefined) van.g.traverse((c) => { if (c.userData && c.userData.paint) c.userData.paint.color.setHex(opts.van.paint); }); // the van you own (Garage Mo)
     Object.assign(van, { x: START.x, z: START.z, h: START.h, vx: 0, vz: 0, hp: 100, freeze: 1.2, honkT: 0, safeT: 0 });
     van.safe = { x: START.x, z: START.z, h: START.h };

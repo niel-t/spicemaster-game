@@ -142,3 +142,29 @@ function panelEddys(c, w, h) {
   c.font = '700 30px Arial'; c.fillText('www.eddys.kl', w - 40, h - 16);
 }
 export function panelTex(canvasTex, id) { const k = id + ':panel'; return cache[k] || (cache[k] = canvasTex(1024, 384, (c, w, h) => (id === 'eddys' ? panelEddys : panelZn)(c, w, h))); }
+
+// ---- shop signs (the warehouse front, the drive's start, the siege map): same brand as the van
+// signFace(canvasTex, id, w, h, sub) → texture; sub = the small second line (null: the brand's own)
+export function signFace(canvasTex, id, w = 1024, h = 180, sub = null) {
+  const k = `${id}:sign:${w}x${h}:${sub}`; if (cache[k]) return cache[k];
+  const fit = (c, text, font, size, max) => { let s = size; c.font = font.replace('#', s); while (c.measureText(text).width > max && s > 8) { s -= 2; c.font = font.replace('#', s); } };
+  return (cache[k] = canvasTex(w, h, (c) => {
+    if (id === 'eddys') {
+      c.fillStyle = '#1a0e0a'; c.fillRect(0, 0, w, h);
+      c.beginPath(); c.moveTo(w * 0.45, h); c.bezierCurveTo(w * 0.7, h * 0.92, w * 0.85, h * 0.55, w, h * 0.45); c.lineTo(w, h); c.closePath();
+      const gr = c.createLinearGradient(w * 0.45, 0, w, 0); gr.addColorStop(0, '#ffc82e'); gr.addColorStop(0.5, '#ff7a1a'); gr.addColorStop(1, '#c4121a'); c.fillStyle = gr; c.fill();
+      c.strokeStyle = '#ffc82e'; c.lineWidth = Math.max(4, h * 0.03); c.strokeRect(c.lineWidth, c.lineWidth, w - 2 * c.lineWidth, h - 2 * c.lineWidth);
+      c.save(); c.translate(h * 0.58, h * 0.5); chili(c, h * 0.36); c.restore();
+      c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round';
+      fit(c, "EDDY'S", 'italic 900 #px "Arial Black", Arial', Math.round(h * 0.5), w - h * 1.4); c.fillStyle = '#ffffff'; c.fillText("EDDY'S", h * 1.12, h * 0.6);
+      const t = sub || 'SPICE MASTER · SPECERIJEN · KIPKRUIDENKWARTIER'; fit(c, t, '700 #px Arial', Math.round(h * 0.15), w - h * 1.4); c.fillStyle = '#ffd36b'; c.fillText(t, h * 1.15, h * 0.84);
+      return;
+    }
+    c.fillStyle = '#6b1410'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = '#ffd36b'; c.lineWidth = Math.max(4, h * 0.035); c.strokeRect(c.lineWidth, c.lineWidth, w - 2 * c.lineWidth, h - 2 * c.lineWidth);
+    c.save(); c.translate(h * 0.62, h * 0.5); mortar(c, h * 0.3); c.restore();
+    c.textAlign = 'center'; c.textBaseline = 'alphabetic'; const cx = h * 1.1 + (w - h * 1.1) / 2;
+    fit(c, 'EDDY & ZN', '900 #px "Arial Black", Impact, sans-serif', Math.round(h * 0.42), w - h * 1.4); c.fillStyle = '#ffd36b'; c.fillText('EDDY & ZN', cx, h * 0.56);
+    const t = sub || 'SPECERIJEN · SINDS 1987'; fit(c, t, '900 #px "Arial Black", Impact, sans-serif', Math.round(h * 0.17), w - h * 1.4); c.fillStyle = '#ffffff'; c.fillText(t, cx, h * 0.83);
+  }));
+}

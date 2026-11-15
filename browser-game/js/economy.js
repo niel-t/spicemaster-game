@@ -442,7 +442,7 @@ export function createEconomy(deps) {
   function machinesHTML() {
     const e = ensure(); if (!e.offers) rollOffers(rng32(hashStr(`offers#${e.day}`)));
     const cl = activeClients();
-    let h = `<div class="well" style="margin-top:10px"><b>Machinehandel Eddy & Zn</b> · Dad's old trade · Warehouses: <b>${machineCount()} / ${mcap()}${ensure().repairs.length ? ` (+${ensure().repairs.length} at Mo's)` : ''}</b> machines<br><small>Buy grills, ovens and fryers, then sell them to your joints: they pay well, order more spice every day and trust you more. Machine-delivery jobs on the Klusbord pay extra.</small></div>`;
+    let h = `<div class="well" style="margin-top:10px"><b>Machinehandel ${state.district1 ? "Eddy's" : "Eddy & Zn"}</b> · Dad's old trade · Warehouses: <b>${machineCount()} / ${mcap()}${ensure().repairs.length ? ` (+${ensure().repairs.length} at Mo's)` : ''}</b> machines<br><small>Buy grills, ovens and fryers, then sell them to your joints: they pay well, order more spice every day and trust you more. Machine-delivery jobs on the Klusbord pay extra.</small></div>`;
     h += '<table class="list" style="margin-top:6px"><tr><th>Machine</th><th>Used (today)</th><th>New</th><th>Clients pay</th><th>Orders</th><th>In stock</th></tr>';
     for (const m of MACHINES) {
       const offs = (e.offers || []).filter((o) => o.id === m.id && !o.sold);
@@ -618,7 +618,7 @@ export function createEconomy(deps) {
   }
   function propertyHTML() {
     const e = ensure();
-    let h = `<div class="well" style="margin-top:8px"><b>Panden · Eddy & Zn property</b><br>Home warehouse: <b>${STOCK_CAP} kg</b>, ${MACHINE_CAP} machines, ${state.naknik || 0} Naknik(im). Total now: <b>${cap()} kg</b>, ${mcap()} machines, <b>${mixers()}</b> Naknikim mixing (${mixers() * PER_NAKNIK} kg a day).<br><small>Buy a warehouse in a territory you hold for more space, a machine slot and two more Naknikim. A Naknik on guard duty stops mixing but cuts what a Lampas warehouse raid steals from 30% to 10%. If the Lampas retake that territory, its warehouse shuts until you win it back.</small></div>`;
+    let h = `<div class="well" style="margin-top:8px"><b>Panden · ${state.district1 ? "Eddy's" : "Eddy & Zn"} property</b><br>Home warehouse: <b>${STOCK_CAP} kg</b>, ${MACHINE_CAP} machines, ${state.naknik || 0} Naknik(im). Total now: <b>${cap()} kg</b>, ${mcap()} machines, <b>${mixers()}</b> Naknikim mixing (${mixers() * PER_NAKNIK} kg a day).<br><small>Buy a warehouse in a territory you hold for more space, a machine slot and two more Naknikim. A Naknik on guard duty stops mixing but cuts what a Lampas warehouse raid steals from 30% to 10%. If the Lampas retake that territory, its warehouse shuts until you win it back.</small></div>`;
     h += '<table class="list" style="margin-top:6px"><tr><th>Warehouse</th><th>Adds</th><th>Naknikim</th><th></th></tr>';
     for (const w of WAREHOUSES) {
       const own = e.wh[w.id], held = ownedClients().some((c) => c.id === w.id) && !e.retaken[w.id];

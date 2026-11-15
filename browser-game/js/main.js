@@ -8,7 +8,8 @@ import { initMission } from './mission.js';
 import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
 import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning visitors, knacks and outfits (from Neon Vice, in spice colours)
-import { makeOofmobiel, makeCar, KANGOO, setLivery } from './vehicles.js'; // shared van and street cars
+import { makeOofmobiel, makeCar, KANGOO, setLivery } from './vehicles.js';
+import { signFace } from './livery.js'; // the warehouse sign follows the van's brand // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 import { createEconomy, rankOf } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
@@ -464,7 +465,7 @@ const shutterTex = canvasTex(64, 256, (g, w, h) => { for (let y = 0; y < h; y +=
 const shutter = box(WH.doorX1 - WH.doorX0, 3.4, 0.12, lam({ map: shutterTex }), (WH.doorX0 + WH.doorX1) / 2, 1.7, WH.z1 + 0.05, wh);
 const shutterSolid = solid(WH.doorX0, WH.doorX1, WH.z1 - 0.15, WH.z1 + 0.15);
 // sign
-const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.35), lam({ map: signTex([{ t: 'EDDY & ZN', size: 52 }, { t: 'SPECERIJEN · SINDS 1987', size: 26, color: '#ffffff' }], '#6b1410', '#ffd36b', 512, 160) }));
+const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.35), lam({ map: signFace(canvasTex, 'zn', 1024, 182) })); // Eddy & Zn, then Eddy's (updateKangoo)
 sign.position.set((WH.doorX0 + WH.doorX1) / 2, 4.25, WH.z1 + 0.2); frontHigh.add(sign);
 // roof (hidden while inside)
 const roof = new THREE.Group(); wh.add(roof);
@@ -576,7 +577,7 @@ const kangoo = (() => {
   g.userData.solid = solid(7.35, 9.15, -13.8, -9.4); g.userData.solid.off = true;
   return g;
 })();
-function updateKangoo() { const on = !!state.district1; kangoo.visible = on; kangoo.userData.solid.off = !on; setLivery(oof, liveryNow(), canvasTex); }
+function updateKangoo() { const on = !!state.district1; kangoo.visible = on; kangoo.userData.solid.off = !on; setLivery(oof, liveryNow(), canvasTex); const sm = signFace(canvasTex, liveryNow(), 1024, 182); if (sign.material.map !== sm) { sign.material.map = sm; sign.material.needsUpdate = true; } }
 // the Oofmobiel's lettering: Dad's Eddy & Zn until Kipkruidenkwartier is Eddy's, then his own brand, Eddy's
 const liveryNow = () => (state.district1 ? 'eddys' : 'zn');
 
@@ -2667,7 +2668,7 @@ camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(pl
 updateObjective();
 mission = initMission({ perk: (k) => (woning ? woning.perk(k) : 0), THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
-  makeVan: () => oof.clone(true), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
+  makeVan: () => oof.clone(true), brand: () => liveryNow(), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
 // top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
 const oofDrive = initDrive({ THREE, renderer, canvasTex, signTex, beep, virt, isPaused });
