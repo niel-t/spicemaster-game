@@ -11,6 +11,7 @@ const ACTS = [
   { r: 'lampas', name: 'Oud-Vettenburg', tag: 'Act 1', faction: 'Lampas', heat: 'lampas', open: (d) => d.district1, need: 'Take all of Kipkruidenkwartier first' },
   { r: 'nosh', name: 'Hipsterheuvel', tag: 'Act 2', faction: 'Noshgey Kariot', heat: 'noshgey', open: (d) => d.act1, need: 'Beat the Lampas in Oud-Vettenburg first' },
   { r: 'abd', name: 'De Duistere Dokken', tag: 'Act 3', faction: 'Abdavissies', heat: 'abdavissies', open: (d) => d.act2, need: 'Beat the Noshgey Kariot first' },
+  { r: 'para', name: 'De Zandwijk', tag: 'Paravim', faction: 'Paravim', heat: null, open: () => false, need: 'Missions coming in a later build' },
   { r: 'fin', name: 'De Gouden Molen', tag: 'Finale', faction: 'everyone', heat: null, open: (d) => d.act3, need: 'Beat the Abdavissies first' },
 ];
 const ACT = Object.fromEntries(ACTS.map((a) => [a.r, a]));
@@ -20,16 +21,25 @@ const PARENT = { // shown on the place card: "opens after ..."
   Joppiehaven: 'the end of Act 1', Frikandelhaven: 'Joppiehaven', Havermelkhaven: 'Joppiehaven', 'Kombucha-kwartier': 'Joppiehaven', Gembergracht: 'two harbour joints', 'Avocado-akkers': 'two harbour joints', 'Glutenvrije Gaarde': 'two harbour joints', Quinoaplantage: 'two of Gembergracht, Avocado-akkers, Glutenvrije Gaarde', 'Oat-oase': 'two of Gembergracht, Avocado-akkers, Glutenvrije Gaarde', Speltpolder: 'the other nine Noshgey joints',
   Komijnkade: 'the end of Act 2', "Kaneelsilo's": 'Komijnkade', Paprikapakhuis: 'Komijnkade', Kruidnagelkade: 'Komijnkade', Peperhaven: "two of Kaneelsilo's, Paprikapakhuis, Kruidnagelkade", Kurkumaloods: "two of Kaneelsilo's, Paprikapakhuis, Kruidnagelkade", Saffraanpier: 'Peperhaven or Kurkumaloods', Nootmuskade: 'Peperhaven or Kurkumaloods', Smokkelsloot: 'Peperhaven or Kurkumaloods', Containerchaos: 'two of Saffraanpier, Nootmuskade, Smokkelsloot', Kardemomdok: 'the other ten dock joints', 'De Gouden Molen': 'the end of Act 3',
 };
-const BOSS = ['Pindasausplein', 'Speltpolder', 'Kardemomdok', 'De Gouden Molen'];
+// De Zandwijk is on the map before its missions exist: these cards stand in for the mission briefings
+const PARA_TEXT = {
+  'Kasbah al Gara': "<b>Kasbah al Gara</b>: Sharma al Gara's fortress on the west quay. The Paravim came out of the desert with nothing but a grudge, and they still have the grudge. Nobody has walked out of here smiling.",
+  Couscouskade: "<b>Couscouskade</b>: the Paravim quay. Boats come in from the south at night and nobody asks what is under the couscous.",
+  "Za'atarmarkt": "<b>Za'atarmarkt</b>: the Paravim souk. Za'atar, sumak, ras el hanout, and a lot of shouting. Every stall keeper is already angry with you.",
+  Harissahof: "<b>Harissahof</b>: a courtyard of harissa pots, red and hot, with guards to match. Two of them are always arguing.",
+  Sumaksteeg: "<b>Sumaksteeg</b>: an alley so narrow the Paravim can glare at you from both sides at once.",
+  Dadelplein: "<b>Dadelplein</b>: a square of date palms around the oasis, where the Paravim count their Wilders. Loudly.",
+};
+const BOSS = ['Kasbah al Gara', 'Pindasausplein', 'Speltpolder', 'Kardemomdok', 'De Gouden Molen'];
 const C = {
   water: '#a9d3e8', land: '#f3f0ea', street: '#ffffff', park: '#cde8c4', parkInk: '#3b7a3b',
   tint: { start: '#f3f0ea', lampas: '#f6eee8', nosh: '#eef3e6', abd: '#ebf0f3', fin: '#f6efd6' },
   edge: '#b9b2a6', road: '#fde9a4', roadCase: '#e5c46a', ink: '#3c4043', sub: '#70757a', blue: '#1a73e8',
-  st: { open: '#e8710a', own: '#188038', lost: '#d93025', locked: '#80868b' },
+  st: { open: '#e8710a', own: '#188038', lost: '#d93025', locked: '#80868b', para: '#b4542c' },
 };
 const STATUS = { own: 'own', lost: 'lost', m1: 'open', m2: 'open', m3: 'open' };
 const statusOf = (k) => STATUS[k] || 'locked';
-const STLABEL = { open: 'Mission open', own: 'Yours', lost: 'Retaken', locked: 'Locked' };
+const STLABEL = { open: 'Mission open', own: 'Yours', lost: 'Retaken', locked: 'Locked', para: 'Paravim turf' };
 const path = (poly) => 'M' + poly.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L') + 'Z';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 // place icons (screen px around 0,0)
@@ -40,14 +50,14 @@ function icon(kind, st) {
     : kind === 'person' ? '<circle cy="-2" r="2.2" fill="#fff"/><path d="M-3.8,4 a3.8,3.4 0 0 1 7.6,0Z" fill="#fff"/>'
     : kind === 'boss' ? '<path d="M-5,3 L-5,-2.5 L-2.5,0 L0,-4.5 L2.5,0 L5,-2.5 L5,3Z" fill="#fff"/>'
     : st === 'own' ? '<path d="M-3,0 L-0.8,2.4 L3.2,-2.4" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
-    : st === 'locked' ? '<path d="M-2.2,-0.4 V-1.8 a2.2,2.2 0 0 1 4.4,0 V-0.4 M-3,-0.4 H3 V3.2 H-3Z" fill="#fff" stroke="#fff" stroke-width=".7"/>'
+    : (st === 'locked' || st === 'para') ? '<path d="M-2.2,-0.4 V-1.8 a2.2,2.2 0 0 1 4.4,0 V-0.4 M-3,-0.4 H3 V3.2 H-3Z" fill="#fff" stroke="#fff" stroke-width=".7"/>'
     : '<text y="4" text-anchor="middle" font-size="11" font-weight="900" font-family="Arial Black, Arial" fill="#fff">!</text>';
   return `<circle r="${r + 1.5}" fill="#fff"/><circle r="${r}" fill="${c}"/>${g}`;
 }
 const ICON_DOT = `<circle class="km-halo" r="16" fill="rgba(26,115,232,.18)"/><circle r="7.5" fill="#fff"/><circle r="5.5" fill="${C.blue}"/>`;
 const ICON_SEL = '<path d="M0,0 C-3,-8 -11,-13 -11,-22 A11,11 0 0 1 11,-22 C11,-13 3,-8 0,0Z" fill="#ea4335" stroke="#a52714" stroke-width="1"/><circle cy="-22" r="4" fill="#7a1a0e"/>';
 
-const { W, H, PLACES, HOME, REGIONS, ISLAND, ROADS, CANALS, CANAL_NAMES, ACT_AT, M_PER_UNIT, route, bboxOf, arc } = G;
+const { W, H, PLACES, PARA_PLACES, HOME, REGIONS, ISLAND, ROADS, CANALS, CANAL_NAMES, ACT_AT, M_PER_UNIT, route, bboxOf, arc } = G;
 
 // the city picture is painted once per session, then reused (a blob URL for an SVG <image>)
 let aerialURL = null, aerialBusy = null;
@@ -77,6 +87,7 @@ export function createKaasMap() {
     const d = o.done || {};
     const openAct = (r) => !!ACT[r].open(d);
     const terr = o.terr.filter((t) => t.n !== 'Kipkruidenkwartier' && PLACES[t.n]).map((t) => ({ ...t, st: statusOf(t.k), boss: BOSS.includes(t.n), x: PLACES[t.n][0], y: PLACES[t.n][1] }));
+    for (const [n, [x, y]] of Object.entries(PARA_PLACES)) terr.push({ n, k: 'para', st: 'para', region: 'para', boss: BOSS.includes(n), x, y, para: true });
     cur = { ...o, terr, openAct };
     let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
 <defs>${ROAD_LABELS.map(([, p], i) => `<path id="kmRd${i}" d="${path(p).slice(0, -1)}"/>`).join('')}${CANALS.map((r, i) => `<path id="kmCn${i}" d="${path(arc(150, 30, r, 3)).slice(0, -1)}"/>`).join('')}<path id="kmRiver" d="M80,268 C300,262 500,286 760,276"/></defs>
@@ -87,21 +98,22 @@ export function createKaasMap() {
 <g class="km-canalnames">${CANAL_NAMES.map((n, i) => `<text dy="3.4"><textPath href="#kmCn${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
 <text class="km-water"><textPath href="#kmRiver" startOffset="50%" text-anchor="middle">D e   K a a s</textPath></text>
 <path class="km-route-case" d="" fill="none"/><path class="km-route" d="" fill="none"/>
-<g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district km-d-${a.r}" data-x="${ACT_AT[a.r][0]}" data-y="${ACT_AT[a.r][1]}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="14" class="km-dsub">LOCKED · ${a.tag.toUpperCase()}</text>`}</g>`).join('')}<g class="km-t km-district km-d-bay" data-x="1120" data-y="232"><text text-anchor="middle" class="km-bay">Kaasbaai</text></g></g>
+<g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district km-d-${a.r}" data-x="${ACT_AT[a.r][0]}" data-y="${ACT_AT[a.r][1]}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="14" class="km-dsub">${a.r === 'para' ? 'PARAVIM · SHARMA AL GARA' : `LOCKED · ${a.tag.toUpperCase()}`}</text>`}</g>`).join('')}<g class="km-t km-district km-d-bay" data-x="1120" data-y="232"><text text-anchor="middle" class="km-bay">Kaasbaai</text></g></g>
 <g class="km-places">`;
-    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" data-pin="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
+    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" ${t.para ? 'data-para' : 'data-pin'}="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
     for (const w of o.warehouses || []) { const t = terr.find((x) => x.n === w.n); if (t) s += `<g class="km-pl km-wh" data-x="${t.x + 12}" data-y="${t.y - 12}" data-pri="-1"><title>${esc(w.name)}</title>${icon('wh')}</g>`; }
     s += `<g class="km-pl km-home" data-pin="Kipkruidenkwartier" data-k="own" data-x="${HOME[0]}" data-y="${HOME[1]}" data-pri="4"><circle r="14" fill="transparent"/>${ICON_DOT}<g class="km-lab"><rect x="11" y="-8" height="16" rx="8"/><text x="17" y="4">You are here</text></g></g>`;
     s += `<g class="km-selpin" style="display:none">${ICON_SEL}</g></g></svg>`;
 
     const row = (t) => `<button class="km-item km-i-${t.st}${sel === t.n ? ' on' : ''}" data-go="${esc(t.n)}"><svg width="20" height="20" viewBox="-10 -10 20 20">${icon(t.boss ? 'boss' : 'joint', t.st)}</svg><span>${esc(t.n)}</span><em>${STLABEL[t.st]}</em></button>`;
-    const ord = { open: 0, lost: 0, own: 1, locked: 2 };
+    const ord = { open: 0, lost: 0, own: 1, locked: 2, para: 2 };
     const groups = ACTS.map((a) => {
       const ts = terr.filter((t) => t.region === a.r).sort((x, y) => ord[x.st] - ord[y.st]), mine = ts.filter((t) => t.st === 'own').length + (a.r === 'start' ? 1 : 0), all = ts.length + (a.r === 'start' ? 1 : 0);
+      if (a.r === 'para') return `<div class="km-grp"><button class="km-gh km-gh-para" data-frame="para" title="Show on the map"><b>Paravim · De Zandwijk</b><small>new</small></button><div class="km-pnote">Sharma al Gara's desert clan. Always angry, the toughest crew in Kaasland. Missions come in a later build.</div>${ts.map(row).join('')}</div>`;
       if (!openAct(a.r)) return `<div class="km-grp km-shut" data-frame="${a.r}"><b>${a.tag} · ${esc(a.name)}</b><small>Locked: ${esc(a.need)}</small></div>`;
       return `<div class="km-grp"><button class="km-gh" data-frame="${a.r}" title="Show on the map"><b>${a.tag} · ${esc(a.name)}</b><small>${mine}/${all}</small></button>${ts.map(row).join('')}</div>`;
     }).join('');
-    const own = terr.filter((t) => t.st === 'own').length + 1;
+    const own = terr.filter((t) => t.st === 'own').length + 1, nTerr = terr.filter((t) => !t.para).length;
     return `<div class="kmap">
   <div class="km-side">
     <div class="well km-info"><div class="km-ihead"></div><div id="pininfo">${o.van ? 'Where to? Pick a place on the map or in the list.' : 'Click a place on the map or in the list.'}</div></div>
@@ -110,7 +122,7 @@ export function createKaasMap() {
   <div class="km-main">
     <div class="km-tools"><button class="b95 km-b" data-z="in" title="Zoom in">+</button><button class="b95 km-b" data-z="out" title="Zoom out">−</button><button class="b95" data-z="fit">Whole city</button><button class="b95" data-z="home">You are here</button><span class="km-tip">Drag to move · scroll to zoom</span></div>
     <div class="km-view" tabindex="0">${s}<div class="km-loading">Drawing Kaasland…</div></div>
-    <div class="km-status"><span class="km-st km-hover">${own}/${terr.length + 1} territories yours</span><span class="km-st km-scale"><i></i><span></span></span></div>
+    <div class="km-status"><span class="km-st km-hover">${own}/${nTerr + 1} territories yours</span><span class="km-st km-scale"><i></i><span></span></span></div>
   </div>
 </div>`;
   }
@@ -149,7 +161,7 @@ export function createKaasMap() {
         l.style.display = side ? '' : 'none'; if (!side) continue; placed.push(b);
         if (l.dataset.side !== side) { const rc = l.querySelector('rect'), tx = l.querySelector('text'); l.dataset.side = side; rc.setAttribute('x', side === 'l' ? -(w + 22) : 10); tx.setAttribute('x', side === 'l' ? -16 : 16); tx.setAttribute('text-anchor', side === 'l' ? 'end' : 'start'); }
       }
-      if (sel) { const g = pls.find((x) => x.dataset.pin === sel); selpin.style.display = ''; selpin.setAttribute('transform', `translate(${g.dataset.x},${g.dataset.y}) scale(${k})`); } else selpin.style.display = 'none';
+      if (sel) { const g = pls.find((x) => (x.dataset.pin || x.dataset.para) === sel); selpin.style.display = ''; selpin.setAttribute('transform', `translate(${g.dataset.x},${g.dataset.y}) scale(${k})`); } else selpin.style.display = 'none';
       rt.setAttribute('stroke-width', 4.5 * k); rtc.setAttribute('stroke-width', 7.5 * k);
       { const mpp = M_PER_UNIT / sc, nice = [25, 50, 100, 200, 250, 500, 1000, 2000].find((m) => m / mpp >= 50) || 2000; sbar.style.width = (nice / mpp) + 'px'; stxt.textContent = nice >= 1000 ? String(nice / 1000).replace('.', ',') + ' km' : nice + ' m'; }
     }
@@ -171,18 +183,19 @@ export function createKaasMap() {
     }
     function select(n) {
       sel = n === 'Kipkruidenkwartier' ? null : n;
-      for (const g of pls) g.classList.toggle('km-sel', !!sel && g.dataset.pin === sel);
+      for (const g of pls) g.classList.toggle('km-sel', !!sel && (g.dataset.pin || g.dataset.para) === sel);
       root.querySelectorAll('.km-item').forEach((b) => b.classList.toggle('on', b.dataset.go === n));
       const t = sel && cur.terr.find((x) => x.n === sel);
       if (t) {
         const r = route([t.x, t.y], t.region);
         ihead.innerHTML = `<b>${esc(t.n)}</b><span class="km-tag km-tag-${t.st}">${STLABEL[t.st]}</span><small>${ACT[t.region].tag} · ${esc(ACT[t.region].name)} · ${Math.max(1, Math.round(r.km * 2.2))} min drive (${r.km.toFixed(1).replace('.', ',')} km${r.via ? ` via ${esc(r.via)}` : ''})${t.st === 'locked' ? `<br>Opens after ${esc(PARENT[t.n] || 'the one before it')}.` : ''}</small>`;
         drawRoute(cur.van ? t : null);
+        if (t.para) { const pi = root.querySelector('#pininfo'); if (pi) pi.innerHTML = `${PARA_TEXT[t.n] || ''}<br><i>Paravim turf. Missions come in a later build.</i>`; }
       } else { ihead.innerHTML = '<b>Eddy &amp; Zn warehouse</b><span class="km-tag km-tag-home">You are here</span>'; drawRoute(null); }
       const it = root.querySelector('.km-item.on'); if (it) it.scrollIntoView({ block: 'nearest' });
       apply();
     }
-    const clickPin = (n) => { const el = svg.querySelector(`.km-pl[data-pin="${CSS.escape(n)}"]`); if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true })); };
+    const clickPin = (n) => { const el = svg.querySelector(`.km-pl[data-pin="${CSS.escape(n)}"], .km-pl[data-para="${CSS.escape(n)}"]`); if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true })); };
 
     const pts = new Map(); let dragged = false, start = null, pinch = null;
     vp.addEventListener('pointerdown', (e) => {
@@ -191,7 +204,7 @@ export function createKaasMap() {
       if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: view.z }; }
     });
     vp.addEventListener('pointermove', (e) => {
-      if (!pts.has(e.pointerId)) { const tg = e.target.closest && e.target.closest('[data-pin]'); hov.textContent = tg ? (tg.dataset.pin === 'Kipkruidenkwartier' ? 'Eddy & Zn warehouse · you are here' : tg.dataset.pin) : hovIdle; return; }
+      if (!pts.has(e.pointerId)) { const tg = e.target.closest && e.target.closest('[data-pin],[data-para]'); hov.textContent = tg ? (tg.dataset.pin === 'Kipkruidenkwartier' ? 'Eddy & Zn warehouse · you are here' : tg.dataset.para ? `${tg.dataset.para} · Paravim turf` : tg.dataset.pin) : hovIdle; return; }
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()]; zoomAt((pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d) / view.z, (a.x + b.x) / 2, (a.y + b.y) / 2); dragged = true; return; }
       if (!start) return;
@@ -203,7 +216,7 @@ export function createKaasMap() {
     vp.addEventListener('pointerup', up); vp.addEventListener('pointercancel', up);
     vp.addEventListener('click', (e) => {
       if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; return; }
-      const pl = e.target.closest('[data-pin]'); if (pl) select(pl.dataset.pin);
+      const pl = e.target.closest('[data-pin],[data-para]'); if (pl) select(pl.dataset.pin || pl.dataset.para);
     }, true);
     vp.addEventListener('dblclick', (e) => { e.preventDefault(); zoomAt(2, e.clientX, e.clientY); });
     vp.addEventListener('wheel', (e) => { e.preventDefault(); anim++; zoomAt(Math.exp(-Math.max(-120, Math.min(120, e.deltaY)) * 0.0022), e.clientX, e.clientY); }, { passive: false });
@@ -225,7 +238,7 @@ export function createKaasMap() {
     else aerial().then((u) => { if (!u || !img.isConnected) return; img.setAttribute('href', u); img.style.transition = 'opacity .35s'; img.style.opacity = 1; loading.remove(); });
     if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(() => { if (!vp.isConnected) { ro.disconnect(); return; } apply(); }); ro.observe(vp); }
     measure(); apply();
-    if (sel && svg.querySelector(`.km-pl[data-pin="${CSS.escape(sel)}"]`)) setTimeout(() => clickPin(sel), 0); else sel = null;
+    if (sel && svg.querySelector(`.km-pl[data-pin="${CSS.escape(sel)}"], .km-pl[data-para="${CSS.escape(sel)}"]`)) setTimeout(() => clickPin(sel), 0); else sel = null;
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (vp.isConnected) { measure(); apply(); } });
   }
 

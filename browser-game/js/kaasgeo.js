@@ -5,6 +5,7 @@
 //   - Kipkruidenkwartier (home): the 19th-century grid south-west of the canal ring
 //   - Hipsterheuvel (Act 2, Noshgey Kariot): villas and gardens on the north bank, farmland further east
 //   - De Duistere Dokken (Act 3, Abdavissies): harbour basins, sheds and container yards in the south-east
+//   - De Zandwijk (Paravim): a walled desert quarter west of the old centre, Sharma al Gara's turf
 // One map unit is about 5 m.
 
 export const W = 1200, H = 800, M_PER_UNIT = 5;
@@ -28,7 +29,7 @@ export const RING_R = 274; // the Ringweg around the canal ring
 
 const blob = (cx, cy, rx, ry, seed) => Array.from({ length: 28 }, (_, i) => { const a = i / 28 * Math.PI * 2, k = 1 + 0.1 * Math.sin(3 * a + seed) + 0.06 * Math.sin(7 * a + seed * 2); return [cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]; });
 export const PARKS = [
-  ['Granolabos', blob(300, 95, 95, 48, 1), true], ['Kaaspark', blob(530, 705, 46, 28, 2), true], ['Kipkruidenpark', blob(150, 475, 40, 30, 3), true],
+  ['Granolabos', blob(300, 95, 95, 48, 1), true], ['Kaaspark', blob(530, 705, 46, 28, 2), true], ['Kipkruidenpark', blob(150, 762, 42, 24, 3), true], ['Dadeloase', blob(185, 455, 24, 16, 6), true],
   ['Hofje van Eddy Sr.', blob(372, 652, 15, 10, 4), false], ['Oosterpark', blob(760, 105, 40, 26, 5), true],
 ];
 export const FIELDS = [[890, -10], [1220, -10], [1220, 150], [1100, 158], [1000, 166], [920, 186], [890, 190]]; // Speltpolder farmland
@@ -37,24 +38,31 @@ const ring = (a) => polar(a, RING_R);
 export const REGIONS = {
   nosh: [[-20, -20], [1220, -20], ...NORTH_BANK.slice().reverse()],
   lampas: arc(0, 180, 262, 6),
-  start: [[-20, 300], ...SOUTH_BANK.filter(([x]) => x > 0 && x < 338), [338, 305], ...arc(180, 80, 262, 6), [700, 610], [700, 820], [-20, 820]],
+  para: [[-20, 300], ...SOUTH_BANK.filter(([x]) => x > 0 && x < 338), [338, 305], [332, 420], [305, 535], [-20, 550]],
+  start: [[-20, 550], [305, 535], [332, 420], [338, 305], ...arc(180, 80, 262, 6), [700, 610], [700, 820], [-20, 820]],
   abd: [[862, 318], ...SOUTH_BANK.filter(([x]) => x > 862), [1220, 820], [700, 820], [700, 610], ...arc(80, 0, 262, 6)],
 };
 
 // where each territory sits
 export const PLACES = {
-  Spekbuurt: [440, 700], Kroketkade: [120, 380], Uitjesbuurt: [200, 712],
+  Spekbuurt: [440, 700], Kroketkade: [90, 640], Uitjesbuurt: [200, 712],
   Mayonaisemarkt: [600, 352], Knoflooksteeg: [656, 398], Frietwijk: [520, 432], Sauzenbuurt: [420, 420], 'Halve Kip Plein': [690, 505], Bitterbalbuurt: [790, 402], Pindasausplein: [360, 330],
   Joppiehaven: [118, 206], Frikandelhaven: [232, 214], Havermelkhaven: [360, 192], 'Kombucha-kwartier': [500, 176], Gembergracht: [640, 206], 'Avocado-akkers': [560, 78], 'Glutenvrije Gaarde': [760, 165], Quinoaplantage: [945, 95], 'Oat-oase': [1060, 120], Speltpolder: [1145, 48],
   Komijnkade: [892, 345], "Kaneelsilo's": [1160, 365], Paprikapakhuis: [965, 420], Kruidnagelkade: [1058, 380], Peperhaven: [1100, 462], Kurkumaloods: [880, 485], Saffraanpier: [1160, 600], Nootmuskade: [1000, 600], Smokkelsloot: [830, 636], Containerchaos: [935, 705], Kardemomdok: [1110, 720],
   'De Gouden Molen': [ISLAND.cx, ISLAND.cy],
 };
 export const HOME = [300, 600]; // the Eddy & Zn warehouse
-export const ACT_AT = { start: [250, 770], lampas: [600, 560], nosh: [690, 112], abd: [980, 785] };
+export const ACT_AT = { start: [250, 770], lampas: [600, 560], nosh: [690, 112], abd: [980, 785], para: [150, 528] };
+// De Zandwijk: the Paravim came from the desert and took the west quay. Map-only for now (no missions yet).
+export const KASBAH = { cx: 72, cy: 340, s: 34 }; // Sharma al Gara's fortress
+export const SOUK = [[150, 380], [178, 392], [205, 402], [232, 410], [262, 414]];
+export const PARA_PLACES = {
+  'Kasbah al Gara': [KASBAH.cx, KASBAH.cy], Couscouskade: [235, 322], "Za'atarmarkt": [180, 396], Harissahof: [96, 452], Sumaksteeg: [278, 432], Dadelplein: [244, 482],
+};
 
 // main roads: nodes and named edges (with their polyline). Routes run over these, and the painter draws them.
 export const NODES = {
-  home: [...HOME, 'start'], s1: [440, 660, 'start'], s2: [140, 600, 'start'], s3: [140, 352, 'start'],
+  home: [...HOME, 'start'], s1: [440, 660, 'start'], s2: [140, 600, 'start'], s3: [140, 360, 'para'], p1: [150, 478, 'para'],
   rw: [...ring(178), 'start'], rsw: [...ring(150), 'start'], rs: [...ring(90), 'start'], rse: [...ring(30), 'abd'], re: [...ring(2), 'abd'],
   wbs: [400, 318, 'lampas'], c: [600, 352, 'lampas'], ow: [...polar(150, 170), 'lampas'], os: [...polar(90, 150), 'lampas'], oe: [...polar(30, 170), 'lampas'],
   nwb: [400, 218, 'nosh'], nc: [600, 232, 'nosh'], neb: [878, 196, 'nosh'],
@@ -64,7 +72,7 @@ export const NODES = {
 const R = (a, b, name, o = {}) => ({ a, b, name, ...o });
 export const ROADS = [
   R('rw', 'rsw', 'Ringweg', { ring: [178, 150] }), R('rsw', 'rs', 'Ringweg', { ring: [150, 90] }), R('rs', 'rse', 'Ringweg', { ring: [90, 30] }), R('rse', 're', 'Ringweg', { ring: [30, 2] }),
-  R('home', 'rsw', 'Vettenburgerweg'), R('home', 's1', 'Kipkruidenlaan'), R('s1', 'rs', 'Kipkruidenlaan'), R('home', 's2', 'Eddystraat'), R('s2', 's3', 'Duinweg'), R('s3', 'rw', 'Kroketkade'),
+  R('home', 'rsw', 'Vettenburgerweg'), R('home', 's1', 'Kipkruidenlaan'), R('s1', 'rs', 'Kipkruidenlaan'), R('home', 's2', 'Eddystraat'), R('s2', 'p1', 'Duinweg'), R('p1', 's3', 'Duinweg'), R('s3', 'rw', 'Kasbahkade'),
   R('rw', 'wbs', 'Frietkade'), R('wbs', 'ow', 'Sauslaan'), R('rsw', 'ow', 'Frietstraat'), R('ow', 'c', 'Frietstraat'), R('rs', 'os', 'Mayolaan'), R('os', 'c', 'Mayolaan'), R('rse', 'oe', 'Bitterbalstraat'), R('oe', 'c', 'Bitterbalstraat'),
   R('wbs', 'nwb', 'Westerbrug', { bridge: 1 }), R('c', 'nc', 'Kaasbrug', { bridge: 1 }), R('re', 'neb', 'Oosterbrug', { bridge: 1 }),
   R('n1', 'n2', 'Hipsterlaan'), R('n2', 'n3', 'Hipsterlaan'), R('n3', 'n4', 'Avocadoweg'), R('n4', 'n5', 'Oatlaan'), R('n5', 'n6', 'Speltdijk'), R('n3', 'n7', 'Akkerweg'),
