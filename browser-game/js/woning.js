@@ -30,7 +30,7 @@ export const FURN = [
   // Eddy's own things: Dad's trade, the spice, Kaasland. use: what pressing E next to it does (once per market day where it says so)
   { k: 'doner', comfort: 1, use: 'eat', t: [["Dad's old döner spit", 450, 'Rusty, on a crate, still turns. Eat a shoarma once a day: +1 hit on your next raid.'], ['Countertop döner grill', 2200, 'Stainless steel, two burners. Eat a shoarma once a day: +1 hit on your next raid.'], ['Golden döner tower', 9000, 'Gold-plated, a spit as tall as Eddy. Eat a shoarma once a day: +1 hit on your next raid.']] },
   { k: 'vijzel', comfort: 1, use: 'grind', t: [['Stone vijzel', 350, 'Mortar and pestle. Grind a jar once a day and the street smells it: +25 rep.'], ['Brass vijzel', 1600, 'Heavy, shiny, from the Kaasplaats. Grind once a day: +50 rep.'], ["Dad's grinder, restored", 7000, 'The big cast-iron one from 1987, red and brass. Grind once a day: +75 rep.']] },
-  { k: 'kaasdows', comfort: 1, use: 'pc', t: [null, ['Kaasdows 95 desk', 2500, 'A beige PC at home: the whole Kaasdows without walking to the warehouse.'], ['Kaasdows 98 corner office', 6000, 'Tower, CD-ROM, leather chair. The whole Kaasdows from home.']] },
+  { k: 'kaasdows', comfort: 1, use: 'pc', t: [null, ['Kaasdows XL desk', 2500, 'A beige PC at home: the whole Kaasdows without walking to the warehouse.'], ['Kaasdows XL Pro corner office', 6000, 'Tower, DVD burner, leather chair. The whole Kaasdows from home.']] },
   { k: 'tv', comfort: 1, use: 'tv', t: [['Portable TV', 300, 'Black and white, on a milk crate. Kaasland TV, mostly snow.'], ['Wood-veneer TV', 1500, 'Colour! Kaasland TV and the cooking channel.', 2], ['Big-screen TV & VCR', 5000, 'A screen the size of a door.', 3]] },
   { k: 'plants', comfort: 1, use: 'water', t: [['Chillies on the windowsill', 120, 'Three pots of rawit. They like the warehouse heat.'], ['Cardamom plants', 900, 'In terracotta pots. The room smells like Speciaal.', 2], ['Saffron crocus bed', 4000, 'Purple flowers, red threads. A fortune in a planter box.', 3]] },
   { k: 'trophies', comfort: 1, t: [['Trophy plank', 300, 'One thing taken from every gang boss you beat.'], ['Trophy shelf', 1200, 'One thing taken from every gang boss you beat.'], ['Trophy cabinet', 4000, 'Glass and brass, one thing from every gang boss you beat.']] },
@@ -331,7 +331,7 @@ export function createWoning(deps) {
     },
     kaasdows(g, t) {
       const w = t === 1 ? 1.2 : 1.5, wc = t === 1 ? P.wood : P.dark; B(g, w, 0.06, 0.65, wc, 0, 0.74, 0); for (const sx of [-w / 2 + 0.05, w / 2 - 0.05]) B(g, 0.05, 0.74, 0.6, wc, sx, 0.37, 0);
-      B(g, 0.42, 0.36, 0.38, 0xd8d0b8, -0.1, 0.97, -0.08); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.25), glow(screenTex(['KAASDOWS', t === 1 ? '95' : '98'], '#0b7b7b', '#ffffff'))); sc.position.set(-0.1, 0.99, 0.115); g.add(sc);
+      B(g, 0.42, 0.36, 0.38, 0xd8d0b8, -0.1, 0.97, -0.08); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.25), glow(screenTex(['KAASDOWS', t === 1 ? 'XL' : 'XL PRO'], '#2a6ad8', '#ffffff'))); sc.position.set(-0.1, 0.99, 0.115); g.add(sc);
       B(g, 0.42, 0.03, 0.15, 0xd8d0b8, -0.1, 0.785, 0.2); B(g, 0.07, 0.02, 0.1, 0xd8d0b8, 0.22, 0.785, 0.2);
       if (t === 2) { B(g, 0.2, 0.45, 0.45, 0xd8d0b8, 0.55, 0.995, -0.05); B(g, 0.55, 0.1, 0.55, P.cumin, 0, 0.5, 0.7); B(g, 0.55, 0.6, 0.1, P.cumin, 0, 0.85, 0.95); C(g, 0.03, 0.03, 0.45, 0x2a2a2a, 0, 0.23, 0.7, 6); }
       return [w, t === 2 ? 1.1 : 0.65];

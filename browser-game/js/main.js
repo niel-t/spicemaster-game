@@ -24,6 +24,7 @@ import { createTips } from './tips.js'; // Shooki texts a tip the first time eac
 import { createTutorial } from './tutorial.js'; // the first fifteen minutes: Shooki's tour of the spice trade
 import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades, racking, the heftruck, the hall and the tent
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
+import { createKaasdows } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
@@ -300,7 +301,7 @@ function bladeSign(g, x, y, z, word, c) {
 // posters and graffiti (generated once, reused)
 const POSTERS = [
   ['DISCO', 'KAASBAL', '12 MAART · 21:00', '#e8a33d', '#1e120a'], ['HOLLANDSE', 'HITS 86', 'MET DE ZINGENDE KAASBOER', '#ffd23a', '#2a1a5a'],
-  ['GEZOCHT', 'JAN v. KAAS', 'BELONING: 500 WILDERS', '#1a1a1a', '#f2e6c8'], ['KOOP NU', 'KAASDOWS 95', 'DE TOEKOMST IS NU', '#a9c46a', '#0a1a3a'],
+  ['GEZOCHT', 'JAN v. KAAS', 'BELONING: 500 WILDERS', '#1a1a1a', '#f2e6c8'], ['KOOP NU', 'KAASDOWS XL', 'DE TOEKOMST IS NU', '#a9c46a', '#0a1a3a'],
   ['CIRCUS', 'FRIKANDEL', 'KINDEREN HALF GELD', '#ff7a1a', '#fff2d8'], ['SPECERIJEN', 'EDDY & ZN', 'SINDS 1987', '#ffd36b', '#6b1410'],
 ].map(([a, b, c, fg, bg]) => canvasTex(128, 180, (g, w, h) => {
   g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; g.fillRect(6, 6, w - 12, 6); g.fillRect(6, h - 12, w - 12, 6);
@@ -1034,13 +1035,15 @@ function buildJunk(d) {
   return g;
 }
 junkDefs.forEach(buildJunk);
-// desk with the Kaasdows 95 PC
+// desk with the Kaasdows XL PC
 const desk = new THREE.Group(); desk.position.set(-8.8, 0, -17.6); scene.add(desk);
 box(2.4, 0.08, 1.0, mat.wood, 0, 0.78, 0, desk); for (const [x, z] of [[-1.1, -0.42], [1.1, -0.42], [-1.1, 0.42], [1.1, 0.42]]) box(0.07, 0.78, 0.07, mat.wood, x, 0.39, z, desk);
 const beige = lam({ color: 0xd8d0b8 });
 box(0.62, 0.52, 0.55, beige, 0, 1.12, -0.12, desk); box(0.45, 0.12, 0.3, beige, 0, 0.86, -0.12, desk);
-const screenTex = canvasTex(128, 96, (g) => { g.fillStyle = '#0b7b7b'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#c0c0c0'; g.fillRect(0, 84, 128, 12); g.fillStyle = '#fff'; g.font = 'bold 12px Arial'; g.fillText('Kaasdows 95', 22, 46); for (let i = 0; i < 3; i++) { g.fillStyle = '#c0c0c0'; g.fillRect(8, 8 + i * 22, 14, 12); } });
-const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.38), lam({ map: screenTex, emissive: 0x0b4040, emissiveMap: screenTex }));
+const screenTex = canvasTex(128, 96, (g) => { const sky = g.createLinearGradient(0, 0, 0, 84); sky.addColorStop(0, '#2a6ad8'); sky.addColorStop(1, '#a9d0ff'); g.fillStyle = sky; g.fillRect(0, 0, 128, 84); // Kaasdows XL: sky, a green polder, the blue taskbar
+  g.fillStyle = '#4fa83a'; g.beginPath(); g.moveTo(0, 70); g.quadraticCurveTo(50, 52, 128, 66); g.lineTo(128, 84); g.lineTo(0, 84); g.fill(); g.fillStyle = '#2663e0'; g.fillRect(0, 84, 128, 12); g.fillStyle = '#3fae3f'; g.fillRect(0, 84, 30, 12);
+  g.fillStyle = '#fff'; g.font = 'bold 13px Arial'; g.fillText('Kaasdows XL', 26, 40); for (let i = 0; i < 3; i++) { g.fillStyle = ['#ff9a2e', '#f6c12a', '#3b8de0'][i]; g.fillRect(8, 8 + i * 22, 12, 12); } });
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.38), lam({ map: screenTex, emissive: 0x1a3a7a, emissiveMap: screenTex }));
 screen.position.set(0, 1.14, 0.16); desk.add(screen);
 box(0.6, 0.04, 0.22, beige, 0, 0.84, 0.3, desk);
 box(0.6, 0.08, 0.6, lam({ color: 0x333338 }), 0, 0.5, 1.0, desk); box(0.6, 0.7, 0.08, lam({ color: 0x333338 }), 0, 0.9, 1.3, desk);
@@ -1105,7 +1108,7 @@ function nextLine() {
 }
 $('dialogue').addEventListener('click', nextLine);
 
-// ------------------------------------------------------------------ Kaasdows 95
+// ------------------------------------------------------------------ Kaasdows XL
 const BUYERS = ['Snackbar Bij Henk', 'Mo van de markt', 'Grillroom Zuid', 'Tante Gerda', 'Frituur Het Gouden Frietje', 'Restaurant De Lepel', 'Anonymous (Lampas?)', 'Kees from Spekbuurt'];
 const bids = {};
 function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math.random() * BUYERS.length)], amount: Math.round(d.price * (0.9 + Math.random() * 0.25) / 5) * 5 }; return bids[d.id]; }
@@ -1143,19 +1146,31 @@ const heists = createHeists({ rank: rankNow, state, econ, garage, addMoney, toas
     } });
   } });
 function paintVan(c) { oof.traverse((o) => { if (o.userData && o.userData.paint) o.userData.paint.color.setHex(c); }); }
-function openPC(tab = 'sell', mode = 'pc') { kmap.warm(); // paint the aerial map while the desktop is open, so the map tab is instant
-  pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; beep(330, 0.15, 'sine', 0.06); renderPC();
-}
-function closePC() { state.inPC = false; $('pc').style.display = 'none'; afterPC(); }
-$('pcclose').onclick = closePC;
-function renderPC() {
-  if (pcMode === 'pc') { tutorial.opened(pcTab); if (!UNLOCK[pcTab] || UNLOCK[pcTab].ok()) tips.show('tab:' + pcTab); }
-  const ic = $('pcicons'); ic.innerHTML = '';
-  if (pcMode === 'pc') for (const [id, g, label] of icons.filter(([id]) => (!['beurs', 'meng', 'rapport', 'jobs', 'ideas', 'werk', 'garage', 'plan', 'woning', 'loods'].includes(id) || state.table) && tutorial.showTab(id) && !(id === 'loods' && tutorial.active()))) {
+const pcHidden = ['beurs', 'meng', 'rapport', 'jobs', 'ideas', 'werk', 'garage', 'plan', 'woning', 'loods']; // need the mixing table first
+function pcPrograms() {
+  if (pcMode !== 'pc') return [];
+  return icons.filter(([id]) => (!pcHidden.includes(id) || state.table) && tutorial.showTab(id) && !(id === 'loods' && tutorial.active())).map(([id, , label]) => {
     if (!tutorial.active() && UNLOCK[id] && UNLOCK[id].ok()) tutorial.markNew(id); // a tab that just opened up gets a NEW badge
-    const d = document.createElement('div'); d.className = 'icon' + (pcTab === id ? ' sel' : '');
-    d.innerHTML = `<div class="g">${g}${tutorial.isNew(id) && pcTab !== id ? '<b class="new">NEW</b>' : ''}</div><span>${label}</span>`; d.onclick = () => { pcTab = id; beep(700, 0.03); renderPC(); }; ic.appendChild(d);
-  }
+    return { id, label, isNew: tutorial.isNew(id) && !(pcTab === id && kd.winOpen) };
+  });
+}
+const kd = createKaasdows({ $, beep, programs: pcPrograms, refresh: () => renderPC(), money: () => 'W ' + state.money.toLocaleString('nl-NL'),
+  user: () => ({ name: 'Eddy Jr.', face: faces['Eddy Jr.'] }),
+  onOpenTab: (id) => { pcTab = id; renderPC(); }, onLogoff: () => closePC(),
+  help: (tab) => { if (!(tab && tips.again('tab:' + tab))) kd.msg('Kaasdows Help', 'Click (or tap) an icon on the desktop, or pick a program from the green <b>start</b> button. The <b>×</b> closes a window, <b>_</b> tucks it away on the taskbar. Log off with the red button bottom-right, or <b>Esc</b>.'); } });
+function openPC(tab = 'sell', mode = 'pc') { kmap.warm(); // paint the aerial map while the desktop is open, so the map tab is instant
+  pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; kd.login(mode); renderPC();
+}
+function closePC() { if (!state.inPC || $('pc').style.display !== 'block') { state.inPC = false; $('pc').style.display = 'none'; return; } kd.logoff(); state.inPC = false; $('pc').style.display = 'none'; afterPC(); }
+// the window's ×: shuts the program and shows the desktop (the Oofmobiel planner has no desktop, so it logs off)
+$('pcclose').onclick = (e) => { e.stopPropagation(); if (pcMode === 'van') closePC(); else kd.closeWindow(); };
+const PC_TITLE = { sell: 'Kaasplaats', hire: 'Naknik Uitzendbureau', shop: 'Mixing table', beurs: 'Kruidenbeurs', meng: 'Mengkamer', rapport: 'Dagrapport', jobs: 'Klusbord', ideas: 'Ideeënboek', werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord', map: 'Map of Kaasland', woning: 'Woning', loods: 'De Loods', bank: 'My Wilders' };
+function renderPC() {
+  kd.setTab(pcTab);
+  kd.render(pcPrograms(), pcTab, pcMode === 'van' ? 'Oofmobiel' : PC_TITLE[pcTab] || 'Kaasdows', pcMode === 'van' ? 'van' : pcTab);
+  refreshPCMoney();
+  if (pcMode === 'pc' && !kd.winOpen) return; // the desktop is showing: nothing to draw inside a window
+  if (pcMode === 'pc') { tutorial.opened(pcTab); if (!UNLOCK[pcTab] || UNLOCK[pcTab].ok()) tips.show('tab:' + pcTab); }
   const body = $('winbody'); const title = $('wintitle');
   const fmt = (n) => 'W ' + n.toLocaleString('nl-NL');
   if (pcMode === 'van') {
@@ -1495,7 +1510,7 @@ junkDefs.forEach((d) => addInteract({
     updateObjective();
   },
 }));
-addInteract({ obj: desk, pos: () => new THREE.Vector3(-8.8, 0, -16.6), r: 1.8, enabled: () => state.step !== 'talk', label: () => 'Kaasdows 95 · log in', act: () => openPC(state.step === 'hire' ? (state.table ? 'hire' : 'shop') : state.step === 'map' ? 'map' : 'sell') });
+addInteract({ obj: desk, pos: () => new THREE.Vector3(-8.8, 0, -16.6), r: 1.8, enabled: () => state.step !== 'talk', label: () => 'Kaasdows XL · log in', act: () => openPC(state.step === 'hire' ? (state.table ? 'hire' : 'shop') : state.step === 'map' ? 'map' : 'sell') });
 addInteract({ obj: oof, pos: () => oof.position, r: 4.2, label: () => 'Oofmobiel · get in', act: () => { if (garage.ensure().clamp) { tips.show('clamp'); } if (garage.ensure().clamp) return choice('Oofmobiel', `There's a <b>wheel clamp</b> on the front wheel. Pay the fine (W ${garage.CLAMP_FINE + garage.ticketSum()}${garage.ticketSum() ? ', with your open tickets' : ''}) or get Monteur Mo to cut it off (W ${garage.MO_CLAMP})?`, ['Pay the fine', 'Call Mo', 'Leave it'], (i) => { if (i < 2 && garage.unclamp(i ? 'mo' : 'pay')) openPC('map', 'van'); }); openPC('map', 'van'); }, far: true });
 addInteract({ obj: kangoo, pos: () => kangoo.position, r: 2.6, enabled: () => kangoo.visible && !(mission && mission.active), label: () => "Shooki's Kangoo", act: () => dialogue([['Eddy Jr.', 'A white Renault Kangoo. "SHOOKI KOERIER · 24/7 · FAMILIEPRIJS". There\'s a dent in the back door shaped like a bollard.'], ...(npcs && npcs.met('shooki') ? [['Shooki', ['Don\'t touch the mirror, bro. It\'s held on with tape and love.', 'Diesel, bro. It smells like money.', 'I sleep in the back sometimes. Business is business.', 'Hakan\'s kipkraud goes in the back, the rest goes on top.'][Math.floor(Math.random() * 4)]]] : [])]) });
 
@@ -1583,7 +1598,7 @@ function updateObjective() {
     title: '',
     talk: 'Talk to <b>Eddy Sr.</b> He\'s waiting for you in the warehouse.',
     list: `List the old shoarma junk for sale: walk up to each machine and press <b>E</b> (${n}/${N}).`,
-    sell: `Sell everything on <b>Kaasplaats</b> using the Kaasdows 95 PC at the back (${s}/${N} sold).`,
+    sell: `Sell everything on <b>Kaasplaats</b> using the Kaasdows XL PC at the back (${s}/${N} sold).`,
     hire: !state.table ? `Buy a <b>mixing table</b> on the PC (W ${TABLE_COST}).` : state.naknik === 0 ? `Hire your first <b>Naknik</b> on the PC (W ${NAKNIK_COST}).` : 'Talk to <b>Eddy Sr.</b> one last time.',
     map: 'Check the <b>map of Kaasland</b> on the PC or in the Oofmobiel.',
     dad2: 'Talk to <b>Eddy Sr.</b> one last time.',
@@ -1709,7 +1724,7 @@ addEventListener('keydown', (e) => {
     if (!state.inPC && current) current.act();
   }
   if (e.code === 'Escape' && choiceOpen) { if (choiceCancel !== null) closeChoice(choiceCancel); return; }
-  if (e.code === 'Escape' && state.inPC) { if ($('shop').style.display === 'block') closeShop(); else closePC(); }
+  if (e.code === 'Escape' && state.inPC) { if ($('shop').style.display === 'block') closeShop(); else if (!($('pc').style.display === 'block' && kd.escape())) closePC(); }
   if (e.code === 'KeyN') { const on = music.toggle(); toast(on ? 'MUSIC ON' : 'MUSIC OFF', '', 1); writeSave(); }
   if (e.code === 'KeyM' && !state.inDialogue && !choiceOpen) state.inPC ? closePC() : openPC('map', 'pc');
   if ((e.code === 'Digit1' || e.code === 'Numpad1') && !state.inPC && !state.inDialogue) { if (state.kit.includes('maboota')) equip(!state.armed); else toast('NO WEAPON', 'You have nothing to hold yet.', 1.4); }

@@ -1,4 +1,4 @@
-// Map of Kaasland on the Kaasdows 95 PC and in the Oofmobiel: an illustrated city map (laid out in kaasgeo.js,
+// Map of Kaasland on the Kaasdows XL PC and in the Oofmobiel: an illustrated city map (laid out in kaasgeo.js,
 // painted by kaasaerial.js) with the places on it. Left: a plain list of every place per district (missions
 // first) and the selected place's details and Drive button. Right: the map; drag to move, scroll to zoom, and
 // it always opens on the whole city. main.js keeps the game logic: it hands over each territory's kind and

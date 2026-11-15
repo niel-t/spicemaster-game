@@ -4,7 +4,7 @@
 
 const STEPS = [
   { id: 'shooki', obj: 'Cousin <b>Shooki</b> is waiting outside the warehouse. Talk to him.' },
-  { id: 'beurs', tab: 'beurs', obj: 'Log in to the <b>Kaasdows 95</b> PC and open the <b>Kruidenbeurs</b>: that\'s the spice market, and Shooki\'s sack is in your stock.' },
+  { id: 'beurs', tab: 'beurs', obj: 'Log in to the <b>Kaasdows XL</b> PC and open the <b>Kruidenbeurs</b>: that\'s the spice market, and Shooki\'s sack is in your stock.' },
   { id: 'meng', tab: 'meng', obj: 'Open the <b>Mengkamer</b> on the PC. Your Naknik mixes <b>Kip Shoarma</b> overnight, from what\'s on the shelves.' },
   { id: 'raid', obj: 'Take <b>Spekbuurt</b> from the Lampas. Get in the <b>Oofmobiel</b> and drive there. A raid takes the whole day: the market day turns when you get back.' },
   { id: 'rapport', tab: 'rapport', obj: 'A market day passed. Open the <b>Dagrapport</b> on the PC: Schmatzel paid for your Kip Shoarma.' },

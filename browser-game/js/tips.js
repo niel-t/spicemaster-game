@@ -6,7 +6,7 @@
 export const TIPS = {
   start: ['Welcome home, cuz', "Bro! Cousin Shooki here. I text you when something's new. <b>WASD</b> walk, <b>Shift</b> run, <b>E</b> talk or use, <b>mouse wheel</b> zoom. Your dad is waiting inside. Go."],
   'step:list': ["Dad's junk", 'Walk up to every old machine and press <b>E</b> to put it up for sale. Six things. The counter is top left.'],
-  'step:sell': ['Selling', 'The <b>Kaasdows 95</b> PC is at the back of the warehouse. Log in with <b>E</b> and sell your listings on <b>Kaasplaats</b>. Take the best bid, bro.'],
+  'step:sell': ['Selling', 'The <b>Kaasdows XL</b> PC is at the back of the warehouse. Log in with <b>E</b> and sell your listings on <b>Kaasplaats</b>. Take the best bid, bro.'],
   'step:hire': ['Start mixing', 'Money in your pocket? A <b>mixing table</b>, then a <b>Naknik</b>. Both on the PC. No table, no spice.'],
   'step:russian': ['The Russian', 'Pawn shop <b>Pandjeshuis Spasibo</b>, east end of the street. Dad\'s old friend. He sells guns, but guns only work on missions. In the street it\'s the stick.'],
   'step:free': ['How the trade works', 'Every <b>market day</b> you pick: a <b>raid</b> (that takes the whole day), or <b>warehouse work and deliveries</b> together. Then sleep: your Naknikim mix overnight, clients pay, prices move. Take joints, sell spice, get a name.'],
@@ -86,10 +86,12 @@ export function createTips(d) {
     if (cur && stale(cur)) close(); else next();
     return true;
   }
+  // the Kaasdows Help menu: show a topic's tip again on request, even if it was seen or tips are off
+  function again(k) { if (!TIPS[k]) return false; queue.unshift(k); if (cur) close(); else next(); return true; }
   function update(dt) { if (cur && (life -= dt) <= 0) close(); } // fades by itself
   // a save from before the tips: anything already past Chapter 0 doesn't need the Chapter 0 ones
   function migrate(saved) { state.tips = saved && typeof saved === 'object' ? { told: { ...(saved.told || {}) }, off: !!saved.off } : { told: {}, off: false }; if (state.step === 'free') for (const k of STEP_KEYS) state.tips.told[k] = true; }
   function reset() { state.tips = { told: {}, off: false }; }
   const showing = () => cur;
-  return { show, update, migrate, reset, showing, close, TIPS };
+  return { show, again, update, migrate, reset, showing, close, TIPS };
 }

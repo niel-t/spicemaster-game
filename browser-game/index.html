@@ -31,36 +31,134 @@
   #dialogue .line { font: 400 18px/1.4 "Rubik", Arial, sans-serif; }
   #dialogue .next { position: absolute; right: 14px; bottom: 8px; font: 700 12px "Rubik", Arial; color: #aaa; }
   #help { position: fixed; bottom: 10px; right: 14px; color: #ddd; font: 12px "Rubik", Arial, sans-serif; text-shadow: 1px 1px 0 #000; pointer-events: none; }
-  /* ---------- Kaasdows 95 ---------- */
-  #pc { position: fixed; inset: 0; background: #0b7b7b; display: none; font: 13px "MS Sans Serif", Tahoma, "Rubik", Arial, sans-serif; color: #000; }
-  #pc .crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 2px, transparent 2px 4px); }
-  #pc .icons { position: absolute; top: 16px; left: 16px; bottom: 48px; display: grid; gap: 10px; align-content: start; overflow-y: auto; scrollbar-width: none; }
-  #pc .icon { width: 86px; text-align: center; color: #fff; cursor: pointer; }
-  #pc .icon .g { width: 44px; height: 40px; margin: 0 auto 4px; border: 2px solid #fff; background: #c0c0c0; box-shadow: 2px 2px 0 #000; display: grid; place-items: center; font: 900 20px "Rubik", Arial; color: #000; }
-  #pc .icon span { background: #0b7b7b; padding: 0 2px; }
-  #pc .icon .g { position: relative; }
-  #pc .icon .g .new { position: absolute; top: -8px; right: -14px; background: #e8a33d; color: #000; border: 1px solid #000; font: 700 9px "Press Start 2P", monospace; padding: 2px 3px; box-shadow: 1px 1px 0 #000; animation: newblink 1s steps(2) infinite; }
-  @keyframes newblink { 50% { opacity: .55; } }
-  #pc .icon.sel span { background: #000080; }
-  .win { position: absolute; left: 130px; top: 22px; right: 22px; bottom: 54px; background: #c0c0c0; border: 2px solid; border-color: #fff #000 #000 #fff; box-shadow: 1px 1px 0 #808080 inset; display: flex; flex-direction: column; }
-  .win .tb { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: 700; padding: 3px 6px; display: flex; justify-content: space-between; align-items: center; }
-  .win .tb button { width: 20px; height: 18px; padding: 0; font: 700 12px "Rubik", Arial; }
-  .win .body { flex: 1; overflow: auto; padding: 10px; background: #c0c0c0; }
-  .b95 { background: #c0c0c0; border: 2px solid; border-color: #fff #000 #000 #fff; padding: 4px 12px; font: inherit; cursor: pointer; }
-  .b95:active { border-color: #000 #fff #fff #000; }
-  .b95:disabled { color: #808080; cursor: default; }
-  .well { background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080; padding: 8px; }
-  table.list { width: 100%; border-collapse: collapse; background: #fff; }
-  table.list td, table.list th { border-bottom: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-  table.list th { background: #dcdcdc; }
-  #taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 36px; background: #c0c0c0; border-top: 2px solid #fff; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
-  #taskbar .start { font-weight: 900; }
-  #taskbar .clock { margin-left: auto; border: 2px solid; border-color: #808080 #fff #fff #808080; padding: 3px 10px; }
+  /* ---------- Kaasdows XL (js/kaasdows.js): early-2000s desktop, all original art ---------- */
+  #pc { position: fixed; inset: 0; display: none; overflow: hidden; background: #3a6ea5 var(--wall) center / cover no-repeat; font: 13px Tahoma, "Segoe UI", "Rubik", Arial, sans-serif; color: #000; --tbh: 40px; --iconsW: 100px; }
+  #pc .icons { position: absolute; top: 12px; left: 10px; bottom: calc(var(--tbh) + 10px); display: grid; grid-auto-flow: column; grid-template-rows: repeat(auto-fill, 92px); grid-auto-columns: 92px; gap: 4px 6px; align-content: start; }
+  #pc .icon { width: 92px; height: 92px; box-sizing: border-box; padding: 6px 2px 2px; text-align: center; color: #fff; cursor: pointer; border-radius: 4px; border: 1px solid transparent; outline: none; }
+  #pc .icon .g { position: relative; width: 44px; height: 44px; margin: 0 auto 4px; filter: drop-shadow(1px 2px 1px rgba(0,0,0,.45)); }
+  #pc svg.ki { display: block; width: 100%; height: 100%; }
+  #pc .icon span { display: inline-block; font-size: 12px; line-height: 1.2; padding: 0 2px; text-shadow: 1px 1px 2px #000, 0 0 3px rgba(0,0,0,.8); border-radius: 2px; }
+  #pc .icon:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.35); }
+  #pc .icon.sel span, #pc .icon:focus span { background: #316ac5; text-shadow: none; }
+  #pc .icon.sel .g, #pc .icon:active .g { filter: drop-shadow(1px 2px 1px rgba(0,0,0,.45)) brightness(.8); }
+  #pc .icon .g .new { position: absolute; top: -6px; right: -18px; background: #ff7a1a; color: #fff; border: 1.5px solid #fff; border-radius: 9px; font: 700 10px Tahoma, Arial, sans-serif; padding: 1px 5px; box-shadow: 0 1px 3px rgba(0,0,0,.5); animation: newblink 1s steps(2) infinite; }
+  @keyframes newblink { 50% { opacity: .6; } }
+  /* the window: blue rounded title bar, beige body */
+  .win { position: absolute; left: calc(var(--iconsW) + 22px); top: 14px; right: 18px; bottom: calc(var(--tbh) + 12px); background: #ece9d8; border: 3px solid #0831d9; border-top: 0; border-radius: 8px 8px 0 0; box-shadow: 2px 4px 14px rgba(0,0,0,.45); display: flex; flex-direction: column; min-width: 0; }
+  .win.max { left: 0; top: 0; right: 0; bottom: var(--tbh); border-radius: 0; border-width: 0 2px; }
+  .win.dragging { opacity: .93; }
+  #pc.nowin .win { display: none; }
+  .win .tb { flex: none; height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 6px; border-radius: 7px 7px 0 0; color: #fff; font: 700 13px Tahoma, "Trebuchet MS", Arial, sans-serif; text-shadow: 1px 1px #0a1a5a; cursor: default; touch-action: none;
+    background: linear-gradient(180deg, #0997ff 0%, #0053ee 9%, #0050ee 18%, #0066ff 45%, #0058f3 70%, #0042d6 88%, #003dd7 100%); margin: 0 -3px; }
+  .win.max .tb { border-radius: 0; margin: 0 -2px; }
+  .win .tb .ti { width: 18px; height: 18px; flex: none; }
+  .win .tb #wintitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .win .tb .tbb { display: flex; gap: 2px; flex: none; }
+  .xpb { width: 23px; height: 23px; padding: 0; border: 1px solid #fff; border-radius: 4px; color: #fff; cursor: pointer; display: grid; place-items: center; font: 700 15px Tahoma, Arial, sans-serif; line-height: 1;
+    background: linear-gradient(180deg, #4e8bff, #2463e6 55%, #1a4fd4); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+  .xpb:hover { filter: brightness(1.15); } .xpb:active { filter: brightness(.85); }
+  .xpb.cls { background: linear-gradient(180deg, #ef8a6a, #e2582f 50%, #c63a16); font-size: 17px; }
+  .xpb .g-max { width: 10px; height: 8px; border: 2px solid #fff; border-top-width: 3px; display: block; }
+  .xpb .g-res { width: 8px; height: 6px; border: 2px solid #fff; border-top-width: 3px; display: block; position: relative; left: 2px; top: 2px; box-shadow: -4px -4px 0 -2px #1a4fd4, -4px -4px 0 0 #fff; }
+  .xpb.min::after { content: ""; width: 8px; height: 3px; background: #fff; display: block; margin-top: 8px; } .xpb.min { font-size: 0; }
+  #pcmenubar { flex: none; display: flex; gap: 0; padding: 1px 2px; background: #ece9d8; border-bottom: 1px solid #c5c2b2; }
+  .mbi { background: none; border: 1px solid transparent; padding: 2px 8px; font: inherit; color: #000; cursor: pointer; border-radius: 2px; }
+  .mbi:hover, .mbi.on { background: #316ac5; color: #fff; }
+  #pcdrop { position: absolute; z-index: 4; display: none; min-width: 190px; background: #fff; border: 1px solid #8a867a; box-shadow: 2px 2px 4px rgba(0,0,0,.35); padding: 2px; }
+  #pcdrop .dri { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 6px 22px; font: inherit; cursor: pointer; }
+  #pcdrop .dri:hover { background: #316ac5; color: #fff; } #pcdrop hr { border: 0; border-top: 1px solid #c5c2b2; margin: 2px 4px; }
+  .win .body { flex: 1; overflow: auto; padding: 10px; background: #ece9d8; overscroll-behavior: contain; touch-action: pan-x pan-y; }
+  /* .b95 is used by every program for its buttons: now a rounded, softly shaded button */
+  .b95 { background: linear-gradient(180deg, #fff 0%, #f4f3ee 60%, #e3e0d2 100%); border: 1px solid #003c74; border-radius: 3px; padding: 4px 12px; min-height: 26px; font: inherit; color: #000; cursor: pointer; box-shadow: inset 0 -1px 0 rgba(0,0,0,.08); }
+  .b95:hover:not(:disabled) { box-shadow: inset 0 0 0 2px #f8b636, inset 0 -1px 0 rgba(0,0,0,.08); }
+  .b95:active:not(:disabled) { background: linear-gradient(180deg, #e3e0d2, #f4f3ee); }
+  .b95:disabled { color: #aca899; border-color: #c9c7ba; background: #f4f3ee; cursor: default; }
+  .well { background: #fff; border: 1px solid #7f9db9; border-radius: 3px; padding: 8px; }
+  table.list { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #7f9db9; }
+  table.list td, table.list th { border-bottom: 1px solid #e6e3d6; padding: 6px 8px; text-align: left; }
+  table.list th { background: linear-gradient(180deg, #fff, #ebeadb); border-bottom: 2px solid #d6d2c2; font-weight: 400; color: #222; }
+  #pc ::-webkit-scrollbar { width: 16px; height: 16px; } #pc ::-webkit-scrollbar-track { background: #f4f3ee; }
+  #pc ::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #c8d6fb, #b9cbf7); border: 1px solid #fff; border-radius: 3px; box-shadow: inset 0 0 0 1px #9eb6ef; }
+  /* taskbar */
+  #taskbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: var(--tbh); box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 0 env(safe-area-inset-bottom);
+    background: linear-gradient(180deg, #3168d5 0%, #4993e6 6%, #2157d7 12%, #2663e0 50%, #2157d7 90%, #1941a5 100%); }
+  #taskbar .start { height: 100%; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 22px 0 10px; border: 0; border-radius: 0 12px 12px 0; cursor: pointer; color: #fff; font: italic 700 19px "Trebuchet MS", Tahoma, Arial, sans-serif; text-shadow: 1px 1px 2px #1a4a12; letter-spacing: .5px;
+    background: linear-gradient(180deg, #3c9a3c 0%, #5ec85e 10%, #3fae3f 25%, #379e37 60%, #2c8a2c 92%, #236f23 100%); box-shadow: inset -2px 0 3px rgba(0,0,0,.25), 2px 0 4px rgba(0,0,0,.3); }
+  #taskbar .start:hover, #taskbar .start.on { filter: brightness(1.1); } #taskbar .start.on { box-shadow: inset 2px 2px 6px rgba(0,0,0,.45); }
+  #taskbar .start .klogo { width: 24px; height: 24px; display: block; filter: drop-shadow(1px 1px 1px rgba(0,0,0,.4)); }
+  #pctasks { flex: 1; min-width: 0; display: flex; gap: 4px; }
+  #pctasks .task { display: flex; align-items: center; gap: 6px; max-width: 220px; min-width: 0; height: 30px; padding: 0 10px 0 6px; border: 1px solid #1c46b8; border-radius: 3px; color: #fff; font: 12px Tahoma, Arial, sans-serif; cursor: pointer; background: linear-gradient(180deg, #5a9bf6, #3c80f0 50%, #3474e6); box-shadow: inset 0 1px 0 rgba(255,255,255,.3); }
+  #pctasks .task.on { background: linear-gradient(180deg, #1e4fb8, #2a5fcc); box-shadow: inset 1px 1px 3px rgba(0,0,0,.5); }
+  #pctasks .task svg { width: 18px; height: 18px; flex: none; } #pctasks .task span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #taskbar .tray { height: 100%; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 12px; color: #fff; font: 12px Tahoma, Arial, sans-serif;
+    background: linear-gradient(180deg, #1290e8 0%, #19a8f2 8%, #0f8be0 50%, #0c79d0 92%, #0a5fb0 100%); border-left: 1px solid #0b4a9a; box-shadow: inset 1px 0 0 #31b8ff; }
+  #taskbar .tray .wil { font-weight: 700; color: #ffe27a; text-shadow: 1px 1px #0a3a7a; }
+  #taskbar .tray #pcoff { width: 30px; height: 30px; padding: 3px; border: 0; background: none; cursor: pointer; border-radius: 50%; }
+  #taskbar .tray #pcoff:hover { background: rgba(255,255,255,.2); }
+  /* start menu */
+  #startmenu { position: absolute; z-index: 5; left: 0; bottom: var(--tbh); width: min(400px, 100vw); display: none; border-radius: 8px 8px 0 0; overflow: hidden; box-shadow: 3px -2px 12px rgba(0,0,0,.5); border: 1px solid #0b3cb8; border-bottom: 0; background: #fff; }
+  #startmenu .sm-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px; color: #fff; font: 700 15px Tahoma, Arial, sans-serif; text-shadow: 1px 1px 2px #0a2a6a; background: linear-gradient(180deg, #1868ce 0%, #0e60cb 15%, #2b7ff0 60%, #1f6fe0 100%); border-bottom: 2px solid #f0a040; }
+  #startmenu .sm-head img { width: 44px; height: 44px; object-fit: cover; object-position: center top; border: 2px solid #fff; border-radius: 4px; background: #ddd; }
+  #startmenu .sm-cols { display: flex; max-height: min(62vh, 520px); }
+  #startmenu .sm-left { flex: 1.15; overflow-y: auto; padding: 4px; background: #fff; }
+  #startmenu .sm-right { flex: 1; padding: 4px; background: #d3e5fa; border-left: 1px solid #95bdee; overflow-y: auto; }
+  #startmenu hr { border: 0; border-top: 1px solid #d6d6d6; margin: 3px 6px; }
+  #startmenu .smi { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; padding: 3px 6px; border: 0; border-radius: 3px; background: none; text-align: left; font: 12px Tahoma, Arial, sans-serif; color: #000; cursor: pointer; }
+  #startmenu .smi svg { width: 30px; height: 30px; flex: none; }
+  #startmenu .smi span { min-width: 0; } #startmenu .smi small { display: block; color: #555; } #startmenu .smi em { font-style: normal; font-size: 10px; font-weight: 700; color: #fff; background: #ff7a1a; border-radius: 7px; padding: 0 5px; }
+  #startmenu .sm-right .smi { font-weight: 700; color: #0a246a; }
+  #startmenu .smi:hover { background: #316ac5; color: #fff; } #startmenu .smi:hover small { color: #dfe8ff; }
+  #startmenu .sm-foot { display: flex; justify-content: flex-end; padding: 6px 8px; background: linear-gradient(180deg, #4282d6, #3b75ce 50%, #2c63c0); }
+  #startmenu .smf { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; background: none; color: #fff; font: 12px Tahoma, Arial, sans-serif; cursor: pointer; border-radius: 3px; }
+  #startmenu .smf svg { width: 24px; height: 24px; } #startmenu .smf:hover { background: rgba(255,255,255,.18); }
+  /* boot screen */
+  #pcboot { position: absolute; inset: 0; z-index: 9; display: none; flex-direction: column; align-items: center; justify-content: center; background: #000; color: #fff; font-family: "Trebuchet MS", Tahoma, Arial, sans-serif; cursor: pointer; }
+  #pcboot .bl { display: flex; align-items: center; gap: 14px; }
+  #pcboot .bl svg { width: 72px; height: 72px; }
+  #pcboot .bn { font: 700 46px "Trebuchet MS", Tahoma, Arial, sans-serif; letter-spacing: -1px; } #pcboot .bn sup { font-size: 26px; color: #ff9a2e; margin-left: 4px; font-style: italic; }
+  #pcboot .bs { margin: 2px 0 0 86px; font-size: 13px; color: #9fb4d8; letter-spacing: 1px; }
+  #pcboot .bar { margin-top: 46px; width: 150px; height: 14px; border: 2px solid #b2b2b2; border-radius: 5px; overflow: hidden; position: relative; padding: 1px; }
+  #pcboot .bar i { position: absolute; top: 2px; width: 9px; height: 10px; border-radius: 1px; background: linear-gradient(180deg, #8fb9ff, #2b62d6 50%, #6c9cff); animation: bootrun 1.6s linear infinite; }
+  #pcboot .bar i:nth-child(2) { animation-delay: .12s; } #pcboot .bar i:nth-child(3) { animation-delay: .24s; }
+  @keyframes bootrun { 0% { left: -30px; } 100% { left: 160px; } }
+  #pcboot .bf { position: absolute; bottom: 22px; left: 26px; right: 26px; display: flex; justify-content: space-between; font-size: 12px; color: #8a8a8a; }
+  #pcboot .bskip { position: absolute; bottom: 52px; font-size: 12px; color: #666; }
+  #pcboot.quick { background: linear-gradient(180deg, #00309c, #5a7edc 50%, #00309c); animation: bootfade .65s ease-in forwards; }
+  #pcboot.quick .bar, #pcboot.quick .bf, #pcboot.quick .bskip, #pcboot.quick .bs { display: none; } #pcboot.quick .bn { font-style: italic; font-weight: 400; }
+  #pcboot .welcome { display: none; } #pcboot.quick .welcome { display: block; font: italic 40px "Trebuchet MS", Arial, sans-serif; text-shadow: 2px 2px 4px #001a5a; } #pcboot.quick .bl { display: none; }
+  @keyframes bootfade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+  /* message box */
+  #xpmsg { position: absolute; inset: 0; z-index: 8; display: none; place-items: center; background: rgba(0,0,0,.18); }
+  #xpmsg .xpm { width: min(380px, calc(100vw - 32px)); background: #ece9d8; border: 3px solid #0831d9; border-top: 0; border-radius: 8px 8px 0 0; box-shadow: 3px 5px 16px rgba(0,0,0,.5); }
+  #xpmsg .tb { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 6px; margin: 0 -3px; border-radius: 7px 7px 0 0; color: #fff; font: 700 13px Tahoma, Arial, sans-serif; text-shadow: 1px 1px #0a1a5a; background: linear-gradient(180deg, #0997ff 0%, #0053ee 9%, #0066ff 45%, #0042d6 88%, #003dd7 100%); }
+  #xpmsg .tb .ti { width: 18px; height: 18px; } #xpmsg .tb .tt { flex: 1; }
+  #xpmsg .xpm-b { padding: 14px 16px 6px; line-height: 1.4; } #xpmsg .xpm-f { padding: 8px 16px 14px; text-align: center; } #xpmsg .xpm-f .b95 { min-width: 86px; }
+  .xpm-about { display: flex; gap: 12px; } .xpm-about svg { width: 54px; height: 54px; flex: none; }
+  /* Oofmobiel route planner reuses the frame without a desktop */
+  #pc.van .icons, #pc.van #startmenu, #pc.van #pcmenubar { display: none; }
+  #pc.van .win { left: 18px; }
+  /* phones and small screens: one big window, big tap targets, icons in a grid when the window is shut */
+  @media (max-width: 760px), (max-height: 480px) {
+    #pc { --tbh: calc(48px + env(safe-area-inset-bottom)); }
+    .win.max { top: env(safe-area-inset-top); }
+    #pc .icons { left: 0; right: 0; top: 0; padding: 12px 8px; grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); grid-auto-rows: 96px; justify-items: center; overflow-y: auto; }
+    #pc .icon { width: 88px; height: 96px; } #pc .icon .g { width: 50px; height: 50px; }
+    .win .tb { height: 42px; font-size: 15px; } .xpb { width: 34px; height: 34px; font-size: 20px; } .xpb.cls { font-size: 24px; } #pcmax { display: none; }
+    .win .tb .ti { width: 22px; height: 22px; }
+    .mbi { padding: 6px 12px; } #pcdrop .dri { padding: 12px 22px; }
+    #pc .b95 { min-height: 38px; padding: 6px 14px; }
+    #taskbar .start { font-size: 20px; padding-right: 18px; } #pctasks .task { height: 38px; } #taskbar .tray .wil { display: none; }
+    #taskbar .tray #pcoff { width: 40px; height: 40px; }
+    #startmenu .smi { min-height: 48px; font-size: 14px; } #startmenu .smi svg { width: 34px; height: 34px; }
+    #startmenu .sm-cols { max-height: calc(100dvh - 160px); }
+    #pcboot .bn { font-size: 36px; } #pcboot .bl svg { width: 56px; height: 56px; } #pcboot .bs { margin-left: 70px; }
+  }
+  @media (max-height: 480px) { #pc .icons { grid-auto-rows: 84px; } #pc .icon { height: 84px; } #pc .icon .g { width: 40px; height: 40px; } }
   .mapwrap { position: relative; }
   .mapwrap img { width: 100%; display: block; border: 2px solid #000; }
   .pin { position: absolute; transform: translate(-50%, -50%); width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #000; }
-  /* Map of Kaasland (kaasmap.js, kaasgeo.js, kaasaerial.js): Win95 list on the left, illustrated city map on the right */
-  .kmap { display: flex; gap: 8px; height: max(380px, calc(100vh - 128px)); }
+  /* Map of Kaasland (kaasmap.js, kaasgeo.js, kaasaerial.js): Kaasdows list on the left, illustrated city map on the right */
+  .kmap { display: flex; gap: 8px; height: max(380px, calc(100vh - 156px)); }
   .km-side { width: 250px; flex: none; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
   .km-info { flex: none; max-height: 48%; overflow-y: auto; line-height: 1.35; }
   .km-ihead b { display: block; font-size: 15px; } .km-ihead small { display: block; color: #444; margin: 3px 0 6px; }
@@ -69,12 +167,12 @@
   #pininfo .b95 { display: block; width: 100%; margin-top: 8px; font-weight: 700; }
   .km-list { flex: 1; min-height: 0; overflow-y: auto; background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080; }
   .km-grp { border-bottom: 1px solid #c0c0c0; }
-  .km-gh { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 6px; border: 0; background: #000080; color: #fff; font: inherit; cursor: pointer; text-align: left; }
+  .km-gh { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 6px; border: 0; background: linear-gradient(180deg, #3d7be8, #2257c9); color: #fff; font: inherit; cursor: pointer; text-align: left; }
   .km-gh small { font-weight: 700; }
   .km-shut { padding: 4px 6px; background: #dcdcdc; color: #555; cursor: pointer; } .km-shut b { display: block; } .km-shut small { font-size: 11px; }
   .km-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 6px; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
   .km-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .km-item em { font-style: normal; font-size: 11px; color: #666; }
-  .km-item:hover { background: #e8e8f8; } .km-item.on { background: #000080; color: #fff; } .km-item.on em { color: #cfd8ff; }
+  .km-item:hover { background: #e3ecfb; } .km-item.on { background: #316ac5; color: #fff; } .km-item.on em { color: #cfd8ff; }
   .km-i-open span, .km-i-lost span { font-weight: 700; } .km-i-locked span { color: #666; }
   .km-gh-para { background: #8a3a1c; } .km-pnote { padding: 3px 6px; font-size: 11px; color: #6b3a22; background: #f6ead0; } .km-i-para span { color: #8a3a1c; } .km-item.on span { color: #fff; }
   .km-tag-para { background: #e9b48a; } .km-para .km-lab text { fill: #8a3a1c; } .km-d-para text:first-child { fill: #9a4a1e; }
@@ -237,9 +335,6 @@
     #dialogue img { width: 56px; height: 70px; left: 10px; top: 10px; }
     #dialogue #choices { gap: 6px !important; } #dialogue #choices button { font-size: 13px !important; padding: 6px 10px !important; }
     #dialogue .who { font-size: 14px; } #dialogue .line { font-size: 14px; }
-    #pc .icons { grid-auto-flow: column; top: calc(6px + env(safe-area-inset-top)); left: 10px; right: 10px; bottom: auto; gap: 6px; overflow-x: auto; overflow-y: hidden; }
-    #pc .icon { width: 64px; font-size: 11px; } #pc .icon .g { width: 34px; height: 30px; font-size: 16px; }
-    .win { left: 8px; right: 8px; top: calc(78px + env(safe-area-inset-top)); bottom: 44px; }
     .shopbox { margin: 2vh auto; padding: 10px 12px; }
     .shophead img { width: 46px; height: 64px; } .shopname { font-size: 20px; }
     .item { flex-wrap: wrap; } .item .pr { min-width: 60px; font-size: 15px; }
@@ -260,9 +355,10 @@
 <div id="dialogue"><img id="dlgface" alt=""><div class="who" id="dlgwho"></div><div class="line" id="dlgline"></div><div class="next">E / click to continue</div></div>
 <div id="pc">
   <div class="icons" id="pcicons"></div>
-  <div class="win"><div class="tb"><span id="wintitle">Kaasplaats</span><button class="b95" id="pcclose" title="Log off">×</button></div><div class="body" id="winbody"></div></div>
-  <div id="taskbar"><button class="b95 start">⊞ Start</button><span>Kaasdows 95</span><span class="clock" id="clock">16:20</span></div>
-  <div class="crt"></div>
+  <div class="win" id="pcwin"><div class="tb"><span class="ti" id="winicon"></span><span id="wintitle">Kaasplaats</span><span class="tbb"><button class="xpb min" id="pcmin" title="Minimise">_</button><button class="xpb max" id="pcmax" title="Maximise"></button><button class="xpb cls" id="pcclose" title="Close">×</button></span></div><div id="pcmenubar"></div><div id="pcdrop"></div><div class="body" id="winbody"></div></div>
+  <div id="startmenu"></div>
+  <div id="taskbar"><button class="start" id="pcstart"><i class="klogo" id="klogo"></i>start</button><div id="pctasks"></div><div class="tray"><span class="wil" data-bal></span><span class="clock" id="clock">16:20</span><button id="pcoff" title="Log off"></button></div></div>
+  <div id="pcboot"><div class="bl"><span id="bootlogo"></span><div><div class="bn">Kaasdows<sup>XL</sup></div></div></div><div class="bs">eXtra Lekker Edition</div><div class="welcome">welkom</div><div class="bar"><i></i><i></i><i></i></div><div class="bskip">click to skip</div><div class="bf"><span>© 1652–2002 Gouda Games</span><span>Kaasland Software</span></div></div>
 </div>
 <div id="shop"><div class="shopbox">
   <div class="shophead"><img src="./assets/face_ru.jpg" alt=""><div><div class="shopname">PANDJESHUIS SPASIBO</div><div class="shopsub">The Russian · cash only · no receipts</div></div><button id="shopclose">×</button></div>

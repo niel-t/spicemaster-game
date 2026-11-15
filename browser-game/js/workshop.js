@@ -1,4 +1,4 @@
-// De Werkplaats: Eddy builds and repairs shoarma machines part by part, and upgrades his own Kaasdows 95 PC.
+// De Werkplaats: Eddy builds and repairs shoarma machines part by part, and upgrades his own Kaasdows XL PC.
 // A machine is five slots (frame, burner, motor, core, two extras). The core decides what it is (grill, oven,
 // frituur, slicer). Parts have to fit: power budget, motor torque against spit weight, burner heat against the
 // core's need. The draaitest scores capacity (kg/hour), reliability and style; machine orders on the PC carry a
@@ -50,7 +50,7 @@ const SYMPTOM = {
 // clients are Tristan's cast (js/haggle.js): the shoarma bosses and Gerrit from the pancake house (ovens and fryers only)
 const clientsFor = (type) => CLIENT_IDS.filter((id) => !PEOPLE[id].types || PEOPLE[id].types.includes(type));
 const whoName = (o) => (o.cid && PEOPLE[o.cid] ? `${PEOPLE[o.cid].name} · ${PEOPLE[o.cid].place}` : o.who);
-// Kaasdows 95 upgrades: each part makes one PC tab better
+// Kaasdows XL upgrades: each part makes one PC tab better
 export const PC_PARTS = [
   { id: 'ram', rank: 1, name: '32 MB memory', price: 900, text: 'The Klusbord shows one more job every day, from the next market day.' },
   { id: 'modem', rank: 2, name: '56k modem', price: 700, text: "The Kruidenbeurs prints tomorrow's market rumour for free." },
@@ -270,7 +270,7 @@ export function createWorkshop(deps) {
   function buyPC(id, el) {
     const w = ensure(), p = PC_PARTS.find((x) => x.id === id); if (!p || w.pc[id]) return; if (locked(p)) return `Needs rank ${RANK_NAMES[p.rank]}.`; if (state.money < p.price) return 'Not enough Wilders.';
     deps.addMoney(-p.price, el); w.pc[id] = econ.ensure().day;
-    if (deps.toast) deps.toast('KAASDOWS 95', `${p.name} installed. ${p.text}`, 4);
+    if (deps.toast) deps.toast('KAASDOWS XL', `${p.name} installed. ${p.text}`, 4);
     if (deps.save) deps.save();
   }
   const hasPC = (id) => !!(state.ws && state.ws.pc && state.ws.pc[id]);
@@ -319,7 +319,7 @@ export function createWorkshop(deps) {
     for (const o of w.offers) h += `<tr><td>${P(o.id).name} <small>(worn ${Math.round(o.wear * 100)}%)</small></td><td>${fmt(o.price)}</td><td>${o.sold ? 'sold' : `<button class="b95" data-wsused="${o.n}">Buy</button>`}</td></tr>`;
     h += `</table><div class="well" style="margin-top:8px"><img src="${portrait('fenna')}" alt="" style="width:40px;height:44px;object-fit:cover;float:left;margin-right:8px;border:1px solid #888"><b>Kaasland Auto Parts</b> · Fenna at the counter${spentToday() ? ` · spent on parts today: <b>${fmt(spentToday())}</b>` : ''}<br><small>Pay the sticker price, or haggle. She has heard every story twice.</small><div style="clear:both"></div></div><table class="list"><tr><th>New parts</th><th>What it does</th><th>Price</th><th></th></tr>`;
     for (const p of PARTS.filter((q) => !q.idea || (econ.has && econ.has(q.idea)))) h += `<tr><td><b>${p.name}</b></td><td><small>${p.note}</small></td><td>${fmt(p.price)}</td><td style="white-space:nowrap">${locked(p) ? `<small style="color:#888">at rank ${RANK_NAMES[p.rank]}</small>` : `<button class="b95" data-wsnew="${p.id}">Buy</button>${deps.haggle ? ` <button class="b95" data-wshag="${p.id}">Haggle</button>` : ''}`}</td></tr>`;
-    h += '</table><table class="list" style="margin-top:8px"><tr><th>Kaasdows 95 upgrades</th><th>What it does</th><th>Price</th><th></th></tr>';
+    h += '</table><table class="list" style="margin-top:8px"><tr><th>Kaasdows XL upgrades</th><th>What it does</th><th>Price</th><th></th></tr>';
     for (const p of PC_PARTS) h += `<tr><td><b>${p.name}</b></td><td><small>${p.text}</small></td><td>${fmt(p.price)}</td><td>${w.pc[p.id] ? '<b style="color:#070">installed</b>' : locked(p) ? `<small style="color:#888">at rank ${RANK_NAMES[p.rank]}</small>` : `<button class="b95" data-wspc="${p.id}">Install</button>`}</td></tr>`;
     return h + '</table>';
   }
