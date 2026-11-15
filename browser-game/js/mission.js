@@ -18,7 +18,8 @@
 // A level can add its own furniture letters (def.furn) and recolour the shared ones.
 
 import { virt, inputMode, glyph, controlsLine } from './input.js';
-import { LOOKS, bloody, cleanBlood } from './characters.js';
+import { LOOKS, bloody, cleanBlood, setHold, holdRecoil, holdPump } from './characters.js';
+import { weaponMesh as buildWeapon, fireFlash, tickFlash, weaponKind, isTwoGun } from './weapons.js';
 import { WD, CAL, MODS, ARMOUR, PLATE, NADES, GEAR_X, BASE_MAG, KILLPTS as KP, FORCE, isGunId, isMeleeId, SHOT_GUN } from './arsenal.js';
 import { gunAudio } from './gunaudio.js';
 import spekbuurt from './levels/spekbuurt.js';
@@ -327,30 +328,17 @@ export function initMission(ctx) {
   const sndOf = (id) => (quiet(id) ? 'silenced' : WD[id].snd);
   const EASY = { hp: 3, react: 1.9, espr: 0.17, ebSpd: 15, vision: 9, cone: 0.85, ecd: 1.5, regen: 7 };
   const TIPS = ['Red laser = a gunman is aiming at you. Break line of sight.', 'Yellow cones show where they are looking. Stay out of them to sneak up.', 'A Lampas who stops and raises his gun is about to fire. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
-  // low-poly weapon models, Neon Vice proportions (WD.len), gold for The Russian's exclusives
-  const GM = { black: lam({ color: 0x1a1a1c }), steel: lam({ color: 0x8a8c90 }), wood: lam({ color: 0x6a3a1a }), grip: lam({ color: 0x3a2a1a }), gold: lam({ color: 0xe8b830, emissive: 0x3a2a00 }), blade: lam({ color: 0xd8dce0 }), tape: lam({ color: 0x2a2a2a }) };
-  function weaponMesh(id) {
-    const g = new THREE.Group(), w = WD[id] || {}, m = w.excl ? GM.gold : GM.black;
-    const pistol = (x, mat) => { box(0.05, 0.1, 0.26, mat, x, -0.05, 0.1, g, false); box(0.05, 0.14, 0.07, GM.grip, x, -0.1, 0, g, false); };
-    if (id === 'bat') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.025, 0.85, 8), lam({ color: 0xc8a06a })); b.position.y = -0.4; g.add(b); }
-    else if (id === 'knife' || id === 'tknife') { box(0.03, 0.1, 0.03, GM.grip, 0, -0.05, 0, g, false); box(0.012, 0.22, 0.04, GM.blade, 0, -0.2, 0, g, false); }
-    else if (id === 'machete') { box(0.035, 0.12, 0.035, GM.grip, 0, -0.06, 0, g, false); box(0.012, 0.5, 0.07, GM.blade, 0, -0.36, 0.01, g, false); }
-    else if (id === 'katana') { box(0.035, 0.22, 0.035, GM.tape, 0, -0.1, 0, g, false); box(0.08, 0.015, 0.08, GM.gold, 0, -0.22, 0, g, false); box(0.01, 0.7, 0.035, GM.blade, 0, -0.58, 0, g, false); }
-    else if (id === 'makarov' || id === 'silenced') { pistol(0, GM.black); if (id === 'silenced' || quiet(id)) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 8), GM.steel); c.rotation.x = Math.PI / 2; c.position.set(0, -0.03, 0.31); g.add(c); } }
-    else if (id === 'cz') { box(0.05, 0.11, 0.3, GM.steel, 0, -0.05, 0.12, g, false); box(0.05, 0.14, 0.07, GM.grip, 0, -0.1, 0, g, false); if (quiet(id)) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.027, 0.2, 8), GM.black); c.rotation.x = Math.PI / 2; c.position.set(0, -0.03, 0.36); g.add(c); } }
-    else if (id === 'mp5sd') { box(0.05, 0.1, 0.42, GM.black, 0, -0.04, 0.12, g, false); const c = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.24, 8), GM.black); c.rotation.x = Math.PI / 2; c.position.set(0, -0.03, 0.44); g.add(c); box(0.035, 0.16, 0.05, GM.black, 0, -0.14, 0.12, g, false); box(0.04, 0.08, 0.2, GM.black, 0, -0.05, -0.16, g, false); }
-    else if (id === 'dualuzi') { box(0.05, 0.1, 0.32, GM.black, 0, -0.04, 0.1, g, false); box(0.04, hasMod('xmag') ? 0.26 : 0.18, 0.05, GM.black, 0, -0.16, 0.06, g, false); }
-    else if (id === 'autosg' || id === 'jackhammer') { box(0.07, 0.1, 0.78, GM.black, 0, -0.03, 0.26, g, false); box(0.06, 0.12, 0.24, id === 'jackhammer' ? GM.steel : GM.black, 0, -0.07, -0.1, g, false);
-      if (id === 'jackhammer') { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.14, 10), GM.black); d.rotation.x = Math.PI / 2; d.position.set(0, -0.08, 0.06); g.add(d); } else box(0.05, 0.18, 0.07, GM.black, 0, -0.16, 0.1, g, false); }
-    else if (id === 'awp') { box(0.05, 0.08, 1.05, lam({ color: 0x3a5a3a }), 0, -0.03, 0.32, g, false); const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.32, 8), GM.black); sc.rotation.x = Math.PI / 2; sc.position.set(0, 0.06, 0.12); g.add(sc); box(0.06, 0.14, 0.26, lam({ color: 0x3a5a3a }), 0, -0.07, -0.2, g, false); }
-    else if (id === 'revolver') { box(0.05, 0.07, 0.3, GM.steel, 0, -0.04, 0.12, g, false); box(0.07, 0.08, 0.08, GM.steel, 0, -0.05, 0.02, g, false); box(0.05, 0.14, 0.07, GM.wood, 0, -0.11, -0.03, g, false); }
-    else if (id === 'dual' || id === 'golddeagle') { pistol(0, m); }
-    else if (id === 'smg') { box(0.05, 0.1, 0.32, GM.black, 0, -0.04, 0.1, g, false); box(0.04, hasMod('xmag') ? 0.26 : 0.18, 0.05, GM.black, 0, -0.16, 0.06, g, false); }
-    else if (id === 'pump') { box(0.06, 0.07, 0.75, GM.black, 0, -0.03, 0.28, g, false); box(0.075, 0.08, 0.2, GM.wood, 0, -0.07, 0.34, g, false); box(0.07, 0.11, 0.26, GM.wood, 0, -0.06, -0.12, g, false); }
-    else if (id === 'shotgun') { box(0.06, 0.07, 0.8, GM.black, 0, -0.03, 0.3, g, false); box(0.07, 0.11, 0.3, GM.wood, 0, -0.06, -0.12, g, false); }
-    else if (id === 'm16' || id === 'goldak') { box(0.05, 0.09, 0.8, m, 0, -0.03, 0.25, g, false); box(0.04, 0.2, 0.06, m, 0, -0.15, 0.2, g, false); box(0.05, 0.12, 0.24, id === 'goldak' ? GM.wood : m, 0, -0.06, -0.16, g, false); }
-    return g;
+  // weapon models live in weapons.js (grip origin, barrel +Z); the mods pick the variant (suppressor, extended mag)
+  const weaponMesh = (id) => buildWeapon(id, { quiet: quiet(id), xmag: hasMod('xmag') });
+  const isHeldGun = (id) => { const k = weaponKind(id); return k === 'pistol' || k === 'smg' || k === 'rifle'; };
+  // how a gun is held (characters.js setHold): Lampas thugs fire pistols one-handed, Eddy and bosses use both hands
+  const stanceOf = (id, thug) => isTwoGun(id) ? 'dual' : weaponKind(id) === 'rifle' ? 'rifle' : weaponKind(id) === 'smg' ? 'smg' : thug ? 'pistol1' : 'pistol';
+  function holdGun(p, id, thug, aim) { // guns go into both hands through setHold; returns false for melee / thrown (they ride the hand proxy)
+    if (!id || !isHeldGun(id)) { setHold(p, null); return false; }
+    setHold(p, { gun: weaponMesh(id), gun2: isTwoGun(id) ? weaponMesh(id) : null, stance: stanceOf(id, thug), aim });
+    return true;
   }
+  const flashing = new Set(), flashAt = new THREE.Vector3();
   const isGun = isGunId;
 
   // ================================================================== THE PLAYER'S KIT
@@ -407,7 +395,8 @@ export function initMission(ctx) {
     if (P.slot >= 2 && !P.guns[P.slot - 2]) P.slot = 1;
     if (P.useBat && !P.melee) P.useBat = false;
     P.held = P.slot === 1 ? (P.useBat ? P.melee : null) : P.guns[P.slot - 2];
-    if (meshOf !== P.held) { meshOf = P.held; handGun.clear(); if (P.held) handGun.add(weaponMesh(P.held.id)); }
+    const want = M.active ? P.held : null;
+    if (meshOf !== want) { meshOf = want; handGun.clear(); if (want && !holdGun(player, want.id, false, 1)) handGun.add(weaponMesh(want.id)); if (!want) setHold(player, null); }
     maboota.visible = M.active ? P.slot === 1 && !P.useBat : true; handGun.visible = !!P.held && M.active;
     state.armed = P.slot === 1 || isMelee(P.held && P.held.id);
     hud();
@@ -448,7 +437,7 @@ export function initMission(ctx) {
   const canBuy = (id) => !GEAR.includes(id) || fitsLoadout(id) || state.stash.length < STASH_CAP;
   function kitSummary() { const L = state.loadout, n = [...(state.kit.includes('maboota') ? ['Maboota'] : []), ...(L.melee ? [WD[L.melee].name] : []), ...L.guns.filter(Boolean).map((g) => WD[g.id].name), ...(armourOf(L) ? [ARMOUR[armourOf(L)].name] : [])]; return n.length ? 'Kit: ' + n.join(', ') + (state.stash.length ? ` · Kluis ${state.stash.length}/${STASH_CAP}` : '') : ''; }
   const gunOut = () => M.active && P.slot >= 2 && P.held && isGun(P.held.id);
-  function holster() { saveOwnAmmo(); P.slot = 1; P.useBat = false; P.rl = null; handGun.visible = false; }
+  function holster() { saveOwnAmmo(); P.slot = 1; P.useBat = false; P.rl = null; handGun.visible = false; setHold(player, null); meshOf = null; }
 
   // ================================================================== ACTIVE RELOAD (Neon Vice W6c: Gears-style window)
   // R starts a reload that tops the magazine up from the caliber pool after WD.rl seconds. One more R inside the green window
@@ -508,7 +497,7 @@ export function initMission(ctx) {
   }
   function sparks(x, y, z, mat = sparkM, n = 5) { for (let i = 0; i < n; i++) particle(mat, x, y, z, rnd(-3, 3), rnd(0, 3), rnd(-3, 3), 0.04, rnd(0.1, 0.25), 'spark'); }
   const casingM = new THREE.MeshBasicMaterial({ color: 0xd0a040 }), shellM = new THREE.MeshBasicMaterial({ color: 0xc8202a });
-  function casing(at, a, shell) { const side = a + Math.PI / 2; const m = new THREE.Mesh(partGeo, shell ? shellM : casingM); m.scale.set(0.03, 0.03, shell ? 0.09 : 0.05); m.position.set(at.x, 1.1, at.z); root.add(m); parts.push({ m, vx: Math.sin(side) * (1.5 + Math.random()), vy: 1.5 + Math.random(), vz: Math.cos(side) * (1.5 + Math.random()), life: 40, kind: 'casing' }); }
+  function casing(at, a, shell) { const side = a - Math.PI / 2; const m = new THREE.Mesh(partGeo, shell ? shellM : casingM); m.scale.set(0.03, 0.03, shell ? 0.09 : 0.05); m.position.set(at.x - Math.sin(a) * 0.25, at.y > 0.5 ? at.y : 1.1, at.z - Math.cos(a) * 0.25); root.add(m); parts.push({ m, vx: Math.sin(side) * (1.5 + Math.random()), vy: 1.5 + Math.random(), vz: Math.cos(side) * (1.5 + Math.random()), life: 40, kind: 'casing' }); }
   // gibs: heads, limbs and chunks (Neon Vice's gib / headPop / limbGib)
   const gibs = [];
   function gib(x, y, z, vx, vy, vz, s, color) { const m = new THREE.Mesh(partGeo, new THREE.MeshLambertMaterial({ color })); m.scale.set(s[0], s[1], s[2]); m.position.set(x, y, z); m.castShadow = true; root.add(m); gibs.push({ m, vx, vy, vz, wx: rnd(-12, 12), wy: rnd(-12, 12) }); if (gibs.length > 220) root.remove(gibs.shift().m); }
@@ -538,7 +527,7 @@ export function initMission(ctx) {
   function addPool(e, big) { const m = floorDecal(e.position.x, e.position.z, 0.2, Math.random() * 6, DM(poolTex)); pools.push({ m, e, s: 0.2, max: big ? rnd(1.6, 2.0) : rnd(1.0, 1.4) }); }
   const flashL = new THREE.PointLight(0xffd080, 0, 9, 1.5); let flashT = 0; // added to each level's root in buildLevel
   const flashSp = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffe0a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flashSp.scale.setScalar(0.7); flashSp.visible = false;
-  function muzzle(at, k = 4) { flashL.position.set(at.x, 1.3, at.z); flashL.intensity = k; flashSp.position.set(at.x, 1.25, at.z); flashSp.visible = true; flashT = 0.06; }
+  function muzzle(at, k = 4, real) { flashL.position.set(at.x, real ? at.y : 1.3, at.z); flashL.intensity = k; flashSp.position.set(at.x, 1.25, at.z); flashSp.visible = !real; flashT = 0.06; } // real: a gun's own flash mesh is showing, add the light only
 
   // ================================================================== BREAKABLES: glass and barrels
   function breakGlass(key) {
@@ -710,7 +699,7 @@ export function initMission(ctx) {
     p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
   }); }
-  function setFoeWeapon(e, id) { const f = e.userData.foe; f.weapon = id; f.hand.clear(); if (id) f.hand.add(weaponMesh(id)); }
+  function setFoeWeapon(e, id) { const f = e.userData.foe; f.weapon = id; f.hand.clear(); if (!holdGun(e, id, !f.boss, 0) && id) f.hand.add(weaponMesh(id)); }
   const ALERT_LINES = ['Hé! Wie ben jij?!', 'Het is die Eddy!', 'PAK HEM!', 'Lampas forever!', 'Dit is ons gebied!', 'Eddy Junior?! Grijp hem!'];
   const alive = () => enemies.filter((e) => e.userData.foe.alive);
   // objectives (a level's decorate() returns tasks: [{ pos, obj, label, act(), reset(done) }]): the floor only clears when they are all done
@@ -730,7 +719,7 @@ export function initMission(ctx) {
   const items = [];
   function dropItem(id, at, vx = 0, vz = 0, ammo, flying = false, own = false) {
     if (!id || id === 'maboota' || id === 'fists') return;
-    const g = weaponMesh(id); g.rotation.set(Math.PI / 2, 0, Math.random() * 6); g.position.set(at.x, 0.08, at.z);
+    const g = weaponMesh(id); if (isHeldGun(id)) g.rotation.set(0, Math.random() * 6, Math.PI / 2); else g.rotation.set(Math.PI / 2, 0, Math.random() * 6); g.position.set(at.x, 0.08, at.z); // guns lie on their side
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.42, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })); ring.rotation.x = -Math.PI / 2;
     root.add(g, ring); items.push({ id, g, ring, ammo: ammo ?? (WD[id].ammo || 0), spare: ammo === undefined && !own ? (WD[id].spare || 0) : 0, vx, vz, flying, own, age: 0 });
   }
@@ -747,7 +736,7 @@ export function initMission(ctx) {
   const tracerM = [new THREE.MeshBasicMaterial({ color: 0xfff0a0 }), new THREE.MeshBasicMaterial({ color: 0xff5a3a })];
   // Neon Vice fireGun: spread = base + moving + bloom (players) or the Easy enemy spread; dual pistols alternate hands;
   // .357 / M16 / AK / Deagles go through bodies (pierce) and the rifles through one thin wall (pen); thrown knives fly
-  function fireGun(from, a, id, byPlayer, moving) {
+  function fireGun(from, a, id, byPlayer, moving, shooter = byPlayer ? player : null) {
     const W2 = WD[id];
     if (W2.toss) { // throwing knife: a blade that flies and kills whoever it meets; pick it up again afterwards
       const at = from.clone().add(new THREE.Vector3(Math.sin(a) * 0.4, 0, Math.cos(a) * 0.4));
@@ -755,16 +744,21 @@ export function initMission(ctx) {
       sfx('throw'); return;
     }
     const spr = byPlayer ? (W2.spr + (moving ? W2.mv : 0) + P.bloom) * Math.max(0.4, 1 - 0.15 * pk('steady')) : W2.spr + EASY.espr;
-    let ox = 0; if (W2.dual) { P.alt = !P.alt; ox = P.alt ? -0.17 : 0.17; }
+    const sh = shooter && shooter.userData, hd = sh && sh.hold, alt = W2.dual ? (sh ? (sh.alt = !sh.alt) : (P.alt = !P.alt)) : false; // each shooter alternates his own pair
+    let ox = 0; if (W2.dual) ox = alt ? -0.17 : 0.17;
+    const gunM = hd ? (alt && hd.gun2 ? hd.gun2 : hd.gun) : null, muzY = gunM && gunM.userData.muzzle ? (gunM.userData.muzzle.getWorldPosition(flashAt), flashAt.y) : 1.25;
     const ca = Math.cos(a), sa = Math.sin(a), bx = from.x + ca * ox, bz = from.z - sa * ox;
     for (let i = 0; i < W2.pel; i++) {
       const aa = a + (W2.pel > 1 ? rnd(-spr, spr) : (Math.random() + Math.random() - 1) * spr), sp = byPlayer ? 34 : EASY.ebSpd;
       const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, byPlayer ? 0.7 : 0.45), tracerM[byPlayer ? 0 : 1]);
-      m.position.set(bx + sa * 0.3, 1.25, bz + ca * 0.3); m.rotation.y = aa; root.add(m);
+      m.position.set(bx + sa * 0.3, muzY, bz + ca * 0.3); m.rotation.y = aa; root.add(m);
       bullets.push({ m, dx: Math.sin(aa), dz: Math.cos(aa), sp, byPlayer, id, life: 1.2, pierce: byPlayer ? (W2.pierce || 1) : 1, pen: byPlayer ? (W2.pen || 0) : 0, hit: new Set() });
     }
     const q = byPlayer && quiet(id);
-    muzzle(new THREE.Vector3(bx + sa * 0.6, 0, bz + ca * 0.6), q ? 1.5 : 4); casing(from, a, W2.pel > 1);
+    if (gunM && fireFlash(gunM, flashAt)) { flashing.add(gunM); muzzle(flashAt, q ? 1.5 : 4, true); casing(flashAt, a, W2.pel > 1); } // the flash sits on the barrel
+    else { muzzle(new THREE.Vector3(bx + sa * 0.6, 0, bz + ca * 0.6), q ? 1.5 : 4); casing(from, a, W2.pel > 1); }
+    if (shooter && hd) holdRecoil(shooter, Math.min(1.5, 0.45 + W2.kick * 2.2), alt && !!hd.gun2);
+    if (shooter && hd && id === 'pump') holdPump(shooter);
     sfx(byPlayer ? sndOf(id) : W2.snd, byPlayer ? 1 : 0.7);
     if (byPlayer) { P.bloom = Math.min(W2.bloomMax || 0.18, P.bloom + W2.bloom); shake(W2.kick * 1.2); FX.kick.set(-sa * W2.kick * 0.6, 0, -ca * W2.kick * 0.6); }
     alertNoise(from, byPlayer ? loudOf(id) : W2.loud, byPlayer);
@@ -1605,7 +1599,7 @@ export function initMission(ctx) {
     const dir = [e.position.x - player.position.x, e.position.z - player.position.z], l = Math.hypot(dir[0], dir[1]) || 1; dir[0] /= l; dir[1] /= l;
     P.exec = 0.35; player.rotation.y = Math.atan2(dir[0], dir[1]);
     const gun = gunOut() && P.held.ammo > 0;
-    if (gun) { P.held.ammo--; sfx(sndOf(P.held.id)); muzzle(e.position); alertNoise(player.position, loudOf(P.held.id), true); } else { sfx('hit'); setTimeout(() => sfx('hit'), 120); }
+    if (gun) { P.held.ammo--; sfx(sndOf(P.held.id)); const hg = player.userData.hold && player.userData.hold.gun; if (hg && fireFlash(hg, flashAt)) { flashing.add(hg); muzzle(flashAt, 4, true); holdRecoil(player, 0.8); } else muzzle(e.position); alertNoise(player.position, loudOf(P.held.id), true); } else { sfx('hit'); setTimeout(() => sfx('hit'), 120); }
     popup(e.position, 'EXECUTION', '#ff3a4a'); bloodBurst(e.position, dir, 30, 3); shake(0.45);
     killEnemy(e, 'exec', dir); if (gun && (SHOT_GUN(P.held.id) || ['revolver', 'golddeagle'].includes(P.held.id))) headPop(e, dir);
   }
@@ -1677,7 +1671,7 @@ export function initMission(ctx) {
       fireGun(player.position, player.rotation.y, P.held.id, true, moving());
       if (W2.burst3) { P.burstQ = Math.min(2, P.held.ammo); P.burstT = 0.065; } // M16: three rounds per pull
       if (W2.toss && P.held.ammo <= 0) { P.guns[P.slot - 2] = null; P.slot = 1; syncHeld(); hud(); return; }
-      player.userData.arms[0].rotation.x = -1.2; saveOwnAmmo(); if (P.held.ammo <= 0) reloadStart(); hud(); return;
+      if (!player.userData.hold) player.userData.arms[0].rotation.x = -1.2; saveOwnAmmo(); if (P.held.ammo <= 0) reloadStart(); hud(); return;
     }
     if (state.armed) { ctx.swing(); sfx('swing'); alertNoise(player.position, 3); }
   }
@@ -1770,7 +1764,7 @@ export function initMission(ctx) {
     rc.setFromCamera(mouseN, camera);
     if (rc.ray.intersectPlane(aimPlane, aim)) player.rotation.y = Math.atan2(aim.x - player.position.x, aim.z - player.position.z);
   }
-  function holdPose(dt) { if (gunOut()) { const a = player.userData.arms[0]; a.rotation.x += (-1.45 - a.rotation.x) * Math.min(1, dt * 12); a.rotation.z = 0; if (WD[P.held.id].pel > 1) player.userData.arms[1].rotation.x = -1.2; } }
+  function holdPose(dt) { const h = player.userData.hold; if (h) { h.aim = P.rl ? 0.35 : 1; return; } if (gunOut()) { const a = player.userData.arms[0]; a.rotation.x += (-1.45 - a.rotation.x) * Math.min(1, dt * 12); a.rotation.z = 0; if (WD[P.held.id].pel > 1) player.userData.arms[1].rotation.x = -1.2; } }
   function street() { /* guns are mission-only; nothing to do on the street */ }
   function updateParts(dt) {
     for (let i = parts.length - 1; i >= 0; i--) {
@@ -1822,6 +1816,7 @@ export function initMission(ctx) {
     separate(); bodyPhysics();
     updateBullets(dt); updateItems(dt); updateParts(dt); updateNades(dt); plateTick(dt);
     if (flashT > 0) { flashT -= dt; if (flashT <= 0) { flashL.intensity = 0; flashSp.visible = false; } }
+    for (const g of flashing) { tickFlash(g, dt); if (!g.userData.flash.visible) flashing.delete(g); }
     FX.shake *= Math.exp(-dt * 8); FX.flash = Math.max(0, FX.flash - dt * 1.5); FX.kick.multiplyScalar(Math.exp(-dt * 12));
     flashEl.style.background = `rgba(${FX.flashC},1)`; flashEl.style.opacity = FX.flash * 0.6;
     const vig = FX.hurtT > 0 ? FX.hurtT / 0.7 * 0.55 : (!P.dead && P.hp === 1 ? 0.18 + Math.sin(R.time * 6) * 0.08 : 0);
@@ -1903,7 +1898,7 @@ export function initMission(ctx) {
         const ch = cellAt(p.x, p.z), key = Math.floor(p.x - OX) + ',' + Math.floor(p.z - Z0);
         if (ch === '%' && it.flying) { breakGlass(key); it.vx *= 0.7; it.vz *= 0.7; }
         else if ((it.flying ? isCover(ch) : isBlock(ch)) || doorBlocks(ox, oz, p.x, p.z)) { p.x = ox; p.z = oz; it.vx *= -0.3; it.vz *= -0.3; if (it.flying) { sfx('thud'); sparks(ox, 1, oz, woodM, 4); } it.flying = false; }
-        if (it.flying) { it.g.rotation.z += dt * 18;
+        if (it.flying) { if (isHeldGun(it.id)) it.g.rotation.y += dt * 18; else it.g.rotation.z += dt * 18;
           for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0) continue;
             if (Math.hypot(e.position.x - p.x, e.position.z - p.z) < 0.5) { const l = Math.hypot(it.vx, it.vz) || 1, dir = [it.vx / l, it.vz / l];
               if (it.blade) { if (f.boss) hitEnemy(e, 'tknife', dir, 1); else killEnemy(e, 'tknife', dir); sfx('hit'); }
@@ -1992,7 +1987,7 @@ export function initMission(ctx) {
             if (dist > want + 1.5) { tvx = dx / dist * 2.2; tvz = dz / dist * 2.2; } else if (dist < want - 1.5 && f.pers !== 'rush') { tvx = -dx / dist * 1.8; tvz = -dz / dist * 1.8; }
             f.strT -= dt; if (f.strT <= 0) { f.strT = 0.7 + Math.random() * 0.9; f.strD = Math.random() < 0.5 ? -1 : 1; } if (f.pers === 'rush') { tvx += dz / dist * 1.5 * f.strD; tvz -= dx / dist * 1.5 * f.strD; }
             laserTo(e, e.rotation.y);
-            if (f.react <= 0 && f.cd <= 0 && Math.abs(angDiff(e.rotation.y, face)) < 0.22) { fireGun(e.position, e.rotation.y, wid, false, false); f.cd = W2.ecd * EASY.ecd; f.atkT = 0.1; } } }
+            if (f.react <= 0 && f.cd <= 0 && Math.abs(angDiff(e.rotation.y, face)) < 0.22) { fireGun(e.position, e.rotation.y, wid, false, false, e); f.cd = W2.ecd * EASY.ecd; f.atkT = 0.1; } } }
         else if (!W2.melee && f.pers === 'careful' && f.seeT < 2.2) { face = Math.atan2(f.lkx - e.position.x, f.lkz - e.position.z); f.react = Math.max(f.react, 0.2); if (f.seeT < 1.2) laserTo(e, e.rotation.y); }
         else { if (f.seeT < 6) goTo(f.lkx || pp.x, f.lkz || pp.z, W2.melee ? 3.2 : 2.6); else { f.state = 'search'; f.sx = f.lkx; f.sz = f.lkz; f.searchT = 0; f.path = null; } f.react = Math.max(f.react, 0.35); }
         break; }
@@ -2006,6 +2001,7 @@ export function initMission(ctx) {
     e.position.x += f.mvx * dt; e.position.z += f.mvz * dt; ctx.collide(e.position, 0.34); collideDoors(e.position, 0.36, f.mvx, f.mvz, false);
     animate(e, Math.hypot(f.mvx, f.mvz) * (FT ? 0.8 : 1), dt);
     if (FT && f.wind > 0) { u.arms[0].rotation.x = -1.3; u.arms[1].rotation.x = -1.3; } // both hands out for the grab
+    else if (u.hold) { if (f.atkT > 0) f.atkT -= dt; u.hold.aim = f.atkT > 0 || (f.aiming && see) || f.state === 'chase' ? 1 : 0; } // gun raised while hunting you, low otherwise
     else if (f.wind > 0) u.arms[0].rotation.x = -2.6; else if (f.atkT > 0) { f.atkT -= dt; u.arms[0].rotation.x = W2.melee ? 0.6 : -1.3; } else if (f.aiming && see) u.arms[0].rotation.x = -1.45;
     f.aiming = false;
   }
@@ -2265,6 +2261,7 @@ export function initMission(ctx) {
     _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, FOE_TYPES, _wristLock: wristLock, _tryDodge: tryDodge, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD, _P: () => P, NV, setNV, receive, sellables, sellKey, armour, setArmour, swapGuns, ownCals, setMod, hasMod, capOf, armourOf, STASH_CAP });
   Object.defineProperty(M, 'van', { get: () => van, enumerable: true });
   // test hooks: where the Lampas stand, and a forced clear (results screen) for remix/best-score checks
+  M.debugP = () => P;
   M.debugFoes = () => enemies.map((e) => ({ alive: e.userData.foe.alive, x: +e.position.x.toFixed(1), z: +e.position.z.toFixed(1), w: e.userData.foe.weapon }));
   M.debugPark = () => ({ on: PK.on, paid: PK.paid, how: PK.how, t: +PK.t.toFixed(1), scanAt: +PK.scanAt.toFixed(1), scanned: PK.scanned, clamped: PK.clamped, warden: !!PK.ws, setScan: (t) => { PK.scanAt = t; } });
   M.debugArr = () => ARR && { ph: ARR.ph, t: +ARR.t.toFixed(2), route: ARR.route && ARR.route.map((v) => [+(v.x - OX).toFixed(2), +v.z.toFixed(2)]) };

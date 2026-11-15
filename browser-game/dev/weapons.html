@@ -1,0 +1,73 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Weapon bench</title>
+<style>html,body{margin:0;height:100%;background:#1b1820;color:#eee;font:14px system-ui}#ui{position:fixed;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap}button{background:#333;color:#eee;border:1px solid #555;padding:6px 10px;border-radius:4px;cursor:pointer}</style>
+</head><body><div id="ui"></div><canvas id="c"></canvas>
+<script type="module">
+// ?show=models (every weapon on a rack) | hold (the cast holding guns); ?guns=m16,cz,... ?look=eddyJr ?aim=1|0 ?view=front|side|top|three ?fire=1
+import * as THREE from '../vendor/three.module.min.js';
+import { makePS2Person, ps2Animate, installCharacters, LOOKS, setHold, holdRecoil, lookFromPerson } from '../js/characters.js';
+import { weaponMesh, fireFlash, tickFlash, weaponKind, isTwoGun } from '../js/weapons.js';
+const q = new URLSearchParams(location.search);
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2633);
+installCharacters(scene);
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 100);
+scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x3a2a20, 1.1));
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.4); sun.position.set(3, 6, 4); sun.castShadow = true; scene.add(sun);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x55505e, roughness: 0.9 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const show = q.get('show') || 'hold', view = q.get('view') || 'three';
+const ALL = ['makarov', 'cz', 'silenced', 'revolver', 'dual', 'golddeagle', 'smg', 'dualuzi', 'mp5sd', 'pump', 'shotgun', 'autosg', 'jackhammer', 'awp', 'm16', 'goldak', 'bat', 'knife', 'tknife', 'machete', 'katana'];
+const STANCE = (id) => isTwoGun(id) ? 'dual' : weaponKind(id) === 'rifle' ? 'rifle' : weaponKind(id) === 'smg' ? 'smg' : q.get('one') ? 'pistol1' : 'pistol';
+const guns = [];
+let people = [];
+let cam = camera;
+if (show === 'models') { // a gun wall: side profiles, barrels to the right, orthographic camera
+  const ids = (q.get('guns') || ALL.join(',')).split(',');
+  const cols = +(q.get('cols') || 3), cw = 1.15, rh = 0.34, rows = Math.ceil(ids.length / cols);
+  floor.visible = false; scene.background = new THREE.Color(0x2b2530);
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x3a3140, roughness: 1 })); wall.position.z = -0.12; wall.receiveShadow = true; scene.add(wall);
+  ids.forEach((id, i) => {
+    const g = weaponMesh(id, { quiet: q.get('quiet') === '1' && (id === 'makarov' || id === 'cz'), xmag: q.get('xmag') === '1' });
+    const k = weaponKind(id), melee = k === 'melee' || k === 'toss';
+    const cx = (i % cols - (cols - 1) / 2) * cw, cy = ((rows - 1) / 2 - Math.floor(i / cols)) * rh;
+    if (melee) { g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, -1, 0))); g.position.set(cx - 0.35, cy, 0); } else { g.rotation.set(0, Math.PI / 2, 0); g.position.set(cx - (k === 'rifle' ? 0.25 : 0.05), cy, 0); }
+    g.traverse((m) => { m.castShadow = true; }); scene.add(g); guns.push(g);
+  });
+  const hw = cols * cw / 2 + 0.05, hh = rows * rh / 2 + 0.05, asp = innerWidth / innerHeight, s = Math.max(hw / asp, hh);
+  cam = new THREE.OrthographicCamera(-s * asp, s * asp, s, -s, 0.1, 20); cam.position.set(0, 0, 5); cam.lookAt(0, 0, 0);
+  sun.position.set(1, 3, 6); sun.shadow.camera.left = sun.shadow.camera.bottom = -4; sun.shadow.camera.right = sun.shadow.camera.top = 4; sun.shadow.mapSize.set(2048, 2048);
+} else {
+  const ids = (q.get('guns') || 'cz,m16,shotgun,dual').split(',');
+  const look = q.get('look') || 'eddyJr';
+  // ?look=lampas: a tracksuited Lampas the way mission.js dresses them
+  LOOKS.lampas = lookFromPerson({ head: { skin: 0xf0c8a8, hair: '#2a2a2a', hairLine: 40 }, front: '#e8641a', shirt: 0xe8641a, pants: 0x2a2a3a, lampas: true, chain: true });
+  people = ids.map((id, i) => {
+    const p = makePS2Person(LOOKS[look] || LOOKS.eddyJr, { scene }); p.position.x = (i - (ids.length - 1) / 2) * 1.15; p.userData.inPlace = true;
+    const quiet = q.get('quiet') === '1';
+    const gun = weaponMesh(id, { quiet }), gun2 = isTwoGun(id) ? weaponMesh(id, { quiet }) : null;
+    setHold(p, { gun, gun2, stance: q.get('stance') || STANCE(id), aim: +(q.get('aim') ?? 1) });
+    p.userData.id = id; guns.push(gun); if (gun2) guns.push(gun2);
+    return p;
+  });
+  const w = Math.max(2.4, ids.length * 1.25);
+  const V = { front: [0, 1.25, w * 1.9], side: [w * 1.9, 1.25, 0.01], top: [0, w * 2.2, w * 1.0], three: [w * 1.1, 1.9, w * 1.45], game: [0, w * 1.6, w * 0.77], back: [-w * 0.6, 1.8, -w * 1.5] }[view] || [w, 2, w];
+  camera.position.set(...V); camera.lookAt(0, 1.0, 0);
+}
+const ui = document.getElementById('ui');
+const clock = new THREE.Clock(); let fireT = 0, t = 0;
+const flashL = new THREE.PointLight(0xffc070, 0, 4, 1.5); scene.add(flashL);
+window.__bench = { people, guns, fire: () => people.forEach((p) => { holdRecoil(p, 1); const v = new THREE.Vector3(); fireFlash(p.userData.hold.gun, v); flashL.position.copy(v); flashL.intensity = 6; }) };
+function tick() {
+  const dt = Math.min(0.05, clock.getDelta()); t += dt;
+  for (const p of people) { ps2Animate(p, +(q.get('speed') || 0), dt); if (q.get('spin')) p.rotation.y += dt * 0.5; }
+  if (q.get('fire') === '1' && (fireT -= dt) <= 0) { fireT = 0.45; window.__bench.fire(); }
+  for (const g of guns) tickFlash(g, dt);
+  flashL.intensity *= Math.exp(-dt * 30);
+  renderer.render(scene, cam); requestAnimationFrame(tick);
+}
+tick();
+</script></body></html>

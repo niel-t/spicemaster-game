@@ -227,7 +227,9 @@ function poseOf(p, now) {
   // right arm raised (-1.45) = aim one-handed, both raised = two-handed / grab, wound back (< -2.2) / swung through (> 0.3) = melee swing
   const a0 = u.arms[0].rotation.x, a1 = u.arms[1].rotation.x;
   let arms = q.arms || null, kick = q.kick || 0;
-  if (!arms && !u.seated && u.arms[0].visible) {
+  const holding = !!(u.hold && u.hold.gun && !u.seated && Math.abs(u.body.rotation.x) < 1); // a gun in setHold(): the IK below places the arms
+  if (holding) arms = null;
+  else if (!arms && !u.seated && u.arms[0].visible) {
     if (a0 < -2.2) { arms = 'melee'; kick = 0; }
     else if (a0 > 0.3) { arms = 'melee'; kick = 1; }
     else if (a0 < -1.2) arms = a1 < -1.0 ? (Math.abs(a0 - a1) < 0.2 ? 'dual' : 'rifle') : 'aim1';
@@ -235,7 +237,7 @@ function poseOf(p, now) {
   const W = P.pose(t, base || (walk ? 'walk' : 'idle'), undefined, arms, kick, q.gait, (R, rot, lower, hinge) => {
     for (let i = 0; i < 2; i++) {
       const a = u.arms[i], A = ARM[i];
-      if (!arms && (Math.abs(a.rotation.x) > 0.02 || Math.abs(a.rotation.z) > 0.02)) {
+      if (!arms && !holding && (Math.abs(a.rotation.x) > 0.02 || Math.abs(a.rotation.z) > 0.02)) {
         delete R[A.u]; delete R[A.f]; delete R[A.h];
         lower(A.s, 0.62); rot(A.u, X, a.rotation.x); if (a.rotation.z) rot(A.u, Z, a.rotation.z);
         rot(A.f, hinge(A.s), a.rotation.x < -0.6 ? 0.12 : 0.3);
@@ -249,6 +251,8 @@ function poseOf(p, now) {
     }
     if (q.extra) q.extra(R, rot, lower, hinge);
   });
+  if (holding) { const hdt = Math.min(0.1, (now - (q.holdT || now)) / 1000); q.holdT = now; applyHold(p, W, hdt); }
+  else if (u.hold) { q.holdT = now; for (const g of [u.hold.gun, u.hold.gun2]) if (g && g.parent === u.body && !u.seated) layDown(p, g, W); }
   // cut limbs: collapse the bone group to a point at its pivot
   const cut = [];
   if (!u.arms[0].visible) cut.push(CUT.arm0);
@@ -261,6 +265,129 @@ function poseOf(p, now) {
     for (const nm of grp) W[P.BI[nm]] = z;
   }
   return W;
+}
+
+/* ---------- holding guns: place the gun first, then reach both hands for it (two-bone IK) ----------
+   setHold(p, { gun, gun2, stance, aim }) — gun: a weapons.js group (grip origin, barrel +Z), gun2: the left-hand gun of a
+   pair; stance: 'pistol' (two hands, cupped), 'pistol1' (one hand), 'smg', 'rifle' (shouldered), 'dual'.
+   aim 1 = raised, 0 = low ready. holdRecoil(p, kick, left) jolts the gun back and up; the hands ride along. */
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const STANCE = { // [grip position, yaw, pitch, roll] in the body's rest space (facing +Z, the right hand at -X); [aim, ready]
+  rifle: [[V3(-0.12, 1.28, 0.28), 0.1, 0, 0], [V3(-0.15, 1.04, 0.2), 0.6, 0.5, 0.2]],
+  smg: [[V3(-0.09, 1.25, 0.33), 0.08, 0, 0], [V3(-0.12, 1.04, 0.22), 0.45, 0.6, 0.1]],
+  pistol: [[V3(-0.05, 1.31, 0.43), 0.06, 0, 0], [V3(-0.09, 1.02, 0.25), 0.15, 0.85, 0]],
+  pistol1: [[V3(-0.165, 1.33, 0.47), 0.02, 0, -0.18], [V3(-0.2, 0.98, 0.14), 0.05, 1.05, 0]],
+  dual: [[V3(-0.19, 1.31, 0.45), -0.06, 0, -0.1], [V3(-0.21, 0.98, 0.15), 0, 1.05, 0]],
+};
+const TWIST = { rifle: -0.42, smg: -0.22, pistol: 0, pistol1: 0.25, dual: 0 }; // torso turn (bladed stance), the head keeps looking ahead
+const KICK = { rifle: 0.07, smg: 0.05, pistol: 0.045, pistol1: 0.05, dual: 0.05 };
+const POLE = [V3(-0.75, -1, -0.35).normalize(), V3(0.75, -1, -0.35).normalize()];
+const POLE_RIFLE = [V3(-1, -0.45, -0.3).normalize(), V3(0.6, -1, 0).normalize()];
+const ARMLEN = [Math.hypot(...P.V.sub(P.EL, P.SH)), Math.hypot(...P.V.sub(P.WR, P.EL))];
+const REST = [-1, 1].map((s) => { // each hand's rest frame at the fist: z = hand axis, y = thumb side (+Z), x = y × z
+  const a = V3(P.AD[0] * s, P.AD[1], 0), w = s > 0 ? P.WR : P.mir(P.WR), y = V3(0, 0, 1), x = y.clone().cross(a);
+  const m = new THREE.Matrix4().makeBasis(x, y, a).setPosition(V3(...w).addScaledVector(a, 0.065));
+  return { m, inv: m.clone().invert(), sh: V3(...(s > 0 ? P.SH : P.mir(P.SH))), el: V3(...(s > 0 ? P.EL : P.mir(P.EL))), wr: V3(...w), hinge: V3(P.AD[0] * s, P.AD[1], 0).cross(V3(0, 0, 1)).normalize() };
+});
+const tq = new THREE.Quaternion(), tq2 = new THREE.Quaternion(), tE = new THREE.Euler(), tv = [0, 1, 2, 3, 4, 5, 6, 7].map(() => new THREE.Vector3());
+const mA = new THREE.Matrix4(), mB = new THREE.Matrix4(), mR = new THREE.Matrix4(), mT1 = new THREE.Matrix4(), mT2 = new THREE.Matrix4(), mU = new THREE.Matrix4(), mF = new THREE.Matrix4();
+export function setHold(p, h) {
+  const u = p.userData, old = u.hold;
+  for (const k of ['gun', 'gun2']) { const g = old && old[k]; if (g && (!h || h[k] !== g) && g.parent) g.parent.remove(g); }
+  if (h) { h.a = h.a ?? (old ? old.a : h.aim ?? 1); h.r = h.r || 0; h.r2 = h.r2 || 0; h.aim = h.aim ?? 1; }
+  u.hold = h || null;
+}
+export function holdPump(p) { const h = p.userData.hold; if (h) h.pumpT = 0; } // rack the pump (support hand slides back and forth)
+export function holdRecoil(p, kick = 1, left = false) { const h = p.userData.hold; if (!h) return; if (left) h.r2 = Math.min(1.6, h.r2 + kick); else h.r = Math.min(1.6, h.r + kick); }
+// gun frame (body space) for one side: blend ready -> aim, follow the chest, add recoil
+function gunFrame(out, st, a, side, rec, chestOff) {
+  const [A, R] = STANCE[st] || STANCE.pistol;
+  const pos = tv[0].copy(R[0]).lerp(A[0], a);
+  tq.setFromEuler(tE.set(R[2], R[1], R[3], 'YXZ')); tq2.setFromEuler(tE.set(A[2], A[1], A[3], 'YXZ')); tq.slerp(tq2, a);
+  if (side > 0) { pos.x = -pos.x; tq.y = -tq.y; tq.z = -tq.z; } // mirror for the left hand
+  pos.add(chestOff);
+  out.compose(pos, tq, tv[1].set(1, 1, 1));
+  if (rec > 0.001) { const k = KICK[st] || 0.05; out.multiply(mR.makeTranslation(0, rec * 0.012, -rec * k)).multiply(mR.makeRotationX(-rec * (st === 'rifle' ? 0.22 : 0.42))); }
+  return out;
+}
+const aboutPoint = (out, c, q) => out.makeTranslation(c.x, c.y, c.z).multiply(mT1.makeRotationFromQuaternion(q)).multiply(mT2.makeTranslation(-c.x, -c.y, -c.z));
+// hand target frame -> hand bone matrix, then bend the arm so the wrist lands where the hand starts
+function reach(W, i, target, pole) {
+  const A = ARM[i], r = REST[i];
+  const Hd = mA.multiplyMatrices(target, r.inv);
+  const Wu = mB.fromArray(W[P.BI[A.u]]), S = tv[2].copy(r.sh).applyMatrix4(Wu);
+  const T = tv[3].copy(r.wr).applyMatrix4(Hd), d = tv[4].subVectors(T, S);
+  const a = ARMLEN[0], b = ARMLEN[1]; let L = d.length();
+  const Lc = Math.min(a + b - 0.004, Math.max(0.1, L));
+  if (Lc !== L) { d.multiplyScalar(Lc / L); const dv = tv[5].addVectors(S, d).sub(T); Hd.premultiply(mR.makeTranslation(dv.x, dv.y, dv.z)); T.add(dv); L = Lc; }
+  const n = d.normalize(), x = (a * a - b * b + L * L) / (2 * L), hh = Math.sqrt(Math.max(0, a * a - x * x));
+  const pp = tv[5].copy(pole).addScaledVector(n, -pole.dot(n)); if (pp.lengthSq() < 1e-6) pp.set(0, -1, 0); pp.normalize();
+  const E = tv[6].copy(S).addScaledVector(n, x).addScaledVector(pp, hh);
+  // upper arm: swing its elbow onto E, then roll it so the elbow hinge is square to the arm plane
+  const u0 = tv[7].copy(r.el).applyMatrix4(Wu).sub(S).normalize(), u1 = tv[1].subVectors(E, S).normalize();
+  tq.setFromUnitVectors(u0, u1);
+  const f1 = tv[0].subVectors(T, E).normalize();
+  const hW = r.hinge.clone().transformDirection(Wu).applyQuaternion(tq), hWant = u1.clone().cross(f1);
+  if (hWant.lengthSq() > 1e-6) { hWant.normalize(); hW.addScaledVector(u1, -hW.dot(u1)).normalize(); tq.premultiply(tq2.setFromAxisAngle(u1, Math.atan2(u1.dot(hW.clone().cross(hWant)), hW.dot(hWant)))); }
+  const Ru = aboutPoint(mU, S, tq);
+  const Wf = mF.multiplyMatrices(Ru, mR.fromArray(W[P.BI[A.f]]));
+  Ru.multiply(Wu); // Ru is now the new upper arm
+  // forearm: point it at the wrist, then roll it to match the hand so the wrist skin doesn't twist
+  const wc = tv[7].copy(r.wr).applyMatrix4(Wf).sub(E).normalize();
+  tq.setFromUnitVectors(wc, f1);
+  const zF = tv[4].set(0, 0, 1).transformDirection(Wf).applyQuaternion(tq), zH = tv[5].set(0, 0, 1).transformDirection(Hd);
+  zF.addScaledVector(f1, -zF.dot(f1)); zH.addScaledVector(f1, -zH.dot(f1));
+  if (zF.lengthSq() > 1e-6 && zH.lengthSq() > 1e-6) { zF.normalize(); zH.normalize(); tq.premultiply(tq2.setFromAxisAngle(f1, Math.atan2(f1.dot(zF.clone().cross(zH)), zF.dot(zH)))); }
+  Wf.premultiply(aboutPoint(mB, E, tq));
+  Ru.toArray(W[P.BI[A.u]]); Wf.toArray(W[P.BI[A.f]]); Hd.toArray(W[P.BI[A.h]]);
+}
+const G1 = new THREE.Matrix4(), G2 = new THREE.Matrix4(), HT = new THREE.Matrix4(), chestRest = new THREE.Vector3(0, 1.36, 0), chestOff = new THREE.Vector3();
+function holdFrame(g, G, sc) { // put the gun mesh at G (body space), undoing the body's uneven x/z scale
+  if (!g) return;
+  if (g.matrixAutoUpdate) g.matrixAutoUpdate = false;
+  g.matrix.copy(G).multiply(mR.makeScale(sc.y / sc.x, 1, sc.y / sc.z));
+  g.matrixWorldNeedsUpdate = true; g.updateMatrixWorld(true);
+}
+function layDown(p, g, W) { // knocked down with a gun: it stays in the fist
+  const i = g === p.userData.hold.gun2 ? 1 : 0;
+  holdFrame(g, G1.fromArray(W[P.BI[ARM[i].h]]).multiply(REST[i].m), p.userData.body.scale);
+}
+function applyHold(p, W, dt) {
+  const u = p.userData, h = u.hold, st = h.stance || 'pistol';
+  h.a += (h.aim - h.a) * Math.min(1, dt * 9); h.r *= Math.exp(-dt * 13); h.r2 *= Math.exp(-dt * 13);
+  let rack = 0; if (h.pumpT !== undefined) { h.pumpT += dt; const t = (h.pumpT - 0.12) / 0.38; rack = t > 0 && t < 1 ? Math.sin(t * Math.PI) : 0; if (h.pumpT > 0.5) h.pumpT = undefined; }
+  const pumpG = h.gun && h.gun.userData.pump; if (pumpG) pumpG.position.z = -0.07 * rack;
+  if (h.gun && h.gun.parent !== u.body) u.body.add(h.gun);
+  if (h.gun2 && h.gun2.parent !== u.body) u.body.add(h.gun2);
+  const tw = (TWIST[st] || 0) * h.a;
+  if (tw) { // turn the upper body about the spine, then the neck back so the head faces the target
+    const sp = P.BONES[P.BI.spine][2], nk = P.BONES[P.BI.neck][2];
+    aboutPoint(mA, tv[0].set(sp[0], sp[1], sp[2]), tq.setFromAxisAngle(tv[1].set(0, 1, 0), tw));
+    for (let b = P.BI.spine; b <= P.BI.handR; b++) mB.fromArray(W[b]).premultiply(mA).toArray(W[b]);
+    const n = tv[2].set(nk[0], nk[1], nk[2]).applyMatrix4(mB.fromArray(W[P.BI.neck]));
+    aboutPoint(mA, n, tq.setFromAxisAngle(tv[1].set(0, 1, 0), -tw * 0.85));
+    for (const b of [P.BI.neck, P.BI.head]) mB.fromArray(W[b]).premultiply(mA).toArray(W[b]);
+  }
+  chestOff.copy(chestRest).applyMatrix4(mB.fromArray(W[P.BI.chest])).sub(chestRest);
+  gunFrame(G1, st, h.a, -1, h.r, chestOff);
+  const rifle = st === 'rifle' || st === 'smg', poles = rifle ? POLE_RIFLE : POLE;
+  if (u.arms[0].visible) reach(W, 0, G1, poles[0]);
+  if (st === 'dual') { gunFrame(G2, st, h.a, 1, h.r2, chestOff); if (u.arms[1].visible) reach(W, 1, G2, poles[1]); }
+  else if (st !== 'pistol1' && u.arms[1].visible) {
+    const gx = new THREE.Vector3().setFromMatrixColumn(G1, 0), gy = new THREE.Vector3().setFromMatrixColumn(G1, 1), gz = new THREE.Vector3().setFromMatrixColumn(G1, 2);
+    let o, z, y;
+    if (rifle && h.gun && h.gun.userData.fore) { // support hand under the handguard, palm up, thumb along the barrel
+      o = h.gun.userData.fore.clone().addScaledVector(tv[3].set(0, 0, 1), -0.083 * rack).applyMatrix4(G1).addScaledVector(gy, -0.03);
+      z = gx.clone().multiplyScalar(-1).addScaledVector(gy, 0.45).normalize(); y = gz.clone();
+    } else { // cupping the shooting hand
+      o = new THREE.Vector3(0.035, -0.03, -0.005).applyMatrix4(G1);
+      y = gy.clone(); z = gz.clone().multiplyScalar(0.75).addScaledVector(gx, -0.66).normalize();
+    }
+    y.addScaledVector(z, -y.dot(z)).normalize(); const x = y.clone().cross(z);
+    reach(W, 1, HT.makeBasis(x, y, z).setPosition(o), poles[1]);
+  }
+  const sc = u.body.scale;
+  holdFrame(h.gun, G1, sc); if (st === 'dual') holdFrame(h.gun2, G2, sc);
 }
 
 function inScene(o) { for (let n = o; n; n = n.parent) if (n.isScene) return true; return false; }
