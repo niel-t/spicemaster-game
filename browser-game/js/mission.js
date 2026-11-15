@@ -53,10 +53,15 @@ import smokkelsloot from './levels/smokkelsloot.js';
 import containerchaos from './levels/containerchaos.js';
 import kardemomdok from './levels/kardemomdok.js';
 import couscouskade from './levels/couscouskade.js';
+import zaatarmarkt from './levels/zaatarmarkt.js';
+import sumaksteeg from './levels/sumaksteeg.js';
+import harissahof from './levels/harissahof.js';
+import dadelplein from './levels/dadelplein.js';
+import kasbahalgara from './levels/kasbahalgara.js';
 import goudenmolen from './levels/goudenmolen.js';
 import warehouse from './levels/warehouse.js'; // the spice war: defend Eddy & Zn's own warehouse
 
-export const LEVELS = { warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen, couscouskade };
+export const LEVELS = { warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen, couscouskade, zaatarmarkt, sumaksteeg, harissahof, dadelplein, kasbahalgara };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -182,7 +187,7 @@ export function initMission(ctx) {
     }
     // the level's own props (street, signs, vehicles, ...)
     const carIn = (...a) => { const g = ctx.car(...a); root.add(g); return g; };
-    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt, sight: (m) => { sightCap = m; }, banner, shake, reinforce, reserves: () => enemies.filter((e) => e.userData.foe.res).length, alive: () => alive().length }) || {};
+    const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt, sight: (m) => { sightCap = m; }, banner, shake, reinforce, reserves: () => enemies.filter((e) => e.userData.foe.res).length, alive: () => alive().length, foes: () => enemies, paraAlarm: (at) => paraAlarm(at), checkClear: () => { if (!alive().length && !tasksLeft() && !wavePending() && !R.cleared && !R.results) { R.cleared = true; banner('FLOOR CLEAR', '', 1.5); setTimeout(results, 1500); hud(); } } }) || {};
     levelShot = deco.onShot || null; levelReset = deco.reset || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     levelTick = deco.tick || null;
@@ -579,7 +584,7 @@ export function initMission(ctx) {
     //   rasalgara: RAS AL GARA, chief of the Paravim (De Zandwijk finale, Kasbah al Gara). Indigo robe, saffron sash, grey beard, head wrap; 7 hits.
     //   Phase 1 he holds back with the long rifle; at 3 hits left (phase2.at) he draws the scimitar, charges and every Paravim gets Wraak.
     rasalgara: {
-      name: 'RAS AL GARA', hp: 7, speed: 1.0, dodge: 0.12, mass: 3.0, score: 9000, phase2: { at: 3, weapon: 'machete', dodge: 0.4 },
+      name: 'RAS AL GARA', title: 'Chief of the Paravim', hp: 7, speed: 1.0, dodge: 0.12, mass: 3.0, score: 9000, phase2: { at: 3, weapon: 'machete', dodge: 0.4 },
       look: { head: { skin: 0xc8946a, hair: '#8a8a84', brow: '#4a4440', hairLine: 50, mouth: 'smile', iris: '#2a1a10', beard: '#9a9a94' }, front: '#2a2e6a', shirt: 0x2a2e6a, pants: 0x2a2e6a, shoes: 0x5a3a1a, belt: 0xe8a33d, wrap: 0xe8a33d, belly: 0.6, scale: 1.1 },
       alert: ['Eddy junior. Je vader stond bij ons in het krijt.', 'Drie zendingen. Rente erbij. Nu.', 'Ik heb een woestijn overgestoken voor dit geld!', 'Wie heeft er zand in mijn thee gedaan?! Jij?!'],
       hurt: ['Mijn sjerp!', 'Zand in mijn ogen, niet in mijn hart.', 'Dat zet ik op je rekening!', 'Au! Met rente!'],
@@ -1933,7 +1938,7 @@ export function initMission(ctx) {
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }
-    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react * (1 + 0.15 * pk('sense')) * (LV.paravim ? PARA.react : 1); f.seen = true; f.argue = null; say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, 'Mini-boss · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
+    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react * (1 + 0.15 * pk('sense')) * (LV.paravim ? PARA.react : 1); f.seen = true; f.argue = null; say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, (FT.title || 'Mini-boss') + ' · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
     else f.seeT += dt;
     if (P.dead && f.state === 'chase') f.state = 'idle';
     let tvx = 0, tvz = 0, face = null;
