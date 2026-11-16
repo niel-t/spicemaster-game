@@ -428,6 +428,32 @@
     .shophead img { width: 46px; height: 64px; } .shopname { font-size: 20px; }
     .item { flex-wrap: wrap; } .item .pr { min-width: 60px; font-size: 15px; }
     }
+  /* ---------- conversations + Shooki's tips, Frutiger Aero (matches the speech balloons and Kaasdows XL) ---------- */
+  #dialogue { background: linear-gradient(180deg, rgba(255,255,255,.95) 0%, rgba(236,248,255,.92) 40%, rgba(204,236,255,.9) 52%, rgba(226,246,255,.94) 100%);
+    border: 1px solid rgba(255,255,255,.95); border-radius: 18px; color: #07304f; -webkit-backdrop-filter: blur(14px) saturate(1.6); backdrop-filter: blur(14px) saturate(1.6);
+    box-shadow: 0 0 0 2px rgba(80,170,230,.55), 0 12px 32px rgba(0,40,80,.42), inset 0 1px 0 #fff, inset 0 -10px 20px rgba(90,180,240,.18); }
+  #dialogue::before { content: ""; position: absolute; left: 8px; right: 8px; top: 3px; height: 38px; border-radius: 15px 15px 50% 50% / 15px 15px 12px 12px; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,0)); }
+  #dialogue > * { position: relative; }
+  #dialogue img { position: absolute; border: 2px solid #fff; border-radius: 12px; background: linear-gradient(180deg, #bfe8ff, #5ab4ea); box-shadow: 0 0 0 1px rgba(40,120,180,.45), 0 4px 10px rgba(0,40,80,.3); }
+  #dialogue .who { font-family: "Segoe UI", Tahoma, "Rubik", Arial, sans-serif; color: #0a6ab0; text-shadow: 0 1px 0 #fff; letter-spacing: .3px; }
+  #dialogue .line { font-family: "Segoe UI", Tahoma, "Rubik", Arial, sans-serif; color: #07304f; }
+  #dialogue .line b { color: #b8501a; }
+  #dialogue .next { color: #4a7a9a; }
+  #dialogue #choices button { font: 600 15px "Segoe UI", Tahoma, Arial, sans-serif !important; color: #07304f !important; border: 1px solid #5e9cc6 !important; border-radius: 10px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #eef8fd 48%, #cfe9f8 52%, #e6f5fc 100%) !important; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,40,80,.22); }
+  #dialogue #choices button:hover, #dialogue #choices button:focus { background: linear-gradient(180deg, #e6fbff, #8fe0ff 45%, #2fb4f0 52%, #7fe4ff) !important; color: #002a48 !important; box-shadow: inset 0 1px 0 #fff, 0 0 10px rgba(80,210,255,.8); }
+  body #shookitip { background: linear-gradient(180deg, rgba(255,255,255,.95) 0%, rgba(236,248,255,.92) 42%, rgba(204,236,255,.9) 54%, rgba(226,246,255,.94) 100%);
+    border: 1px solid #fff; border-radius: 18px 18px 18px 6px; color: #07304f; font-family: "Segoe UI", Tahoma, Rubik, Arial, sans-serif; -webkit-backdrop-filter: blur(12px) saturate(1.6); backdrop-filter: blur(12px) saturate(1.6);
+    box-shadow: 0 0 0 2px rgba(80,170,230,.55), 0 10px 28px rgba(0,40,80,.4), inset 0 1px 0 #fff, inset 0 -8px 16px rgba(90,180,240,.18); }
+  body #shookitip::before { content: ""; position: absolute; left: 8px; right: 8px; top: 3px; height: 34%; border-radius: 15px 15px 50% 50% / 15px 15px 10px 10px; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,0)); }
+  body #shookitip > * { position: relative; }
+  body #shookitip .st-av img { border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(40,120,180,.5), 0 3px 8px rgba(0,40,80,.3); background: #5ab4ea; }
+  body #shookitip .st-from { color: #0a6ab0; } body #shookitip .st-from span { color: #4a7a9a; }
+  body #shookitip .st-title { color: #07406a; font-family: "Segoe UI", Tahoma, Rubik, Arial, sans-serif; } body #shookitip b { color: #b8501a; }
+  body #shookitip .st-ok { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #07304f; border: 1px solid #5e9cc6; border-radius: 10px; background: linear-gradient(180deg, #ffffff 0%, #eef8fd 48%, #cfe9f8 52%, #e6f5fc 100%); box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,40,80,.22); }
+  body #shookitip .st-ok:hover { background: linear-gradient(180deg, #e6fbff, #8fe0ff 45%, #2fb4f0 52%, #7fe4ff); }
+  body #shookitip .st-off { color: #3a6a8a; }
 </style>
 </head>
 <body class="on-title">
