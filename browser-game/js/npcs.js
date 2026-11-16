@@ -98,7 +98,7 @@ export function initNpcs(d) {
         ]);
       },
     },
-    { // Ome Joop: Eddy Sr.'s old grinder, keeper of the notebook (Game Bible: Eddy Sr.'s notebook)
+    { // Ome Joop: Freddy Sr.'s old grinder, keeper of the notebook (Game Bible: Freddy Sr.'s notebook)
       id: 'joop', who: 'Ome Joop', label: 'Talk to Ome Joop', seated: true,
       look: { front: '#6a5040', shirt: 0x6a5040, pants: 0x4a4038, ballcap: 0x5a4a3a, head: { skin: 0xf0c8a8, hair: '#d8d4cc', brow: '#c8c4bc', hairLine: 80, mouth: 'smile', glasses: true, iris: '#4a6a8a' }, belly: 0.6, skin: 0xf0c8a8 },
       pos: () => [-6, 11.9, Math.PI],

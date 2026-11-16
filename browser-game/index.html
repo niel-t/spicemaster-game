@@ -25,7 +25,7 @@
   /* the portrait sits inside the bar: min-height = top 12 + 104 tall + 12; long text scrolls instead of leaving the screen */
   #dialogue { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(820px, calc(100vw - 24px)); max-height: calc(100vh - 56px); max-height: calc(100dvh - 56px); overflow-y: auto; overflow-x: hidden; background: rgba(10,12,18,.88); border: 3px solid #ffd36b; border-radius: 10px; color: #fff; padding: 14px 18px 28px 114px; min-height: 134px; display: none; box-sizing: border-box; overflow-wrap: anywhere; }
   #dialogue.noface { padding-left: 18px; min-height: 86px; }
-  #dialogue img { position: absolute; left: 12px; top: 12px; width: 84px; height: 104px; object-fit: cover; object-position: center top; border: 2px solid #ffd36b; border-radius: 6px; background: #333; box-sizing: border-box; }
+  #dialogue img, #dialogue canvas.pface { position: absolute; left: 12px; top: 12px; width: 84px; height: 104px; object-fit: cover; object-position: center top; border: 2px solid #ffd36b; border-radius: 6px; background: #333; box-sizing: border-box; }
   #dialogue #choices button { max-width: 100%; white-space: normal; text-align: left; }
   #dialogue .who { font: 900 18px "Rubik", Arial, sans-serif; color: #ffd36b; margin-bottom: 4px; }
   #dialogue .line { font: 400 18px/1.4 "Rubik", Arial, sans-serif; }
@@ -421,7 +421,7 @@
     #help { display: none; }
     #dialogue { width: calc(100vw - 16px); padding: 10px 12px 24px 76px; min-height: 92px; bottom: calc(10px + env(safe-area-inset-bottom)); max-height: calc(100dvh - 90px); }
     #dialogue.noface { padding-left: 12px; min-height: 64px; }
-    #dialogue img { width: 56px; height: 70px; left: 10px; top: 10px; }
+    #dialogue img, #dialogue canvas.pface { width: 56px; height: 70px; left: 10px; top: 10px; }
     #dialogue #choices { gap: 6px !important; } #dialogue #choices button { font-size: 13px !important; padding: 6px 10px !important; }
     #dialogue .who { font-size: 14px; } #dialogue .line { font-size: 14px; }
     .shopbox { margin: 2vh auto; padding: 10px 12px; }
@@ -435,7 +435,7 @@
   #dialogue::before { content: ""; position: absolute; left: 8px; right: 8px; top: 3px; height: 38px; border-radius: 15px 15px 50% 50% / 15px 15px 12px 12px; pointer-events: none;
     background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,0)); }
   #dialogue > * { position: relative; }
-  #dialogue img { position: absolute; border: 2px solid #fff; border-radius: 12px; background: linear-gradient(180deg, #bfe8ff, #5ab4ea); box-shadow: 0 0 0 1px rgba(40,120,180,.45), 0 4px 10px rgba(0,40,80,.3); }
+  #dialogue img, #dialogue canvas.pface { position: absolute; border: 2px solid #fff; border-radius: 12px; background: linear-gradient(180deg, #bfe8ff, #5ab4ea); box-shadow: 0 0 0 1px rgba(40,120,180,.45), 0 4px 10px rgba(0,40,80,.3); }
   #dialogue .who { font-family: "Segoe UI", Tahoma, "Rubik", Arial, sans-serif; color: #0a6ab0; text-shadow: 0 1px 0 #fff; letter-spacing: .3px; }
   #dialogue .line { font-family: "Segoe UI", Tahoma, "Rubik", Arial, sans-serif; color: #07304f; }
   #dialogue .line b { color: #b8501a; }

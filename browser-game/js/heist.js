@@ -33,7 +33,7 @@ export function createHeists(deps) {
   function roll(h) { // tonight's targets, seeded by the market day
     const d = day(), r = rng32(hashStr(`heist#${d}`));
     h.day = d; h.targets = [];
-    if (!h.done.tutorial) h.targets.push({ id: 'spekbuurt', tutorial: true, title: "Dad's old grill", note: "The Lampas keep Eddy Sr.'s old döner grill in their Spekbuurt storeroom. Get it back. No safe, just the grill and whatever crates you can carry.", faction: 'lampas' });
+    if (!h.done.tutorial) h.targets.push({ id: 'spekbuurt', tutorial: true, title: "Dad's old grill", note: "The Lampas keep Freddy Sr.'s old döner grill in their Spekbuurt storeroom. Get it back. No safe, just the grill and whatever crates you can carry.", faction: 'lampas' });
     const lv = (deps.levels ? deps.levels() : []).filter((l) => l.unlocked && (h.done.tutorial || l.id !== 'spekbuurt'));
     const pool = lv.filter((l) => !l.owned).length ? lv.filter((l) => !l.owned) : lv;
     const pick = pool.slice(); for (let i = pick.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pick[i], pick[j]] = [pick[j], pick[i]]; }

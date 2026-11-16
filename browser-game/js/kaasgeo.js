@@ -30,7 +30,7 @@ export const RING_R = 274; // the Ringweg around the canal ring
 const blob = (cx, cy, rx, ry, seed) => Array.from({ length: 28 }, (_, i) => { const a = i / 28 * Math.PI * 2, k = 1 + 0.1 * Math.sin(3 * a + seed) + 0.06 * Math.sin(7 * a + seed * 2); return [cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]; });
 export const PARKS = [
   ['Granolabos', blob(300, 95, 95, 48, 1), true], ['Kaaspark', blob(530, 705, 46, 28, 2), true], ['Kipkruidenpark', blob(150, 762, 42, 24, 3), true], ['Dadeloase', blob(185, 455, 24, 16, 6), true],
-  ['Hofje van Eddy Sr.', blob(372, 652, 15, 10, 4), false], ['Oosterpark', blob(760, 105, 40, 26, 5), true],
+  ['Hofje van Freddy Sr.', blob(372, 652, 15, 10, 4), false], ['Oosterpark', blob(760, 105, 40, 26, 5), true],
 ];
 export const FIELDS = [[890, -10], [1220, -10], [1220, 150], [1100, 158], [1000, 166], [920, 186], [890, 190]]; // Speltpolder farmland
 

@@ -27,7 +27,8 @@ import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades,
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { createKaasdows } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
 import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
-import { createBalloons } from './balloons.js'; // Frutiger Aero speech balloons, kept on screen
+import { createBalloons } from './balloons.js';
+import { createPortraits } from './portrait.js'; // Freddy Sr. and Eddy Jr. photos that talk and blink // Frutiger Aero speech balloons, kept on screen
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
@@ -424,7 +425,7 @@ function spanWidths(len, k0) {
 { let x = -64; spanWidths(30, 0).forEach((w, i) => { house(x + w / 2, -11, w, 9, 9 + (i % 4), 0, i + 20); x += w; }); }
 stackTower(-34, -26.5, -11);
 const WH_X0_GAP = -11.2;
-// Shoarma Schmatzel: loyal to Eddy Sr., right next to the Hotel Kaasland stack
+// Shoarma Schmatzel: loyal to Freddy Sr., right next to the Hotel Kaasland stack
 const JS = { x0: -26.5, x1: -16.5, z0: -15.5, z1: -6.5, h: 4.8, doorX0: -21.6, doorX1: -20.2 };
 let nx = JS.x1, hi = 3;
 for (const w of spanWidths(WH_X0_GAP - nx, hi)) { house(nx + w / 2, -11, w, 9, 9 + (hi % 3) * 1.3, 0, hi); solid(nx, nx + w, -15.5, -6.5); nx += w; hi++; }
@@ -1099,15 +1100,16 @@ function beep(freq, dur, type = 'square', vol = 0.05) {
 }
 
 // dialogue
-const faces = { 'Eddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg', 'Shooki': './assets/face_shooki.jpg', 'Shooki (telefoon)': './assets/face_shooki.jpg', 'Razim (telefoon)': './assets/face_razim.jpg', 'Razim': './assets/face_razim.jpg', 'Henk Cijfer': './assets/face_henk.jpg', 'Henk Cijfer (telefoon)': './assets/face_henk.jpg', 'Van der Belasting': './assets/face_belasting.jpg' };
+const faces = { 'Freddy Sr.': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg', 'Shooki': './assets/face_shooki.jpg', 'Shooki (telefoon)': './assets/face_shooki.jpg', 'Razim (telefoon)': './assets/face_razim.jpg', 'Razim': './assets/face_razim.jpg', 'Henk Cijfer': './assets/face_henk.jpg', 'Henk Cijfer (telefoon)': './assets/face_henk.jpg', 'Van der Belasting': './assets/face_belasting.jpg' };
 let dlgQueue = [], dlgDone = null;
+const portraits = createPortraits($('dlgface'));
 function dialogue(lines, done) { dlgQueue = lines.slice(); dlgDone = done; state.inDialogue = true; nextLine(); }
 function nextLine() {
   if (!dlgQueue.length) { $('dialogue').style.display = 'none'; state.inDialogue = false; const d = dlgDone; dlgDone = null; if (d) d(); return; }
   const [who, line] = dlgQueue.shift();
   $('dlgwho').textContent = who; $('dlgline').textContent = line;
   const f = faces[who];
-  $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f);
+  $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f); portraits.show(f, line);
   $('dialogue').style.display = 'block'; beep(520, 0.04, 'triangle');
 }
 $('dialogue').addEventListener('click', nextLine);
@@ -1255,7 +1257,7 @@ function renderPC() {
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Mixing: <b>${(state.naknik || 0) * econ.perNaknik()} kg</b> a market day<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Eddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
+    body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Mixing: <b>${(state.naknik || 0) * econ.perNaknik()} kg</b> a market day<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Freddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
     econ.propertyBind(body, renderPC);
   }
 }
@@ -1560,11 +1562,11 @@ function talkRussian() {
 function talkDad() {
   if (state.step === 'talk') {
     dialogue([
-      ['Eddy Sr.', 'Eddy! Jongen! There you are. Thirty years I ran this warehouse. Every shoarma joint in Kaasland got its spice from Eddy & Zn.'],
-      ['Eddy Sr.', 'Then the Lampas came. Cheap, watered-down mixes. Half sawdust, half lies. My customers left me one by one.'],
+      ['Freddy Sr.', 'Eddy! Jongen! There you are. Thirty years I ran this warehouse. Every shoarma joint in Kaasland got its spice from Eddy & Zn.'],
+      ['Freddy Sr.', 'Then the Lampas came. Cheap, watered-down mixes. Half sawdust, half lies. My customers left me one by one.'],
       ['Eddy Jr.', 'So you\'re just giving up?'],
-      ['Eddy Sr.', 'I\'m retiring. Here, the keys. The warehouse is yours. It\'s full of my old shoarma junk. Sell it, it\'s worth a few Wilders.'],
-      ['Eddy Sr.', 'And Eddy... somewhere in Kaasland is the recipe for De Gouden Mix. The blend that made me king. Every faction wants it. Don\'t let them find it first.'],
+      ['Freddy Sr.', 'I\'m retiring. Here, the keys. The warehouse is yours. It\'s full of my old shoarma junk. Sell it, it\'s worth a few Wilders.'],
+      ['Freddy Sr.', 'And Eddy... somewhere in Kaasland is the recipe for De Gouden Mix. The blend that made me king. Every faction wants it. Don\'t let them find it first.'],
       ['Eddy Jr.', 'De Gouden Mix... Right. First, the junk goes.'],
     ], () => {
       state.step = 'list'; openShutter(); updateObjective();
@@ -1573,11 +1575,11 @@ function talkDad() {
     });
   } else if (state.step === 'dad2') {
     dialogue([
-      ['Eddy Sr.', 'Look at you, jongen. Wilders in your pocket and a Naknik stirring the pot. Your old man is proud.'],
-      ['Eddy Sr.', 'But the Lampas won\'t hand over Spekbuurt because you ask nicely. You\'ll need protection.'],
-      ['Eddy Sr.', 'Go see an old friend of mine. The Russian. Pawn shop at the east end of the street. Tell him Eddy sent you.'],
+      ['Freddy Sr.', 'Look at you, jongen. Wilders in your pocket and a Naknik stirring the pot. Your old man is proud.'],
+      ['Freddy Sr.', 'But the Lampas won\'t hand over Spekbuurt because you ask nicely. You\'ll need protection.'],
+      ['Freddy Sr.', 'Go see an old friend of mine. The Russian. Pawn shop at the east end of the street. Tell him Eddy sent you.'],
       ['Eddy Jr.', 'And you?'],
-      ['Eddy Sr.', 'Me? Costa del Kaas. Sun, sea, no spice wars. Don\'t call me unless you find De Gouden Mix.'],
+      ['Freddy Sr.', 'Me? Costa del Kaas. Sun, sea, no spice wars. Don\'t call me unless you find De Gouden Mix.'],
       ['Eddy Jr.', 'Thanks, pa.'],
     ], () => { state.step = 'russian'; dad.userData.leaving = true; updateObjective(); });
   } else {
@@ -1589,7 +1591,7 @@ function talkDad() {
       map: 'Have a look at the map. Kaasland is big, and the Lampas are everywhere.',
       free: state.district1 ? (owns('frietwijk') ? 'Frietwijk! You took a joint in Oud-Vettenburg, jongen. Jan van Kaas will be fuming in his pier.' : 'Kipkruidenkwartier is ours again, jongen. Your old man is proud. Oud-Vettenburg is where the Lampas really live. Start with Frietwijk, the snack corner on the plaza.') : owns('spekbuurt') ? `Spekbuurt is ours. Now ${D1.filter(([, id]) => !owns(id)).map(([n]) => n).join(' and ')}. Then Kipkruidenkwartier is ours again.` : 'Spekbuurt is next. Three joints, all selling Lampas rubbish. Start there.',
     };
-    dialogue([['Eddy Sr.', lines[state.step] || 'Get to work, jongen.']]);
+    dialogue([['Freddy Sr.', lines[state.step] || 'Get to work, jongen.']]);
   }
 }
 let shutterOpen = 0, shutterTarget = 0;
@@ -1600,12 +1602,12 @@ function updateObjective() {
   if (state.step === 'list' && n === N) state.step = 'sell';
   const t = {
     title: '',
-    talk: 'Talk to <b>Eddy Sr.</b> He\'s waiting for you in the warehouse.',
+    talk: 'Talk to <b>Freddy Sr.</b> He\'s waiting for you in the warehouse.',
     list: `List the old shoarma junk for sale: walk up to each machine and press <b>E</b> (${n}/${N}).`,
     sell: `Sell everything on <b>Kaasplaats</b> using the Kaasdows XL PC at the back (${s}/${N} sold).`,
-    hire: !state.table ? `Buy a <b>mixing table</b> on the PC (W ${TABLE_COST}).` : state.naknik === 0 ? `Hire your first <b>Naknik</b> on the PC (W ${NAKNIK_COST}).` : 'Talk to <b>Eddy Sr.</b> one last time.',
+    hire: !state.table ? `Buy a <b>mixing table</b> on the PC (W ${TABLE_COST}).` : state.naknik === 0 ? `Hire your first <b>Naknik</b> on the PC (W ${NAKNIK_COST}).` : 'Talk to <b>Freddy Sr.</b> one last time.',
     map: 'Check the <b>map of Kaasland</b> on the PC or in the Oofmobiel.',
-    dad2: 'Talk to <b>Eddy Sr.</b> one last time.',
+    dad2: 'Talk to <b>Freddy Sr.</b> one last time.',
     russian: 'Visit <b>The Russian</b>: go inside <b>Pandjeshuis Spasibo</b>, east end of the street.',
     free: state.district1 ? `<b style="color:#6ed36e">Kipkruidenkwartier is yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} ${state.act1 ? ` <span style="color:#6ed36e">Oud-Vettenburg is yours: the Lampas are finished.</span> ${NOSH.filter(([, id, , ok]) => !owns(id) && ok()).length ? `<span style="color:#ffd36b">Next: the Noshgey Kariot on Hipsterheuvel: ${NOSH.filter(([, id, , ok]) => !owns(id) && ok()).map(([n]) => `<b>${n}</b>`).join(', ')}.</span>` : state.act2 ? `<span style="color:#6ed36e">Hipsterheuvel is yours too: the Noshgey Kariot are finished.</span> ${paraNote()}${state.act3 ? `<span style="color:#6ed36e">De Duistere Dokken are yours: the Abdavissies are finished.</span> ${state.finale ? '<span style="color:#6ed36e">De Gouden Mix is yours. Kaasland is yours.</span> <span style="color:#ffd36b">New Game+ waits at De Gouden Molen on the map.</span>' : '<span style="color:#ffd36b">Next: <b>De Gouden Molen</b>, the windmill on the island. Dad’s recipe is there.</span>'}` : ABD.some(([, id]) => owns(id)) ? `<span style="color:#ffd36b">Docks next: ${ABD.filter(([, id, , ok]) => !owns(id) && ok()).map(([n]) => `<b>${n}</b>`).join(', ')}.</span>` : '<span style="color:#ffd36b">Next: the Abdavissies in De Duistere Dokken, starting with <b>Komijnkade</b>.</span>'}` : '<span style="color:#ffd36b">Next: <b>Speltpolder</b>, the Noshgey island headquarters.</span>'}` : owns('frietwijk') ? ` <span style="color:#6ed36e">${lampasOwned()}/${LAMPAS.length} of Oud-Vettenburg is yours.</span> <span style="color:#ffd36b">Next: ${LAMPAS.filter(([, id, , ok]) => !owns(id) && ok()).map(([n]) => `<b>${n}</b>`).join(', ') || 'Pindasausplein'}. Drive there in the <b>Oofmobiel</b>.</span>` : ' <span style="color:#ffd36b">Next: <b>Frietwijk</b> in Oud-Vettenburg, Lampas heartland. Drive there in the <b>Oofmobiel</b>.</span>'}` : owns('spekbuurt') ? `<b style="color:#6ed36e">${D1.filter(([, id]) => owns(id)).map(([n]) => n).join(' and ')} ${d1Owned() > 1 ? 'are' : 'is'} yours.</b>${state.loot ? ` Sell your ${state.loot} spice crate(s) on <b>Kaasplaats</b>.` : ''} <span style="color:#ffd36b">Next: take ${D1.filter(([, id]) => !owns(id)).map(([n]) => `<b>${n}</b>`).join(' and ')}.</span> Drive there in the <b>Oofmobiel</b>.` : 'Kitted out. Chapter 0 done. <span style="color:#ffd36b">Next: take Spekbuurt from the Lampas.</span> Get in the <b>Oofmobiel</b> and drive there.',
   }[state.step];
@@ -1625,7 +1627,7 @@ function updateObjective() {
 }
 
 // ------------------------------------------------------------------ save (localStorage, one versioned key)
-// Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Eddy Sr. gone) is rebuilt from it on load.
+// Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Freddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
 const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods'];
@@ -1656,7 +1658,7 @@ function applySave(d) {
   if (state.step !== 'talk') { shutterTarget = shutterOpen = 1; shutterSolid.off = true; }
   if (state.table) { mixTable.visible = true; if (!mixSolid) mixSolid = solid(-8.0, -3.2, -13.4, -11.8); }
   if (loods) loods.loaded(); state.naknik = 0; for (let i = 0; i < Math.min(loods ? loods.naknikCap() : 3, +s.naknik || 0); i++) spawnNaknik(false);
-  if (state.step !== 'talk') dadOutside(); // the keys were handed over: Eddy Sr. is out front (or gone)
+  if (state.step !== 'talk') dadOutside(); // the keys were handed over: Freddy Sr. is out front (or gone)
   if (['russian', 'free'].includes(state.step)) { dad.visible = false; dad.userData.leaving = false; dadSolid.off = true; }
   kitText(); if (state.kit.includes('maboota')) equip(true);
   paintVan(garage.stats().paint); // the van Eddy owns now
@@ -1777,7 +1779,7 @@ function startGame() {
   tutorial.begin(); tips.reset(); setTimeout(() => tips.show('start'), 2600);
   leaveTitle(); camPos.copy(player.position).add(new THREE.Vector3(0, 14, 4.5)); camLook.copy(player.position); state.step = 'talk'; updateObjective(); beep(440, 0.1, 'triangle'); writeSave();
   if (musicPref) { try { music.start(); } catch (e) { /* audio optional */ } }
-  toast('KIPKRUIDENKWARTIER', 'Eddy Sr. is waiting for you in the warehouse.', 2.6);
+  toast('KIPKRUIDENKWARTIER', 'Freddy Sr. is waiting for you in the warehouse.', 2.6);
 }
 
 // ------------------------------------------------------------------ street life: traffic, cyclists, pedestrians
@@ -1998,7 +2000,7 @@ const MUTTERS = [
 ];
 let lastGripe = -1, mutterT = 4;
 function gripe(pool) { let k; do k = Math.floor(Math.random() * pool.length); while (pool.length > 1 && k === lastGripe); lastGripe = k; return pool[k]; }
-const LINES_NPC = [...GRIPES, 'Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say the old Eddy had a secret recipe.'];
+const LINES_NPC = [...GRIPES, 'Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say old Freddy had a secret recipe.'];
 const folkCtx = {
   bubble: (o, text, col, name) => personBubble(o, text, col, name),
   toast, flash: cameraFlash,
@@ -2020,7 +2022,7 @@ let choiceOpen = false, choiceCb = null, choiceCancel = null, choiceN = 0;
 function choice(who, line, options, cb, cancel = options.length - 1) {
   state.inPC = true; choiceOpen = true; choiceCb = cb; choiceCancel = cancel; choiceN = options.length;
   $('dlgwho').textContent = who; $('dlgline').innerHTML = line + '<div id="choices" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>';
-  const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f);
+  const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f); portraits.show(f, line);
   options.forEach((o, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + o; b.style.cssText = 'font:700 15px Arial;padding:7px 14px;border-radius:6px;border:2px solid #ffd36b;background:#2a1a0e;color:#fff;cursor:pointer'; b.onclick = (ev) => { ev.stopPropagation(); closeChoice(i); }; $('choices').appendChild(b); });
   $('dialogue').style.display = 'block';
 }
@@ -2085,7 +2087,7 @@ let jDoorOpen = 0, jDoorTarget = 0, jDoor, jDoorSolid, doner;
   // menu board with neon
   const menu = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'BROODJE SHOARMA  W 4', size: 26 }, { t: 'SCHOTEL KAASLAND  W 9', size: 26, color: '#ffffff' }, { t: 'KAPSALON EDDY  W 7', size: 26, color: '#ffd36b' }], '#1e120a', '#a9c46a', 512, 192) }));
   menu.position.set(W1 - 3.0, 3.2, Z0 + 0.17); joint.add(menu); neonRect(joint, W1 - 3.0, 3.2, 3.3, 1.3, Z0 + 0.2, 0xe8862c);
-  // framed photo of young Schmatzel and Eddy Sr.
+  // framed photo of young Schmatzel and Freddy Sr.
   const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), lam({ map: canvasTex(128, 96, (g) => { g.fillStyle = '#d8c8a0'; g.fillRect(0, 0, 128, 96); g.fillStyle = '#8a6a4a'; g.fillRect(6, 6, 116, 84); g.fillStyle = '#f2d8b8'; for (const x of [40, 88]) { g.beginPath(); g.arc(x, 40, 13, 0, 7); g.fill(); g.fillRect(x - 15, 55, 30, 30); } g.fillStyle = '#1a1a1a'; g.font = '700 10px Arial'; g.fillText('EDDY & SCHMATZEL 1966', 6, 92); }) }));
   ph.position.set(W0 + 0.17, 2.4, cz); ph.rotation.y = Math.PI / 2; joint.add(ph);
   // card table (round, green felt) on the left
@@ -2898,5 +2900,5 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons };
+window.__sme = { get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 tick();

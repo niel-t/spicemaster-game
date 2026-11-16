@@ -601,7 +601,7 @@ export function initMission(ctx) {
       phase2Say: ['DRIE ZENDINGEN!', 'GENOEG GEPRAAT!'],
       down: ['RAS AL GARA IS DOWN', 'The Paravim are beaten. Take the ledger.'],
     },
-    //   gerrit: OOM GERRIT, Eddy Sr.'s old partner who sold him out (the finale, De Gouden Molen). Gold waistcoat, white hair; 6 hits.
+    //   gerrit: OOM GERRIT, Freddy Sr.'s old partner who sold him out (the finale, De Gouden Molen). Gold waistcoat, white hair; 6 hits.
     gerrit: {
       name: 'OOM GERRIT', hp: 6, speed: 0.8, dodge: 0.25, mass: 2.6, score: 10000,
       look: { head: { skin: 0xe4b896, hair: '#e8e4d8', brow: '#c8c4b8', hairLine: 40, mouth: 'smile', iris: '#3a3a2a', glasses: true }, front: '#c8a040', shirt: 0xc8a040, pants: 0x3a2a1a, shoes: 0x2a1a12, belt: 0x5a3a20, belly: 1.2, scale: 1.05 },

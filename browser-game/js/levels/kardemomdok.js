@@ -2,7 +2,7 @@
 // (js/levels/docks.js) after the concept art (03_Act3_Containerchaos_Kardemomdok, the upper floor): a quay with the crane, a dock
 // office hall with desks and crates, a red club room, and the boss's wood-panelled office with a globe and a desk of files.
 // The twist: the finale. De Abdavis (five hits) holds the office; the floor only clears once you take his files (E): they tell what
-// really happened to Eddy Sr.'s empire, and where De Gouden Mix is hidden.
+// really happened to Freddy Sr.'s empire, and where De Gouden Mix is hidden.
 
 import { dock } from './docks.js';
 

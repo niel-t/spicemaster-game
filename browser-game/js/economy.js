@@ -31,10 +31,10 @@ export const BLENDS = [
   { id: 'kip', name: 'Kip Shoarma', mix: { paprika: 4, knoflook: 3, komijn: 3 }, value: 35, note: "Dad's classic. Every joint wants it." },
   { id: 'lams', name: 'Lams Shoarma', mix: { komijn: 3, koriander: 3, knoflook: 2, paprika: 2 }, value: 40, note: 'Earthy, for the lamb spit. Old-school clients love it.' },
   { id: 'kebab', name: 'Kebab Kruiden', mix: { paprika: 3, komijn: 2, koriander: 2, knoflook: 2, kaneel: 1 }, value: 60, note: 'Needs a pinch of Abdavissies kaneel.' },
-  { id: 'slager', name: 'Slagerskruiden', mix: { knoflook: 3, koriander: 3, paprika: 2, komijn: 2 }, value: 45, note: "Eddy Sr.'s butcher blend, from page 1 of his notebook.", page: 1 },
+  { id: 'slager', name: 'Slagerskruiden', mix: { knoflook: 3, koriander: 3, paprika: 2, komijn: 2 }, value: 45, note: "Freddy Sr.'s butcher blend, from page 1 of his notebook.", page: 1 },
   { id: 'speciaal', name: 'Shoarma Speciaal', mix: { paprika: 3, komijn: 2, knoflook: 2, kurkuma: 2, kardemom: 1 }, value: 80, note: 'Page 2 of the notebook. Kardemom makes it sing.', page: 2 },
   { id: 'woestijn', name: 'Woestijn Shoarma', mix: { paprika: 3, komijn: 2, raselhanout: 2, sumak: 1, zaatar: 1, harissa: 1 }, value: 95, note: "Ras al Gara's caravan blend. The joints in De Zandwijk want nothing else.", gate: 'paravim' },
-  { id: 'gouden', name: 'De Gouden Mix', mix: null, value: 0, note: "The legendary blend. Eddy Sr.'s notebook holds the clues." },
+  { id: 'gouden', name: 'De Gouden Mix', mix: null, value: 0, note: "The legendary blend. Freddy Sr.'s notebook holds the clues." },
 ];
 // Acts 1-3: every joint Eddy owns there buys DISTRICT_KG of its district's blend a market day (balance 2026-11-15)
 const LAMPAS_JOINTS = ['frietwijk', 'sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt', 'halvekipplein', 'bitterbalbuurt', 'pindasausplein'];
@@ -66,7 +66,7 @@ const HAGGLES = [
 ];
 const COMPLAINTS = ['This is Lampas quality! I can taste the flour!', 'My grill is crying. Better spice, or I go back to the Lampas.', 'Too much salt, not enough soul.']; // kg the Groothandel buys per day (clients pay better, from step 3)
 const MISTAKES = ['Boss, I sneezed in the komijn.', 'I used the paprika as a pillow. Sorry.', 'I mixed in the dark. It is very... surprise.', 'The bowl fell. The floor is now Kip Shoarma.', 'I tasted to check. Then I tasted more.'];
-// Shoarma machines: Eddy Sr.'s old trade. Buy used (Kaasplaats offers, rolled per day) or new (Van Kruidenburg),
+// Shoarma machines: Freddy Sr.'s old trade. Buy used (Kaasplaats offers, rolled per day) or new (Van Kruidenburg),
 // sell them to client joints. An installed machine makes that joint sell more shoarma, so it orders more spice.
 export const MACHINES = [
   { id: 'grill', name: 'D\u00f6ner grill', used: 550, new: 1100, sell: 1400, vol: 0.4 },

@@ -1,4 +1,4 @@
-// The finale: De Gouden Molen. A windmill on a small island in the river, where Eddy Sr. hid the recipe for De Gouden Mix thirty years
+// The finale: De Gouden Molen. A windmill on a small island in the river, where Freddy Sr. hid the recipe for De Gouden Mix thirty years
 // ago. Level data for the mission engine (js/mission.js); see spekbuurt.js for the coordinate conventions. Built after the concept art
 // (04_Finale_De_Gouden_Molen): a windmill on an island with a jetty and a garden, a little shoarma counter at its foot, wooden
 // grinding floors inside, and a golden chest glowing in the cap.
@@ -89,7 +89,7 @@ export default {
   loot: [[13, 20], [36, 6.5], [7.5, 1.5], [36, 1.5], [15.5, 6.5], [28, 13]], // cell
   text: {
     area: 'DE GOUDEN MOLEN',
-    banner: ['DE GOUDEN MOLEN', 'Thirty years ago, Eddy Sr. hid the recipe here.'],
+    banner: ['DE GOUDEN MOLEN', 'Thirty years ago, Freddy Sr. hid the recipe here.'],
     objective: 'Climb <b>De Gouden Molen</b>: the shop, the grinding floor, the tower, the loft, and the cap. Every faction has sent its last men. <b>Open the golden chest</b> (E) at the top. <span style="color:#ffd36b">Someone you know is waiting there.</span>',
     objectiveOwned: 'De Gouden Mix is <b>yours</b>. Kaasland is yours. Drive home in the <b>Oofmobiel</b>.',
     objectiveCleared: '<b style="color:#6ed36e">De Gouden Molen is yours.</b> Drive home in the <b>Oofmobiel</b> and show your father.',

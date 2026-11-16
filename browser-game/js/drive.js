@@ -638,7 +638,7 @@ export function initDrive(ctx) {
     }
   }
   function floatText(t, x, z) { say(t, x + 1.5, z - 1.5, '#ff6a6a'); }
-  function damage(n) { if (run.over) return; n *= (opts && opts.van && opts.van.dmg) || 1; van.hp = Math.max(0, van.hp - n); if (van.hp <= 0) fail('OOFMOBIEL KAPOT', 'The van gave up. Eddy Sr. will hear about this.'); }
+  function damage(n) { if (run.over) return; n *= (opts && opts.van && opts.van.dmg) || 1; van.hp = Math.max(0, van.hp - n); if (van.hp <= 0) fail('OOFMOBIEL KAPOT', 'The van gave up. Freddy Sr. will hear about this.'); }
 
   // ---- honk
   function honk() {

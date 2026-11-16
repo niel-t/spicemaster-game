@@ -19,14 +19,14 @@ export const FURN = [
   { k: 'rug', comfort: 1, t: [['Jute sack rug', 60, 'Three paprika sacks stitched together. Mostly flat.'], ['Kilim', 800, 'Paprika red and cumin brown, from a cousin of Oma Zahra.'], ['Persian carpet', 3500, 'Hand-knotted. Never spill garlic sauce on it.']] },
   { k: 'radio', perk: 'adren', t: [['Transistor radio', 150, 'Radio Kaasland and one station in Turkish. Changes the music.'], ['Cassette deck', 900, "Auto-reverse, and a mixtape from Nabil. Changes the music."], ['Record player', 4000, 'Walnut cabinet, two big speakers. The bass rattles the jars.']] },
   { k: 'coffee', perk: 'fleet', t: [['Gas burner & cezve', 120, 'Turkish coffee on a camping stove. Rocket fuel.'], ['Copper samovar', 1500, 'Tea all day. Eddy runs on it.'], ['Espresso machine', 4500, 'Italian, chrome, louder than the Oofmobiel.']] },
-  { k: 'bag', perk: 'grip', t: [['Rice-sack punching bag', 300, 'Twenty kilos of basmati on a rope.'], ['Punching bag', 1200, 'Real leather. Smells of the boxing club round the corner in Spekbuurt.'], ['Boxing corner', 5000, 'Bag, mat and gloves on a hook. Eddy Sr. would laugh.']] },
+  { k: 'bag', perk: 'grip', t: [['Rice-sack punching bag', 300, 'Twenty kilos of basmati on a rope.'], ['Punching bag', 1200, 'Real leather. Smells of the boxing club round the corner in Spekbuurt.'], ['Boxing corner', 5000, 'Bag, mat and gloves on a hook. Freddy Sr. would laugh.']] },
   { k: 'target', perk: 'steady', t: [['Target on the wall', 250, 'Drawn with a marker. The wall has seen things.'], ['Gun rack', 2000, 'Polished wood. Your guns look like tools.'], ['Gun cabinet', 6000, 'Glass doors, little lights, a lock that actually works.']] },
   { k: 'medic', perk: 'medic', t: [['First aid box', 200, 'Plasters, iodine and a mint.'], ['Medicine cabinet', 1200, 'With a mirror. Eddy looks tired.'], ['Massage chair', 5000, 'Eight programmes. Eddy only uses "kneading".']] },
   { k: 'rack', perk: 'shark', t: [['Plank of jars', 300, "Dad's old jars on a plank. The kruidenblikken you find go here."], ['Spice wall', 2500, 'Forty jars, labelled by hand. Clients get hungry looking at it.'], ['Brass spice cabinet', 9000, 'Brass and glass. Every tin you find gets its own shelf.']] },
   { k: 'weights', perk: 'tough', t: [null, ['Weight bench', 3000, 'Eddy lifts. Sometimes.'], ['Home gym', 8000, 'Bench, rack, a mirror. Tougher by the week.']] },
   { k: 'sofa', comfort: 2, t: [null, ['Cumin-brown sofa', 1400, 'Corduroy, 1979, deep enough to lose a remote in.'], ['Saffron chesterfield', 6500, 'Saffron velvet and brass studs.']] },
   { k: 'fish', comfort: 2, t: [null, ['Goldfish tank', 1800, 'Three goldfish: Kurkuma, Kaneel and Kees.'], ['Koi pond', 12000, 'Indoors. On the first floor. The neighbours have questions.']] },
-  { k: 'portrait', comfort: 3, t: [null, null, ['Portrait of Eddy Sr.', 6000, 'In oils, in a gold frame. He would hate it. He would love it.']] },
+  { k: 'portrait', comfort: 3, t: [null, null, ['Portrait of Freddy Sr.', 6000, 'In oils, in a gold frame. He would hate it. He would love it.']] },
   // Eddy's own things: Dad's trade, the spice, Kaasland. use: what pressing E next to it does (once per market day where it says so)
   { k: 'doner', comfort: 1, use: 'eat', t: [["Dad's old döner spit", 450, 'Rusty, on a crate, still turns. Eat a shoarma once a day: +1 hit on your next raid.'], ['Countertop döner grill', 2200, 'Stainless steel, two burners. Eat a shoarma once a day: +1 hit on your next raid.'], ['Golden döner tower', 9000, 'Gold-plated, a spit as tall as Eddy. Eat a shoarma once a day: +1 hit on your next raid.']] },
   { k: 'vijzel', comfort: 1, use: 'grind', t: [['Stone vijzel', 350, 'Mortar and pestle. Grind a jar once a day and the street smells it: +25 rep.'], ['Brass vijzel', 1600, 'Heavy, shiny, from the Kaasplaats. Grind once a day: +50 rep.'], ["Dad's grinder, restored", 7000, 'The big cast-iron one from 1987, red and brass. Grind once a day: +75 rep.']] },
@@ -485,7 +485,7 @@ export function createWoning(deps) {
   };
   function useItem(u) {
     const e = ensure(), d = today();
-    if (u.it.use === 'eat') { if (e.fedDay === d) return deps.toast('VOL', 'One shoarma a day. Eddy Sr. would say two. Mama would say none.', 2.5); e.fedDay = d; deps.beep(520, 0.1, 'triangle', 0.04); deps.toast('LEKKER', 'Shoarma with extra garlic sauce. +1 hit on your next raid.', 3); deps.save(); }
+    if (u.it.use === 'eat') { if (e.fedDay === d) return deps.toast('VOL', 'One shoarma a day. Freddy Sr. would say two. Mama would say none.', 2.5); e.fedDay = d; deps.beep(520, 0.1, 'triangle', 0.04); deps.toast('LEKKER', 'Shoarma with extra garlic sauce. +1 hit on your next raid.', 3); deps.save(); }
     else if (u.it.use === 'grind') { if (e.grindDay === d) return deps.toast('VIJZEL', 'Your arms say no. Tomorrow.', 2.2); e.grindDay = d; const n = 25 * (inHome + 1); if (econ.addRep) econ.addRep(n); deps.beep(180, 0.25, 'sawtooth', 0.025); deps.toast('VERS GEMALEN', `The whole street smells your blend. +${n} rep.`, 3); deps.save(); }
     else if (u.it.use === 'pc') deps.openPC('sell');
     else if (u.it.use === 'map') deps.openPC('map');

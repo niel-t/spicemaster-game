@@ -12,7 +12,7 @@ export const PEOPLE = {
   fenna: { name: 'Fenna', place: 'Kaasland Auto Parts · parts counter', img: 'receptionist', stingy: 0.1, patience: 2, sharp: 0.7,
     bio: 'Runs the counter at Kaasland Auto Parts. Knows every part number by heart and has heard every story twice.' },
   zahra: { name: 'Oma Zahra', place: 'the Lady of Spices · back stall of the Kruidenbeurs', img: 'lady_of_spices', stingy: 0.12, patience: 3, sharp: 0.85,
-    bio: 'Sold spice to Eddy Sr. before Eddy Jr. was born. Warm, patient, and impossible to fool.' },
+    bio: 'Sold spice to Freddy Sr. before Eddy Jr. was born. Warm, patient, and impossible to fool.' },
   gerrit: { name: 'Gerrit', place: 'Pannenkoekenhuis De Gouden Pan', img: 'pancake_owner', stingy: 0.15, patience: 3, sharp: 0.3, types: ['oven', 'frituur'],
     bio: 'Flour to the elbows, stroop in his moustache. Believes almost anything if you say it with a straight face.' },
   mesut: { name: 'Mesut', place: 'Grillroom Mesut', img: 'shoarma_45', stingy: 0.3, patience: 1, sharp: 0.5,
@@ -20,7 +20,7 @@ export const PEOPLE = {
   ali: { name: 'Ali', place: 'Grillroom Ali Baba', img: 'shoarma_48', stingy: 0.12, patience: 3, sharp: 0.35,
     bio: 'Friendly, always polishing a plate. Haggles because it would be rude not to.' },
   hasan: { name: 'Hasan', place: 'Shoarma Paleis', img: 'shoarma_50', stingy: 0.15, patience: 3, sharp: 0.2,
-    bio: 'Big moustache, bigger heart. Knew Eddy Sr. and still calls Eddy Jr. "little Eddy".' },
+    bio: 'Big moustache, bigger heart. Knew Freddy Sr. and still calls Eddy Jr. "little Eddy".' },
   yusuf: { name: 'Yusuf', place: 'Kapsalon King', img: 'shoarma_52', stingy: 0.25, patience: 2, sharp: 0.55,
     bio: 'Gold rings, gold watch, gold tongs. Pays like a king, after a long argument.' },
   erol: { name: 'Erol', place: 'Döner Erol', img: 'shoarma_55', stingy: 0.22, patience: 3, sharp: 0.6,
@@ -103,7 +103,7 @@ const LINES = {
   bFinal: { fenna: ['{offer}. Last price, I mean it.'], zahra: ['{offer}. Now you buy, or you go.'] },
   bStoryOk: {
     fenna: ['Your dad\'s old account? Fine, I\'ll put it on that. {offer}.', 'Oh no, the Lampas again? Ugh. {offer}, go.'],
-    zahra: ['Eddy Sr.\'s boy, struggling... come, {offer}. And eat something.'],
+    zahra: ['Freddy Sr.\'s boy, struggling... come, {offer}. And eat something.'],
   },
   bStoryNo: {
     fenna: ['Your dad\'s account was closed in 1999. I closed it. {offer}.', 'That\'s the third sad story this week, and it\'s Tuesday. {offer}.'],

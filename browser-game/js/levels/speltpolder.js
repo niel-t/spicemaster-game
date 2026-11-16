@@ -3,7 +3,7 @@
 // (02_Act2_Speltpolder): an island compound with a jetty and moored boats, a timber restaurant and kitchen, a disco dome full of
 // coloured spots, a garden, and a glass greenhouse dome where a golden chest glows on a pedestal.
 // The twist: the finale. Goeroe Granola (five hits) holds the meditation hall, the disco dome strobes, and the floor only clears once
-// you open the chest in the greenhouse: inside is Eddy Sr.'s first notebook page, the first clue to De Gouden Mix.
+// you open the chest in the greenhouse: inside is Freddy Sr.'s first notebook page, the first clue to De Gouden Mix.
 //   jetty → restaurant → kitchen → garden → greenhouse (the chest) · restaurant → disco dome → meditation hall → greenhouse
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
@@ -122,7 +122,7 @@ export default {
     const spots = [0xc2412d, 0xe8a33d, 0xa9c46a].map((c) => { const g = glowSprite(THREE, c, 3.6, 3.6, 0.32); g.position.y = 0.08; root.add(g); return g; });
     // the meditation hall: a gong, incense smoke
     const gong = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.08, 24), lam({ color: 0xc8a040 })); gong.rotation.x = Math.PI / 2; gong.position.set(OX + 42.5, 1.4, Z0 + 16.2); root.add(gong);
-    // the golden chest on its pedestal: the task. Opening it gives Eddy Sr.'s first notebook page.
+    // the golden chest on its pedestal: the task. Opening it gives Freddy Sr.'s first notebook page.
     box(3, 0.9, 2, lam({ color: 0xd8d0c0 }), OX + 42.5, 0.45, Z0 + 8, root);
     const chest = new THREE.Group(); chest.position.set(OX + 42.5, 0.9, Z0 + 8); root.add(chest);
     box(1.2, 0.6, 0.8, lam({ color: 0xc8a040 }), 0, 0.3, 0, chest, false);
