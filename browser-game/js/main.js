@@ -26,6 +26,8 @@ import { createTutorial } from './tutorial.js'; // the first fifteen minutes: Sh
 import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades, racking, the heftruck, the hall and the tent
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { createKaasdows } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
+import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
+import { createBalloons } from './balloons.js'; // Frutiger Aero speech balloons, kept on screen
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
@@ -51,6 +53,7 @@ installCharacters(scene); // Neon Vice-style skinned characters pose themselves 
 scene.background = new THREE.Color(0xf0b4b8);
 scene.fog = new THREE.Fog(0xf0b4b8, 70, 140);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.5, 300);
+const balloons = createBalloons();
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight, false);
@@ -1780,24 +1783,8 @@ function startGame() {
 // ------------------------------------------------------------------ street life: traffic, cyclists, pedestrians
 // Kaasland drives on the right: westbound on the north lane, eastbound on the south lane.
 // Speech bubbles for angry drivers (canvas sprite, redrawn per shout)
-function bubble() {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
-  sp.scale.set(4.8, 1.2, 1); sp.visible = false; sp.renderOrder = 10; sp.userData = { c, t, life: 0 };
-  return sp;
-}
-function say(sp, text, col = '#e8a33d') {
-  const { c, t } = sp.userData, g = c.getContext('2d');
-  g.clearRect(0, 0, 512, 128);
-  g.fillStyle = '#fff'; g.strokeStyle = col; g.lineWidth = 8;
-  g.beginPath(); g.roundRect(8, 8, 496, 88, 26); g.fill(); g.stroke();
-  g.beginPath(); g.moveTo(230, 94); g.lineTo(256, 122); g.lineTo(276, 94); g.fill();
-  g.fillStyle = '#1a1020'; g.font = '900 34px Arial Black, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  let fs = 34; while (g.measureText(text).width > 470 && fs > 18) { fs -= 2; g.font = `900 ${fs}px Arial Black, Arial`; }
-  g.fillText(text, 256, 53);
-  t.needsUpdate = true; sp.visible = true; sp.userData.life = 2.2;
-}
+function bubble() { return balloons.anchor(); } // HTML Aero balloons over a 3D anchor (js/balloons.js)
+function say(sp, text, col = '#e8a33d', life = 2.2, name = '') { balloons.say(sp, text, col, life, name); }
 const DRIVER_SHOUTS = ['TOET TOET!', 'Hé kaaskop, aan de kant!', 'Get off the road, gek!', 'Doe normaal, man!', 'I\'m late for my frikandel!', 'MOVE IT, spice boy!', 'Rij ik jou aan of hoe zit het?', 'Ga fietsen ofzo!'];
 const BIKE_SHOUTS = ['TRING TRING!', 'Fietspad, hè?!', 'Kijk uit, joh!', 'This is a BIKE lane!'];
 function honk() { beep(415, 0.32, 'square', 0.035); setTimeout(() => beep(349, 0.42, 'square', 0.035), 160); }
@@ -1890,17 +1877,20 @@ const SHIRTS = ['#c83a2a', '#2a5a9a', '#e8e2d0', '#3a7a4a', '#f2c31a', '#2a2a30'
 const PANTS = [0x2a3a5a, 0x3a3a3a, 0xc8b89a, 0x1a1a22, 0x5a4a3a, 0x4a5a7a];
 function passerBy(seed, opt = {}) {
   const r = (k) => (Math.sin(seed * 97.13 + k * 13.7) * 43758.5453) % 1, ri = (n, k) => Math.floor(Math.abs(r(k)) * n);
-  const female = opt.female ?? (ri(2, 20) === 0), kid = !!opt.kid, police = !!opt.police;
-  const skin = SKINS[ri(SKINS.length, 1)], hair = HAIRS[ri(HAIRS.length, 2)];
+  const lk = opt.look || {}; // a street-folk archetype's clothes (js/streetfolk.js)
+  const female = lk.female ?? opt.female ?? (ri(2, 20) === 0), kid = !!opt.kid, police = !!opt.police;
+  const skin = SKINS[ri(SKINS.length, 1)], hair = lk.grey ? ['#c8c8c4', '#e8e6e0', '#9a9a96'][ri(3, 2)] : HAIRS[ri(HAIRS.length, 2)];
   const head = { skin, hair, brow: hair, hairLine: 84 + ri(10, 3), sideLine: 116, backLine: 150, mouth: ri(2, 4) ? 'smile' : 'laugh', iris: ['#4a2e1c', '#3a5a7a', '#2a2a2a'][ri(3, 5)], glasses: !kid && ri(5, 6) === 0,
     long: female ? ri(4, 7) !== 0 : ri(6, 7) === 0, bun: female && ri(3, 8) === 0, bald: !female && !kid && !police && ri(7, 9) === 0 };
+  if (lk.bun) { head.bun = true; head.long = false; } if (lk.glasses) head.glasses = true; if (lk.grey && !female) head.bald = ri(2, 9) === 0;
   if (head.bald) head.hairLine = 40;
   if (female) head.mouth = 'smile';
-  const shirt = police ? '#1d2a4ap' : SHIRTS[ri(SHIRTS.length, 10)] + (ri(4, 11) === 0 ? 's' : '');
-  const skirt = female && !police && ri(2, 16) === 0 ? [0xe8862c, 0x2a2a30, 0x3a7ad8, 0xf2e8c8, 0x8a4aa0][ri(5, 17)] : null;
-  return makePerson({ head, police, front: shirt, pants: police ? 0x1a2238 : skirt ? [0x2a1a1a, skin][ri(2, 18)] : PANTS[ri(PANTS.length, 12)], shoes: police ? 0x111111 : [0x1a1a1a, 0xe8e8e8, 0x5a3a1a, 0xc8102e][ri(4, 13)],
-    belly: kid || female ? 0 : [0, 0, 0.4, 0.8][ri(4, 14)], chest: female && !kid ? 1 + Math.abs(r(19)) * 0.35 : 0, skirt, skin,
-    scale: kid ? 0.56 + Math.abs(r(15)) * 0.1 : (female ? 0.88 : 0.93) + Math.abs(r(15)) * 0.12 });
+  const shirt = police ? '#1d2a4ap' : lk.shirt || SHIRTS[ri(SHIRTS.length, 10)] + (ri(4, 11) === 0 ? 's' : '');
+  const skirt = lk.skirt ?? (female && !police && ri(2, 16) === 0 ? [0xe8862c, 0x2a2a30, 0x3a7ad8, 0xf2e8c8, 0x8a4aa0][ri(5, 17)] : null);
+  return makePerson({ head, police, front: shirt, pants: police ? 0x1a2238 : lk.pants ?? (skirt ? [0x2a1a1a, skin][ri(2, 18)] : PANTS[ri(PANTS.length, 12)]), shoes: police ? 0x111111 : lk.shoes ?? [0x1a1a1a, 0xe8e8e8, 0x5a3a1a, 0xc8102e][ri(4, 13)],
+    belly: kid || female ? 0 : lk.belly ?? [0, 0, 0.4, 0.8][ri(4, 14)], chest: female && !kid ? 1 + Math.abs(r(19)) * 0.35 : 0, skirt, skin,
+    suit: lk.suit, ballcap: lk.ballcap, feltHat: lk.feltHat,
+    scale: (kid ? 0.56 + Math.abs(r(15)) * 0.1 : (female ? 0.88 : 0.93) + Math.abs(r(15)) * 0.12) * (lk.scale || 1) });
 }
 // things people walk with
 function makeStroller() {
@@ -1949,15 +1939,17 @@ BIKE_KINDS.forEach((kind, i) => {
 });
 const walkers = [];
 const LANES = { N: [-4.5, -5.6], S: [RC + 8.55, RC + 9.45] };
+const folk = createStreetFolk({ scene, lam, mat, box, beep });
 for (let i = 0; i < 16; i++) {
   const side = i % 2 ? 'S' : 'N', dir = (i >> 1) % 2 ? 1 : -1;
-  const police = i === 4 || i === 13, comp = police ? null : ['stroller', null, 'dog', null, 'kid', null, null, 'dog', null, 'stroller', null, 'kid'][i % 12];
-  const p = passerBy(i + 1, { police, female: comp === 'stroller' ? true : undefined });
+  const police = i === 4 || i === 13, arch = police ? null : folk.SLOTS[i], A_ = arch && folk.ARCH[arch];
+  const p = passerBy(i + 1, { police, look: A_ ? A_.look : undefined, female: arch === 'buggy' || arch === 'pram' ? i % 3 !== 2 : undefined });
   p.position.set(-30 + ((i * 37) % 60), 0, LANES[side][dir > 0 ? 0 : 1]);
-  const u = { side, dir, v: police ? 1.0 : 1.1 + ((i * 7) % 5) * 0.12, wait: 0, blocked: 0, police, comp: null };
-  if (comp === 'stroller') { u.comp = { type: comp, obj: makeStroller(), ahead: 0.75, off: 0 }; u.v = 0.95; p.userData.arms[0].rotation.x = p.userData.arms[1].rotation.x = -0.9; }
-  if (comp === 'dog') { const d = makeDog(i); const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), leashMat); scene.add(line); u.comp = { type: comp, obj: d, ahead: 1.3, off: 0.35, line }; }
-  if (comp === 'kid') { const k = passerBy(i + 50, { kid: true }); u.comp = { type: comp, obj: k, ahead: 0.1, off: 0.55 }; }
+  const u = { side, dir, v: police ? 1.0 : A_ ? A_.v * (0.92 + ((i * 7) % 5) * 0.04) : 1.1 + ((i * 7) % 5) * 0.12, wait: 0, blocked: 0, police, comp: null };
+  if (A_) u.comp = folk.dress(p, arch, i, {
+    kid: (seed) => passerBy(seed, { kid: true }),
+    dog: (k) => { const d = makeDog(k); const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), leashMat); scene.add(line); return { type: 'dog', obj: d, ahead: 1.3, off: 0.35, line }; },
+  });
   p.userData.walk = u;
   walkers.push(p);
 }
@@ -2007,7 +1999,20 @@ const MUTTERS = [
 let lastGripe = -1, mutterT = 4;
 function gripe(pool) { let k; do k = Math.floor(Math.random() * pool.length); while (pool.length > 1 && k === lastGripe); lastGripe = k; return pool[k]; }
 const LINES_NPC = [...GRIPES, 'Lekker weertje, hè?', 'Watch it, I\'m walking here!', 'Have you seen the Lampas boys around? Bad news.', 'My snackbar only uses Eddy & Zn spice. Used to, anyway.', 'Fietsbel! Ring ring!', 'Nice shirt. Very... open.', 'They say the old Eddy had a secret recipe.'];
-walkers.forEach((w, i) => addInteract({ obj: w, pos: () => w.position, r: 1.4, label: () => 'Say hi', act: () => { w.userData.walk.wait = 2.5; w.rotation.y = Math.atan2(player.position.x - w.position.x, player.position.z - w.position.z); const P_ = w.userData.walk.police, L_ = P_ ? LINES_POLICE : LINES_NPC; toast('"' + gripe(L_) + '"', P_ ? 'Politie' : 'Passer-by', 3.2); } }));
+const folkCtx = {
+  bubble: (o, text, col, name) => personBubble(o, text, col, name),
+  toast, flash: cameraFlash,
+  facePlayer: (o, dog) => { o.rotation.y = Math.atan2(player.position.x - o.position.x, player.position.z - o.position.z) - (dog ? Math.PI / 2 : 0); o.userData.faceT = 2.2; },
+  dist: 99,
+};
+walkers.forEach((w) => addInteract({ obj: w, pos: () => w.position, r: 1.4, label: () => (w.userData.folk ? w.userData.folk.a.label : 'Say hi'), act: () => {
+  const u = w.userData; u.walk.wait = Math.max(u.walk.wait, 2.5); w.rotation.y = Math.atan2(player.position.x - w.position.x, player.position.z - w.position.z);
+  if (u.folk) { folk.interact(w, folkCtx); return; }
+  const P_ = u.walk.police; personBubble(w, gripe(P_ ? LINES_POLICE : LINES_NPC), P_ ? '#3a6aff' : '#e8a33d', P_ ? 'Politie' : '');
+} }));
+// the tourist's camera flash: a quick white light at the camera
+const flashLight = new THREE.PointLight(0xffffff, 0, 7, 1.5); scene.add(flashLight); let flashT = 0;
+function cameraFlash(w, atEddy) { w.getWorldPosition(flashLight.position); flashLight.position.y += 1.7; flashLight.intensity = 6; flashT = 0.12; if (atEddy) toast('KLIK!', 'You are now in a holiday album in Osaka.', 1.8); }
 // ================================================================== SHOARMA SCHMATZEL
 // A small choice menu in the dialogue box. Escape (B on a controller) picks the cancel option, the last one by default;
 // cancel = null means there is no way out (Kevin's siege call, the tax inspector), so Escape leaves the menu open.
@@ -2207,7 +2212,7 @@ function swing() {
   if (!state.armed || swingT > 0 || knock.t > 0) return;
   swingT = 0.38; swingHit = false; beep(180, 0.08, 'sawtooth', 0.02);
 }
-function personBubble(p, text, col) { if (!p.userData.bubble) { p.userData.bubble = bubble(); p.add(p.userData.bubble); p.userData.bubble.position.set(0, 2.5, 0); } say(p.userData.bubble, text, col); }
+function personBubble(p, text, col, name = '') { if (!p.userData.bubble) { p.userData.bubble = bubble(); p.add(p.userData.bubble); const u_ = p.userData, top = u_.ps2 ? u_.body.scale.y * 2.05 + 0.25 : (new THREE.Box3().setFromObject(p).max.y - p.getWorldPosition(new THREE.Vector3()).y) / (p.scale.y || 1) + 0.35; p.userData.bubble.position.set(0, isFinite(top) ? Math.min(2.6, Math.max(0.8, top)) : 2.5, 0); } say(p.userData.bubble, text, col, 2.2, name); }
 const OUCH = ['AU!', 'Hé! Doe normaal!', 'AAAH!', 'Waarom?!', 'Ik bel de politie!', 'Mijn bril!'];
 function knockDown(p, dirX, dirZ, line) {
   const u = p.userData; u.down = 3.2; u.downDir = Math.atan2(dirX, dirZ);
@@ -2633,7 +2638,7 @@ function updateStreet(dt) {
     const bu = w.userData.bubble && w.userData.bubble.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) w.userData.bubble.visible = false; }
     if (w.userData.down > 0) continue;
     if (!u.police && !u.flee && mutterT <= 0 && !(w.userData.mutterCd > now) && w.position.distanceTo(P) < 3.4 && Math.random() < dt * 1.5) { // grumble as Eddy walks past
-      personBubble(w, gripe(MUTTERS), '#7a8a9a'); mutterT = 6 + Math.random() * 6; w.userData.mutterCd = now + 30;
+      const fm = Math.random() < 0.6 && folk.mutter(w); if (fm) personBubble(w, fm.text, fm.col); else personBubble(w, gripe(MUTTERS), '#7a8a9a'); mutterT = 6 + Math.random() * 6; w.userData.mutterCd = now + 30;
     }
     if (u.flee) { // running off the map; comes back later as an ordinary passer-by
       w.position.x += u.dir * 4.6 * dt; w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2; animate(w, 4.6, dt);
@@ -2643,7 +2648,7 @@ function updateStreet(dt) {
     }
     if (u.wait > 0) u.wait -= dt;
     else {
-      const lane = LANES[u.side][u.dir > 0 ? 0 : 1], reach = 1.0 + (cp ? cp.ahead : 0);
+      const lane = LANES[u.side][u.dir > 0 ? 0 : 1], reach = 1.0 + (cp ? Math.max(0, cp.ahead) : 0);
       let blocked = false;
       const near = (x, z, r) => { const dx = (x - w.position.x) * u.dir, dz = Math.abs(z - w.position.z); return dx > 0 && dx < r && dz < 0.6; };
       if (near(P.x, P.z, reach) || near(dad.position.x, dad.position.z, reach)) blocked = true;
@@ -2656,12 +2661,15 @@ function updateStreet(dt) {
         if (w.position.x * u.dir > 31) { u.dir *= -1; u.wait = 0.5 + Math.random(); }
       }
     }
-    animate(w, moving ? u.v : 0, dt);
-    if (cp) { if (cp.type === 'stroller') { w.userData.arms[0].rotation.x = w.userData.arms[1].rotation.x = -0.9; }
+    if (u.inPlace > 0) { u.inPlace -= dt; w.userData.inPlace = u.inPlace > 0; animate(w, u.v, dt); } // the jogger keeps jogging on the spot
+    else animate(w, moving ? u.v : 0, dt);
+    if (cp) {
       const sideSign = u.side === 'N' ? 1 : -1; // companions walk on the kerb side
       const tx = w.position.x + u.dir * cp.ahead, tz = w.position.z + sideSign * cp.off;
       cp.obj.position.x += (tx - cp.obj.position.x) * Math.min(1, dt * 6); cp.obj.position.z += (tz - cp.obj.position.z) * Math.min(1, dt * 6);
-      cp.obj.rotation.y = cp.type === 'kid' ? w.rotation.y : (u.dir > 0 ? 0 : Math.PI);
+      const cu = cp.obj.userData; tickBubble(cp.obj, dt); if (cu.kid) tickBubble(cu.kid, dt);
+      if (cu.faceT > 0) cu.faceT -= dt; // turned to look at Eddy for a moment
+      else cp.obj.rotation.y = cp.type === 'kid' ? w.rotation.y : (u.dir > 0 ? 0 : Math.PI);
       if (cp.type === 'kid') animate(cp.obj, moving ? u.v * 1.3 : 0, dt);
       if (cp.type === 'dog') {
         const du = cp.obj.userData; du.ph += dt * (moving ? 12 : 3);
@@ -2671,8 +2679,11 @@ function updateStreet(dt) {
         a.setXYZ(0, hand.x, hand.y, hand.z); a.setXYZ(1, cp.obj.position.x + (u.dir > 0 ? 0.25 : -0.25) * cp.obj.scale.x, 0.45 * cp.obj.scale.x, cp.obj.position.z); a.needsUpdate = true;
       }
     }
+    if (w.userData.folk) { folkCtx.dist = w.position.distanceTo(P); folk.update(w, dt, moving || u.inPlace > 0, folkCtx); }
   }
+  if (flashT > 0) { flashT -= dt; if (flashT <= 0) flashLight.intensity = 0; }
 }
+function tickBubble(o, dt) { const b = o.userData.bubble, bu = b && b.userData; if (bu && bu.life > 0) { bu.life -= dt; if (bu.life <= 0) b.visible = false; } }
 
 // ------------------------------------------------------------------ loop
 let current = null;
@@ -2681,8 +2692,8 @@ const occl = new THREE.Raycaster();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let incomeT = 0, lastStep = state.step, titleSkip = 0;
 function tick() {
-  if (isPaused()) { clock.getDelta(); if (oofDrive.active) post.render(oofDrive.scene, oofDrive.camera); else post.render(scene, camera); requestAnimationFrame(tick); return; }
-  if (oofDrive.active) { oofDrive.update(Math.min(clock.getDelta(), 0.05)); post.render(oofDrive.scene, oofDrive.camera); requestAnimationFrame(tick); return; }
+  if (isPaused()) { clock.getDelta(); if (oofDrive.active) post.render(oofDrive.scene, oofDrive.camera); else post.render(scene, camera); balloons.sync(oofDrive.active ? oofDrive.scene : scene, oofDrive.active ? oofDrive.camera : camera); requestAnimationFrame(tick); return; }
+  if (oofDrive.active) { oofDrive.update(Math.min(clock.getDelta(), 0.05)); post.render(oofDrive.scene, oofDrive.camera); balloons.sync(oofDrive.scene, oofDrive.camera); requestAnimationFrame(tick); return; }
   if (state.step !== lastStep) { lastStep = state.step; writeSave(); }
   let dt = Math.min(clock.getDelta(), 0.05);
   if (mission && mission.active) dt = mission.hitstop(dt); // Neon Vice hitstop on kills
@@ -2812,6 +2823,7 @@ function tick() {
   }
   // the painted city covers the street on the title screen: keep the 3D scene warm with an occasional frame
   if (!(state.step === 'title' && titleCity && titleCity.ready && (++titleSkip % 20))) post.render(scene, camera);
+  balloons.sync(state.step === 'title' ? null : scene, camera);
   requestAnimationFrame(tick);
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
@@ -2826,7 +2838,7 @@ mission = initMission({ perk: (k) => (woning ? woning.perk(k) : 0), THREE, scene
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
 // top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
 { const enter0 = mission.enter; mission.enter = (id, o) => { const r = enter0(id, o); setTimeout(() => tips.show(o && o.heist ? 'heist' : o && o.defend ? 'siege' : o && o.remix ? 'remix' : 'mission'), 1600); return r; }; } // Shooki's first-time tips
-const oofDrive = initDrive({ THREE, renderer, canvasTex, signTex, beep, virt, isPaused });
+const oofDrive = initDrive({ THREE, balloons, renderer, canvasTex, signTex, beep, virt, isPaused });
 let driveMission = null; // the Lampas mission the drive is heading for (null: a scouting run)
 // the day plan (econ.today): a raid takes the whole day, warehouse work and deliveries share one. Sleeping or the PC button ends it.
 function raidRefused() { tips.show('day'); toast('NOT TODAY', 'A raid takes the whole day, and you already worked today. Sleep (or end the day on the PC) and raid tomorrow.', 4); }
@@ -2886,5 +2898,5 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; } };
+window.__sme = { get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons };
 tick();

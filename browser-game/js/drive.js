@@ -361,18 +361,11 @@ export function initDrive(ctx) {
   const keys = {};
 
   // ---- bubbles (speech over people's heads)
-  const bubbleTex = {};
-  const bubbleMat = (t, col) => bubbleTex[t + col] || (bubbleTex[t + col] = new THREE.SpriteMaterial({ map: canvasTex(320, 80, (g) => {
-    g.font = '900 34px Bungee, "Arial Black", sans-serif'; const w = Math.min(316, g.measureText(t).width + 30);
-    g.fillStyle = col; g.strokeStyle = '#1a1a1a'; g.lineWidth = 4; const x0 = 160 - w / 2;
-    g.beginPath(); g.roundRect ? g.roundRect(x0, 6, w, 60, 14) : g.rect(x0, 6, w, 60); g.fill(); g.stroke();
-    g.fillStyle = '#1a1a1a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, 160, 37, 300);
-  }), depthTest: false, transparent: true }));
   const bubbles = [];
-  function say(t, x, z, col = '#ffffff') {
+  function say(t, x, z, col = '#ffffff') { // HTML Aero balloon over a point in the city (js/balloons.js)
     let b = bubbles.find((q) => q.t <= 0);
-    if (!b) { if (bubbles.length >= 14) b = bubbles.reduce((a, q) => (q.t < a.t ? q : a)); else { b = { s: new THREE.Sprite(), t: 0 }; b.s.renderOrder = 10; scene.add(b.s); bubbles.push(b); } }
-    b.s.material = bubbleMat(t, col); b.s.scale.set(9, 2.25, 1); b.s.position.set(x, 6, z); b.s.visible = true; b.t = 1.5;
+    if (!b) { if (bubbles.length >= 14) b = bubbles.reduce((a, q) => (q.t < a.t ? q : a)); else { b = { s: ctx.balloons.anchor(), t: 0 }; scene.add(b.s); bubbles.push(b); } }
+    b.s.position.set(x, 6, z); ctx.balloons.say(b.s, t, col, 1.5); b.t = b.s.userData.life;
   }
 
   // ---- traffic on the lane graph
@@ -840,7 +833,7 @@ export function initDrive(ctx) {
     for (const c of cars) updateCar(c, dt);
     for (const l of lampas) updateLampas(l, dt);
     for (const p of peds) updatePed(p, dt);
-    for (const b of bubbles) if (b.t > 0) { b.t -= dt; b.s.position.y += dt * 2; b.s.material.opacity = Math.min(1, b.t * 3); if (b.t <= 0) b.s.visible = false; }
+    for (const b of bubbles) if (b.t > 0) { b.t -= dt; b.s.position.y += dt * 2; b.s.userData.life = b.t; if (b.t <= 0) b.s.visible = false; }
     if (honkRing.visible) { const t = (honkRing.userData.t += dt); honkRing.scale.setScalar(1 + t * 28); honkRing.material.opacity = 0.6 * (1 - t / 0.5); honkRing.position.set(van.x, 0.3, van.z); if (t > 0.5) honkRing.visible = false; }
     // arrival
     const dT = Math.hypot(van.x - TARGET.x, van.z - TARGET.z);
