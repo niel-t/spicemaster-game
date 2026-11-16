@@ -7,6 +7,7 @@
 //   jetty → restaurant → kitchen → garden → greenhouse (the chest) · restaurant → disco dome → meditation hall → greenhouse
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
+import { makeSloep, makeCruiser, rockBoat } from '../boats.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 50, H = 34;
@@ -109,8 +110,8 @@ export default {
     floorW(OX - 14, OX + W + 14, 0, 7.6, T.asphalt, 4); // the causeway road
     ticks.push(water(THREE, root, floorW, canvasTex, OX - 30, Z0 - 20, OX, 0)); ticks.push(water(THREE, root, floorW, canvasTex, OX + W, Z0 - 20, OX + W + 30, 0));
     // boats at the jetty
-    const boat = (x, z, r, c) => { const g = new THREE.Group(); g.position.set(OX + x, -0.2, Z0 + z); g.rotation.y = r; root.add(g); box(1.6, 0.6, 4.2, lam({ color: c }), 0, 0.2, 0, g, false); box(1.2, 0.5, 1.4, lam({ color: 0xf3ecdc }), 0, 0.7, -0.5, g, false); };
-    boat(-2, 30, 0, 0xf3ecdc); boat(52, 31, Math.PI, 0x5a6a3a);
+    const boats = [], boat = (x, z, r, c, cruiser) => { const g = cruiser ? makeCruiser({ L: 5.2, B: 1.9, hull: c, stripe: 0x7f9a5a }) : makeSloep({ L: 4.6, B: 1.7, hull: c }); g.position.set(OX + x, -0.15, Z0 + z); g.rotation.y = r - Math.PI / 2; root.add(g); boats.push(g); }; // js/boats.js
+    boat(-2, 30, 0, 0xf6f2e8, true); boat(52, 31, Math.PI, 0x7f9a5a);
     sign('DE OERKORREL COMMUNE', 8, 0.6, '#0a140c', '#a9c46a', OX + 8.5, 2.8, Z0 + 27.02, 0, 56); neonRect(root, OX + 8.5, 2.8, 8.2, 0.75, Z0 + 27.06, 0xa9c46a);
     sign('DISCO DOME', 3.6, 0.5, '#140a0a', '#e8a33d', OX + 25.5, 2.8, Z0 + 27.02, 0, 50);
     // domes: ribs over the disco and the greenhouse
@@ -136,7 +137,7 @@ export default {
     ticks.push(rain(THREE, root, [[OX - 12, Z0 + 28, OX + W + 12, 8], [OX + 18, Z0 + 1, OX + 35, Z0 + 11]], 900));
     let t = 0;
     return { tasks, tick(dt) {
-      t += dt; for (const f of ticks) f(dt);
+      t += dt; for (const f of ticks) f(dt); for (const b of boats) rockBoat(b, t, 0);
       const on = (t % 0.9) < 0.42; strobe.intensity = on ? 5 : 0; dark.material.opacity = on ? 0 : 0.72;
       spots.forEach((s, i) => { const a = t * (0.9 + i * 0.3) + i * 2; s.position.set(OX + 26 + Math.cos(a) * 5.5, 0.06, Z0 + 19 + Math.sin(a * 1.3) * 4.5); });
       const tk = tasks[0]; if (tk.open > 0 && tk.open < 1) { tk.open = Math.min(1, tk.open + dt * 2); lid.rotation.x = -1.9 * tk.open; page.position.y = 0.7 + tk.open * 0.6; }

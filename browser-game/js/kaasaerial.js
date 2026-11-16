@@ -5,6 +5,7 @@
 // farmland, cranes, boats and the windmill. Seeded, so it looks the same every time.
 // Painted once per session into a canvas at R pixels per map unit.
 import * as G from './kaasgeo.js';
+import { topBoat } from './boat2d.js';
 
 const { W, H, C0, polar, arc, RIVER, ISLAND, CANALS, BASINS, MARINA, SLOOT, YARDS, SILOS, PARKS, FIELDS, REGIONS, ROADS, HOME, KASBAH, SOUK, inPoly } = G;
 const DUNE = [40, 506, 42, 26]; // a sand lot at the edge of De Zandwijk
@@ -259,11 +260,11 @@ export function paintKaasland({ R = 2.5, still = false } = {}) {
   ctx.restore();
 
   // ---- boats
-  const boat = (x, y, l, wd, ang, hull, deck) => { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-l * 0.75, 0, l * 0.55, wd * 0.35, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(30,60,70,.25)'; ctx.beginPath(); ctx.ellipse(0.8, 1, l / 2, wd / 2, 0, 0, 7); ctx.fill(); ctx.fillStyle = hull; ctx.beginPath(); ctx.moveTo(l / 2, 0); ctx.quadraticCurveTo(l * 0.35, -wd / 2, -l / 2, -wd / 2); ctx.lineTo(-l / 2, wd / 2); ctx.quadraticCurveTo(l * 0.35, wd / 2, l / 2, 0); ctx.fill(); if (deck) { ctx.fillStyle = deck; ctx.fillRect(-l * 0.38, -wd * 0.3, l * 0.6, wd * 0.6); } ctx.restore(); };
-  if (!still) for (const [x, y, a] of [[90, 268, 0.04], [470, 276, -0.05], [700, 278, 0.02], [830, 262, -0.4], [260, 262, 0.05]]) boat(x, y, 20, 4.5, a, '#5c4a3c', '#3f5560');
-  for (const [x, y, a] of [[1080, 205, 0.6], [1135, 190, 2.4], [955, 225, -0.3], [1170, 240, 1.2], [1050, 270, 3]]) boat(x, y, 6, 2.2, a, '#fbf8f0', '#d7c7a6');
-  for (let i = 0; i < 14; i++) boat(MARINA[0] + 6 + (i % 7) * 7.5, MARINA[1] + 10 + Math.floor(i / 7) * 20, 5, 2, Math.PI / 2, '#fbf8f0', '#c8d6de');
-  for (let i = 0; i < 10; i++) { const r = pick(CANALS), a = rr(10, 170), [x, y] = polar(a, r); if (!still) boat(x, y, 4.5, 1.6, (a + 90) * Math.PI / 180, pick(['#e6dccb', '#3d6b55', '#7a4a3a']), null); }
+  const boat = (x, y, l, wd, ang, hull, deck, kind, wake = 1) => { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); topBoat(ctx, { l, w: wd, hull, deck, kind, wake }); ctx.restore(); }; // js/boat2d.js
+  if (!still) for (const [x, y, a] of [[90, 268, 0.04], [470, 276, -0.05], [700, 278, 0.02], [830, 262, -0.4], [260, 262, 0.05]]) boat(x, y, 20, 4.5, a, '#2a3a30', '#5a8a4a', 'barge');
+  for (const [x, y, a] of [[1080, 205, 0.6], [1135, 190, 2.4], [955, 225, -0.3], [1170, 240, 1.2], [1050, 270, 3]]) boat(x, y, 6, 2.2, a, '#fbf8f0', '#d7c7a6', 'cruiser');
+  for (let i = 0; i < 14; i++) boat(MARINA[0] + 6 + (i % 7) * 7.5, MARINA[1] + 10 + Math.floor(i / 7) * 20, 5, 2, Math.PI / 2, i % 3 ? '#fbf8f0' : '#3d6b55', null, i % 3 ? 'cruiser' : 'sloep', 0);
+  for (let i = 0; i < 10; i++) { const r = pick(CANALS), a = rr(10, 170), [x, y] = polar(a, r); if (!still) boat(x, y, 4.5, 1.6, (a + 90) * Math.PI / 180, pick(['#e6dccb', '#3d6b55', '#7a4a3a']), null, 'sloep'); }
 
   // ---- a light paper grain over everything
   const gr = document.createElement('canvas'); gr.width = gr.height = 96; const g = gr.getContext('2d'), gd = g.createImageData(96, 96);

@@ -5,6 +5,7 @@
 // the couscous in the store is the smuggled crate (E). Shot sacks burst: the couscous knocks over whoever stands next to them.
 
 import { souk } from './zandwijk.js';
+import { makeSloep, rockBoat } from '../boats.js';
 import { WATER_FURN, WATER_HAZARD } from './noshgey.js';
 
 const LINES = [15, 20, 25]; // jetty rows with a bollard and a mooring line
@@ -61,10 +62,10 @@ export default souk({
     const wm = floorW(OX + 28, OX + 33, Z0 + 13, Z0 + 27, wt, 3, 0xffffff, 0.03); let wk = 0;
     for (let z = 13; z <= 27; z += 2) for (const x of [28, 33]) cyl(0.1, 0.1, 0.9, lam({ color: 0x3a2a1a }), OX + x, 0.3, Z0 + z, root, 6);
     // moored boats and their lines
-    const boatMesh = (c) => { const g = new THREE.Group(); box(1.6, 0.6, 4.2, lam({ color: c }), 0, 0.15, 0, g, false); box(1.2, 0.5, 1.2, lam({ color: 0xf3e6c8 }), 0, 0.65, 0.6, g, false); box(0.08, 2.2, 0.08, lam({ color: 0x3a2a1a }), 0, 1.4, -0.6, g, false); root.add(g); return g; };
+    const boatMesh = (c, moving) => { const g = makeSloep({ L: 4.3, B: 1.55, hull: c, cargo: 3, flag: 'nl', moving }); g.rotation.y = Math.PI / 2; root.add(g); return g; }; // open work sloepen with crates (js/boats.js)
     const tasks = [];
     LINES.forEach((z, i) => {
-      const b = boatMesh([0xb4542c, 0x2a6a7a, 0xe8dcc0][i]); b.position.set(OX + 30.3, -0.2, Z0 + z + 0.5); b.rotation.y = 0.08 * (i - 1);
+      const b = boatMesh([0xb4542c, 0x2a6a7a, 0xe8dcc0][i]); b.position.set(OX + 30.3, 0.03, Z0 + z + 0.5); b.rotation.y = Math.PI / 2 + 0.08 * (i - 1);
       const a = new THREE.Vector3(OX + 27.5, 0.55, Z0 + z + 0.5), c = new THREE.Vector3(OX + 29.5, 0.45, Z0 + z + 0.5), len = a.distanceTo(c);
       const rope = cyl(0.03, 0.03, len, lam({ color: 0xd8c08a }), (a.x + c.x) / 2, (a.y + c.y) / 2, a.z, root, 6); rope.rotation.z = Math.PI / 2;
       let drift = 0;
@@ -78,7 +79,7 @@ export default souk({
       act() { crate.visible = true; crate.position.y = 0; }, reset(done) { crate.visible = !!done; } });
     crate.visible = false;
     // the reinforcement boat: glides down the basin and drops three Paravim on the jetty
-    const rb = boatMesh(0x5a3a24); rb.visible = false; let next = 45, rbT = -1, last = 0;
+    const rb = boatMesh(0x5a3a24, true); rb.rotation.y = -Math.PI / 2; rb.visible = false; let next = 45, rbT = -1, last = 0;
     const linesLeft = () => tasks.slice(0, 3).filter((t) => !t.done).length;
     // shot sacks burst once each
     const burst = new Set();
@@ -88,11 +89,12 @@ export default souk({
       reset() { burst.clear(); next = 45; rbT = -1; rb.visible = false; },
       tick(dt) {
         for (const t of tasks) if (t.tick) t.tick(dt);
+        const bt = performance.now() / 1000; for (const t of tasks) if (t.b) rockBoat(t.b, bt, 0);
         wk += dt; wm.material.map.offset.x = wk * 0.015;
         const R = run(); if (R.time < last) { next = 45; rbT = -1; rb.visible = false; } last = R.time;
         if (R.results || R.cleared) return;
         if (rbT < 0 && R.time >= next && linesLeft() && reserves()) { rbT = 0; rb.visible = true; banner('EEN BOOT!', `More Paravim on the water. ${linesLeft()} line${linesLeft() > 1 ? 's' : ''} still holding.`, 2); }
-        if (rbT >= 0) { rbT += dt; const k = Math.min(1, rbT / 4); rb.position.set(OX + 30.5, -0.2, Z0 + 14 + k * 5.5);
+        if (rbT >= 0) { rbT += dt; const k = Math.min(1, rbT / 4); rb.position.set(OX + 30.5, 0.03, Z0 + 14 + k * 5.5); rockBoat(rb, R.time, (1 - k) * 2);
           if (k >= 1) { reinforce(3, OX + 26.6, Z0 + 19.5, ['Daar is hij!', 'Wie heeft onze kade?!', 'Drie zendingen, en nu dit!']); popup(rb.position, 'AANGEMEERD', '#ff7a1a'); rbT = -1; next = R.time + 60; setTimeout(() => { rb.visible = false; }, 2500); } }
       },
     };

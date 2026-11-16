@@ -4,6 +4,7 @@
 // createTitleCity(host) puts a canvas behind the menu; stop() ends the animation and frees the canvases.
 import * as G from './kaasgeo.js';
 import { paintKaasland } from './kaasaerial.js';
+import { topBoat } from './boat2d.js'; // sloepen, rondvaartboten, tjalks and cruisers from above
 
 const { W, H, C0, polar, arc, RIVER, NORTH_BANK, SOUTH_BANK, ISLAND, CANALS, ROADS, RING_R, inPoly } = G;
 const SPICE = { saffron: '#e8a33d', turmeric: '#f2c14e', paprika: '#b5442a', cumin: '#7a4a26', cardamom: '#7f9a5a', cream: '#f3e6c8', clove: '#3b2418' };
@@ -145,12 +146,7 @@ export function createTitleCity(host) {
   // ---- one frame
   function boat(o, t) {
     const [x, y, a] = posOn(o, t); ctx.save(); ctx.translate(x, y); ctx.rotate(a);
-    const l = o.l, w = o.w;
-    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(-l * 0.5, -w * 0.4); ctx.lineTo(-l * 1.4, -w * 1.3); ctx.moveTo(-l * 0.5, w * 0.4); ctx.lineTo(-l * 1.4, w * 1.3); ctx.stroke();
-    ctx.fillStyle = 'rgba(30,60,70,.22)'; ctx.beginPath(); ctx.ellipse(0.7, 0.9, l / 2, w / 2, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = o.hull; ctx.beginPath(); ctx.moveTo(l / 2, 0); ctx.quadraticCurveTo(l * 0.35, -w / 2, -l / 2, -w / 2); ctx.lineTo(-l / 2, w / 2); ctx.quadraticCurveTo(l * 0.35, w / 2, l / 2, 0); ctx.fill();
-    if (o.deck) { ctx.fillStyle = o.deck; ctx.fillRect(-l * (o.barge ? 0.3 : 0.35), -w * 0.3, l * (o.tour ? 0.7 : 0.4), w * 0.6); }
-    if (o.barge) { ctx.fillStyle = '#e8e0cc'; ctx.fillRect(-l * 0.48, -w * 0.32, l * 0.14, w * 0.64); }
+    topBoat(ctx, o, t);
     ctx.restore();
   }
   function cyclist(gx, gy, sc, dir, t, coat) { // side view, on the quay
@@ -227,8 +223,27 @@ export function createTitleCity(host) {
     // a boat across the canal: the tour boat one way, a sloep with friends the other
     const bt = (t / 38) % 2, dir = bt < 1 ? 1 : -1, bk = bt % 1, bw = 150 * u, bx = dir > 0 ? lerp(-bw * 1.2, vw + bw * 0.2, bk) : lerp(vw + bw * 0.2, -bw * 1.2, bk), by = waterY + waterH * 0.48;
     ctx.save(); ctx.translate(bx + bw / 2, by); ctx.scale(dir, 1); ctx.translate(-bw / 2, 0);
-    if (bt < 1) { ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-30 * u, 6 * u, 30 * u, 1.2 * u); ctx.fillStyle = '#2d3b44'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bw, 0); ctx.quadraticCurveTo(bw + 12 * u, 0, bw + 14 * u, -6 * u); ctx.lineTo(bw, 8 * u); ctx.lineTo(4 * u, 8 * u); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#cfe3ea'; ctx.beginPath(); ctx.moveTo(10 * u, 0); ctx.lineTo(14 * u, -14 * u); ctx.lineTo(bw - 22 * u, -14 * u); ctx.lineTo(bw - 8 * u, 0); ctx.fill(); ctx.strokeStyle = '#2d3b44'; ctx.lineWidth = 1.4 * u; for (let k = 22; k < bw - 22 * u; k += 14 * u) { ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k + 2 * u, -14 * u); ctx.stroke(); } ctx.fillStyle = SPICE.saffron; ctx.fillRect(0, -1 * u, bw, 2 * u); }
-    else { const sw = 60 * u; ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-20 * u, 6 * u, 20 * u, 1.2 * u); ctx.fillStyle = '#f1e9d8'; ctx.beginPath(); ctx.moveTo(0, -2 * u); ctx.lineTo(sw, -2 * u); ctx.quadraticCurveTo(sw + 10 * u, -2 * u, sw + 12 * u, -8 * u); ctx.lineTo(sw, 7 * u); ctx.lineTo(3 * u, 7 * u); ctx.closePath(); ctx.fill(); ctx.fillStyle = SPICE.cardamom; ctx.fillRect(0, 2 * u, sw + 4 * u, 2 * u); for (let k = 0; k < 4; k++) { ctx.fillStyle = [SPICE.paprika, SPICE.turmeric, '#3d5a73', SPICE.cumin][k]; ctx.fillRect(10 * u + k * 11 * u, -12 * u, 7 * u, 10 * u); ctx.fillStyle = '#c99872'; ctx.beginPath(); ctx.arc(13.5 * u + k * 11 * u, -15 * u, 3 * u, 0, 7); ctx.fill(); } ctx.strokeStyle = '#3b2418'; ctx.lineWidth = u; ctx.beginPath(); ctx.moveTo(2 * u, -2 * u); ctx.lineTo(2 * u, -20 * u); ctx.stroke(); ctx.fillStyle = SPICE.paprika; ctx.fillRect(2 * u, -20 * u, 8 * u, 5 * u); }
+    const bob = Math.sin(t * 1.6) * 0.8 * u; ctx.translate(0, bob);
+    if (bt < 1) { // the rondvaartboot: a long dark hull with a spoon bow, a cream band, a glass house full of heads, the skipper aft
+      ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-34 * u, 7 * u, 34 * u, 1.2 * u); ctx.fillRect(-20 * u, 9.5 * u, 22 * u, 0.9 * u);
+      ctx.fillStyle = '#24303a'; ctx.beginPath(); ctx.moveTo(-2 * u, -1 * u); ctx.lineTo(bw, -1 * u); ctx.quadraticCurveTo(bw + 13 * u, -1 * u, bw + 15 * u, -5 * u); ctx.quadraticCurveTo(bw + 10 * u, 8 * u, bw - 6 * u, 8 * u); ctx.lineTo(6 * u, 8 * u); ctx.quadraticCurveTo(-3 * u, 7 * u, -2 * u, -1 * u); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = SPICE.cream; ctx.fillRect(-1 * u, -1 * u, bw + 9 * u, 2.2 * u); ctx.fillStyle = SPICE.saffron; ctx.fillRect(16 * u, -5 * u, bw - 26 * u, 1.2 * u);
+      ctx.fillStyle = SPICE.cream; ctx.fillRect(16 * u, -4 * u, bw - 26 * u, 3 * u);
+      for (let k = 0; k < 9; k++) { const hx = 22 * u + k * (bw - 40 * u) / 8; ctx.fillStyle = ['#3b2418', '#c99872', '#8d5a3a', '#e8c39e'][k % 4]; ctx.beginPath(); ctx.arc(hx, -10 * u, 2.6 * u, 0, 7); ctx.fill(); ctx.fillStyle = [SPICE.paprika, '#3d5a73', SPICE.turmeric, SPICE.cardamom][k % 4]; ctx.fillRect(hx - 3 * u, -7.5 * u, 6 * u, 3 * u); }
+      ctx.fillStyle = 'rgba(190,225,235,.32)'; ctx.beginPath(); ctx.moveTo(16 * u, -5 * u); ctx.lineTo(16 * u, -15 * u); ctx.quadraticCurveTo(17 * u, -19 * u, 24 * u, -19 * u); ctx.lineTo(bw - 16 * u, -19 * u); ctx.quadraticCurveTo(bw - 6 * u, -19 * u, bw - 6 * u, -5 * u); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = SPICE.cream; ctx.lineWidth = 1.3 * u; ctx.stroke(); for (let k = 24 * u; k < bw - 14 * u; k += 11 * u) { ctx.beginPath(); ctx.moveTo(k, -5 * u); ctx.lineTo(k, -19 * u); ctx.stroke(); }
+      ctx.fillStyle = SPICE.cream; ctx.fillRect(4 * u, -9 * u, 6 * u, 8 * u); ctx.fillStyle = '#c99872'; ctx.beginPath(); ctx.arc(7 * u, -17 * u, 2.6 * u, 0, 7); ctx.fill(); ctx.fillStyle = SPICE.saffron; ctx.fillRect(4.5 * u, -14.5 * u, 5 * u, 6 * u);
+      ctx.strokeStyle = '#3b2418'; ctx.lineWidth = 0.8 * u; ctx.beginPath(); ctx.moveTo(0, -1 * u); ctx.lineTo(0, -16 * u); ctx.stroke(); ['#ae1c28', '#ffffff', '#21468b'].forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(-7 * u, (-16 + i * 1.6) * u, 7 * u, 1.6 * u); });
+    } else { // the sloep: varnished top strake, friends on the bench, an outboard and the Amsterdam flag
+      const sw = 60 * u; ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-24 * u, 6 * u, 22 * u, 1.2 * u);
+      ctx.fillStyle = '#7f9a5a'; ctx.beginPath(); ctx.moveTo(0, -2 * u); ctx.lineTo(sw, -2 * u); ctx.quadraticCurveTo(sw + 10 * u, -2.5 * u, sw + 12 * u, -9 * u); ctx.quadraticCurveTo(sw + 6 * u, 7 * u, sw - 8 * u, 7 * u); ctx.lineTo(3 * u, 7 * u); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#a8693a'; ctx.beginPath(); ctx.moveTo(0, -2 * u); ctx.lineTo(sw, -2 * u); ctx.quadraticCurveTo(sw + 10 * u, -2.5 * u, sw + 12 * u, -9 * u); ctx.lineTo(sw + 11 * u, -5.5 * u); ctx.quadraticCurveTo(sw + 8 * u, 0.6 * u, sw, 0.6 * u); ctx.lineTo(0, 0.6 * u); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = SPICE.cream; ctx.fillRect(1 * u, 5 * u, sw, 1.2 * u);
+      for (let k = 0; k < 4; k++) { ctx.fillStyle = [SPICE.paprika, SPICE.turmeric, '#3d5a73', SPICE.cumin][k]; ctx.fillRect(10 * u + k * 11 * u, -11 * u, 7 * u, 9 * u); ctx.fillStyle = ['#c99872', '#8d5a3a', '#e8c39e', '#c99872'][k]; ctx.beginPath(); ctx.arc(13.5 * u + k * 11 * u, -14 * u, 3 * u, 0, 7); ctx.fill(); }
+      ctx.fillStyle = '#2a2c30'; ctx.beginPath(); ctx.ellipse(-2 * u, -4 * u, 3.5 * u, 3 * u, 0, 0, 7); ctx.fill(); ctx.fillRect(-3 * u, -1 * u, 2 * u, 8 * u); // the outboard
+      ctx.strokeStyle = '#f3ece0'; ctx.lineWidth = 0.8 * u; ctx.beginPath(); ctx.moveTo(3 * u, -2 * u); ctx.lineTo(3 * u, -20 * u); ctx.stroke();
+      ['#c8102e', '#111111', '#c8102e'].forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(3 * u, (-20 + i * 1.8) * u, 9 * u, 1.8 * u); }); ctx.fillStyle = '#fff'; for (let k = 0; k < 3; k++) ctx.fillRect(4.6 * u + k * 2.4 * u, -17.6 * u, 1.2 * u, 0.9 * u);
+    }
     ctx.restore();
     // cyclists on the quay, in front of the parked bikes
     const qy = y0 + th - 5 * u;

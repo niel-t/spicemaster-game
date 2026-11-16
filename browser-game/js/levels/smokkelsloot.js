@@ -5,6 +5,7 @@
 
 import { dock } from './docks.js';
 import { WATER_FURN } from './noshgey.js';
+import { makeCruiser, rockBoat } from '../boats.js';
 
 export default dock({
   id: 'smokkelsloot', name: 'Smokkelsloot', kiosk: 'DE SLOOT', sign: 'SMOKKELSLOOT · BOTENHUIS',
@@ -39,11 +40,10 @@ export default dock({
     const w = floorW(OX + 20, OX + 45, Z0 + 12, Z0 + 19, t, 4, 0xffffff, 0.02);
     for (const z of [11.95, 19.05]) for (let x = 20; x <= 44; x += 2) box(0.08, 1.0, 0.08, lam({ color: 0x5a5e62 }), OX + x, 0.5, Z0 + z, root, false);
     for (const z of [11.95, 19.05]) box(25, 0.06, 0.06, lam({ color: 0x5a5e62 }), OX + 32.5, 1.0, Z0 + z, root, false);
-    const boat = new THREE.Group(); boat.position.set(OX + 33, 0.1, Z0 + 15.5); root.add(boat);
-    box(7, 0.6, 2.2, lam({ color: 0xf3ecdc }), 0, 0.2, 0, boat, false); box(2, 0.6, 1.6, lam({ color: 0x1a2a3a }), -1, 0.7, 0, boat, false);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(1.1, 1.6, 4), lam({ color: 0xf3ecdc })); nose.rotation.z = -Math.PI / 2; nose.position.set(4.2, 0.2, 0); boat.add(nose);
-    for (let k = 0; k < 4; k++) box(0.6, 0.4, 0.5, lam({ color: 0x6a5032 }), 0.5 + k * 0.8, 0.7, 0, boat, false);
+    // the Abdavissies' speedboat (js/boats.js), with the night's crates on the foredeck
+    const boat = makeCruiser({ speed: true, L: 7.5, B: 2.2, hull: 0xf3ecdc, stripe: 0xb5442a }); boat.position.set(OX + 33, 0.02, Z0 + 15.5); root.add(boat);
+    for (let k = 0; k < 4; k++) box(0.6, 0.4, 0.5, lam({ color: [0x6a5032, 0x8a6a42][k % 2] }), 0.6 + k * 0.7, 0.72, (k % 2 - 0.5) * 0.5, boat.userData.body, false);
     let tt = 0;
-    return { tick(dt) { tt += dt; w.material.map.offset.x = tt * 0.03; boat.position.y = 0.1 + Math.sin(tt * 1.5) * 0.05; boat.rotation.x = Math.sin(tt * 1.1) * 0.03; } };
+    return { tick(dt) { tt += dt; w.material.map.offset.x = tt * 0.03; rockBoat(boat, tt, 0); } };
   },
 });

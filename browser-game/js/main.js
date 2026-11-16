@@ -9,6 +9,7 @@ import { createPost } from './post.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
 import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning visitors, knacks and outfits (from Neon Vice, in spice colours)
 import { makeOofmobiel, makeKangoo, makeCar, setLivery } from './vehicles.js';
+import { makeSloep, makeTourBoat, makeArk, makeBarge, rockBoat, PAL } from './boats.js'; // canal boats: sloep, rondvaartboot, woonark, tjalk
 import { signFace } from './livery.js'; // the warehouse sign follows the van's brand // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
 import { createEconomy, rankOf } from './economy.js';
@@ -2519,49 +2520,24 @@ function updateGulls(dt) {
   }
 }
 
-// ---- the canal: houseboats moored on the far side, a tour boat, a sloep, and ducks
+// ---- the canal: woonarken and old tjalks moored on the far side, a rondvaartboot, a sloep with friends, and ducks (js/boats.js)
+// Lanes across the 7.5 m canal: tour boat CZ-2.15, sloep CZ-0.1, houseboats CZ+2.3 against the far quay.
 const boats = [];
-function houseboat(x, color, roofKind) {
-  const b = new THREE.Group(); b.position.set(x, -1.1, CZ + 2.15); scene.add(b);
-  box(12, 0.7, 3.2, lam({ color: 0x1e2a30 }), 0, 0.15, 0, b);
-  box(12.1, 0.12, 3.3, lam({ color: 0xb03a2a }), 0, 0.52, 0, b, false);
-  const wall = clapMat(color);
-  box(9.2, 2.1, 2.7, wall, -0.6, 1.6, 0, b);
-  for (let i = 0; i < 4; i++) { box(1.3, 0.95, 0.06, frameMat, -4.2 + i * 2.2, 1.85, -1.37, b, false); box(1.1, 0.75, 0.07, winMat, -4.2 + i * 2.2, 1.85, -1.39, b, false); }
-  box(0.9, 1.7, 0.08, lam({ color: 0xf6f4ee }), 4.2, 1.4, 0.0, b, false).rotation.y = Math.PI / 2;
-  if (roofKind === 'pitch') { const rs = new THREE.Shape(); rs.moveTo(-1.55, 0); rs.lineTo(0, 0.9); rs.lineTo(1.55, 0); const r = new THREE.Mesh(new THREE.ExtrudeGeometry(rs, { depth: 9.6, bevelEnabled: false }), roofMat); r.rotation.y = Math.PI / 2; r.position.set(-5.4, 2.65, 0); b.add(r); }
-  else { box(9.6, 0.15, 3.0, lam({ color: 0xf6f4ee }), -0.6, 2.72, 0, b); for (let i = 0; i < 6; i++) { const p = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35 + (i % 3) * 0.08, 0), lam({ color: [0x4f8a34, 0xd84a7a, 0x5a9a3c][i % 3], flatShading: true })); p.position.set(-4.6 + i * 1.6, 3.05, (i % 2 - 0.5) * 1.4); b.add(p); } }
-  // deck: flower boxes, two chairs, a bike
-  for (let i = 0; i < 5; i++) { box(0.5, 0.25, 0.25, lam({ color: 0x8a5a2a }), 4.5 + (i % 2) * 0.6, 0.72, -1.3 + i * 0.6, b); const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.18, 0), lam({ color: [0xff4f8a, 0xffd23a, 0xff7a2a][i % 3], flatShading: true })); fl.position.set(4.5 + (i % 2) * 0.6, 0.95, -1.3 + i * 0.6); b.add(fl); }
-  for (const zz of [-0.5, 0.5]) box(0.45, 0.5, 0.45, lam({ color: 0xffffff }), 5.4, 0.85, zz, b);
-  box(0.15, 0.6, 1.0, lam({ color: 0x2a4a7a }), -5.6, 0.95, -1.2, b);
-  if (Math.abs(x) % 2 === 0) { const nb = neonMat(NEON[Math.abs(x) % 4]); box(9.2, 0.06, 0.06, nb, -0.6, 2.6, -1.38, b, false); }
-  // moored: gangplank to the far quay
-  box(1.0, 0.08, 1.2, mat.wood, 0, 1.0, 2.0, b);
-  return b;
-}
-houseboat(-46, 0x2fb8b0, 'flat'); houseboat(-30, 0xff8fb8, 'pitch'); houseboat(-2, 0x9a86e0, 'flat'); houseboat(26, 0xffd86a, 'pitch'); houseboat(42, 0x7ad8b0, 'flat');
-// rondvaartboot: long, low, glass roof; shuttles along the canal west of the bridge
-const tour = new THREE.Group(); tour.position.set(-30, -1.1, CZ - 1.55); scene.add(tour);
-{
-  box(13, 0.6, 2.6, lam({ color: 0x1a2a5a }), 0, 0.1, 0, tour); box(13.1, 0.1, 2.7, lam({ color: 0xf6f4ee }), 0, 0.45, 0, tour, false);
-  const nose = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.6, 16, 1, false, 0, Math.PI), lam({ color: 0x1a2a5a })); nose.position.set(6.5, 0.1, 0); tour.add(nose);
-  box(10, 0.45, 2.4, lam({ color: 0xf6f4ee }), -0.6, 0.75, 0, tour);
-  const glass = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 10, 18, 1, true, -Math.PI / 2, Math.PI), new THREE.MeshStandardMaterial({ color: 0x9ad0ff, roughness: 0.05, metalness: 0.4, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
-  glass.rotation.z = Math.PI / 2; glass.scale.set(1, 1, 0.42); glass.position.set(-0.6, 0.95, 0); tour.add(glass);
-  for (let i = 0; i < 6; i++) { const p = passerBy(200 + i); scene.remove(p); tour.add(p); p.scale.setScalar(0.85); p.position.set(-4.5 + i * 1.6, 0.25, (i % 2 - 0.5) * 0.9); p.rotation.y = i % 2 ? 0 : Math.PI; }
-  const ts = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.4), lam({ map: signTex([{ t: 'RONDVAART KAASLAND', size: 40 }], '#1a2a5a', '#ffd36b') })); ts.position.set(-0.6, 0.72, -1.22); ts.rotation.y = Math.PI; tour.add(ts);
-  tour.userData = { dir: 1, v: 1.6 };
-}
-// sloep: a small wooden boat with three friends and a crate of beer
-const sloep = new THREE.Group(); sloep.position.set(-12, -1.1, CZ - 0.2); scene.add(sloep);
-{
-  const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 5, 14, 1, false, Math.PI / 2, Math.PI), mat.wood); hull.rotation.z = Math.PI / 2; hull.scale.set(1, 1, 0.6); hull.position.y = 0.45; sloep.add(hull);
-  box(5, 0.08, 1.75, lam({ color: 0x6a3a1a }), 0, 0.45, 0, sloep, false);
-  for (let i = 0; i < 3; i++) { const p = passerBy(300 + i); scene.remove(p); sloep.add(p); p.scale.setScalar(0.8); p.position.set(-1.4 + i * 1.3, 0.05, 0); p.rotation.y = i === 1 ? Math.PI / 2 : -Math.PI / 2; }
-  box(0.5, 0.35, 0.35, lam({ color: 0xffd23a }), 1.9, 0.65, 0, sloep);
-  sloep.userData = { dir: -1, v: 2.2 }; sloep.rotation.y = Math.PI;
-}
+const moor = (b, x) => { b.position.set(x, -1.1, CZ + 2.3); scene.add(b); boats.push(b); return b; };
+moor(makeArk({ wall: clapMat(PAL.cardamom), roof: 'flat', winMat, frameMat, trim: PAL.paprika, phase: 0.4 }), -46);
+moor(makeBarge({ hull: 0x24382c, band: PAL.saffron, phase: 1.7 }), -30);
+moor(makeArk({ wall: clapMat(PAL.saffron), roof: 'pitch', roofMat, winMat, frameMat, trim: PAL.clove, door: 0x5a2a1e, bikeCol: 0x2f5f8a, phase: 2.9 }), -2);
+moor(makeBarge({ hull: 0x3b2418, band: PAL.paprika, cabin: 0xefe2c4, leeboard: 0xc88a50, phase: 4.2 }), 26);
+moor(makeArk({ wall: clapMat(PAL.cream), roof: 'flat', winMat, frameMat, trim: PAL.paprika, door: 0x2f4a3a, phase: 5.5 }), 42);
+// rondvaartboot: sails east to the landing stage by the bridge, waits, backs out west, and turns round out of sight
+const tourCrew = Array.from({ length: 7 }, (_, i) => { const p = passerBy(200 + i); p.scale.setScalar(0.9); return p; });
+const tour = makeTourBoat({ sign: lam({ map: signTex([{ t: 'RONDVAART KAASLAND', size: 40 }], '#24303a', '#f2c14e') }), crew: tourCrew, sit, phase: 0.8 });
+tour.position.set(-30, -1.1, CZ - 2.15); scene.add(tour);
+tour.userData.move = { mode: 'fwd', v: 0, wait: 0 };
+// sloep: three friends, a skipper and a crate of beer; west out of sight and back, turning round at the wide bit between the houseboats
+const sloep = makeSloep({ crew: Array.from({ length: 4 }, (_, i) => passerBy(300 + i)), sit, hull: PAL.cardamom, moving: true, phase: 2.2 });
+sloep.position.set(-12, -1.1, CZ - 0.1); sloep.rotation.y = Math.PI; scene.add(sloep);
+sloep.userData.move = { dir: -1, v: 2.2, turn: 0 };
 const ducks = [];
 for (let i = 0; i < 18; i++) {
   const d = new THREE.Group(), male = i % 3 === 0, farm = i % 5 === 2, scale = (i % 4 === 3 ? 0.6 : 1) * 1.35;
@@ -2576,13 +2552,29 @@ for (let i = 0; i < 18; i++) {
   scene.add(d); ducks.push(d);
 }
 function updateCanal(dt) {
-  for (const bt of [tour, sloep]) {
-    const u = bt.userData; bt.position.x += u.v * u.dir * dt;
-    const lo = bt === tour ? -55 : -50, hi = bt === tour ? 8 : 9;
-    if (bt.position.x > hi) u.dir = -1; if (bt.position.x < lo) u.dir = 1;
-    bt.rotation.y += ((u.dir > 0 ? 0 : Math.PI) - bt.rotation.y) * Math.min(1, dt * 0.8);
-    bt.position.y = -1.1 + Math.sin(performance.now() * 0.0015 + bt.position.x) * 0.03;
+  const t = performance.now() * 0.001;
+  { // the rondvaartboot: slows into the stop west of the bridge, waits, backs out west, and comes round again out of sight
+    const m = tour.userData.move, x = tour.position.x;
+    if (m.mode === 'fwd') { m.v += (Math.min(1.8, Math.max(0.25, (-6 - x) * 0.18)) - m.v) * Math.min(1, dt * 0.6); if (x > -6.5) { m.mode = 'stop'; m.wait = 9; } }
+    else if (m.mode === 'stop') { m.v *= Math.pow(0.2, dt); if ((m.wait -= dt) < 0) m.mode = 'back'; }
+    else { m.v += (-1.5 - m.v) * Math.min(1, dt * 0.35); if (x < -60) { m.mode = 'fwd'; m.v = 1.4; } }
+    tour.position.x += m.v * dt;
+    rockBoat(tour, t, Math.max(0, m.v));
   }
+  { // the sloep: west out of sight and back; turns round on the spot in the open water by the bridge
+    const m = sloep.userData.move;
+    if (m.turn > 0) {
+      m.turn -= dt; const k = Math.min(1, 1 - m.turn / 4.5);
+      sloep.rotation.y = m.from + Math.PI * k * k * (3 - 2 * k); sloep.position.x += 0.25 * dt * Math.cos(sloep.rotation.y);
+      if (m.turn <= 0) { m.dir = -m.dir; sloep.rotation.y = m.dir > 0 ? 0 : Math.PI; }
+    } else {
+      sloep.position.x += m.v * m.dir * dt;
+      if (m.dir < 0 && sloep.position.x < -60) { m.dir = 1; sloep.rotation.y = 0; } // out of sight
+      if (m.dir > 0 && sloep.position.x > 7.5) { m.turn = 4.5; m.from = sloep.rotation.y; }
+    }
+    rockBoat(sloep, t, m.turn > 0 ? 0.6 : m.v);
+  }
+  for (const b of boats) rockBoat(b, t, 0);
   for (const d of ducks) {
     const u = d.userData; u.t -= dt;
     if (u.t < 0) { u.heading += (Math.random() - 0.5) * 2.2; u.t = 1.5 + Math.random() * 3; }

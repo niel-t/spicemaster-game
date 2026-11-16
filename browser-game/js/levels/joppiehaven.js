@@ -7,6 +7,7 @@
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
 import { NOSHGEY, WATER_FURN, WATER_HAZARD } from './noshgey.js';
+import { makeSloep, makeCruiser, rockBoat } from '../boats.js';
 
 const W = 44, H = 30;
 
@@ -101,8 +102,8 @@ export default {
     floorW(OX - 14, OX + W + 14, 0, 2.6, T.paving, 1.5); floorW(OX - 14, OX + W + 14, 2.6, 12, T.asphalt, 4);
     ticks.push(water(THREE, root, floorW, canvasTex, OX - 30, Z0 - 10, OX, 0)); ticks.push(water(THREE, root, floorW, canvasTex, OX + W, Z0 - 10, OX + W + 30, 0));
     // boats moored in the harbour
-    const boat = (x, z, r, c) => { const g = new THREE.Group(); g.position.set(OX + x, -0.2, Z0 + z); g.rotation.y = r; root.add(g); box(1.6, 0.6, 4.2, lam({ color: c }), 0, 0.2, 0, g, false); box(1.2, 0.5, 1.4, lam({ color: 0xf3ecdc }), 0, 0.7, -0.5, g, false); const m = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.8, 4), lam({ color: c })); m.rotation.x = Math.PI / 2; m.position.set(0, 0.2, 2.5); g.add(m); };
-    boat(2.5, 6, 0, 0xf3ecdc); boat(2.5, 14, 0.1, 0x3a5a7a); boat(40.5, 9, Math.PI, 0xc2412d); boat(40.5, 20, -0.08, 0xf3ecdc); boat(11, 26.5, Math.PI / 2, 0x5a6a3a); boat(32, 26.5, -Math.PI / 2, 0xf3ecdc);
+    const boats = [], boat = (x, z, r, c, cruiser) => { const g = cruiser ? makeCruiser({ L: 5.2, B: 1.9, hull: c, stripe: 0x7f9a5a }) : makeSloep({ L: 4.6, B: 1.7, hull: c }); g.position.set(OX + x, -0.15, Z0 + z); g.rotation.y = r - Math.PI / 2; root.add(g); boats.push(g); }; // sloepen and small cruisers (js/boats.js), bow along +z at r = 0
+    boat(2.5, 6, 0, 0xf6f2e8, true); boat(2.5, 14, 0.1, 0x3a5a7a); boat(40.5, 9, Math.PI, 0xb5442a); boat(40.5, 20, -0.08, 0xf6f2e8, true); boat(11, 26.5, Math.PI / 2, 0x7f9a5a); boat(32, 26.5, -Math.PI / 2, 0xf6f2e8, true);
     // pilings along the boardwalk edge
     for (let x = 6; x <= 37; x += 3) cyl(0.14, 0.14, 1.2, lam({ color: 0x4a3a2a }), OX + x, 0.4, Z0 + 23.95, root, 8);
     for (let z = 16; z <= 23; z += 3) { cyl(0.14, 0.14, 1.2, lam({ color: 0x4a3a2a }), OX + 6.05, 0.4, Z0 + z, root, 8); cyl(0.14, 0.14, 1.2, lam({ color: 0x4a3a2a }), OX + 37.95, 0.4, Z0 + z, root, 8); }
@@ -118,6 +119,6 @@ export default {
     const pl = []; for (let i = 0; i < 30; i++) pl.push([OX + 6 + Math.random() * 31, Z0 + 16 + Math.random() * 8, 0.3 + Math.random() * 0.4]);
     puddles(THREE, root, pl);
     ticks.push(rain(THREE, root, [[OX - 12, Z0 + 16, OX + W + 12, 12], [OX - 12, Z0, OX + 6, Z0 + 16], [OX + 38, Z0, OX + W + 12, Z0 + 16]], 900));
-    return { tick(dt) { for (const f of ticks) f(dt); } };
+    return { tick(dt) { for (const f of ticks) f(dt); const bt = performance.now() / 1000; for (const b of boats) rockBoat(b, bt, 0); } };
   },
 };
