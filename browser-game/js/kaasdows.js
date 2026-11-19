@@ -28,6 +28,7 @@ export const ICONS = {
   help: S('<circle cx="24" cy="24" r="17" fill="#3a8be0" stroke="#1d4a8a" stroke-width="2"/><text x="24" y="31" font-family="Georgia,serif" font-weight="900" font-size="22" fill="#fff" text-anchor="middle">?</text>' + gloss('M11 20 C13 12 22 8 30 10 C21 11 15 15 13 22 Z')),
   power: S('<circle cx="24" cy="24" r="17" fill="#e2492f" stroke="#8a1a12" stroke-width="2"/><path d="M17 16 A11 11 0 1 0 31 16" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><path d="M24 10 L24 24" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/>'),
   logoff: S('<rect x="6" y="6" width="36" height="36" rx="7" fill="#f2a52a" stroke="#9a5a06" stroke-width="2"/><path d="M20 15 L14 15 L14 33 L20 33" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 24 L35 24 M29 18 L35 24 L29 30" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>'),
+  media: S('<circle cx="24" cy="24" r="18" fill="#2a9be0" stroke="#0d4f8a" stroke-width="2"/><circle cx="24" cy="24" r="12" fill="#7fd8ff" opacity=".5"/><path d="M20 16 L20 31 M20 16 L31 13 L31 28" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="17.5" cy="31.5" rx="3.6" ry="2.8" fill="#fff"/><ellipse cx="28.5" cy="28.5" rx="3.6" ry="2.8" fill="#fff"/>' + gloss('M9 20 C11 11 21 6 31 8 C21 10 14 14 11 22 Z')),
   van: S('<path d="M4 32 L4 18 C4 14 7 12 11 12 L30 12 L38 20 L44 22 L44 32 Z" fill="#e8e1cf" stroke="#4d5a66" stroke-width="2" stroke-linejoin="round"/><path d="M30 14 L36 21 L30 21 Z" fill="#7fc3ff"/><circle cx="13" cy="34" r="5" fill="#333"/><circle cx="35" cy="34" r="5" fill="#333"/>'),
 };
 
@@ -88,6 +89,24 @@ export function playChime(delay = 0, vol = 0.32) {
   // a bright little sparkle at the end
   [93, 98, 101].forEach((m, i) => voice(m, t0 + 2.05 + i * 0.07, 0.6, 'sine', 0.025, 0.005));
 }
+// ------------------------------------------------------------------ interface sounds: soft glassy blips, all original
+// open: a bright upward swish with a fifth; close: the same going down; min/max: short swooshes; menu: a bubble pop;
+// ding: a two-note bell for a message box; click: a small tok.
+export function ui(kind) {
+  const a = ctx(); if (!a) return; const t = a.currentTime + 0.005, out = a.createGain(); out.gain.value = 0.5; out.connect(a.destination);
+  const tone = (f, at, dur, peak, type = 'sine', glide = 0) => { const o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t + at); if (glide) o.frequency.exponentialRampToValueAtTime(f * glide, t + at + dur * 0.8); g.gain.setValueAtTime(0.0001, t + at); g.gain.exponentialRampToValueAtTime(peak, t + at + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur); o.connect(g).connect(out); o.start(t + at); o.stop(t + at + dur + 0.03); };
+  const swish = (f0, f1, dur, peak) => { const n = a.createBufferSource(), len = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, len, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / len); n.buffer = b; const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2.5; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur); const g = a.createGain(); g.gain.value = peak; n.connect(f).connect(g).connect(out); n.start(t); };
+  const hzm = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  if (kind === 'open') { swish(900, 5200, 0.22, 0.5); tone(hzm(76), 0.05, 0.25, 0.08); tone(hzm(83), 0.11, 0.35, 0.07); }
+  else if (kind === 'close') { swish(4200, 800, 0.2, 0.45); tone(hzm(83), 0.02, 0.2, 0.06); tone(hzm(76), 0.08, 0.28, 0.06); }
+  else if (kind === 'min') { swish(3000, 500, 0.18, 0.5); tone(hzm(79), 0, 0.18, 0.05, 'sine', 0.6); }
+  else if (kind === 'max') { swish(600, 3600, 0.16, 0.5); tone(hzm(74), 0, 0.18, 0.05, 'sine', 1.5); }
+  else if (kind === 'menu') { tone(520, 0, 0.09, 0.09, 'sine', 2.6); tone(hzm(88), 0.05, 0.18, 0.03); }
+  else if (kind === 'ding') { for (const [m, at] of [[81, 0], [88, 0.12]]) { tone(hzm(m), at, 0.9, 0.09); tone(hzm(m) * 2.76, at, 0.25, 0.02); } }
+  else if (kind === 'error') { tone(hzm(57), 0, 0.3, 0.12, 'triangle'); tone(hzm(52), 0.14, 0.45, 0.12, 'triangle'); }
+  else if (kind === 'notify') { [79, 83, 86].forEach((m, i) => tone(hzm(m), i * 0.08, 0.5, 0.06)); }
+  else tone(1250, 0, 0.04, 0.05, 'sine', 0.6); // click
+}
 export function playLogoff() { // two notes down
   const a = ctx(); if (!a) return; const t0 = a.currentTime + 0.01; const g0 = a.createGain(); g0.gain.value = 0.25; g0.connect(a.destination);
   [[81, 0], [74, 0.16], [69, 0.32]].forEach(([m, at]) => { const o = a.createOscillator(), g = a.createGain(); o.type = 'sine'; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12); g.gain.setValueAtTime(0.0001, t0 + at); g.gain.exponentialRampToValueAtTime(0.18, t0 + at + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.5); o.connect(g).connect(g0); o.start(t0 + at); o.stop(t0 + at + 0.55); });
@@ -112,8 +131,8 @@ export function createKaasdows(deps) {
   const maxGlyph = '<i class="g-max"></i>', restoreGlyph = '<i class="g-res"></i>';
 
   // the window: title-bar buttons, double-click to maximise, drag by the title bar (mouse and touch, not on phones)
-  $('pcmin').onclick = (e) => { e.stopPropagation(); winState = 'min'; deps.beep(520, 0.03, 'sine'); applyWin(); deps.renderTasks && deps.renderTasks(); };
-  $('pcmax').onclick = (e) => { e.stopPropagation(); maxed = !maxed; deps.beep(620, 0.03, 'sine'); applyWin(); };
+  $('pcmin').onclick = (e) => { e.stopPropagation(); winState = 'min'; ui('min'); applyWin(); deps.renderTasks && deps.renderTasks(); };
+  $('pcmax').onclick = (e) => { e.stopPropagation(); maxed = !maxed; ui(maxed ? 'max' : 'min'); applyWin(); };
   const tb = win.querySelector('.tb');
   tb.addEventListener('dblclick', (e) => { if (e.target.closest('button')) return; maxed = !maxed; applyWin(); });
   tb.addEventListener('pointerdown', (e) => {
@@ -146,7 +165,7 @@ export function createKaasdows(deps) {
       const k = b.dataset.m; openMenu = k; mb.querySelectorAll('.mbi').forEach((x) => x.classList.toggle('on', x === b));
       drop.innerHTML = MENUS[k].map((it, i) => (it ? `<button class="dri" data-i="${i}">${typeof it[0] === 'function' ? it[0]() : it[0]}</button>` : '<hr>')).join('');
       const r = b.getBoundingClientRect(), wr = win.getBoundingClientRect(); drop.style.left = r.left - wr.left + 'px'; drop.style.top = r.bottom - wr.top + 'px'; drop.style.display = 'block';
-      drop.querySelectorAll('.dri').forEach((d) => d.onclick = (e) => { e.stopPropagation(); const fn = MENUS[k][+d.dataset.i][1]; closeDrop(); fn(); });
+      drop.querySelectorAll('.dri').forEach((d) => d.onclick = (e) => { e.stopPropagation(); const fn = MENUS[k][+d.dataset.i][1]; closeDrop(); ui(); fn(); });
     };
     b.onclick = (e) => { e.stopPropagation(); openMenu === b.dataset.m ? closeDrop() : show(); };
     b.onpointerenter = () => { if (openMenu && openMenu !== b.dataset.m) show(); };
@@ -156,7 +175,7 @@ export function createKaasdows(deps) {
   const startBtn = $('pcstart');
   function toggleStart(on = menu.style.display !== 'block') {
     closeDrop(); menu.style.display = on ? 'block' : 'none'; startBtn.classList.toggle('on', on);
-    if (on) { deps.beep(880, 0.025, 'sine'); renderStart(); }
+    if (on) { ui('menu'); renderStart(); }
   }
   startBtn.onclick = (e) => { e.stopPropagation(); toggleStart(); };
   pc.addEventListener('pointerdown', (e) => { if (!menu.contains(e.target) && !startBtn.contains(e.target)) toggleStart(false); if (!drop.contains(e.target) && !mb.contains(e.target)) closeDrop(); });
@@ -197,17 +216,17 @@ export function createKaasdows(deps) {
       applyWin();
     },
     logoff() { toggleStart(false); closeDrop(); endBoot(); stopChime(); playLogoff(); },
-    open(id) { lastTab = id; winState = 'open'; deps.beep(700, 0.03); deps.onOpenTab(id); applyWin(); },
+    open(id) { const was = winState === 'open' && lastTab === id; lastTab = id; winState = 'open'; ui(was ? 'click' : 'open'); deps.onOpenTab(id); applyWin(); },
     setTab(id) { lastTab = id; },
-    closeWindow() { winState = 'closed'; deps.beep(440, 0.03, 'sine'); applyWin(); deps.refresh(); },
+    closeWindow() { winState = 'closed'; ui('close'); applyWin(); deps.refresh(); },
     showDesktop() { if (winState === 'open') winState = 'min'; applyWin(); deps.refresh(); },
-    restore() { winState = 'open'; applyWin(); deps.refresh(); },
+    restore() { ui('max'); winState = 'open'; applyWin(); deps.refresh(); },
     about() { api.msg('About Kaasdows XL', `<div class="xpm-about">${ICONS.logo}<div><b>Kaasdows XL</b> · eXtra Lekker Edition<br>Version 2002 (build 1652)<br><br>Licensed to: <b>${deps.user().name}</b><br>Physical memory: 128 MB of kaas<br><br><small>Kaasland Software. Not affiliated with any other window company. No cheese was harmed.</small></div></div>`); },
     // a small modal box over the desktop, with an OK button
     msg(title, html, icon = 'help') {
       let m = $('xpmsg'); if (!m) { m = document.createElement('div'); m.id = 'xpmsg'; pc.appendChild(m); }
       m.innerHTML = `<div class="xpm"><div class="tb"><span class="ti">${ICONS[icon] || ICONS.help}</span><span class="tt">${title}</span><button class="xpb cls" data-ok>×</button></div><div class="xpm-b">${html}</div><div class="xpm-f"><button class="b95" data-ok>OK</button></div></div>`;
-      m.style.display = 'grid'; deps.beep(660, 0.05, 'sine');
+      m.style.display = 'grid'; ui(icon === 'power' ? 'error' : 'ding');
       m.querySelectorAll('[data-ok]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); m.style.display = 'none'; });
     },
     escape() { // Esc: close the menu first, then the window, then log off

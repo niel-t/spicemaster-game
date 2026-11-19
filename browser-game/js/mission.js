@@ -858,6 +858,17 @@ export function initMission(ctx) {
     #nvScan{position:fixed;inset:0;pointer-events:none;z-index:4;display:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
     @keyframes nvg{0%{background-position:0 0}25%{background-position:-40px 30px}50%{background-position:30px -50px}75%{background-position:-60px -20px}100%{background-position:10px 40px}}
     #nvVig,#nvFlash{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0}
+    #nvPulse{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;display:none}
+    #nvThreat{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:5;display:none;pointer-events:none;font:9px 'Press Start 2P',ui-monospace,monospace;letter-spacing:2px;color:#f6d28a;text-shadow:2px 2px 0 #000;white-space:nowrap}
+    #nvThreat .pip{display:inline-block;width:14px;height:6px;margin-left:4px;background:rgba(255,255,255,.14);box-shadow:1px 1px 0 #000;transform:skewX(-20deg);transition:background .3s}
+    #nvThreat .pip.on1{background:#e8c25a}#nvThreat .pip.on2{background:#ff8a1a;box-shadow:0 0 8px #ff6a00}#nvThreat .pip.on3{background:#ff2a3a;box-shadow:0 0 10px #ff0030}
+    #nvBoss{position:fixed;left:50%;top:36px;transform:translateX(-50%);z-index:5;display:none;pointer-events:none;width:min(360px,40vw);text-align:center;font-family:'Press Start 2P',ui-monospace,monospace}
+    #nvBoss .n{font-size:11px;letter-spacing:3px;color:#ffd36b;text-shadow:2px 2px 0 #7a2e1a,0 0 12px rgba(255,140,30,.6);margin-bottom:6px}
+    #nvBoss .bar{height:12px;border:2px solid #1a0a04;background:#2a1208;box-shadow:0 0 0 2px #c8862a,3px 3px 0 2px #000;display:flex;gap:2px;padding:2px}
+    #nvBoss .bar i{flex:1;background:linear-gradient(180deg,#ffe08a,#f0a020 45%,#c0560e);transition:opacity .25s,background .25s}
+    #nvBoss .bar i.x{opacity:.12}
+    #nvBoss.p2 .n{color:#ff5a4a;text-shadow:2px 2px 0 #3a0008,0 0 14px #ff0030}#nvBoss.p2 .bar{box-shadow:0 0 0 2px #ff2a3a,3px 3px 0 2px #000,0 0 18px #ff0030}#nvBoss.p2 .bar i{background:linear-gradient(180deg,#ff9a8a,#ff2a3a 45%,#8a0010)}
+    @media (max-width:820px),(max-height:500px){#nvThreat{font-size:7px;top:8px}#nvBoss{top:26px}#nvBoss .n{font-size:8px}}
     #nvScreen{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(16,9,4,.72);color:#fff}
     #nvScreen .big{font-family:'Press Start 2P',monospace;font-size:clamp(26px,6vw,56px)}
     #nvScreen .red{color:#ff2a3a;text-shadow:3px 3px 0 #3a0010,0 0 18px #ff0030}
@@ -893,7 +904,7 @@ export function initMission(ctx) {
   document.head.appendChild(css);
   if (!document.querySelector('link[data-nvfont]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.dataset.nvfont = 1; l.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap'; document.head.appendChild(l); }
   const mk = (id) => { const d = document.createElement('div'); d.id = id; document.body.appendChild(d); return d; };
-  const hudEl = mk('nvHud'), scoreEl = mk('nvScore'), grainEl = mk('nvGrain'), scanEl = mk('nvScan'), vigEl = mk('nvVig'), flashEl = mk('nvFlash'), screenEl = mk('nvScreen'), bannerEl = mk('nvBanner'), invEl = mk('nvInv'), reloadEl = mk('nvReload');
+  const hudEl = mk('nvHud'), scoreEl = mk('nvScore'), grainEl = mk('nvGrain'), scanEl = mk('nvScan'), vigEl = mk('nvVig'), flashEl = mk('nvFlash'), screenEl = mk('nvScreen'), bannerEl = mk('nvBanner'), invEl = mk('nvInv'), reloadEl = mk('nvReload'), pulseEl = mk('nvPulse'), threatEl = mk('nvThreat'), bossEl = mk('nvBoss');
   reloadEl.innerHTML = '<div class="g"></div><div class="f"></div><div class="m"></div><div class="t"></div>';
   { const c = document.createElement('canvas'); c.width = c.height = 160; const g = c.getContext('2d'), id = g.createImageData(160, 160); for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } g.putImageData(id, 0, 0); grainEl.style.backgroundImage = `url(${c.toDataURL()})`; }
   const fade = document.createElement('div'); fade.style.cssText = 'position:fixed;inset:0;background:#0a0410;opacity:0;pointer-events:none;transition:opacity .45s;z-index:30'; document.body.appendChild(fade);
@@ -1208,6 +1219,7 @@ export function initMission(ctx) {
       if (LV.paravim) f.wary = true; // always angry
       f.res = false; if (f.reserve) { f.res = !off; f.alive = false; e.visible = false; setFoeWeapon(e, null); }
       if (f.type && FOE_TYPES[f.type].phase2) f.dodge = FOE_TYPES[f.type].dodge;
+      f.hp0 = f.hp; // the boss bar's length
       setFoeWeapon(e, off || pend ? null : w);
       e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !off && !pend; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false; f.grazed = 0; f.blind = 0;
     }
@@ -1307,7 +1319,7 @@ export function initMission(ctx) {
       const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
       player.position.set(5.3, 0, -5.8); player.rotation.y = Math.PI;
       setArea('KAASLAND · KIPKRUIDENKWARTIER'); hideScreen(); for (const p of pops) p.el.remove(); pops.length = 0;
-      vigEl.style.opacity = flashEl.style.opacity = 0; bannerEl.style.opacity = 0; hud();
+      vigEl.style.opacity = flashEl.style.opacity = 0; bannerEl.style.opacity = 0; threatEl.style.display = bossEl.style.display = pulseEl.style.display = 'none'; bossKey = ''; threatK = -1; hud();
       updateObjective(); if (ctx.save) ctx.save();
       fade.style.opacity = '0';
     }, 480);
@@ -1798,7 +1810,39 @@ export function initMission(ctx) {
     f.style.width = (k * 100) + '%'; m.style.left = (k * 100) + '%'; t.textContent = r.jam ? 'VASTGELOPEN' : 'HERLADEN · ' + glyph('R');
   }
   function hitstop(dt) { if (FX.freeze > 0) { FX.freeze -= dt; return 0; } return dt; }
+  // ================================================================== ADAPTIVE MUSIC + its screen (js/combatmusic.js)
+  // Every frame: how many are hunting Eddy, is a boss on him, is he on his last heart. The score fades its layers to match,
+  // the threat pips at the top show the same thing, a boss gets a health bar, and the screen edge throbs on the beat.
+  // once a boss has seen Eddy the boss fight is on until one of them drops
+  let threatK = -1, bossKey = '';
+  function scoreTick(dt) {
+    const S = ctx.score; if (!S) return;
+    let chase = 0, search = 0, boss = 0, bossE = null;
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.pend || f.res) continue;
+      if (f.state === 'chase') chase++; else if (f.state === 'search') search++;
+      if ((f.boss || f.type) && f.seen) { const b = f.phase === 2 ? 2 : 1; if (b >= boss) { boss = b; bossE = e; } } }
+    const loudHeist = HEIST && HS.loud;
+    const s = ARR ? { heist: !!HEIST, chase: 0, search: 0, lowhp: 0, boss: 0, dead: false, done: false }
+      : { heist: !!HEIST && !loudHeist, chase, search, lowhp: !P.dead && P.hp <= 1 && P.maxhp > 1 ? 1 : 0, boss, dead: P.dead, done: !!(R.cleared || R.results) };
+    S.update(dt, s, ctx.musicOn ? ctx.musicOn() : true);
+    // threat pips: 0 rustig, 1 onraad, 2 gevecht, 3 baas
+    const k = s.done || P.dead ? 0 : boss ? 3 : S.mode === 'combat' ? 2 : search ? 1 : 0;
+    if (k !== threatK) { threatK = k; const lab = ['RUSTIG', 'ONRAAD', 'GEVECHT', 'BAAS'][k];
+      threatEl.innerHTML = lab + [1, 2, 3].map((i) => `<span class="pip${i <= k ? ' on' + Math.min(3, k) : ''}"></span>`).join(''); }
+    threatEl.style.display = M.active && !ARR ? 'block' : 'none';
+    // boss bar
+    const bf = bossE && bossE.userData.foe, key = bf ? `${bf.id}:${bf.hp}:${bf.phase}` : '';
+    if (key !== bossKey) { bossKey = key;
+      if (bf) { const FT = bf.type && FOE_TYPES[bf.type], name = FT ? FT.name : (LV.bossName || 'DE BAAS'), max = Math.max(bf.hp0 || bf.hp, bf.hp);
+        bossEl.className = bf.phase === 2 ? 'p2' : ''; bossEl.innerHTML = `<div class="n">${name}</div><div class="bar">${Array.from({ length: max }, (_, i) => `<i class="${i < bf.hp ? '' : 'x'}"></i>`).join('')}</div>`; }
+      bossEl.style.display = bf ? 'block' : 'none'; }
+    // the beat on the screen edge: saffron in a fight, deep red-violet against a boss
+    const pk = S.on && !P.dead && !s.done ? S.pulse * (boss ? 0.32 : S.mode === 'combat' ? 0.2 : 0) : 0;
+    if (pk > 0.01) { pulseEl.style.display = 'block'; pulseEl.style.background = boss ? `radial-gradient(ellipse at center, rgba(120,0,60,0) 55%, rgba(${boss === 2 ? '255,20,50' : '200,30,110'},${pk.toFixed(3)}) 100%)` : `radial-gradient(ellipse at center, rgba(255,140,20,0) 60%, rgba(255,140,20,${pk.toFixed(3)}) 100%)`; pulseEl.style.opacity = 1; }
+    else if (pulseEl.style.display !== 'none') pulseEl.style.display = 'none';
+  }
   function update(dt) {
+    scoreTick(dt);
     if (ARR) { updateArrive(dt); return; }
     R.time += dt; updateTin(dt); if (smoke.size) for (const [k, t] of smoke) if (t < R.time) smoke.delete(k);
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
@@ -1826,7 +1870,7 @@ export function initMission(ctx) {
     for (const g of flashing) { tickFlash(g, dt); if (!g.userData.flash.visible) flashing.delete(g); } updatePuffs(dt);
     FX.shake *= Math.exp(-dt * 8); FX.flash = Math.max(0, FX.flash - dt * 1.5); FX.kick.multiplyScalar(Math.exp(-dt * 12));
     flashEl.style.background = `rgba(${FX.flashC},1)`; flashEl.style.opacity = FX.flash * 0.6;
-    const vig = FX.hurtT > 0 ? FX.hurtT / 0.7 * 0.55 : (!P.dead && P.hp === 1 ? 0.18 + Math.sin(R.time * 6) * 0.08 : 0);
+    const vig = FX.hurtT > 0 ? FX.hurtT / 0.7 * 0.55 : (!P.dead && P.hp === 1 ? (ctx.score && ctx.score.on ? 0.14 + ctx.score.pulse * 0.16 : 0.18 + Math.sin(R.time * 6) * 0.08) : 0);
     vigEl.style.background = `radial-gradient(ellipse at center, rgba(255,0,30,0) 45%, rgba(255,0,30,${vig.toFixed(3)}) 100%)`; vigEl.style.opacity = 1;
     for (const l of lootCrates) if (!l.taken) l.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
     if (levelTick) levelTick(dt);

@@ -2,6 +2,7 @@
 // Neon Vice-style top-down browser game: three.js, PS2-style low-poly people with photo faces.
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
+import { CombatScore } from './combatmusic.js'; // adaptive shootout score: layers that build as a fight heats up
 import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable } from './input.js';
 import { createGunShop } from './gunshop.js';
 import { initMission } from './mission.js';
@@ -25,7 +26,8 @@ import { createTips } from './tips.js'; // Shooki texts a tip the first time eac
 import { createTutorial } from './tutorial.js'; // the first fifteen minutes: Shooki's tour of the spice trade
 import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades, racking, the heftruck, the hall and the tent
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
-import { createKaasdows } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
+import { createMedia } from './kaasmedia.js'; // Kaasdows Mediaspeler: original live-generated desktop music
+import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
 import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
 import { createBalloons } from './balloons.js';
 import { createPortraits } from './portrait.js'; // Freddy Sr. and Eddy Jr. photos that talk and blink // Frutiger Aero speech balloons, kept on screen
@@ -35,6 +37,9 @@ let loods = null; // js/loods.js, set up after the economy
 let work = null; // js/naknikwork.js, set up after De Loods
 let woning = null; // js/woning.js, set up once the street, the economy and the phone exist
 const music = new Music();
+const score = new CombatScore();
+const musicDucks = {}; // who wants the street song quieter (the fight score, the Kaasdows media player): the quietest wins
+function setDuck(k, v) { if (musicDucks[k] === v) return; musicDucks[k] = v; music.duck(Math.min(1, ...Object.values(musicDucks))); }
 
 // ------------------------------------------------------------------ renderer / scene
 const canvas = document.getElementById('game');
@@ -1121,7 +1126,7 @@ function bidFor(d) { if (!bids[d.id]) bids[d.id] = { who: BUYERS[Math.floor(Math
 const TABLE_COST = 600, NAKNIK_COST = 450, NAKNIK_INCOME = 0; // balance 2026-11-15: no passive timer, Naknikim earn by mixing
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
-const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['woning', 'H', 'Woning'], ['loods', '▦', 'De Loods'], ['bank', 'W', 'My Wilders']];
+const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['woning', 'H', 'Woning'], ['loods', '▦', 'De Loods'], ['bank', 'W', 'My Wilders'], ['media', '♪', 'Mediaspeler']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 let phone = null; // js/phone.js, Hakan's kipkraud calls
@@ -1160,17 +1165,19 @@ function pcPrograms() {
     return { id, label, isNew: tutorial.isNew(id) && !(pcTab === id && kd.winOpen) };
   });
 }
+const media = createMedia({ $, duck: (k) => setDuck('media', k) });
 const kd = createKaasdows({ $, beep, programs: pcPrograms, refresh: () => renderPC(), money: () => 'W ' + state.money.toLocaleString('nl-NL'),
   user: () => ({ name: 'Eddy Jr.', face: faces['Eddy Jr.'] }),
   onOpenTab: (id) => { pcTab = id; renderPC(); }, onLogoff: () => closePC(),
   help: (tab) => { if (!(tab && tips.again('tab:' + tab))) kd.msg('Kaasdows Help', 'Click (or tap) an icon on the desktop, or pick a program from the green <b>start</b> button. The <b>×</b> closes a window, <b>_</b> tucks it away on the taskbar. Log off with the red button bottom-right, or <b>Esc</b>.'); } });
+$('pcmedia').innerHTML = KD_ICONS.media; $('pcmedia').onclick = (e) => { e.stopPropagation(); kd.open('media'); }; // the tray note while music plays
 function openPC(tab = 'sell', mode = 'pc') { kmap.warm(); // paint the aerial map while the desktop is open, so the map tab is instant
   pcTab = tab; pcMode = mode; state.inPC = true; $('pc').style.display = 'block'; kd.login(mode); renderPC();
 }
-function closePC() { if (!state.inPC || $('pc').style.display !== 'block') { state.inPC = false; $('pc').style.display = 'none'; return; } kd.logoff(); state.inPC = false; $('pc').style.display = 'none'; afterPC(); }
+function closePC() { media.stop(); if (!state.inPC || $('pc').style.display !== 'block') { state.inPC = false; $('pc').style.display = 'none'; return; } kd.logoff(); state.inPC = false; $('pc').style.display = 'none'; afterPC(); }
 // the window's ×: shuts the program and shows the desktop (the Oofmobiel planner has no desktop, so it logs off)
 $('pcclose').onclick = (e) => { e.stopPropagation(); if (pcMode === 'van') closePC(); else kd.closeWindow(); };
-const PC_TITLE = { sell: 'Kaasplaats', hire: 'Naknik Uitzendbureau', shop: 'Mixing table', beurs: 'Kruidenbeurs', meng: 'Mengkamer', rapport: 'Dagrapport', jobs: 'Klusbord', ideas: 'Ideeënboek', werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord', map: 'Map of Kaasland', woning: 'Woning', loods: 'De Loods', bank: 'My Wilders' };
+const PC_TITLE = { sell: 'Kaasplaats', hire: 'Naknik Uitzendbureau', shop: 'Mixing table', beurs: 'Kruidenbeurs', meng: 'Mengkamer', rapport: 'Dagrapport', jobs: 'Klusbord', ideas: 'Ideeënboek', werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord', map: 'Map of Kaasland', woning: 'Woning', loods: 'De Loods', bank: 'My Wilders', media: 'Kaasdows Mediaspeler' };
 function renderPC() {
   kd.setTab(pcTab);
   kd.render(pcPrograms(), pcTab, pcMode === 'van' ? 'Oofmobiel' : PC_TITLE[pcTab] || 'Kaasdows', pcMode === 'van' ? 'van' : pcTab);
@@ -1255,6 +1262,8 @@ function renderPC() {
     title.textContent = 'Map of Kaasland';
     body.innerHTML = mapHTML(false); bindMap();
     if (!state.mapSeen) { state.mapSeen = true; setTimeout(onMapSeen, 400); }
+  } else if (pcTab === 'media') {
+    title.textContent = 'Kaasdows Mediaspeler'; body.innerHTML = media.html(); media.bind(body);
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
     body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Mixing: <b>${(state.naknik || 0) * econ.perNaknik()} kg</b> a market day<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Freddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
@@ -2743,7 +2752,8 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  if (!mOn) { updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); updateSiege(); mission.street(dt); } else { mission.update(dt); updateRazimMission(dt); }
+  if (!mOn) { score.update(dt, null); updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); updateSiege(); mission.street(dt); } else { mission.update(dt); updateRazimMission(dt); }
+  setDuck('fight', score.on ? 0 : 1); // the fight score replaces the street song
   const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then work: stir, and run little jobs around De Loods (js/naknikwork.js)
   for (const n of naknikim) {
@@ -2830,7 +2840,7 @@ function tick() {
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
 updateObjective();
-mission = initMission({ perk: (k) => (woning ? woning.perk(k) : 0), THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
+mission = initMission({ score, musicOn: () => music.on, perk: (k) => (woning ? woning.perk(k) : 0), THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
   tip: (k) => tips.show(k), choiceOpen: () => choiceOpen, interacting: () => current, // the [E] prompt on screen (the van, a task): E acts on it instead of throwing the weapon // Shooki's tips; the clamp choice must not lose its keys to the mission
   parkTicket: () => garage.addTicket(mission.levelName()), clampVan: () => writeSave(), parkDone: () => garage.parkingDone(), // paid bays (js/garage.js)
@@ -2900,5 +2910,5 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+window.__sme = { score, media, get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 tick();

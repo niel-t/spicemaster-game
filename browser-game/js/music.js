@@ -6,7 +6,7 @@ export class Music {
   init() {
     if (this.ctx) return;
     const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    this.master = ctx.createGain(); this.master.gain.value = 0.22;
+    this.master = ctx.createGain(); this.master.gain.value = 0.22 * (this.duckK ?? 1);
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4;
     this.master.connect(comp).connect(ctx.destination);
     // short stereo-ish echo for the lead
@@ -17,6 +17,8 @@ export class Music {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.noise = buf;
   }
+  // fade the street song under another score (combatmusic.js in a fight, the Kaasdows media player): k 0..1
+  duck(k) { this.duckK = k; if (this.master) this.master.gain.setTargetAtTime(0.22 * k, this.ctx.currentTime, k < 1 ? 0.4 : 1.2); }
   toggle() { this.on ? this.stop() : this.start(); return this.on; }
   start() {
     this.init(); if (this.ctx.state === 'suspended') this.ctx.resume();

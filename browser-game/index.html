@@ -454,6 +454,31 @@
   body #shookitip .st-ok { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #07304f; border: 1px solid #5e9cc6; border-radius: 10px; background: linear-gradient(180deg, #ffffff 0%, #eef8fd 48%, #cfe9f8 52%, #e6f5fc 100%); box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,40,80,.22); }
   body #shookitip .st-ok:hover { background: linear-gradient(180deg, #e6fbff, #8fe0ff 45%, #2fb4f0 52%, #7fe4ff); }
   body #shookitip .st-off { color: #3a6a8a; }
+  /* Kaasdows Mediaspeler (js/kaasmedia.js): a glassy aqua player */
+  #taskbar .tray #pcmedia { width: 26px; height: 26px; padding: 2px; border: 0; background: none; cursor: pointer; border-radius: 50%; align-items: center; justify-content: center; animation: kmpNote 1.6s ease-in-out infinite; }
+  #taskbar .tray #pcmedia svg { width: 22px; height: 22px; } #taskbar .tray #pcmedia:hover { background: rgba(255,255,255,.2); }
+  @keyframes kmpNote { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  .kmp { display: flex; flex-direction: column; gap: 10px; max-width: 620px; margin: 0 auto; font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+  .kmp-screen { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid #0d4f8a; box-shadow: 0 2px 8px rgba(0,40,90,.35), inset 0 0 0 1px rgba(255,255,255,.35); background: #04315c; }
+  .kmp-screen canvas { display: block; width: 100%; height: auto; aspect-ratio: 14 / 5; }
+  .kmp-screen::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 45%; background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0)); pointer-events: none; }
+  .kmp-now { position: absolute; left: 14px; top: 10px; color: #fff; text-shadow: 0 1px 3px #001a33; display: flex; flex-direction: column; gap: 1px; }
+  .kmp-now b { font-size: 17px; } .kmp-now span { font-size: 11px; color: #bfeeff; } .kmp-now small { font-size: 11px; color: #e8fbff; opacity: .85; }
+  .kmp-vis { position: absolute; right: 10px; top: 10px; display: flex; gap: 4px; z-index: 1; }
+  .kmp-vis button { font: 11px "Segoe UI", Tahoma, sans-serif; color: #fff; padding: 2px 9px; border-radius: 10px; border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.12); cursor: pointer; }
+  .kmp-vis button.on { background: linear-gradient(180deg, rgba(170,240,255,.8), rgba(40,160,230,.8)); }
+  .kmp-ctl { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 22px; background: linear-gradient(180deg, #f4fbff, #d6ecfa 50%, #c2e1f6 51%, #e2f3ff); border: 1px solid #8fbcd9; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,60,110,.15); }
+  .kmp-b { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #1d6aa8; color: #fff; cursor: pointer; padding: 7px; display: grid; place-items: center; background: radial-gradient(circle at 50% 30%, #bff0ff 0, #4fb8f0 40%, #1876c4 70%, #2a9ae0 100%); box-shadow: inset 0 1px 1px rgba(255,255,255,.8), 0 1px 3px rgba(0,40,90,.4); }
+  .kmp-b svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px rgba(0,30,70,.6)); }
+  .kmp-b:hover { filter: brightness(1.12); } .kmp-b:active { filter: brightness(.9); }
+  .kmp-big { width: 46px; height: 46px; padding: 10px; background: radial-gradient(circle at 50% 30%, #d9ffd0 0, #6ad84a 40%, #2a9a1a 72%, #4cc032 100%); border-color: #217a12; }
+  .kmp-vol { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #0d3f6a; } .kmp-vol input { width: 110px; accent-color: #2a9ae0; }
+  .kmp-list { margin: 0; padding: 4px; list-style: none; border-radius: 8px; background: #fff; border: 1px solid #b6d3e6; box-shadow: inset 0 1px 3px rgba(0,60,110,.1); }
+  .kmp-list li { display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 5px; cursor: pointer; font-size: 13px; color: #123; }
+  .kmp-list li:hover { background: #e6f4fd; } .kmp-list li.on { background: linear-gradient(180deg, #d9f1ff, #a9dbf7); color: #003c74; font-weight: 700; box-shadow: inset 0 0 0 1px #7fbde4; }
+  .kmp-list li em { font-style: normal; color: #6a8aa0; font-size: 11px; }
+  .kmp-foot { font-size: 11px; color: #5a7a90; text-align: center; }
+  @media (max-width: 760px) { .kmp-vol input { width: 70px; } .kmp-now b { font-size: 14px; } .kmp-now small { display: none; } }
 </style>
 </head>
 <body class="on-title">
@@ -472,7 +497,7 @@
   <div class="icons" id="pcicons"></div>
   <div class="win" id="pcwin"><div class="tb"><span class="ti" id="winicon"></span><span id="wintitle">Kaasplaats</span><span class="tbb"><button class="xpb min" id="pcmin" title="Minimise">_</button><button class="xpb max" id="pcmax" title="Maximise"></button><button class="xpb cls" id="pcclose" title="Close">×</button></span></div><div id="pcmenubar"></div><div id="pcdrop"></div><div class="body" id="winbody"></div></div>
   <div id="startmenu"></div>
-  <div id="taskbar"><button class="start" id="pcstart"><i class="klogo" id="klogo"></i>start</button><div id="pctasks"></div><div class="tray"><span class="wil" data-bal></span><span class="clock" id="clock">16:20</span><button id="pcoff" title="Log off"></button></div></div>
+  <div id="taskbar"><button class="start" id="pcstart"><i class="klogo" id="klogo"></i>start</button><div id="pctasks"></div><div class="tray"><span class="wil" data-bal></span><button id="pcmedia" title="" style="display:none"></button><span class="clock" id="clock">16:20</span><button id="pcoff" title="Log off"></button></div></div>
   <div id="pcboot"><div class="bl"><span id="bootlogo"></span><div><div class="bn">Kaasdows<sup>XL</sup></div></div></div><div class="bs">eXtra Lekker Edition</div><div class="welcome">welkom</div><div class="bar"><i></i><i></i><i></i></div><div class="bskip">click to skip</div><div class="bf"><span>© 1652–2002 Gouda Games</span><span>Kaasland Software</span></div></div>
 </div>
 <div id="shop"><div class="shopbox">
