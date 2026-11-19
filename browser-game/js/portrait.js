@@ -13,6 +13,7 @@ export function createPortraits(img) {
   let cur = null, talkUntil = 0, t0 = performance.now(), nextBlink = 0, raf = 0;
   function load(path) {
     if (sets[path]) return sets[path];
+    if (!ANIM.includes(path)) { const i = new Image(); i.src = path; return (sets[path] = [0, 1, 2].map(() => [i, i])); } // one drawn frame (Shooki, Razim, Henk...): it still breathes and nods along
     const base = path.replace(/\.jpg$/, '');
     return (sets[path] = [0, 1, 2].map((m) => [0, 1].map((e) => { const i = new Image(); i.src = base + (m ? '_m' + m : '') + (e ? '_b' : '') + '.jpg'; return i; })));
   }
@@ -20,7 +21,7 @@ export function createPortraits(img) {
 
   // show(path, line): animate if this face has drawn frames, else leave the plain <img> alone
   function show(path, line) {
-    if (!path || !ANIM.includes(path)) { hide(); return; }
+    if (!path) { hide(); return; }
     cur = load(path);
     talkUntil = performance.now() + Math.min(6000, Math.max(1100, String(line || '').length * 55));
     img.style.display = 'none'; cv.style.display = 'block';
@@ -40,10 +41,12 @@ export function createPortraits(img) {
     const e = now > nextBlink ? 1 : 0;
     const want = cur[m][e], pic = want.complete && want.naturalWidth ? want : cur[0][0];
     if (!pic.complete || !pic.naturalWidth) return;
-    const bob = Math.sin(t * 1.9) * 1.6 + (talking ? Math.sin(t * 6.3) * 1.6 : 0), tilt = Math.sin(t * 1.1) * 0.012 + (talking ? Math.sin(t * 3.7) * 0.012 : 0);
+    const one = cur[1][0] === cur[0][0], jaw = one && talking ? Math.abs(Math.sin(t * 9.5)) * 0.03 : 0; // a single frame: the head bounces on the syllables instead
+    const bob = Math.sin(t * 1.9) * 1.6 + (talking ? Math.sin(t * 6.3) * 1.6 : 0) - jaw * 40, tilt = Math.sin(t * 1.1) * 0.012 + (talking ? Math.sin(t * 3.7) * (one ? 0.022 : 0.012) : 0);
     g.save(); g.clearRect(0, 0, W, H);
-    g.translate(W / 2, H * 0.85); g.rotate(tilt); g.scale(1.05, 1.05 + Math.sin(t * 1.9) * 0.005); g.translate(-W / 2, -H * 0.85 + bob);
-    g.drawImage(pic, 0, 0, W, H);
+    g.translate(W / 2, H * 0.85); g.rotate(tilt); g.scale(1.05, 1.05 + Math.sin(t * 1.9) * 0.005 + jaw); g.translate(-W / 2, -H * 0.85 + bob);
+    if (one) { const k = Math.min(pic.naturalWidth / W, pic.naturalHeight / H), sw = W * k, sh = H * k; g.drawImage(pic, (pic.naturalWidth - sw) / 2, 0, sw, sh, 0, 0, W, H); } // cover, top-aligned like the <img>
+    else g.drawImage(pic, 0, 0, W, H);
     g.restore();
   }
   return { show, hide };

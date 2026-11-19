@@ -256,6 +256,7 @@ export function initPhone(d) {
         { l: 'Levering', r: econ.ensure().express ? 'morgen+25%' : '2 dagen', act: () => { const e = econ.ensure(); e.express = !e.express; d.save(); render(); } },
         { l: 'Kwaliteit', r: econ.GRADES.find((g) => g.id === grade).name.slice(0, 9), act: () => { const i = econ.GRADES.findIndex((g) => g.id === grade); grade = econ.GRADES[(i + 1) % econ.GRADES.length].id; render(); } },
         ...econ.INGREDIENTS.filter((g) => econ.ingOpen(g)).map((g) => ({ l: g.name, r: `W${econ.expressCost(econ.price(g.id, grade), econ.ensure().express)}${econ.has('prognose') ? (econ.forecast(g.id) > 0 ? '▲' : '▼') : ''}`, act: () => {
+          const lock = econ.gradeLock(grade) || econ.qtyLock(qty); if (lock) return say(lock); // rank gates (js/economy.js)
           const r = econ.buy(g.id, grade, qty);
           say(r.ok ? `${r.kg}kg ${g.name} -W${r.cost}, komt dag ${r.day}` : r.why);
         } })),

@@ -11,10 +11,11 @@ export const TIPS = {
   'step:russian': ['The Russian', 'Pawn shop <b>Pandjeshuis Spasibo</b>, east end of the street. Dad\'s old friend. He sells guns, but guns only work on missions. In the street it\'s the stick.'],
   'step:free': ['How the trade works', 'Every <b>market day</b> you pick: a <b>raid</b> (that takes the whole day), or <b>warehouse work and deliveries</b> together. Then sleep: your Naknikim mix overnight, clients pay, prices move. Take joints, sell spice, get a name.'],
   'tab:sell': ['Kaasplaats', 'Second-hand market. Buyers bid on what you list, you pick. Later you buy and sell <b>shoarma machines</b> here too: sell one to a joint and they order more spice.'],
-  'tab:shop': ['Mixing table', 'Steel table, bowls, sacks. It\'s where the Naknikim work. One table, up to three Naknikim.'],
-  'tab:hire': ['Naknikim', 'Each Naknik mixes <b>10 kg</b> of blend every market day from the spice on your shelves. No spice, no blend, no money. More room for Naknikim comes with extra warehouses.'],
+  'tab:shop': ['Mixing table', 'Steel table, bowls, sacks. It\'s where the Naknikim work. One table, up to three Naknikim, once you have the name for it.'],
+  'tab:hire': ['Naknikim', 'Each Naknik mixes <b>10 kg</b> of blend every market day from the spice on your shelves. No spice, no blend, no money. The agency trusts a <b>Hulpje</b> with one Naknik, a <b>Mengmeester</b> with two, a <b>Kruidenhandelaar</b> with a full table. More room comes with extra warehouses.'],
+  rest: ['Rest day', 'Bro, you already had a lazy day. Sleep comes after work: a <b>delivery run</b> in the Oofmobiel, a <b>Klusbord</b> job, racking pallets or a <b>raid</b>. One rest day every three days, that\'s the deal.'],
   shop: ['Pandjeshuis Spasibo', 'Guns, ammo, armour, attachments. <b>Cash only</b>. You can sell stuff back. Everything you buy goes into your kit for missions. Esc to leave.'],
-  'tab:beurs': ['Kruidenbeurs', 'The spice market. Prices move every market day: buy low, bro. Orders come <b>two days</b> later, express tomorrow. <b>Lampas</b> grade is cheap and bad, <b>Standaard</b> is honest, <b>Bio</b> is expensive and five stars. Your warehouse holds 200 kg.'],
+  'tab:beurs': ['Kruidenbeurs', 'The spice market. Prices move every market day: buy low, bro. Orders come <b>two days</b> later, express tomorrow. <b>Lampas</b> grade is cheap and bad, <b>Standaard</b> is honest, <b>Bio</b> is expensive and five stars, and only for a <b>Kruidenhandelaar</b>. 25 kg orders open at <b>Mengmeester</b>. Your warehouse holds 200 kg.'],
   'tab:meng': ['Mengkamer', 'Pick <b>one blend</b> a day for the Naknikim. Quality is the average stars of what goes in. "Cheapest first" saves money, "best first" makes clients happy.'],
   'tab:rapport': ['Dagrapport', 'Who paid, who didn\'t. A missed order costs trust and control of that joint. Watch the <b>heat</b> bars too: angry gangs start price wars, lean on clients and take joints back.'],
   'tab:jobs': ['Klusbord', 'New jobs every market day. <b>Spoed</b> orders pay extra for blend you have, <b>deals</b> are cheap spice, <b>stash</b> jobs pay for a remix raid. Jobs give reputation too.'],
@@ -30,7 +31,7 @@ export const TIPS = {
   heist: ['Nachtklus', 'Stay out of the light and the sight cones. Walking is quiet, <b>Shift</b> is loud, shots are very loud. <b>N</b> for night vision if you have it. Full bag? Back to the van.'],
   siege: ['Spice war', 'They\'re coming for the warehouse. Three waves through the doors. Keep them away from the Naknikim under the tables. A barricade and an oil drum help.'],
   drive: ['Driving', '<b>W</b> gas, <b>S</b> brake, <b>A D</b> steer, <b>Shift</b> handbrake, <b>E</b> honk. Follow the arrow and park in the ring. Lampas cars ram you: the bar top left is the van.'],
-  day: ['Plan your day', 'One day, one plan, bro. A <b>raid</b> takes the whole day, and only if you have not worked yet. <b>Racking pallets</b> and <b>deliveries</b> (one van run, Klusbord orders) fit together in one day. Done? <b>Sleep</b> in your bed or hit <b>Dag afsluiten</b> on the PC. The plan for today is under your objective.'],
+  day: ['Plan your day', 'One day, one plan, bro. A <b>raid</b> takes the whole day, and only if you have not worked yet. <b>Racking pallets</b> and <b>deliveries</b> (one van run, Klusbord orders) fit together in one day. Done? <b>Sleep</b> in your bed or hit <b>Dag afsluiten</b> on the PC. A day with nothing done is a <b>rest day</b>: one every three days. The plan for today is under your objective.'],
   order: ['Ordered', 'Nothing arrives the same day, bro. Spice comes on the morning <b>two days</b> later. In a hurry? <b>Express</b> brings it tomorrow for 25% extra. Plan ahead: order before the shelves run empty.'],
   phone: ['Phone', 'Your phone is ringing, bro. Press <b>T</b> to answer. Hakan wants kipkraud: say yes and I bring it tomorrow, if there\'s Kip Shoarma in stock.'],
   razim: ['Razim', 'That\'s Razim, bro. He wants shoarma. He always wants shoarma. His texts are under <b>Razim</b> in the Shmokia (<b>T</b>). Reply or don\'t, he texts again anyway.'],
@@ -68,7 +69,7 @@ export function createTips(d) {
     addEventListener('keydown', (e) => { if (cur && e.code === 'KeyH' && !e.repeat) close(); });
   }
   function next() {
-    if (cur || !queue.length) return;
+    if (cur || !queue.length || (d.busy && d.busy())) return; // Shooki's guide card is up: wait for it
     const k = queue.shift(), t = TIPS[k]; if (!t || stale(k)) return next(); // a Chapter 0 step the player already left
     if (!el) build();
     cur = k; life = 9 + t[1].replace(/<[^>]+>/g, '').length / 14; // reading time
@@ -81,6 +82,7 @@ export function createTips(d) {
   // show a topic's tip the first time it comes up
   function show(k) {
     const t = T(); if (t.off || !TIPS[k] || t.told[k]) return false;
+    if (d.held && d.held(k)) { t.told[k] = true; return false; } // Shooki's guide card is explaining this right now
     t.told[k] = true; if (d.save) d.save();
     queue.unshift(k); // what's on screen now goes first
     if (cur && stale(cur)) close(); else next();
@@ -88,7 +90,7 @@ export function createTips(d) {
   }
   // the Kaasdows Help menu: show a topic's tip again on request, even if it was seen or tips are off
   function again(k) { if (!TIPS[k]) return false; queue.unshift(k); if (cur) close(); else next(); return true; }
-  function update(dt) { if (cur && (life -= dt) <= 0) close(); } // fades by itself
+  function update(dt) { if (cur && (life -= dt) <= 0) close(); else if (!cur && queue.length) next(); } // fades by itself
   // a save from before the tips: anything already past Chapter 0 doesn't need the Chapter 0 ones
   function migrate(saved) { state.tips = saved && typeof saved === 'object' ? { told: { ...(saved.told || {}) }, off: !!saved.off } : { told: {}, off: false }; if (state.step === 'free') for (const k of STEP_KEYS) state.tips.told[k] = true; }
   function reset() { state.tips = { told: {}, off: false }; }

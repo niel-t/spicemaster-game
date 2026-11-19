@@ -23,19 +23,23 @@ export function createTutorial(d) {
   const at = (id) => !!(step() && step().id === id);
   function begin() { state.tut = { n: 0, done: false, seen: {} }; }
   // a save from before the tour: anyone past Chapter 0 already knows the PC
-  function migrate(saved) { if (saved && typeof saved === 'object') { state.tut = { n: +saved.n || 0, done: !!saved.done, seen: { ...(saved.seen || {}) } }; return; } state.tut = state.step === 'free' ? { n: STEPS.length, done: true, seen: {} } : { n: 0, done: false, seen: {} }; }
+  function migrate(saved) { if (saved && typeof saved === 'object') { state.tut = { n: +saved.n || 0, done: !!saved.done, seen: { ...(saved.seen || {}) }, sack: !!saved.sack || +saved.n > 0 }; return; } state.tut = state.step === 'free' ? { n: STEPS.length, done: true, seen: {} } : { n: 0, done: false, seen: {} }; }
   function next() {
     const t = T(); t.n++;
     if (t.n >= STEPS.length) { t.done = true; toast('YOU KNOW THE TRADE', 'Buy spice, mix it, deliver it, take joints, earn your rank. The rest of Kaasland opens up as you grow.', 6); [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.05), i * 110)); }
     else { const s = STEPS[t.n]; if (s.tab) t.seen[s.tab] = false; beep(880, 0.06, 'triangle', 0.05); }
-    if (d.objective) d.objective(); if (save) save();
+    if (d.objective) d.objective(); if (save) save(); if (d.refresh) d.refresh(); // the next tab icon shows on the desktop right away
   }
+  // Skip tutorial on a guide card: the tour ends too, but nobody loses Shooki's starter sack
+  function skipAll() { const t = T(); if (!t || t.done) return; if (!t.sack) giveSack(); skip(); }
+  function giveSack() { const e = econ.ensure(); for (const [id, kg] of Object.entries(STARTER)) e.stock[`${id}:std`] = (e.stock[`${id}:std`] || 0) + kg; e.order = 'kip'; if (T()) T().sack = true; }
   function skip() { const t = T(); t.n = STEPS.length; t.done = true; if (d.objective) d.objective(); if (save) save(); }
   // ---- hooks main.js calls
   function chapterDone() { if (active() && T().n === 0 && d.objective) d.objective(); } // the Russian's shop closed: Shooki turns up
   function opened(tab) { // a PC tab was opened
     const t = T(); if (!t) return;
     if (t.seen[tab] === false) t.seen[tab] = true;
+    if (d.guided && d.guided()) return; // Shooki's guide cards move the tour on once he has explained the window (js/guide.js)
     if (at('beurs') && tab === 'beurs') next();
     else if (at('meng') && tab === 'meng') next();
     else if (at('rapport') && tab === 'rapport') next();
@@ -60,8 +64,7 @@ export function createTutorial(d) {
       ['Shooki', 'Ringtones were the future, bro. Now spice is the future. Look, I brought you something: a sack of paprika, knoflook and komijn. Enough for thirty kilo Kip Shoarma.'],
       ['Shooki', 'Your Naknik mixes it, Shoarma Schmatzel buys it, you get Wilders. That\'s the whole trade, bro. Want me to show you on the PC?'],
     ], () => {
-      const e = econ.ensure(); for (const [id, kg] of Object.entries(STARTER)) e.stock[`${id}:std`] = (e.stock[`${id}:std`] || 0) + kg;
-      e.order = 'kip';
+      giveSack();
       toast('STARTER SACK', `${Object.entries(STARTER).map(([id, kg]) => `${kg} kg ${id}`).join(', ')}. In the warehouse now.`, 3.5);
       choice('Shooki', 'Quick tour of the spice trade? Five minutes, bro. Then I go, I have a cousin thing.', ['Show me', 'I know the trade'], (i) => {
         if (i === 0) { next(); dialogue([['Shooki', 'Go to the PC at the back. Open the Kruidenbeurs. I wait here, bro.']]); }
@@ -79,5 +82,5 @@ export function createTutorial(d) {
     jobs: 'Klusbord! I put jobs there. Every day, new ones.',
     joop: 'Ome Joop sits by the canal with the ducks. Old man, big brain. Go say hi.',
   }[step() && step().id] || null);
-  return { STEPS, begin, migrate, active, step, at, next, skip, chapterDone, opened, owned, metJoop, showTab, isNew, markNew, objective, shooki, shookiTip };
+  return { STEPS, begin, migrate, active, step, at, next, skip, skipAll, chapterDone, opened, owned, metJoop, showTab, isNew, markNew, objective, shooki, shookiTip };
 }

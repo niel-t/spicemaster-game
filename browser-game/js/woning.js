@@ -531,7 +531,7 @@ export function createWoning(deps) {
   function sleep() {
     const e = ensure(); let day = econ.ensure().day; deps.beep(220, 0.3, 'sine', 0.04);
     fadeTo(() => {
-      if (deps.endDay && deps.state.step === 'free' && deps.endDay()) day = econ.ensure().day; // sleeping ends the market day (js/economy.js day plan)
+      if (deps.endDay && deps.state.step === 'free') { if (!deps.endDay()) return; day = econ.ensure().day; } // sleeping ends the market day (js/economy.js day plan); not tired yet: back up
       if (e.mornDay === day) { deps.toast('ZZZ...', 'A good nap. Nothing happens. Bliss.', 2.2); return; }
       e.mornDay = day;
       const c = comfort(), pool = MORNING.filter((m) => (!m.need || m.need()) && (m.home === undefined || m.home === e.home));
