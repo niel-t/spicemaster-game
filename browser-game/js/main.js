@@ -2930,6 +2930,7 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
     q: (sel, up = 0) => { let e = document.querySelector(sel); for (let k = 0; e && k < up; k++) e = e.parentElement; return e; },
     row: () => { const b = document.querySelector('#winbody [data-buy]'); return b ? b.closest('tr') : null; },
     stockCell: () => { const b = document.querySelector('#winbody [data-sellst]'); return b ? b.closest('td') : null; },
+    table: (t) => [...document.querySelectorAll('#winbody table.list')].find((e) => e.textContent.includes(t)) || null,
     cell: (t) => [...document.querySelectorAll('#winbody td')].find((e) => e.textContent.includes(t)) || null,
     junkLeft: () => junkDefs.length - state.listed.size, isInShop: () => isInShop(player.position),
     pos: {

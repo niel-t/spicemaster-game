@@ -226,7 +226,7 @@ export function lessons(c) {
     'tour:rapport': [
       { world: c.pos.desk, wait: () => c.pcReady(), doing: 'Go to the PC', say: 'Spekbuurt is yours! Respect. A market day went by while you were out. To the PC: see who paid.' },
       { pc: true, at: () => c.icon('Dagrapport'), wait: () => c.tab('rapport'), doing: 'Open it', say: 'The <b>Dagrapport</b>. Open it.' },
-      { pc: true, at: () => c.q('#winbody table.list', 0), say: 'Every client, every day. Schmatzel paid for your Kip Shoarma, and now Spekbuurt orders too. Miss an order and they trust you less.' },
+      { pc: true, at: () => c.table('Delivered') || c.q('#winbody table.list', 0), say: 'Every client, every day. Schmatzel paid for your Kip Shoarma, and now Spekbuurt orders too. Miss an order and they trust you less.' },
       { pc: true, say: 'Watch the <b>heat</b> bars on this page. Angry gangs start price wars, lean on clients, and take joints back. Every Wilder clients pay makes your name: that\'s your <b>rank</b>.', end: () => tut.next() },
     ],
     'tour:jobs': [
