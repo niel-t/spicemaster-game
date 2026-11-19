@@ -1,5 +1,6 @@
 // Spice Master Eddy: Chapter 0, Kipkruidenkwartier.
 // Neon Vice-style top-down browser game: three.js, PS2-style low-poly people with photo faces.
+import { fonts } from './fontstyle.js'; // first: picks Aero or classic fonts before anything draws
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
 import { CombatScore } from './combatmusic.js'; // adaptive shootout score: layers that build as a fight heats up
@@ -1688,18 +1689,18 @@ let titleView = 'main', titleSel = 0;
 const districtSummary = (st) => (st.econ && st.econ.rep ? ` · ${rankOf(st.econ.rep).name}` : '') + (st.district1 ? ' · Kipkruidenkwartier is yours' : ((n) => (n ? ` · ${n}/3 of Kipkruidenkwartier` : ''))(['spekbuurt', 'kroketkade', 'uitjesbuurt'].filter((id) => (st.owned && st.owned[id]) || (id === 'spekbuurt' && st.spekbuurt)).length));
 const titleItems = () => titleView === 'confirm' ? [['no', 'Nee, terug'], ['yes', 'Ja, opnieuw beginnen']]
   : titleView === 'controls' || titleView === 'credits' ? [['back', 'Terug']]
-  : [...(savedGame ? [['cont', 'Continue']] : []), ['new', 'New Game'], ['controls', 'Controls'], ['music', 'Music'], ['credits', 'Credits']];
+  : [...(savedGame ? [['cont', 'Continue']] : []), ['new', 'New Game'], ['controls', 'Controls'], ['music', 'Music'], ['fonts', 'Lettertype'], ['credits', 'Credits']];
 function titleMenu(confirm) {
   if (confirm === true) titleView = 'confirm'; else if (confirm === false && titleView === 'confirm') titleView = 'main';
   titleConfirm = titleView === 'confirm';
   const items = titleItems(); titleSel = Math.max(0, Math.min(titleSel, items.length - 1));
-  const sub = (t) => t === 'music' ? (musicWanted() ? 'ON' : 'OFF') : t === 'cont' && savedGame ? `W ${(+savedGame.state.money || 0).toLocaleString('nl-NL')}` : '';
+  const sub = (t) => t === 'music' ? (musicWanted() ? 'ON' : 'OFF') : t === 'fonts' ? (fonts.mode === 'aero' ? 'AERO' : 'KLASSIEK') : t === 'cont' && savedGame ? `W ${(+savedGame.state.money || 0).toLocaleString('nl-NL')}` : '';
   let panel = '';
   if (titleView === 'controls') panel = `<div class="tpanel"><h3>Controls</h3>${controlsTable()}</div>`;
   if (titleView === 'credits') panel = `<div class="tpanel"><h3>Credits</h3><p>An original Kaasland story about Eddy Jr., his father's spice warehouse and the Lampas.</p>
     <p><b>Engine:</b> three.js (MIT) · <b>Textures:</b> ambientCG (CC0) · <b>Music:</b> generated live in your browser</p>
     <p><b>Motion capture:</b> CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu, created with funding from NSF EIA-0196217), BVH conversion by Bruce Hahne</p>
-    <p><b>Fonts</b> (SIL Open Font License): Bungee by David Jonathan Ross · Rubik by Hubert &amp; Fischer · VT323 by Peter Hull · Press Start 2P by Cody "CodeMan38" Boisclair</p>
+    <p><b>Fonts</b> (SIL Open Font License): Selawik by Microsoft · Nunito by Vernon Adams · Bungee by David Jonathan Ross · Rubik by Hubert &amp; Fischer · VT323 by Peter Hull · Press Start 2P by Cody "CodeMan38" Boisclair</p>
     <p>Built with Claude Code.</p></div>`;
   if (titleView === 'confirm') panel = `<div class="tpanel"><h3>Nieuw spel?</h3>Your saved game will be gone for good.</div>`;
   $('tmenu').innerHTML = panel + items.map(([t, label], i) => `<div class="mi${i === titleSel ? ' sel' : ''}" data-t="${t}"><span>${label}</span><small>${sub(t)}</small></div>`).join('');
@@ -1715,6 +1716,7 @@ function titleAct(t) {
   else if (t === 'yes') newGame();
   else if (t === 'no' || t === 'back') { titleView = 'main'; titleSel = 0; titleMenu(false); }
   else if (t === 'controls' || t === 'credits') { titleView = t; titleSel = 0; titleMenu(); }
+  else if (t === 'fonts') { fonts.cycle(); titleMenu(); }
   else if (t === 'music') { musicPref = !musicPref; try { if (musicPref) music.start(); else music.stop(); } catch (e) { /* audio optional */ } titleMenu(); }
 }
 titleMenu(false);
@@ -2854,7 +2856,7 @@ mission = initMission({ score, musicOn: () => music.on, perk: (k) => (woning ? w
   clampChoice: (cb) => { tips.show('clamp'); const tix = garage.ticketSum(); choice('Oofmobiel', `The handhaver left a <b>wheel clamp</b> on the front wheel. Pay at the parking office (W ${garage.CLAMP_FINE + tix}${tix ? ', with your open tickets' : ''}) or get Monteur Mo to cut it off (W ${garage.MO_CLAMP})?`, ['Pay the fine', 'Call Mo', 'Leave it'], (i) => cb(i < 2 && garage.unclamp(i ? 'mo' : 'pay'))); },
   arrived: (i) => razimArrived(i), left: () => razimLeft(), // Razim sometimes waits by the van (above)
   makeVan: () => oof.clone(true), brand: () => liveryNow(), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
-initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post });
+initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post, fonts });
 // top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
 { const enter0 = mission.enter; mission.enter = (id, o) => { const r = enter0(id, o); setTimeout(() => tips.show(o && o.heist ? 'heist' : o && o.defend ? 'siege' : o && o.remix ? 'remix' : 'mission'), 1600); return r; }; } // Shooki's first-time tips
 const oofDrive = initDrive({ THREE, balloons, renderer, canvasTex, signTex, beep, virt, isPaused });

@@ -101,7 +101,7 @@ function pauseHTML(help) {
   const m = ctx && ctx.getMission(), inM = m && m.active, canRestart = inM && (m.canRestart ? m.canRestart() : !ctx.state.spekbuurt);
   const b = (k, t, dis) => `<button data-p="${k}" ${dis ? 'disabled' : ''}>${t}</button>`;
   return `<div class="pbox"><div class="ph">PAUZE</div>${help ? `<div class="pcontrols">${controlsTable()}</div>${b('back', 'TERUG')}` :
-    `${b('resume', 'VERDER')}${b('inv', 'INVENTARIS')}${b('map', 'KAART', inM)}${b('music', 'MUZIEK AAN / UIT')}${ctx && ctx.gfx ? b('gfx', 'GRAPHICS: ' + GFX_LABEL[ctx.gfx.mode]) : ''}${inM ? b('restart', 'MISSIE OPNIEUW', !canRestart) : ''}${b('help', 'BESTURING')}`}</div>`;
+    `${b('resume', 'VERDER')}${b('inv', 'INVENTARIS')}${b('map', 'KAART', inM)}${b('music', 'MUZIEK AAN / UIT')}${ctx && ctx.gfx ? b('gfx', 'GRAPHICS: ' + GFX_LABEL[ctx.gfx.mode]) : ''}${ctx && ctx.fonts ? b('fonts', 'LETTERTYPE: ' + (ctx.fonts.mode === 'aero' ? 'AERO' : 'KLASSIEK')) : ''}${inM ? b('restart', 'MISSIE OPNIEUW', !canRestart) : ''}${b('help', 'BESTURING')}`}</div>`;
 }
 export function controlsTable() {
   const rows = [['Move', 'WASD', 'Left stick', 'Left thumb'], ['Aim (missions)', 'Mouse', 'Right stick', 'Right thumb'], ['Attack / execute', 'Click / F', 'RT', 'SLAAN / push right thumb'],
@@ -122,6 +122,7 @@ pauseEl.addEventListener('click', (e) => {
   if (k === 'help') { pauseEl.innerHTML = pauseHTML(true); return; }
   if (k === 'back') { pauseEl.innerHTML = pauseHTML(false); return; }
   if (k === 'gfx') { ctx.gfx.cycle(); pauseEl.innerHTML = pauseHTML(false); return; }
+  if (k === 'fonts') { ctx.fonts.cycle(); pauseEl.innerHTML = pauseHTML(false); return; }
   setPaused(false);
   if (k === 'inv') press('KeyI'); else if (k === 'map') press('KeyM'); else if (k === 'music') press('KeyN'); else if (k === 'restart') press('Backspace');
 });

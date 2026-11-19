@@ -7,10 +7,6 @@
 <title>Spice Master Eddy: Kipkruidenkwartier</title>
 <style>
   /* ---------- fonts (OFL, vendored in assets/fonts so the game works offline) ---------- */
-  @font-face { font-family: "Bungee"; src: url("assets/fonts/bungee.woff2") format("woff2"); font-display: swap; }
-  @font-face { font-family: "Rubik"; src: url("assets/fonts/rubik-var.woff2") format("woff2"); font-weight: 300 900; font-display: swap; }
-  @font-face { font-family: "VT323"; src: url("assets/fonts/vt323.woff2") format("woff2"); font-display: swap; }
-  @font-face { font-family: "Press Start 2P"; src: url("assets/fonts/press-start-2p.woff2") format("woff2"); font-display: swap; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: "Rubik", "Trebuchet MS", Arial, sans-serif; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
   canvas#game { display: block; width: 100vw; height: 100vh; }
   .hud { position: fixed; pointer-events: none; color: #fff; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; }
@@ -479,6 +475,54 @@
   .kmp-list li em { font-style: normal; color: #6a8aa0; font-size: 11px; }
   .kmp-foot { font-size: 11px; color: #5a7a90; text-align: center; }
   @media (max-width: 760px) { .kmp-vol input { width: 70px; } .kmp-now b { font-size: 14px; } .kmp-now small { display: none; } }
+
+  /* ---------- Lettertype: Aero (js/fontstyle.js sets html.aero) — Frutiger Aero glass + gel in the spice palette ---------- */
+  html.aero { --ag-gel: linear-gradient(180deg, #fff1c8 0%, #ffd27a 22%, #f2b84b 49%, #df8d1c 51%, #eda43a 80%, #ffc865 100%);
+    --ag-gloss: linear-gradient(180deg, #fffaf0 0%, #ffe39a 38%, #f5b445 52%, #e08a1e 78%, #c9701a 100%);
+    --ag-glass: linear-gradient(180deg, rgba(118,78,46,.80) 0%, rgba(66,40,22,.86) 48%, rgba(40,24,13,.92) 52%, rgba(52,32,18,.9) 100%);
+    --ag-edge: rgba(255,226,170,.6); --ag-soft: 0 1px 2px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.45); }
+  /* glossy headline text: gradient fill, soft drop shadow (text-shadow would show through the clipped fill) */
+  html.aero #money, html.aero #toast, html.aero #title .logo span, html.aero #smePause .ph, html.aero .shopname, html.aero #shop .gsDT,
+  html.aero #nvScreen .big:not(.red), html.aero #nvScreen .grade, html.aero #nvBanner .b1, html.aero #drv .banner, html.aero #drv .res h2, html.aero #nvInv h2 {
+    background: var(--ag-gloss); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+    text-shadow: none; filter: drop-shadow(0 1px 0 rgba(90,40,10,.9)) drop-shadow(0 3px 6px rgba(0,0,0,.55)); letter-spacing: .5px; }
+  html.aero #toast small, html.aero #drv .banner small { -webkit-text-fill-color: #fff; color: #fff; text-shadow: var(--ag-soft); }
+  html.aero #nvScreen .red { text-shadow: 0 2px 0 #5a0010, 0 0 22px rgba(255,0,48,.7); }
+  html.aero #title .logo .l2 { filter: drop-shadow(0 2px 0 #8a3418) drop-shadow(0 6px 10px rgba(42,23,12,.6)); }
+  /* HUD: soft shadows instead of hard pixel offsets */
+  html.aero .hud, html.aero #help, html.aero #nvHud, html.aero #nvHud .w, html.aero #nvScore .c, html.aero #nvScore .l, html.aero #nvScore .r, html.aero #nvThreat, html.aero #nvBanner .b2, html.aero #nvReload .t { text-shadow: var(--ag-soft); }
+  html.aero #nvHud .hp { text-shadow: 0 1px 2px #000, 0 0 12px #ff0030; }
+  html.aero #nvScore { color: #ffb060; text-shadow: 0 2px 0 #7a2e1a, 0 0 12px rgba(240,138,60,.5); }
+  html.aero #nvBoss .n { text-shadow: 0 1px 2px #000, 0 0 12px rgba(255,140,30,.6); }
+  html.aero #prompt { background: var(--ag-glass); border: 1px solid var(--ag-edge); border-radius: 999px; padding: 8px 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 6px 18px rgba(0,0,0,.4); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); text-shadow: 0 1px 2px #000; }
+  html.aero #weapon { background: var(--ag-glass); border: 1px solid rgba(255,255,255,.25); border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 4px 12px rgba(0,0,0,.4); }
+  html.aero #weapon.on { border-color: var(--ag-edge); box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 0 14px rgba(232,163,61,.7); }
+  /* glass panels: warm smoked glass with a highlight on the top half */
+  html.aero #title .tbox, html.aero #smePause .pbox, html.aero .shopbox, html.aero #shop .gsBox, html.aero #nvInv .box, html.aero #drv .res, html.aero #phone, html.aero #razsms, html.aero #shmbtn {
+    background: var(--ag-glass) !important; border: 1px solid var(--ag-edge) !important; border-radius: 18px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 0 0 1px rgba(255,255,255,.08), 0 14px 36px rgba(0,0,0,.5) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); }
+  html.aero #title .tbox { background: linear-gradient(180deg, rgba(110,70,40,.9) 0%, rgba(66,40,22,.93) 46%, rgba(43,26,16,.95) 54%, rgba(52,32,20,.95) 100%) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 0 0 4px rgba(59,36,24,.35), 0 18px 40px rgba(59,36,24,.45) !important; }
+  html.aero #razsms { border-color: rgba(190,226,130,.7) !important; }
+  html.aero #nvInv .it { background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.02) 50%, rgba(0,0,0,.12) 51%); border: 1px solid rgba(255,226,170,.25); border-radius: 10px; }
+  html.aero #nvInv .it.eq { border-color: #b9d46e; box-shadow: 0 0 10px rgba(185,212,110,.4); }
+  html.aero #nvInv .ic { border: 1px solid rgba(255,226,170,.35); border-radius: 8px; }
+  html.aero #shop .gsWal { text-shadow: var(--ag-soft); }
+  html.aero #shop .gsTabs button { border: 1px solid rgba(255,226,170,.28); border-radius: 10px; background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.03) 50%, rgba(0,0,0,.14) 51%, rgba(255,255,255,.04)); box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
+  html.aero #shop .gsTabs button.on { background: linear-gradient(180deg, #c8702e 0%, #9a4a16 49%, #7a3410 51%, #a2521c 100%); border-color: var(--ag-edge); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 12px rgba(232,163,61,.5); }
+  html.aero #shop .gsR { border-radius: 9px; }
+  html.aero #shop .gsR.sel { background: var(--ag-gel); color: #3b2418; box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 6px rgba(0,0,0,.3); text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+  html.aero #shop .gsXtra button { border-radius: 10px; border: 1px solid rgba(255,226,170,.4); background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.03) 50%, rgba(0,0,0,.18) 51%); box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
+  /* gel buttons: amber jelly with a hard gloss line in the middle */
+  html.aero #title .mi { border-radius: 12px; border: 1px solid rgba(255,226,170,.35); background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04) 50%, rgba(0,0,0,.1) 51%, rgba(255,255,255,.05)); box-shadow: inset 0 1px 0 rgba(255,255,255,.25); letter-spacing: 1.5px; }
+  html.aero #title .mi.sel, html.aero #title .mi:hover, html.aero #smePause button, html.aero .item button, html.aero #shop .gsAct button, html.aero #nvScreen .btn, html.aero #drv .res button {
+    background: var(--ag-gel); color: #3b2418; border: 1px solid #a8600f; border-radius: 12px; text-shadow: 0 1px 0 rgba(255,255,255,.55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -2px 4px rgba(255,214,120,.6), 0 3px 8px rgba(0,0,0,.35); }
+  html.aero #smePause button:hover, html.aero .item button:hover, html.aero #nvScreen .btn:hover, html.aero #drv .res button:hover { filter: brightness(1.08) saturate(1.1); }
+  html.aero #smePause button:disabled, html.aero .item button:disabled { background: linear-gradient(180deg, #6a5c50, #4a3e34 50%, #3a3028 51%, #4a3e34); color: #a89a8a; border-color: #2a2018; text-shadow: none; }
+  html.aero #nvScreen .btn { font-size: 15px; padding: 12px 26px; }
+  html.aero #nvScreen .stats { line-height: 1.12; padding: 10px 16px; border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.03) 50%, rgba(0,0,0,.18) 51%, rgba(0,0,0,.08)); border: 1px solid rgba(255,226,170,.3); box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
+  html.aero .shophead button, html.aero #shop .gsX { border-radius: 50%; border: 1px solid #fff; color: #fff; background: radial-gradient(circle at 50% 30%, #ffb59a, #e2582f 55%, #a8300f); box-shadow: inset 0 1px 1px rgba(255,255,255,.8), 0 2px 6px rgba(0,0,0,.4); text-shadow: 0 1px 1px #6a1a00; }
 </style>
 </head>
 <body class="on-title">

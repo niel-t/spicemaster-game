@@ -200,7 +200,7 @@ export function initPhone(d) {
     + '<div class="sm-soft"><button data-sk="ok">Kies</button><button data-sk="back">Terug</button></div><div class="sm-nav"><button data-sk="up">&#9650;</button><button data-sk="down">&#9660;</button></div>'
     + '<div class="sm-keys">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((k) => `<button data-k="${k}">${k}</button>`).join('') + '</div>';
   const scss = document.createElement('style');
-  scss.textContent = '#shmokia{position:fixed;right:28px;bottom:24px;width:236px;padding:14px 16px 18px;box-sizing:border-box;display:none;z-index:31;border-radius:46px 46px 40px 40px/70px 70px 50px 50px;background:linear-gradient(90deg,#8d939c,#d7dbe1 30%,#eef0f3 50%,#c9cdd4 75%,#868c95);box-shadow:0 10px 40px rgba(0,0,0,.6),inset 0 0 0 2px rgba(255,255,255,.35);font-family:VT323,monospace;user-select:none}'
+  scss.textContent = '#shmokia{position:fixed;right:28px;bottom:24px;width:236px;padding:14px 16px 18px;box-sizing:border-box;display:none;z-index:31;border-radius:46px 46px 40px 40px/70px 70px 50px 50px;background:linear-gradient(90deg,#8d939c,#d7dbe1 30%,#eef0f3 50%,#c9cdd4 75%,#868c95);box-shadow:0 10px 40px rgba(0,0,0,.6),inset 0 0 0 2px rgba(255,255,255,.35);font-family:"Shmokia LCD",VT323,monospace;user-select:none}'
     + '#shmokia .sm-ear{width:54px;height:6px;margin:4px auto 6px;border-radius:3px;background:#2a2d33;box-shadow:inset 0 1px 2px #000}'
     + '#shmokia .sm-logo{text-align:center;font:900 19px Rubik,Arial,sans-serif;letter-spacing:2px;color:#1d3a8e;transform:scaleX(1.25);margin-bottom:6px}'
     + '#shmokia .sm-screen{background:linear-gradient(160deg,#b4cc7a,#93ad5c);border:6px solid #2c3036;border-radius:10px 10px 18px 18px;box-shadow:inset 0 0 12px rgba(0,0,0,.35);color:#1e2a12;padding:3px 6px 4px;height:206px;box-sizing:border-box;display:flex;flex-direction:column;font-size:18px;line-height:18px}'
@@ -208,7 +208,7 @@ export function initPhone(d) {
     + '#shmokia .sm-title{text-align:center;border-bottom:2px solid #1e2a12;margin-bottom:2px;white-space:nowrap;overflow:hidden}'
     + '#shmokia .sm-list{flex:1;overflow:hidden}#shmokia .sm-it{display:flex;justify-content:space-between;gap:4px;padding:0 3px;cursor:pointer;white-space:nowrap}#shmokia .sm-it span:first-child{overflow:hidden;text-overflow:ellipsis}#shmokia .sm-it.sel{background:#1e2a12;color:#b4cc7a}'
     + '#shmokia .sm-msg{min-height:36px;border-top:2px solid #1e2a12;font-size:16px;line-height:16px;padding-top:2px}'
-    + '#shmokia button{font:18px VT323,monospace;cursor:pointer;border:0;color:#e8eaee;background:linear-gradient(#4a4f57,#2b2f35);box-shadow:0 2px 0 #15171a}'
+    + '#shmokia button{font:18px "Shmokia LCD",VT323,monospace;cursor:pointer;border:0;color:#e8eaee;background:linear-gradient(#4a4f57,#2b2f35);box-shadow:0 2px 0 #15171a}'
     + '#shmokia .sm-soft{display:flex;justify-content:space-between;margin:10px 4px 6px}#shmokia .sm-soft button{width:72px;height:22px;border-radius:11px}'
     + '#shmokia .sm-nav{display:flex;justify-content:center;gap:4px;margin-bottom:8px}#shmokia .sm-nav button{width:56px;height:20px;border-radius:10px}'
     + '#shmokia .sm-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 12px;padding:0 6px}#shmokia .sm-keys button{height:20px;border-radius:12px 12px 10px 10px/14px 14px 8px 8px;font-size:17px}'

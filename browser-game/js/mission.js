@@ -902,7 +902,7 @@ export function initMission(ctx) {
     #nvInv button{min-height:36px}
     #nvInv .foot{font:18px 'VT323',monospace;color:#9a86b6;margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}`;
   document.head.appendChild(css);
-  if (!document.querySelector('link[data-nvfont]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.dataset.nvfont = 1; l.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap'; document.head.appendChild(l); }
+  // Press Start 2P / VT323 are vendored in assets/fonts (js/fontstyle.js), no Google Fonts request
   const mk = (id) => { const d = document.createElement('div'); d.id = id; document.body.appendChild(d); return d; };
   const hudEl = mk('nvHud'), scoreEl = mk('nvScore'), grainEl = mk('nvGrain'), scanEl = mk('nvScan'), vigEl = mk('nvVig'), flashEl = mk('nvFlash'), screenEl = mk('nvScreen'), bannerEl = mk('nvBanner'), invEl = mk('nvInv'), reloadEl = mk('nvReload'), pulseEl = mk('nvPulse'), threatEl = mk('nvThreat'), bossEl = mk('nvBoss');
   reloadEl.innerHTML = '<div class="g"></div><div class="f"></div><div class="m"></div><div class="t"></div>';
