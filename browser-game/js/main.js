@@ -9,6 +9,7 @@ import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable
 import { createGunShop } from './gunshop.js';
 import { initMission } from './mission.js';
 import { createPost } from './post.js';
+import { createAeroWorld } from './aeroworld.js'; // the Aero setting's 3D look: clear sky, glossy canal, glass shop signs
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
 import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning visitors, knacks and outfits (from Neon Vice, in spice colours)
 import { makeOofmobiel, makeKangoo, makeCar, setLivery } from './vehicles.js';
@@ -55,6 +56,7 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+let aeroWorld = null; // js/aeroworld.js, made once the street is built (see the bottom of this file)
 const post = createPost(renderer); // Neon Vice-style screen pass: bloom, grade, vignette; GRAPHICS in the pause menu (js/post.js)
 
 const scene = new THREE.Scene();
@@ -144,6 +146,9 @@ function canvasTex(w, h, draw) {
   return t;
 }
 function signTex(lines, bg = '#1a1a1a', fg = '#ffd36b', w = 512, h = 128) {
+  const t = signTex0(lines, bg, fg, w, h); t.userData.sign = true; return t; // aeroworld.js gives these a glass face under Aero
+}
+function signTex0(lines, bg, fg, w, h) {
   return canvasTex(w, h, (g) => {
     g.fillStyle = bg; g.fillRect(0, 0, w, h);
     g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, h - 12);
@@ -2830,7 +2835,8 @@ function tick() {
   else camLook.lerp(lookAt, Math.min(1, dt * 6));
   camera.position.copy(camPos); camera.lookAt(camLook);
   sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position);
-  water.material.color.setHSL(0.5, 0.55, 0.2 + Math.sin(performance.now() * 0.001) * 0.01);
+  if (aeroWorld) aeroWorld.tick(dt);
+  if (!aeroWorld || !aeroWorld.on) water.material.color.setHSL(0.5, 0.55, 0.2 + Math.sin(performance.now() * 0.001) * 0.01);
   $('clock').textContent = new Date().toTimeString().slice(0, 5);
   // fade houses that stand between the camera and the player (Neon Vice-style cutaway)
   occl.set(camera.position, player.position.clone().add(new THREE.Vector3(0, 1, 0)).sub(camera.position).normalize());
@@ -2951,4 +2957,5 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
 window.__sme = { get guide() { return guide; }, score, media, get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
 tick();
