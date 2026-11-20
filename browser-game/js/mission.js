@@ -877,7 +877,12 @@ export function initMission(ctx) {
     #nvScreen .stats{font-family:'VT323',monospace;font-size:24px;line-height:1.25;margin:14px 0;color:#f3e6c8;text-align:left;min-width:min(420px,90vw)}
     #nvScreen .stats b{color:#b9d46e;float:right;margin-left:30px;font-weight:normal}
     #nvScreen .grade{font-family:'Press Start 2P',monospace;font-size:clamp(40px,9vw,84px);color:#ffd36b;text-shadow:4px 4px 0 #c2412d}
-    #nvScreen .btn{font-family:'Press Start 2P',monospace;font-size:13px;background:#c2412d;color:#fff;padding:13px 20px;margin-top:16px;box-shadow:4px 4px 0 #7a2e1a}
+    #nvScreen .btn{cursor:pointer;touch-action:manipulation;font-family:'Press Start 2P',monospace;font-size:13px;background:#c2412d;color:#fff;padding:13px 20px;margin-top:16px;box-shadow:4px 4px 0 #7a2e1a}
+    /* short screens (phones in landscape): the results / death screen has to fit, so CONTINUE and RETRY stay reachable; doubled id beats html.aero */
+    @media (max-height:500px){#nvScreen#nvScreen{justify-content:safe center;overflow-y:auto;padding:8px 12px calc(8px + env(safe-area-inset-bottom));box-sizing:border-box}
+      #nvScreen#nvScreen .logo2{font-size:15px}#nvScreen#nvScreen .big{font-size:26px}#nvScreen#nvScreen .hint{font-size:13px;margin-top:4px;line-height:1.2}
+      #nvScreen#nvScreen .stats{font-size:14px;line-height:1.08;margin:6px 0;padding:6px 14px;min-width:min(380px,80vw)}
+      #nvScreen#nvScreen .grade{font-size:34px;line-height:1}#nvScreen#nvScreen .btn{font-size:13px;padding:9px 20px;margin-top:8px}}
     #nvBanner{position:fixed;left:0;right:0;top:22%;z-index:6;text-align:center;pointer-events:none;opacity:0;transition:opacity .35s}
     #nvBanner .b1{font-family:'Press Start 2P',monospace;font-size:clamp(18px,4.5vw,38px);color:#e8a33d;text-shadow:3px 3px 0 #7a2e1a}
     #nvBanner .b2{font-family:'VT323',monospace;font-size:24px;color:#fff;margin-top:10px;text-shadow:2px 2px 0 #000}
@@ -928,6 +933,12 @@ export function initMission(ctx) {
   }
   function showScreen(html) { screenEl.innerHTML = html; screenEl.style.display = 'flex'; bannerEl.style.opacity = 0; bannerT = 0; const t = $('toast'); if (t) t.style.display = 'none'; }
   function hideScreen() { screenEl.style.display = 'none'; }
+  // the screen's buttons work with a click or a tap too, same as Backspace (retry) and E (continue)
+  screenEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn[data-act]'); if (!btn || !M.active) return;
+    e.stopPropagation();
+    if (btn.dataset.act === 'retry') { if (!ownsLevel(LV.id)) resetFloor(); } else grab();
+  });
 
   // ================================================================== INVENTORY (I)
   const ICON = { cz: '🔫', mp5sd: '🔫', dualuzi: '🔫', awp: '🎯', autosg: '💥', jackhammer: '💥', plate: '🛡️', flash: '💥', smoke: '💨', he: '💣', nvg: '🥽', maboota: '🏏', makarov: '🔫', silenced: '🔫', revolver: '🔫', dual: '🔫', golddeagle: '🔫', smg: '🔫', m16: '🔫', goldak: '🔫', shotgun: '💥', pump: '💥', bat: '⚾', knife: '🔪', tknife: '🔪', machete: '🔪', katana: '🗡️', vest: '🦺', carrier: '🦺', ammo: '📦', shells: '🧨', loot: '🌶️', stash: '🗄️', money: '💶', shoarma: '🥙', mod: '🔧' };
@@ -1639,7 +1650,7 @@ export function initMission(ctx) {
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
     const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', pump: 'Blown away by a pump shotgun.', smg: 'Sprayed by an Uzi.', m16: 'Cut down by an M16.', revolver: 'Shot with a .357.', dual: 'Shot by dual 9mms.', goldak: 'Golden AK. Very shiny, very dead.', fists: `Punched out by a ${(LV && LV.factionName) || 'Lampas'}.`, boom: 'Too close to a red barrel.', hazard: (LV && LV.hazard && LV.hazard.death) || 'Burnt.' }[cause] || 'Killed by the Lampas.';
-    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${((tl) => tl[Math.floor(Math.random() * tl.length)])([...TIPS, ...(LV.text.tips || [])])}</div><div class="btn">RETRY · ${glyph('Backspace')}</div>`); }, 900);
+    setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${((tl) => tl[Math.floor(Math.random() * tl.length)])([...TIPS, ...(LV.text.tips || [])])}</div><div class="btn" data-act="retry">RETRY · ${glyph('Backspace')}</div>`); }, 900);
   }
 
   // ================================================================== RESULTS (Neon Vice grade: score vs. 700 per enemy)
@@ -1662,7 +1673,7 @@ export function initMission(ctx) {
     const CH = [['S', 'S GRADE'], ['melee', 'NO GUNS FIRED'], ['par', `UNDER ${Math.floor(par / 60)}:${String(par % 60).padStart(2, '0')}`], ['clean', 'NO HITS TAKEN']];
     const chLine = CH.map(([k, t]) => `<span style="color:${ch[k] ? '#ffd36b' : bs.stars[k] ? '#9a8a60' : '#555'}">${ch[k] || bs.stars[k] ? '★' : '☆'} ${t}</span>`).join(' &nbsp; ') + ` &nbsp; <span style="color:${R.tin ? '#e8a33d' : state.tins && state.tins[LV.id] ? '#9a8a60' : '#555'}">${state.tins && state.tins[LV.id] ? '◆' : '◇'} ${state.tins && state.tins[LV.id] ? 'KRUIDENBLIK' : 'HIDDEN TIN'}</span>`;
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
-    showScreen(`<div class="logo2">${REMIX ? (REMIX.daily ? 'DAILY CHALLENGE DONE' : REMIX.retake ? `${LV.text.area.split('·').pop().trim()} IS YOURS AGAIN` : 'REMIX CLEARED') : LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#f08a3c">NEW BEST</span>' : ''}</b><br>${REMIX ? `${REMIX.daily ? 'DAILY' : 'REMIX'}<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint" style="font-size:16px;letter-spacing:1px">${chLine}${newStar ? ' &nbsp; <span style="color:#f08a3c">NEW STAR</span>' : ''}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn">CONTINUE · ${glyph('E')}</div>`);
+    showScreen(`<div class="logo2">${REMIX ? (REMIX.daily ? 'DAILY CHALLENGE DONE' : REMIX.retake ? `${LV.text.area.split('·').pop().trim()} IS YOURS AGAIN` : 'REMIX CLEARED') : LV.text.resultsTitle}</div><div class="stats">KILLS<b>${R.kills}</b><br>EXECUTIONS<b>${R.execs}</b><br>HEADSHOTS<b>${R.heads}</b><br>BEST COMBO<b>${R.maxCombo}×</b><br>ACCURACY<b>${acc}</b><br>WINDOWS BROKEN<b>${R.glass}</b><br>HITS TAKEN<b>${R.taken}</b><br>TIME<b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>SCORE<b>W ${R.score.toLocaleString('nl-NL')}${isBest ? ' <span style="color:#f08a3c">NEW BEST</span>' : ''}</b><br>${REMIX ? `${REMIX.daily ? 'DAILY' : 'REMIX'}<b>${REMIX.m.name} · x${REMIX.m.pay}</b><br>` : ''}WILDERS EARNED<b style="color:#ffd36b">+W ${pay.toLocaleString('nl-NL')}</b></div><div class="grade">${gr}</div><div class="hint" style="font-size:16px;letter-spacing:1px">${chLine}${newStar ? ' &nbsp; <span style="color:#f08a3c">NEW STAR</span>' : ''}</div><div class="hint">${LV.text.resultsHint}</div><div class="btn" data-act="continue">CONTINUE · ${glyph('E')}</div>`);
     sfx('cash'); addMoney(pay); commitKit();
     if (ctx.save) setTimeout(() => { const a = M.active; M.active = false; ctx.save(); M.active = a; }, 0); // mission end: autosave the win
     $('objective').innerHTML = LV.text.objectiveCleared;
