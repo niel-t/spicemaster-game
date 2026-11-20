@@ -17,7 +17,7 @@ const PARK = '1,6', PLAZA = '4,8';
 const PLAZA_XZ = { x: (GX[4] + GX[5]) / 2, z: (GZ[8] + GZ[9]) / 2 }; // the Frietwijk plaza (the default target)
 const TARGET = { ...PLAZA_XZ, r: 6 }; // where this drive ends: start({ target: [i, j] }) parks on the crossing of road GX[i] and GZ[j]
 const START = { x: 12, z: 2.2, h: Math.PI / 2 };             // in front of Eddy & Zn, nose east
-const MAXV = 26, REV = 9, PAR = 60;
+const MAXV = 26, REV = 11, PAR = 60; // top speed forward / in reverse (m/s)
 const SMART = 15, LAMPAS_BOUNTY = 50, BASE_PAY = 250;
 
 const HONK_LINES = ['HÈ!', 'GEK!', 'TOETER NIET!', 'MIJN FRIKANDEL!', 'RIJ NORMAAL!', 'OOF!', 'IK BEL DE WIJKAGENT!', 'KIJK UIT, SHOARMAMAN!', 'MOEDER!', 'HEB JE SAUS?'];
@@ -30,7 +30,7 @@ import { makeOofmobiel, makeCar as makeStreetCar, setLivery } from './vehicles.j
 import { signFace } from './livery.js';
 
 export function initDrive(ctx) {
-  const { THREE, renderer, canvasTex, signTex, beep, virt, isPaused } = ctx;
+  const { THREE, renderer, canvasTex, signTex, beep, isPaused } = ctx;
   const D = { active: false, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 1, 260) };
   const scene = D.scene, camera = D.camera;
   scene.background = new THREE.Color(0x26303e);
@@ -334,6 +334,12 @@ export function initDrive(ctx) {
     // headlight beams on the road
     const beamM = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.16, depthWrite: false });
     for (const s of [-1, 1]) { const bm = new THREE.Mesh(new THREE.CircleGeometry(3, 16, -0.5, 1.0), beamM); bm.rotation.x = -Math.PI / 2; bm.rotation.z = -Math.PI / 2; bm.position.set(s * 0.72, 0.05, 2.75); g.add(bm); }
+    // brake lights (red glow behind the van) and the white reversing light, so you can see what the van is doing
+    const brakeM = new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0, depthWrite: false });
+    const revM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false });
+    for (const s of [-1, 1]) { const bl = new THREE.Mesh(new THREE.CircleGeometry(0.6, 14), brakeM); bl.rotation.x = -Math.PI / 2; bl.position.set(s * 0.8, 0.06, -2.7); g.add(bl); }
+    const rv = new THREE.Mesh(new THREE.CircleGeometry(3.4, 16, -0.45, 0.9), revM); rv.rotation.x = -Math.PI / 2; rv.rotation.z = Math.PI / 2; rv.position.set(0, 0.05, -2.6); g.add(rv);
+    g.userData.brakeM = brakeM; g.userData.revM = revM;
     return g;
   }
   const CAR_COLS = [0xb8b2a2, 0x6a1e22, 0x2a4a6a, 0xcfcfc8, 0x2d2d2d, 0x8a8f3a, 0xe0d8c0, 0x3a5a7a, 0x9a2a2a, 0x556b5a, 0xe8b020, 0xff8fb8];
@@ -514,7 +520,7 @@ export function initDrive(ctx) {
     o.h += steer * 2.7 * Math.min(1, Math.abs(sp) / 6) * Math.sign(sp || 1) * (1 - 0.35 * Math.min(1, Math.abs(sp) / maxv)) * dt;
     let a = 0;
     if (throttle > 0) a = sp < -0.5 ? 30 : 15 * throttle * (1 - Math.max(0, sp) / maxv);
-    else if (throttle < 0) a = sp > 0.5 ? -28 : -9 * (1 + Math.min(0, sp) / REV);
+    else if (throttle < 0) a = sp > 0.5 ? -28 : -13 * -throttle * (1 + Math.min(0, sp) / REV); // brake first, then back up
     o.vx += fx * a * dt; o.vz += fz * a * dt;
     if (!throttle) { const k = Math.max(0, 1 - dt * 0.9); o.vx *= k; o.vz *= k; }
     const sp2 = o.vx * fx + o.vz * fz, lx = o.vx - fx * sp2, lz = o.vz - fz * sp2, gk = Math.min(1, grip * dt);
@@ -663,6 +669,64 @@ export function initDrive(ctx) {
   const honkRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.2, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }));
   honkRing.rotation.x = -Math.PI / 2; honkRing.visible = false; scene.add(honkRing);
 
+  // ---- route: a sat-nav line along the streets to the target (chevrons on the road + a line on the minimap)
+  const route = { pts: [], len: 0, t: 0, dist: null, tn: null };
+  const nkey = (a, b) => a * 100 + b;
+  const step = (a, b, axis, dir) => [axis === 'x' ? a + dir : a, axis === 'z' ? b - dir : b];
+  function routeField() { // street hops from every crossing to the one at the target (closed roads and raised bridges respected)
+    const tn = nearestNode(TARGET.x, TARGET.z), dist = new Map([[nkey(...tn), 0]]), q = [tn];
+    while (q.length) { const [a, b] = q.shift(), d = dist.get(nkey(a, b)); for (const [axis, dir] of options(a, b)) { const n = step(a, b, axis, dir); if (!dist.has(nkey(...n))) { dist.set(nkey(...n), d + 1); q.push(n); } } }
+    route.dist = dist; route.tn = tn;
+  }
+  function routeCalc() {
+    if (!route.dist) routeField();
+    const fx = Math.sin(van.h), fz = Math.cos(van.h), pts = [[van.x, van.z]];
+    if (Math.hypot(TARGET.x - van.x, TARGET.z - van.z) < 30 && clearLine(van.x, van.z, TARGET.x, TARGET.z)) pts.push([TARGET.x, TARGET.z]);
+    else {
+      let best = null, bs = 1e9; // the crossing to head for: close, in sight, few hops left; ones behind the van cost a little extra so the line doesn't flicker
+      for (let a = 0; a < GX.length; a++) for (let b = 0; b < GZ.length; b++) {
+        const d = route.dist.get(nkey(a, b)); if (d === undefined) continue;
+        const dx = GX[a] - van.x, dz = GZ[b] - van.z, e = Math.hypot(dx, dz); if (e > 70) continue;
+        const sc = e + d * 44 + ((dx * fx + dz * fz) < -3 ? 14 : 0);
+        if (sc < bs && clearLine(van.x, van.z, GX[a], GZ[b])) { bs = sc; best = [a, b]; }
+      }
+      if (!best) { route.pts = [[van.x, van.z], [TARGET.x, TARGET.z]]; route.len = Math.hypot(TARGET.x - van.x, TARGET.z - van.z); return; }
+      let [a, b] = best; pts.push([GX[a], GZ[b]]);
+      for (let guard = 0; guard < 40 && route.dist.get(nkey(a, b)) > 0; guard++) {
+        const d = route.dist.get(nkey(a, b));
+        const nx = options(a, b).map(([axis, dir]) => step(a, b, axis, dir)).find((n) => route.dist.get(nkey(...n)) === d - 1); if (!nx) break;
+        [a, b] = nx; pts.push([GX[a], GZ[b]]);
+      }
+      if (Math.hypot(TARGET.x - GX[a], TARGET.z - GZ[b]) > 1) pts.push([TARGET.x, TARGET.z]);
+    }
+    route.pts = pts; route.len = 0; for (let k = 1; k < pts.length; k++) route.len += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
+  }
+  function routeAt(s) { // point and heading s metres along the route
+    const P = route.pts;
+    for (let k = 1; k < P.length; k++) {
+      const dx = P[k][0] - P[k - 1][0], dz = P[k][1] - P[k - 1][1], L = Math.hypot(dx, dz);
+      if (s <= L || k === P.length - 1) { const t = L ? Math.min(1, s / L) : 0; return [P[k - 1][0] + dx * t, P[k - 1][1] + dz * t, Math.atan2(dx, dz)]; }
+      s -= L;
+    }
+    return [van.x, van.z, van.h];
+  }
+  const CHEV = 34, chevShape = new THREE.Shape();
+  chevShape.moveTo(0, 0.9); chevShape.lineTo(1.5, -0.5); chevShape.lineTo(1.0, -0.95); chevShape.lineTo(0, 0.05); chevShape.lineTo(-1.0, -0.95); chevShape.lineTo(-1.5, -0.5); chevShape.closePath();
+  const chevGeo = new THREE.ShapeGeometry(chevShape); chevGeo.rotateX(-Math.PI / 2); chevGeo.rotateY(Math.PI); // tip points +z, like the van
+  const chevs = new THREE.InstancedMesh(chevGeo, new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.6, depthWrite: false }), CHEV);
+  chevs.renderOrder = 3; chevs.frustumCulled = false; scene.add(chevs);
+  const chevM = new THREE.Matrix4(), chevQ = new THREE.Quaternion(), chevP = new THREE.Vector3(), chevS = new THREE.Vector3(1, 1, 1), chevUp = new THREE.Vector3(0, 1, 0);
+  function drawRoute(show) {
+    let n = 0;
+    if (show) {
+      const off = (performance.now() * 0.006) % 5; // the chevrons flow towards the target
+      for (let s = 5 + off; s < route.len - 2 && n < CHEV; s += 5) {
+        const [x, z, h] = routeAt(s); chevP.set(x, 0.16, z); chevQ.setFromAxisAngle(chevUp, h); chevM.compose(chevP, chevQ, chevS); chevs.setMatrixAt(n++, chevM);
+      }
+    }
+    chevs.count = n; chevs.instanceMatrix.needsUpdate = true;
+  }
+
   // ---------------------------------------------------------------- HUD (own DOM, removed from view when not driving)
   const css = document.createElement('style');
   css.textContent = `
@@ -683,11 +747,33 @@ export function initDrive(ctx) {
   #drv .res .tot td { border-top: 1px solid #555; color: #6ed36e; }
   #drv .res button { font-family: Bungee, "Arial Black", sans-serif; font-size: 15px; padding: 9px 14px; margin: 6px 6px 0 0; border: 2px solid #ffd36b; background: #2a1a3a; color: #ffd36b; border-radius: 6px; cursor: pointer; }
   #drv .res button:first-of-type { background: #ffd36b; color: #1a0a10; }
+  #drv .hint b { display: inline-block; min-width: 18px; padding: 0 5px; margin: 0 1px; border: 1px solid rgba(255,255,255,.55); border-bottom-width: 3px; border-radius: 5px; background: rgba(0,0,0,.45); font-weight: 700; color: #fff; text-shadow: none; }
+  #drv .gear { display: inline-block; margin-left: 8px; padding: 0 7px; border-radius: 5px; font-family: Bungee, "Arial Black", sans-serif; font-size: 13px; line-height: 20px; vertical-align: 3px; background: #2f6a2f; color: #e8ffe0; }
+  #drv .gear.r { background: #f2f2f2; color: #1a0a10; } #drv .gear.b { background: #c82a1a; color: #fff; }
+  #drv .goal { color: #ffd36b; }
+  body.touch #drv .hint, body.pad #drv .hint.k, #drv .hint.p { display: none; } body.pad #drv .hint.p { display: block; }
+  #drv .pedals { display: none; } body.touch #drv .pedals { display: block; }
+  body.driving #touchUI .tzone, body.driving #touchUI .tb, body.driving #touchUI .tp:not([data-k=pause]) { display: none !important; }
+  #drv .pd { position: absolute; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    font-family: Bungee, "Arial Black", sans-serif; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.6); border: 2px solid rgba(255,226,170,.8); box-shadow: 0 6px 14px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.35); }
+  #drv .pd small { font-size: 10px; letter-spacing: .5px; opacity: .9; }
+  #drv .pd.on { filter: brightness(1.35); transform: scale(.96); }
+  #drv #drvSteer { left: max(16px, env(safe-area-inset-left)); bottom: 16px; width: 236px; height: 96px; border-radius: 48px; flex-direction: row; justify-content: space-between; padding: 0 22px; box-sizing: border-box; font-size: 34px;
+    background: linear-gradient(180deg, rgba(90,60,36,.75), rgba(40,24,14,.8) 50%, rgba(28,16,8,.85) 51%); }
+  #drvSteer i { font-style: normal; opacity: .55; transition: opacity .08s, transform .08s; } #drvSteer i.on { opacity: 1; transform: scale(1.2); color: #ffd36b; }
+  #drvSteer .mid { font-size: 10px; opacity: .7; text-align: center; line-height: 1.2; }
+  #drv #drvGas { right: max(16px, env(safe-area-inset-right)); bottom: 16px; width: 104px; height: 136px; border-radius: 22px; font-size: 20px; background: linear-gradient(180deg, #8fd36a, #3f8f2a 50%, #2f7a1e 51%, #3a8a26); }
+  #drv #drvRev { right: calc(max(16px, env(safe-area-inset-right)) + 116px); bottom: 16px; width: 96px; height: 80px; border-radius: 20px; font-size: 13px; background: linear-gradient(180deg, #ff8a6a, #c8402a 50%, #a83020 51%, #b8382a); }
+  #drv #drvHonk { right: calc(max(16px, env(safe-area-inset-right)) + 128px); bottom: 108px; width: 72px; height: 44px; border-radius: 22px; font-size: 11px; background: linear-gradient(180deg, rgba(90,60,36,.8), rgba(40,24,14,.85) 50%, rgba(28,16,8,.9) 51%); }
+  @media (max-height: 420px) { #drv #drvGas { height: 116px; width: 96px; } #drv #drvRev { right: calc(max(16px, env(safe-area-inset-right)) + 106px); } #drv #drvHonk { right: calc(max(16px, env(safe-area-inset-right)) + 118px); bottom: 104px; } #drv #drvSteer { height: 84px; width: 210px; } }
+  @media (max-height: 500px) { #drv .banner { top: 24%; font-size: 30px; padding: 0 12px; } #drv .banner small { font-size: 14px; } }
   @media (max-width: 700px) { #drv canvas { width: 84px; height: 150px; } #drv .route { font-size: 14px; } #drv .stats { font-size: 18px; } #drv .bar { width: 120px; } }`;
   document.head.appendChild(css);
   const hud = document.createElement('div'); hud.id = 'drv';
   hud.innerHTML = `<div class="top"><div class="route" id="drvRoute"></div><div class="stats" id="drvStats"></div><div class="bar"><i id="drvHp"></i></div></div>
-    <canvas id="drvMap" width="112" height="196"></canvas><div class="banner" id="drvBanner"></div><div class="hint" id="drvHint"></div><div class="res" id="drvRes"></div>`;
+    <canvas id="drvMap" width="112" height="196"></canvas><div class="banner" id="drvBanner"></div><div class="hint k" id="drvHint"></div><div class="hint p" id="drvHintP"></div><div class="res" id="drvRes"></div>
+    <div class="pedals"><div class="pd" id="drvSteer"><i id="drvL">◀</i><span class="mid">STUUR<br>sleep</span><i id="drvR">▶</i></div>
+    <div class="pd" id="drvHonk">TOETER</div><div class="pd" id="drvRev">▼<small>ACHTERUIT</small></div><div class="pd" id="drvGas">▲<br>GAS</div></div>`;
   document.body.appendChild(hud);
   const $ = (id) => document.getElementById(id);
   let bannerT = 0;
@@ -706,6 +792,7 @@ export function initDrive(ctx) {
   }
   function drawMinimap() {
     const g = $('drvMap').getContext('2d'); g.drawImage(mapBase, 0, 0);
+    if (route.pts.length > 1 && !run.over) { g.strokeStyle = '#ffd36b'; g.lineWidth = 2.2; g.setLineDash([4, 3]); g.lineDashOffset = -performance.now() * 0.02; g.beginPath(); route.pts.forEach(([x, z], k) => { const [px, pz] = mp(x, z); if (k) g.lineTo(px, pz); else g.moveTo(px, pz); }); g.stroke(); g.setLineDash([]); }
     const [tx, tz] = mp(TARGET.x, TARGET.z), pulse = 3 + Math.sin(performance.now() * 0.008) * 1.5;
     g.fillStyle = '#ffd36b'; g.beginPath(); g.arc(tx, tz, pulse + 2, 0, 7); g.fill();
     g.fillStyle = '#ff7a1a'; for (const l of lampas) if (!l.dead) { const [x, z] = mp(l.x, l.z); g.fillRect(x - 2, z - 2, 4, 4); }
@@ -727,6 +814,31 @@ export function initDrive(ctx) {
     if (e.code === 'Backspace') reset();
   }, true);
   addEventListener('keyup', (e) => { if (!D.active) return; keys[e.code] = false; if (!PASS.has(e.code)) e.stopImmediatePropagation(); }, true);
+
+  // ---- touch pedals: GAS, ACHTERUIT (brakes first, then backs up), a steering bar you can slide your thumb along, TOETER
+  const tp = { gas: 0, rev: 0, steer: 0 };
+  function pedal(id, on, off) {
+    const el = $(id), ptrs = new Set();
+    const up = (e) => { if (!ptrs.delete(e.pointerId)) return; if (!ptrs.size) { el.classList.remove('on'); off && off(); } };
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); ptrs.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (_) { /* fine */ } el.classList.add('on'); on(e); });
+    el.addEventListener('pointermove', (e) => { if (ptrs.has(e.pointerId) && el._move) el._move(e); });
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+    el.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false }); el.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  pedal('drvGas', () => { tp.gas = 1; }, () => { tp.gas = 0; });
+  pedal('drvRev', () => { tp.rev = 1; }, () => { tp.rev = 0; });
+  pedal('drvHonk', () => { if (run && run.over) return; honk(); });
+  const steerAt = (e) => { const r = $('drvSteer').getBoundingClientRect(), k = (e.clientX - (r.left + r.width / 2)) / (r.width * 0.3); tp.steer = -Math.max(-1, Math.min(1, Math.abs(k) < 0.12 ? 0 : k)); };
+  pedal('drvSteer', steerAt, () => { tp.steer = 0; }); $('drvSteer')._move = steerAt;
+  function padInput() { // a controller: RT gas, LT brake / reverse, left stick steers (A honks via input.js → E)
+    let gps = []; try { gps = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { return null; }
+    for (const g of gps) {
+      if (!g || !g.connected) continue;
+      const v = (i) => { const b = g.buttons[i]; return b ? Math.max(b.value || 0, b.pressed ? 1 : 0) : 0; }, ax = g.axes[0] || 0;
+      return { thr: v(7) - v(6), st: Math.abs(ax) > 0.15 ? -ax : 0 };
+    }
+    return null;
+  }
 
   // ---------------------------------------------------------------- flow
   let opts = null, resActions = [];
@@ -755,7 +867,10 @@ export function initDrive(ctx) {
     }
     for (const p of peds) { p.down = 0; p.flee = 0; p.g.rotation.x = 0; p.g.position.y = 0; }
     $('drvRes').style.display = 'none';
-    banner(`${opts.from} → ${opts.to}`, `Drive to ${opts.target ? opts.to : 'the Frietwijk plaza'}: follow the arrow and park in the ring. <b>E / Space</b> honks.`, 2.6);
+    const how = document.body.classList.contains('touch') ? '<b>GAS</b> drives, <b>ACHTERUIT</b> brakes and backs up, slide on the bar to steer.'
+      : document.body.classList.contains('pad') ? '<b>RT</b> gas, <b>LT</b> brake and reverse, stick steers.' : '<b>W</b> gas, <b>S</b> brake and reverse, <b>A D</b> steer.';
+    banner(`${opts.from} → ${opts.to}`, `Follow the yellow arrows to ${opts.target ? opts.to : 'the Frietwijk plaza'} and park in the ring.<br>${how}`, 3.2);
+    tp.gas = tp.rev = tp.steer = 0; route.t = 0; routeCalc();
     camera.position.set(van.x, 60, van.z); shake = 0;
   }
   function payFor() { return Math.max(0, BASE_PAY + run.wrecked * LAMPAS_BOUNTY + Math.max(0, Math.round((PAR - run.t) * 3)) - run.smart); }
@@ -782,7 +897,9 @@ export function initDrive(ctx) {
     if (built) { targetRing.position.set(TARGET.x, 0.2, TARGET.z); parkLabel.position.set(TARGET.x, 0.21, TARGET.z); plazaGlow.position.set(TARGET.x, 6, TARGET.z); }
     D.active = true; document.body.classList.add('driving'); hud.style.display = 'block';
     $('drvRoute').textContent = `${opts.from} → ${opts.to}`;
-    $('drvHint').textContent = 'W / ↑ gas · S / ↓ brake · A D steer · Shift handbrake · E / Space honk · ⌫ restart';
+    $('drvHint').innerHTML = '<b>W</b> gas · <b>S</b> brake / reverse · <b>A</b> <b>D</b> steer · <b>Shift</b> handbrake · <b>Space</b> honk · <b>⌫</b> restart';
+    $('drvHintP').innerHTML = '<b>RT</b> gas · <b>LT</b> brake / reverse · stick steers · <b>LB</b> handbrake · <b>A</b> honk';
+    route.dist = null;
     for (const k in keys) keys[k] = false;
     reset(); applyTheme(opts.theme);
   }
@@ -793,18 +910,17 @@ export function initDrive(ctx) {
     if (!D.active) return;
     if (!run.over) run.t += dt;
     van.honkT -= dt;
-    // input: keyboard is tank steering; a stick points where you want to go
+    // input, like a car: gas pushes the van forward, brake slows it and then backs it up, steering turns the van's own nose
+    // (keyboard W/S A/D, touch GAS/ACHTERUIT pedals + steering bar, controller RT/LT + stick)
     let thr = 0, st = 0;
     if (!run.over && van.freeze <= 0) {
       if (keys.KeyW || keys.ArrowUp) thr += 1;
       if (keys.KeyS || keys.ArrowDown) thr -= 1;
       if (keys.KeyA || keys.ArrowLeft) st += 1;
       if (keys.KeyD || keys.ArrowRight) st -= 1;
-      const mag = Math.hypot(virt.mx, virt.mz);
-      if (mag > 0.3 && !thr && !st) {
-        let dh = Math.atan2(virt.mx, virt.mz) - van.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-        st = Math.max(-1, Math.min(1, dh * 2.2)); thr = Math.min(1, mag) * (Math.abs(dh) < 2 ? 1 : 0.35);
-      }
+      thr += tp.gas - tp.rev; st += tp.steer;
+      const pad = padInput(); if (pad) { thr += pad.thr; st += pad.st; }
+      thr = Math.max(-1, Math.min(1, thr)); st = Math.max(-1, Math.min(1, st));
     }
     van.freeze -= dt;
     const grip = keys.ShiftLeft || keys.ShiftRight ? 1.4 : 7;
@@ -822,6 +938,10 @@ export function initDrive(ctx) {
       van.safeT = 0.8; if (van.z > CANAL.z1 + 6 || van.z < CANAL.z0 - 6) van.safe = { x: van.x, z: van.z, h: van.h };
     }
     van.g.position.set(van.x, 0, van.z); van.g.rotation.y = van.h;
+    const braking = thr < -0.1 && sp > 0.5, backing = sp < -0.4;
+    van.g.userData.brakeM.opacity += (((braking || backing || (thr === 0 && Math.abs(sp) < 0.5)) ? (braking ? 0.75 : 0.22) : 0.08) - van.g.userData.brakeM.opacity) * Math.min(1, dt * 12);
+    van.g.userData.revM.opacity += ((backing ? 0.28 : 0) - van.g.userData.revM.opacity) * Math.min(1, dt * 10);
+    if (backing && !run.over) { van.beepT = (van.beepT || 0) - dt; if (van.beepT <= 0) { van.beepT = 0.7; beep(1050, 0.12, 'square', 0.025); } } else van.beepT = 0; // the reversing beeper
     van.g.rotation.z = Math.max(-0.08, Math.min(0.08, st * Math.abs(sp) * 0.004)); // body roll in corners
     // ambush when you cross into Lampas turf
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0 && opts.van && opts.van.tint) run.ambush = 1; // tinted windows: they don't spot you at the canal
@@ -840,9 +960,11 @@ export function initDrive(ctx) {
     targetRing.scale.setScalar(1 + Math.sin(performance.now() * 0.006) * 0.06);
     if (!run.over && dT < TARGET.r && Math.abs(sp) < 6) arrive();
     else if (!run.over && dT < TARGET.r) banner('REM AF!', 'Slow down to park.', 0.3);
-    // guide arrow
+    // route + guide arrow: the arrow points along the streets (the next turn), not through the houses
+    route.t -= dt; if (route.t <= 0 && !run.over) { route.t = 0.25; routeCalc(); }
+    drawRoute(dT > 10 && !run.over);
     arrow.visible = dT > 24 && !run.over;
-    const ah = Math.atan2(TARGET.x - van.x, TARGET.z - van.z);
+    const [ax, az] = routeAt(Math.min(route.len, 16)), ah = Math.atan2(ax - van.x, az - van.z);
     arrow.position.set(van.x + Math.sin(ah) * 7.5, 3.2, van.z + Math.cos(ah) * 7.5); arrow.rotation.y = ah + Math.PI;
     // camera: straight down, higher when fast, leads where you're going
     const spd = Math.hypot(van.vx, van.vz), H = 44 + spd * 0.9;
@@ -856,7 +978,9 @@ export function initDrive(ctx) {
     sun.position.set(camera.position.x - 30, 60, camera.position.z + 20); sun.target.position.set(camera.position.x, 0, camera.position.z);
     if (D._water) D._water.material.map.offset.x = (performance.now() * 0.00002) % 1; // the canal drifts
     // HUD
-    $('drvStats').innerHTML = `${fmt(run.t)} · ${Math.round(spd * 3.6)} KM/U<br>SMARTENGELD W ${run.smart} · ${({ nosh: 'NOSHGEY', docks: 'ABDAVISSIES', sand: 'PARAVIM' })[opts.theme] || 'LAMPAS'} ${run.wrecked}`;
+    const gear = sp < -0.4 ? '<span class="gear r">R</span>' : thr < -0.1 && sp > 0.5 ? '<span class="gear b">REM</span>' : '<span class="gear">D</span>';
+    $('drvStats').innerHTML = `${fmt(run.t)} · ${Math.round(spd * 3.6)} KM/U${gear} · <span class="goal">${run.over ? 'GEPARKEERD' : `DOEL ${Math.round(route.len)} M`}</span><br>SMARTENGELD W ${run.smart} · ${({ nosh: 'NOSHGEY', docks: 'ABDAVISSIES', sand: 'PARAVIM' })[opts.theme] || 'LAMPAS'} ${run.wrecked}`;
+    $('drvL').classList.toggle('on', tp.steer > 0.1); $('drvR').classList.toggle('on', tp.steer < -0.1);
     const hp = $('drvHp'); hp.style.width = van.hp + '%'; hp.style.background = van.hp > 60 ? '#6ed36e' : van.hp > 30 ? '#ffd36b' : '#ff4a4a';
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('drvBanner').style.display = 'none'; }
     drawMinimap();
