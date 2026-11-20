@@ -10,6 +10,7 @@ import { createGunShop } from './gunshop.js';
 import { initMission } from './mission.js';
 import { createPost } from './post.js';
 import { createAeroWorld } from './aeroworld.js'; // the Aero setting's 3D look: clear sky, glossy canal, glass shop signs
+import { makeBikeModel, createFiets, BIKE_PAINT } from './bikes.js'; // Dutch street bikes + Eddy's own omafiets to ride
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
 import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning visitors, knacks and outfits (from Neon Vice, in spice colours)
 import { makeOofmobiel, makeKangoo, makeCar, setLivery } from './vehicles.js';
@@ -57,6 +58,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 let aeroWorld = null; // js/aeroworld.js, made once the street is built (see the bottom of this file)
+let fiets = null; // js/bikes.js: Eddy's omafiets, made at the bottom of this file
 const post = createPost(renderer); // Neon Vice-style screen pass: bloom, grade, vignette; GRAPHICS in the pause menu (js/post.js)
 
 const scene = new THREE.Scene();
@@ -581,9 +583,8 @@ const CAR_COLS = [0xb8b2a2, 0x6a1e22, 0x2a4a6a, 0xcfcfc8, 0x2d2d2d, 0x8a8f3a, 0x
 }
 // bike racks on the pavement (it's Kaasland after all)
 for (const rx of [-24, 4, 30]) for (let i = 0; i < 5; i++) {
-  const b = new THREE.Group(); b.position.set(rx + i * 0.7, 0, RC + 10.35); b.rotation.y = Math.PI / 2; scene.add(b);
-  for (const zz of [-0.55, 0.55]) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.04, 4, 12), mat.black); w.position.set(0, 0.35, zz); w.rotation.y = Math.PI / 2; b.add(w); }
-  box(0.05, 0.05, 1.1, lam({ color: [0x223344, 0x553311, 0x335522, 0x6a1a1a][i % 4] }), 0, 0.6, 0, b, false);
+  const b = makeBikeModel(THREE, [0, 10, 0, 11, 0][i], BIKE_PAINT[(i * 3 + rx) & 7], { trim: i % 2 ? 0x1a1a1a : 0xefe3c8, basket: i !== 2 }); // parked Dutch bikes, nose to the kerb
+  b.position.set(rx + i * 0.7, 0, RC + 10.35); b.rotation.y = Math.PI / 2; b.rotateX(0.06 * (i % 2 ? 1 : -1)); scene.add(b);
   if (i === 0) solid(rx - 0.4, rx + 3.2, RC + 9.95, RC + 10.75);
 }
 
@@ -1771,7 +1772,7 @@ canvas.addEventListener('pointerdown', (e) => {
   mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
   for (const it of inter) {
-    if (it.enabled && !it.enabled()) continue;
+    if (!it.obj || (it.enabled && !it.enabled())) continue; // prompt-only interactables (De Loods, the woning) have no mesh to click
     if (ray.intersectObject(it.obj, true).length) {
       const d = it.pos().distanceTo(player.position);
       if (d <= it.r + 0.6 || it.far) it.act(); else if (state.armed) swing(); else toast('TOO FAR', 'Walk over there first.', 1.4);
@@ -1835,68 +1836,8 @@ for (let i = 0; i < 6; i++) {
   traffic.push(c);
 }
 // bikes, Kaasland-style: kind 0 normal, 1 tricycle, 2 four-seater "vierfiets", 3 tall bike, 4 bakfiets with a cheese
-function makeBike(color, kind = 0) {
-  const b = new THREE.Group(), fm = lam({ color }), seats = [];
-  const wheel = (x, r = 0.34, z = 0) => { const w = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 6, 16), mat.black); w.position.set(x, r + 0.02, z); w.userData.r = r; b.add(w); for (let k = 0; k < 3; k++) { const sp = box(r * 1.9, 0.015, 0.015, mat.dark, 0, 0, 0, w, false); sp.rotation.z = k * Math.PI / 3; } return w; };
-  const tube = (x0, y0, x1, y1, z = 0) => { const m = box(Math.hypot(x1 - x0, y1 - y0), 0.045, 0.045, fm, (x0 + x1) / 2, (y0 + y1) / 2, z, b, false); m.rotation.z = Math.atan2(y1 - y0, x1 - x0); };
-  const seat = (x, y, pose) => { box(0.26, 0.05, 0.14, mat.black, x, y, 0, b, false); seats.push([x, y, pose]); };
-  const bars = (x, y) => { box(0.05, 0.05, 0.55, mat.black, x, y, 0, b, false); };
-  if (kind === 1) { // tricycle: big front wheel, two small rear wheels, a basket
-    wheel(0.6, 0.42); wheel(-0.55, 0.28, 0.38); wheel(-0.55, 0.28, -0.38);
-    box(0.05, 0.05, 0.8, fm, -0.55, 0.3, 0, b, false);
-    tube(-0.55, 0.3, 0.0, 0.45); tube(0.0, 0.45, 0.52, 0.95); tube(0.6, 0.44, 0.52, 0.95); tube(0.0, 0.45, -0.12, 0.88);
-    seat(-0.12, 0.92); bars(0.52, 1.02);
-    box(0.5, 0.3, 0.6, lam({ color: 0xc8a060 }), -0.62, 0.62, 0, b);
-  } else if (kind === 2) { // vierfiets: four riders on one long frame
-    wheel(-1.75); wheel(1.75); wheel(-0.6, 0.3); wheel(0.6, 0.3);
-    tube(-1.75, 0.36, 1.75, 0.36); tube(-1.6, 0.86, 1.6, 0.86);
-    for (let i = 0; i < 4; i++) { const x = -1.35 + i * 0.9; tube(x, 0.36, x, 0.88); seat(x, 0.92); bars(x + 0.45, 1.02); tube(x + 0.45, 0.86, x + 0.45, 1.02); }
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), lam({ color: 0xff7a1a, side: THREE.DoubleSide })); flag.position.set(-1.75, 2.0, 0); b.add(flag);
-    cyl(0.012, 0.012, 1.4, mat.dark, -1.75, 1.3, 0, b);
-  } else if (kind === 3) { // tall bike: one frame welded on top of another
-    wheel(-0.52); wheel(0.52);
-    tube(-0.52, 0.36, -0.1, 0.36); tube(-0.1, 0.36, 0.42, 0.82); tube(-0.18, 0.86, 0.42, 0.82); tube(-0.1, 0.36, -0.18, 0.86); tube(0.52, 0.36, 0.42, 0.82);
-    tube(-0.18, 0.86, -0.1, 1.86); tube(0.42, 0.82, 0.48, 1.9); tube(-0.1, 1.86, 0.48, 1.9); tube(-0.1, 1.4, 0.45, 1.4);
-    seat(-0.12, 1.92); bars(0.48, 2.02);
-  } else if (kind === 4) { // bakfiets with a wheel of Gouda in the box
-    wheel(-0.7); wheel(1.25, 0.26);
-    tube(-0.7, 0.36, -0.2, 0.36); tube(-0.2, 0.36, 0.3, 0.5); tube(0.3, 0.5, 1.25, 0.28); tube(-0.28, 0.88, 0.3, 0.86); tube(-0.2, 0.36, -0.28, 0.88);
-    seat(-0.3, 0.92); bars(0.3, 1.05); tube(0.3, 0.5, 0.3, 1.05);
-    box(0.85, 0.5, 0.7, lam({ color: 0x8a5a2a }), 0.78, 0.68, 0, b);
-    const ch = cyl(0.3, 0.3, 0.22, lam({ color: 0xf2c43a }), 0.78, 1.03, 0, b, 18); ch.rotation.z = 0.3;
-  } else if (kind === 5) { // mini bike: tiny wheels, rider squatting over it like a frog
-    wheel(-0.32, 0.15); wheel(0.34, 0.15);
-    tube(-0.32, 0.17, 0.0, 0.2); tube(0.0, 0.2, 0.3, 0.42); tube(0.34, 0.17, 0.28, 0.95); tube(-0.32, 0.17, -0.1, 0.5); tube(0.0, 0.2, -0.1, 0.5);
-    seat(-0.12, 0.54, 'squat'); bars(0.28, 0.98);
-  } else if (kind === 6) { // penny-farthing: huge front wheel, tiny rear wheel, rider way up top
-    wheel(0.15, 0.78); wheel(-0.95, 0.19);
-    tube(-0.95, 0.21, -0.55, 1.15); tube(-0.55, 1.15, 0.05, 1.6); tube(0.15, 0.8, 0.12, 1.62);
-    seat(0.0, 1.66); bars(0.18, 1.78); tube(0.12, 1.62, 0.18, 1.78);
-  } else if (kind === 7) { // double-decker: one rider on a tall frame, a second on a little bike tucked underneath
-    wheel(-0.95, 0.36); wheel(0.95, 0.36);
-    tube(-0.95, 0.38, -0.1, 2.35); tube(0.95, 0.38, 0.35, 2.4); tube(-0.95, 0.38, 0.95, 0.38); tube(-0.1, 2.35, 0.35, 2.4); tube(-0.5, 1.35, 0.6, 1.4);
-    seat(-0.12, 2.42); bars(0.4, 2.52);
-    wheel(-0.25, 0.13); wheel(0.3, 0.13); tube(-0.25, 0.15, 0.3, 0.15); tube(-0.1, 0.15, -0.12, 0.52); tube(0.3, 0.15, 0.25, 0.8);
-    seat(-0.12, 0.56, 'squat'); bars(0.25, 0.82);
-  } else if (kind === 8) { // extra-tall bike: a long fork and a seat up at first-floor windows
-    wheel(-0.95, 0.38); wheel(0.95, 0.38);
-    tube(-0.95, 0.4, -0.45, 0.9); tube(-0.45, 0.9, -0.2, 2.25); tube(-0.45, 0.9, 0.62, 0.95); tube(0.95, 0.4, 0.6, 2.35); tube(-0.2, 2.25, 0.6, 2.35); tube(-0.2, 2.25, -0.95, 0.4);
-    seat(-0.25, 2.3); bars(0.62, 2.45);
-  } else if (kind === 9) { // stacked four: one frame, four riders at three heights
-    wheel(-0.85); wheel(0.85);
-    tube(-0.85, 0.36, 0.85, 0.36); tube(-0.3, 0.36, -0.3, 2.75); tube(0.3, 0.36, 0.3, 2.75); tube(-0.3, 2.0, 0.85, 2.05); tube(-0.85, 1.75, 0.3, 1.75); tube(-0.3, 2.75, 0.3, 2.75); tube(0.85, 0.36, 0.85, 2.05); tube(-0.85, 0.36, -0.85, 1.75);
-    seat(0.0, 0.9); bars(0.5, 1.0);
-    seat(-0.75, 1.82); bars(-0.32, 1.95);
-    seat(0.55, 2.12); bars(0.95, 2.25);
-    seat(-0.05, 2.82); bars(0.35, 2.95);
-  } else {
-    wheel(-0.52); wheel(0.52);
-    tube(-0.52, 0.36, -0.1, 0.36); tube(-0.1, 0.36, 0.42, 0.82); tube(-0.18, 0.86, 0.42, 0.82); tube(-0.1, 0.36, -0.18, 0.86); tube(0.52, 0.36, 0.42, 0.82); tube(-0.52, 0.36, -0.18, 0.86);
-    seat(-0.2, 0.92); bars(0.42, 1.0); tube(0.42, 0.82, 0.42, 1.0);
-    box(0.28, 0.06, 0.32, lam({ color: 0x3a2a1a }), -0.5, 0.7, 0, b);
-  }
-  b.userData.seats = seats; b.userData.len = kind === 2 ? 2.2 : kind === 4 ? 1.6 : kind === 6 || kind === 7 || kind === 8 ? 1.3 : kind === 9 ? 1.2 : 0.95;
-  scene.add(b); return b;
+function makeBike(color, kind = 0) { // js/bikes.js builds them now: real tubes, spoked wheels, mudguards, crates and cranks
+  const b = makeBikeModel(THREE, kind, color, { trim: kind === 0 || kind === 10 ? 0x1a1a1a : undefined }); scene.add(b); return b;
 }
 const SKINS = [0xf0c8a8, 0xe0a882, 0xc8885e, 0x9a6440, 0x6a4028, 0xf4d2bc];
 const HAIRS = ['#1a1410', '#3a2a1a', '#7a5a30', '#d8c080', '#a0602e', '#8a8a8a', '#202020'];
@@ -1946,10 +1887,10 @@ function makeDog(seed) {
 }
 const leashMat = new THREE.LineBasicMaterial({ color: 0xe8862c });
 const cyclists = [];
-const BIKE_KINDS = [0, 2, 1, 0, 4, 3, 0, 1, 5, 6, 7, 8, 9, 6, 5, 7];
+const BIKE_KINDS = [0, 2, 1, 10, 4, 3, 0, 11, 5, 6, 7, 8, 9, 10, 0, 4];
 BIKE_KINDS.forEach((kind, i) => {
   const dir = i % 2 ? -1 : 1, z = RC + (dir > 0 ? 5.85 : 6.95);
-  const bike = makeBike([0x1a1a1a, 0xff5fa2, 0x2fb8a8, 0x7a1a1a, 0xffd23a, 0x8a5ae0, 0xd8d0c0, 0x2a4a7a][i % 8], kind);
+  const bike = makeBike(BIKE_PAINT[i % BIKE_PAINT.length], kind);
   const riders = bike.userData.seats.map(([sx, sy, pose], k) => {
     const r = passerBy(100 + i * 5 + k); scene.remove(r); bike.add(r);
     r.position.set(sx - 0.02, sy - 0.9, 0); r.rotation.y = Math.PI / 2;
@@ -2652,10 +2593,10 @@ function updateStreet(dt) {
     const want = free < 0.8 ? 0 : free < 5 ? u.vmax * free / 5 : u.vmax;
     u.v += Math.max(-10 * dt, Math.min(3 * dt, want - u.v));
     if (byPlayer && u.v < 0.6) { u.shoutT -= dt; if (u.shoutT <= 0) { bell(); say(u.bubble, BIKE_SHOUTS[Math.floor(Math.random() * BIKE_SHOUTS.length)], '#2fb8a8'); u.shoutT = 3; } }
-    if (u.v > 2 && Math.abs(P.z - b.position.z) < 0.6 && Math.abs(P.x - b.position.x) < u.len + 0.3 && P.y < 0.3) bump(u.dir * 4, Math.sign(P.z - b.position.z || 1) * 3, 4, 'Run over by a ' + ['bike', 'vierfiets', 'tricycle', 'tall bike', 'bakfiets full of Gouda', 'mini bike', 'penny-farthing', 'double-decker bike', 'extra-tall bike', 'four-man tower bike'][u.kind] + '.');
+    if (u.v > 2 && Math.abs(P.z - b.position.z) < 0.6 && Math.abs(P.x - b.position.x) < u.len + 0.3 && P.y < 0.3) bump(u.dir * 4, Math.sign(P.z - b.position.z || 1) * 3, 4, 'Run over by a ' + ['bike', 'vierfiets', 'tricycle', 'tall bike', 'bakfiets full of Gouda', 'mini bike', 'penny-farthing', 'double-decker bike', 'extra-tall bike', 'four-man tower bike', 'opafiets', 'transportfiets'][u.kind] + '.');
     b.position.x += u.v * u.dir * dt;
     if (b.position.x * u.dir > 66) b.position.x = -66 * u.dir;
-    for (const w of b.children) if (w.userData.r) w.rotation.z -= u.v * dt / w.userData.r;
+    for (const w of b.children) if (w.userData.r) w.rotation.z -= u.v * dt / w.userData.r; else if (w.userData.crank) w.rotation.z -= u.v * dt * 1.6;
     u.phase += u.v * dt * 1.6;
     u.riders.forEach((r, k) => { const ru = r.userData, ph = u.phase + k * 0.7; const base = ru.squat ? -1.55 : -0.9, amp = ru.squat ? 0.25 : 0.5; ru.legs[0].rotation.x = base + Math.sin(ph * (ru.squat ? 2 : 1)) * amp; ru.legs[1].rotation.x = base - Math.sin(ph * (ru.squat ? 2 : 1)) * amp; });
     const bu = u.bubble.userData; if (bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; }
@@ -2726,6 +2667,7 @@ function tick() {
   if (state.step !== lastStep) { lastStep = state.step; writeSave(); }
   let dt = Math.min(clock.getDelta(), 0.05);
   if (mission && mission.active) dt = mission.hitstop(dt); // Neon Vice hitstop on kills
+  const riding = !!(fiets && !(mission && mission.active) && fiets.update(dt)); // on the omafiets: js/bikes.js moves Eddy
   // movement (screen-relative: camera looks north)
   let mx = 0, mz = 0;
   const mOn = mission && mission.active;
@@ -2734,7 +2676,7 @@ function tick() {
     if (keys.KeyA || keys.ArrowLeft) mx -= 1; if (keys.KeyD || keys.ArrowRight) mx += 1;
     mx += virt.mx; mz += virt.mz; // controller / touch stick
   }
-  if (knock.t > 0 || (loods && loods.driving())) { mx = mz = 0; } // on the heftruck, js/loods.js drives
+  if (knock.t > 0 || riding || (loods && loods.driving())) { mx = mz = 0; } // on the heftruck, js/loods.js drives
   let len = Math.hypot(mx, mz); if (len < 0.15) { mx = mz = 0; len = 0; }
   const speed = len ? (keys.ShiftLeft || keys.ShiftRight ? 7.5 : 4.2) * (1 + 0.06 * (woning ? woning.perk('fleet') : 0)) : 0;
   if (knock.t > 0) {
@@ -2752,8 +2694,8 @@ function tick() {
     let dr = target - player.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
     player.rotation.y += dr * Math.min(1, dt * 14);
   }
-  if (!(loods && loods.driving())) collide(player.position, 0.38);
-  animate(player, speed, dt);
+  if (!(loods && loods.driving()) && !riding) collide(player.position, 0.38);
+  if (!riding) animate(player, speed, dt);
   updateMelee(dt);
   // dad faces the player when close
   const toP = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z);
@@ -2959,6 +2901,8 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get guide() { return guide; }, score, media, get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+window.__sme = { get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
+fiets = createFiets({ THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
+  busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });
 tick();
