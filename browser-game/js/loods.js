@@ -383,7 +383,7 @@ export function createLoods(deps) {
   { for (const x of [-1.0, 1.0]) box(0.12, 2.6, 0.2, mt(0x3a3e44), x, 1.3, 0.05, hallDoor, false); box(2.12, 0.14, 0.2, mt(0x3a3e44), 0, 2.6, 0.05, hallDoor, false);
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.36), lam({ map: signTex([{ t: 'DE HAL', size: 44 }], '#f2b21a', '#1a1a1a', 256, 58) })); pl.position.set(0, 2.85, 0.05); hallDoor.add(pl); }
   let inHall = false;
-  const fadeEl = document.createElement('div'); fadeEl.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40'; document.body.appendChild(fadeEl);
+  const fadeEl = document.createElement('div'); fadeEl.className = 'smeFade'; fadeEl.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40'; document.body.appendChild(fadeEl);
   const fadeTo = (fn) => { fadeEl.style.opacity = '1'; setTimeout(() => { fn(); setTimeout(() => { fadeEl.style.opacity = '0'; }, 60); }, 380); };
   function bounds() { return { x0: HX + (has('tent') ? TENT.x0 : HALL.x0) + 0.3, x1: HX + HALL.x1 - 0.3, z0: HZ + (has('tent') ? TENT.z0 : HALL.z0) + 0.3, z1: HZ + HALL.z1 - 0.3 }; }
   // the hall is walked into through the doorway (no fade): these two are shortcuts for tests

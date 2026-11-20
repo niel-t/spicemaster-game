@@ -114,7 +114,7 @@ export function createWoning(deps) {
 
   // ================================================================== 3D: the three rooms
   const fadeEl = document.createElement('div');
-  fadeEl.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40';
+  fadeEl.className = 'smeFade'; fadeEl.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40';
   document.body.appendChild(fadeEl);
   const corrT = canvasTex(128, 32, (g, w, h) => { for (let x = 0; x < w; x++) { const v = 200 + Math.round(55 * Math.cos(x / w * Math.PI * 16)); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, h); } }); corrT.wrapS = corrT.wrapT = THREE.RepeatWrapping;
   const fadeTo = (fn) => { fadeEl.style.opacity = '1'; setTimeout(() => { fn(); setTimeout(() => { fadeEl.style.opacity = '0'; }, 60); }, 380); };

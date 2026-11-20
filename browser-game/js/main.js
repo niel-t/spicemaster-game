@@ -1,6 +1,7 @@
 // Spice Master Eddy: Chapter 0, Kipkruidenkwartier.
 // Neon Vice-style top-down browser game: three.js, PS2-style low-poly people with photo faces.
 import { fonts } from './fontstyle.js'; // first: picks Aero or classic fonts before anything draws
+import './aeroskin.js'; // the rest of the Aero look (glass HUD, gel meters, touch orbs, fades); only active with html.aero
 import * as THREE from '../vendor/three.module.min.js';
 import { Music } from './music.js';
 import { CombatScore } from './combatmusic.js'; // adaptive shootout score: layers that build as a fight heats up
