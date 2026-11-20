@@ -215,6 +215,7 @@ ui.innerHTML = `
   <div class="tb big" id="tbF" data-k="KeyF">SLAAN</div>
   <div class="tb" id="tbR" data-k="KeyR">RELOAD</div>
   <div class="tb" id="tbW" data-k="Tab">WISSEL</div>
+  <div class="tb" id="tbN" data-k="KeyV">NACHT<br>ZICHT</div>
   <div class="tpills"><div class="tp" data-k="pause">II</div><div class="tp" data-k="KeyM">KAART</div><div class="tp" data-k="KeyI">INV</div><div class="tp" id="tpRestart" data-k="Backspace">OPNIEUW</div><div class="tp" id="tbS" data-k="sprint">SPRINT</div></div>`;
 function makeStick(zone, onMove, onEnd) {
   const base = zone.querySelector('.tbase'), knob = zone.querySelector('.tknob'), R = 56;
@@ -279,6 +280,7 @@ function updateTouchUI(dt) {
   const inM = !!(m && m.active);
   ui.classList.toggle('mission', inM); ui.classList.toggle('street', !inM);
   ui.classList.toggle('armed', st.kit.includes('maboota'));
+  ui.classList.toggle('nvok', inM && !!m.nvOK); // a Nachtklus with night-vision goggles: a NACHTZICHT button
   $('tpRestart').style.display = inM && (m.canRestart ? m.canRestart() : !st.spekbuurt) ? '' : 'none';
   if (fireHeld && inM) { if ((fireT -= dt) <= 0) { press('KeyF'); fireT = 0.12; } } else fireT = 0;
 }

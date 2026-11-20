@@ -25,7 +25,7 @@ export const WD = {
   silenced: { name: 'SILENCED CZ SHADOW 2', legacy: 'cz', ammo: 12, spare: 6, cal: '9mm', mag: 17, rl: 1.1, ar: [0.45, 0.18], cd: 0.15, pel: 1, spr: 0.016, mv: 0.06, bloom: 0.03, ecd: 0.85, loud: 2.5, kick: 0.06, snd: 'silenced', len: 0.36 }, // old saves: becomes a CZ + CZ suppressor
   revolver: { name: 'COLT PYTHON .357', ammo: 6, spare: 6, cal: '357', mag: 6, rl: 2.4, ar: [0.5, 0.12], cd: 0.34, pel: 1, spr: 0.012, mv: 0.06, bloom: 0.08, ecd: 0.95, loud: 15, pierce: 3, kick: 0.2, snd: 'revolver' },
   dual: { name: 'DUAL 9MMs', ammo: 26, spare: 10, cal: '9mm', mag: 30, rl: 2.6, ar: [0.5, 0.12], cd: 0.1, pel: 1, spr: 0.05, mv: 0.08, bloom: 0.02, bloomMax: 0.16, ecd: 0.35, burst: 6, loud: 13, kick: 0.08, snd: 'dual' },
-  mp5sd: { name: 'MP5SD', ammo: 30, spare: 15, cal: '9mm', mag: 30, rl: 2.0, ar: [0.5, 0.14], cd: 0.075, pel: 1, spr: 0.045, mv: 0.07, bloom: 0.02, bloomMax: 0.16, ecd: 0.14, burst: 4, loud: 2.5, kick: 0.06, snd: 'silenced', len: 0.5, two: true },
+  mp5sd: { name: 'MP5SD', unlock: 'district1', ammo: 30, spare: 15, cal: '9mm', mag: 30, rl: 2.0, ar: [0.5, 0.14], cd: 0.075, pel: 1, spr: 0.045, mv: 0.07, bloom: 0.02, bloomMax: 0.16, ecd: 0.14, burst: 4, loud: 2.5, kick: 0.06, snd: 'silenced', len: 0.5, two: true },
   dualuzi: { name: 'DUAL UZIS', excl: true, unlock: 'act2', ammo: 64, spare: 32, cal: '9mm', mag: 64, rl: 2.8, ar: [0.5, 0.12], cd: 0.05, pel: 1, spr: 0.07, mv: 0.08, bloom: 0.025, bloomMax: 0.24, ecd: 0.12, burst: 6, loud: 14, kick: 0.08, snd: 'smg', dual: true },
   smg: { name: 'UZI', ammo: 32, spare: 16, cal: '9mm', mag: 32, rl: 1.8, ar: [0.5, 0.14], cd: 0.07, pel: 1, spr: 0.06, mv: 0.08, bloom: 0.025, bloomMax: 0.22, ecd: 0.12, burst: 4, loud: 13, kick: 0.08, snd: 'smg' },
   pump: { name: 'PUMP SHOTGUN', ammo: 6, spare: 4, cal: '12ga', mag: 6, rl: 3.0, ar: [0.55, 0.12], cd: 0.75, pel: 7, spr: 0.26, mv: 0.04, bloom: 0, ecd: 1.2, loud: 16, kick: 0.4, spd: 0.94, two: true, snd: 'pump', len: 0.68 },
@@ -56,7 +56,7 @@ export const CAL = {
 // attachments (Neon Vice MODS): bought once, always fitted.
 export const MODS = {
   supp: { name: 'MAKAROV SUPPRESSOR', price: 380, gun: 'makarov', info: 'Screws onto the Makarov. Its shots go quiet: nobody in the next room hears them.', say: 'Now your Makarov whispers. Like gossip, but louder for the other guy.' },
-  czsupp: { name: 'CZ SUPPRESSOR', price: 450, gun: 'cz', info: 'Screws onto the CZ Shadow 2. Its shots go quiet: nobody in the next room hears them.', say: 'Czech precision, now with Czech discretion.' },
+  czsupp: { name: 'CZ SUPPRESSOR', price: 450, unlock: 'district1', gun: 'cz', info: 'Screws onto the CZ Shadow 2. Its shots go quiet: nobody in the next room hears them.', say: 'Czech precision, now with Czech discretion.' },
   xmag: { name: 'EXTENDED UZI MAG', price: 300, gun: 'smg', also: ['dualuzi'], info: 'Clips into the Uzi (48 rounds instead of 32) and the Dual Uzis (96 instead of 64).', say: 'Forty-eight rounds. For when thirty-two is not making your point.' },
   sling: { name: 'QUICK SLING', price: 230, gun: null, info: 'For every gun you carry. Switching weapons takes a blink instead of a breath.', say: 'Is a strap. But a fast strap. You switch guns before you finish the thought.' },
 };

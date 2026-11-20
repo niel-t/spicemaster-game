@@ -369,7 +369,8 @@
   #touchUI .tb.active { background: rgba(126,227,107,.6); }
   #tbE { right: calc(20px + env(safe-area-inset-right)); bottom: calc(118px + env(safe-area-inset-bottom)); }
   #tbF { right: calc(112px + env(safe-area-inset-right)); bottom: calc(26px + env(safe-area-inset-bottom)); }
-  #touchUI #tbF, #touchUI #tbR, #touchUI #tbW { display: none; }
+  #touchUI #tbF, #touchUI #tbR, #touchUI #tbW, #touchUI #tbN { display: none; }
+  #touchUI.mission.nvok #tbN { display: grid; right: calc(240px + env(safe-area-inset-right)); bottom: calc(58% + 8px); font-size: 9px; text-align: center; line-height: 1.15; background: rgba(60,160,70,.45); }
   #touchUI.street.armed #tbF { display: grid; }
   #touchUI .tp.active { background: rgba(126,227,107,.6); }
   #touchUI.mission #tbE { bottom: calc(58% + 8px); right: calc(14px + env(safe-area-inset-right)); width: 70px; height: 70px; }
@@ -393,7 +394,7 @@
   #money, #income, #kit { right: calc(26px + env(safe-area-inset-right)); }
   @media (max-height: 500px) {
     #touchUI .tb { width: 56px; height: 56px; font-size: 10px; } #touchUI .tb.big { width: 68px; height: 68px; }
-    #touchUI.mission #tbE { width: 58px; height: 58px; } #touchUI.mission #tbR { right: calc(80px + env(safe-area-inset-right)); } #touchUI.mission #tbW { right: calc(146px + env(safe-area-inset-right)); }
+    #touchUI.mission #tbE { width: 58px; height: 58px; } #touchUI.mission #tbR { right: calc(80px + env(safe-area-inset-right)); } #touchUI.mission #tbW { right: calc(146px + env(safe-area-inset-right)); } #touchUI.mission.nvok #tbN { right: calc(212px + env(safe-area-inset-right)); }
     #tbE { bottom: calc(100px + env(safe-area-inset-bottom)); } #tbF { right: calc(92px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); }
     .tbase { width: 100px; height: 100px; margin: -50px 0 0 -50px; top: calc(100% - 80px - env(safe-area-inset-bottom)); left: calc(80px + env(safe-area-inset-left)); }
     #tzR .tbase { margin: -50px -50px 0 0; } #tzR .tbase.on { margin: -50px 0 0 -50px; }

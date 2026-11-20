@@ -1068,15 +1068,17 @@ export function initMission(ctx) {
     const done = DEF.onEnd; setTimeout(() => { exit(); if (done) setTimeout(() => done(res), 600); }, win ? 2200 : 300);
   }
   let HEIST = null;
-  const HS = { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, cones: [], pick: 0 };
+  const HS = { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, cones: [], pick: 0, fuse: null, bugs: [], torches: [], dark: false, kos: 0, lit: 1, fixT: 0, failed: false };
   const coneM = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
   const CONE_C = { idle: 0xf2c14e, search: 0xe8862c, chase: 0xff2a3a };
   function heistSetup() {
     for (const c of HS.cones) root.remove(c); HS.cones.length = 0;
     if (HS.safe) root.remove(HS.safe.g); if (HS.special) root.remove(HS.special.g);
-    Object.assign(HS, { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, pick: 0, quietShots: 0 });
+    stealthClear();
+    Object.assign(HS, { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, pick: 0, quietShots: 0, kos: 0, lit: 1, fixT: 0, failed: false });
     nightVision(false); spySuit(!!HEIST);
     if (!HEIST) return;
+    stealthSetup();
     if (HEIST.cased) for (const e of enemies) {
       const geo = new THREE.CircleGeometry(EASY.vision, 20, -Math.PI / 2 - EASY.cone, EASY.cone * 2); geo.rotateX(-Math.PI / 2);
       const m = new THREE.Mesh(geo, coneM(CONE_C.idle)); m.position.y = 0.05; m.userData.e = e; root.add(m); HS.cones.push(m);
@@ -1090,6 +1092,15 @@ export function initMission(ctx) {
       const spit = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.7, 10), new THREE.MeshLambertMaterial({ color: 0x8a4a22 })); spit.position.set(0, 0.95, 0); g.add(spit);
       const glow = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.66, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.7 })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.04; g.add(glow);
       root.add(g); HS.special = { g, glow, taken: false };
+    }
+    if (HEIST.special === 'book') { // the faction's recipe book on a lectern by the boss (or the last crate's spot)
+      const b = enemies.find((e) => e.userData.foe.boss), src = b ? b.userData.foe.spawn : (LV.loot && LV.loot.at(-1)) || LV.start;
+      const sp = freeNear(src[0], src[1]), g = new THREE.Group(); g.position.copy(L(sp[0] + 0.5, sp[1] + 0.5));
+      const stand = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.75, 0.4), lam({ color: 0x5a3a22 })); stand.position.y = 0.375; g.add(stand);
+      const cover = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.26), lam({ color: 0xa8321e, emissive: 0x2a0800 })); cover.position.y = 0.79; cover.rotation.y = 0.3; g.add(cover);
+      const pages = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.05, 0.23), lam({ color: 0xf2ead8 })); pages.position.y = 0.8; pages.rotation.y = 0.3; g.add(pages);
+      const glow = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 24), new THREE.MeshBasicMaterial({ color: 0xe8a33d, transparent: true, opacity: 0.7 })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.04; g.add(glow);
+      root.add(g); HS.special = { g, glow, taken: false, kind: 'book' };
     }
     if (HEIST.safe) { // a safe in the boss's room (or by the last crate)
       const b = enemies.find((e) => e.userData.foe.boss), src = b ? b.userData.foe.spawn : (LV.loot && LV.loot.at(-1)) || LV.start;
@@ -1117,7 +1128,7 @@ export function initMission(ctx) {
     if (on) { nvSave = { hemi: hemi.intensity, sun: sun.intensity, hc: hemi.color.clone(), gc: hemi.groundColor.clone() }; hemi.intensity = Math.max(1.4, hemi.intensity * 4); sun.intensity = Math.max(0.6, sun.intensity * 2); hemi.color.set(0x9aff9a); hemi.groundColor.set(0x1a4a1a); beep(1800, 0.05, 'sine', 0.03); beep(2400, 0.08, 'sine', 0.02); }
     else if (nvSave) { hemi.intensity = nvSave.hemi; sun.intensity = nvSave.sun; hemi.color.copy(nvSave.hc); hemi.groundColor.copy(nvSave.gc); nvSave = null; }
   }
-  addEventListener('keydown', (ev) => { if (ev.code === 'KeyN' && M.active && HEIST && HEIST.nv && !state.inPC && !state.inDialogue) { nightVision(!nvOn); popup(player.position, nvOn ? 'NIGHT VISION ON' : 'NIGHT VISION OFF', '#6eff7a'); } });
+  addEventListener('keydown', (ev) => { if (ev.code === 'KeyN' && !ev.repeat && M.active && HEIST && HEIST.nv && !state.inPC && !state.inDialogue) { nightVision(!nvOn); popup(player.position, nvOn ? 'NIGHT VISION ON' : 'NIGHT VISION OFF', '#6eff7a'); } });
   let suit = null;
   function spySuit(on) { // Eddy's Nachtklus outfit: everything goes tactical charcoal, with green goggle lenses on his head
     const u = player.userData;
@@ -1142,7 +1153,8 @@ export function initMission(ctx) {
     if (!HEIST || HS.loud) return;
     HS.alarm = Math.min(100, HS.alarm + n);
     if (HS.alarm >= 100) {
-      HS.loud = true; banner('ALARM!', "They know you're here. It's a loud raid now: grab what you can and get to the van.", 3.5); sfx('alert');
+      HS.loud = true; if (HEIST.kind === 'spook') { HS.failed = true; banner('CONTRACT BLOWN', 'A ghost contract dies with the alarm. Get out: whatever you carry still sells.', 3.5); } else banner('ALARM!', "They know you're here. It's a loud raid now: grab what you can and get to the van.", 3.5); sfx('alert');
+      if (HS.dark && HS.fuse && HS.fuse.cut && !HEIST.blackout) powerBack('THE LIGHTS COME BACK ON');
       for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0 && f.state !== 'chase') { f.state = 'search'; f.sx = player.position.x; f.sz = player.position.z; f.searchT = 0; f.path = null; } }
     } else if (why) popup(player.position, why, '#ff7a1a');
   }
@@ -1155,6 +1167,7 @@ export function initMission(ctx) {
     }
     for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0 && f.state === 'chase') chased = true; }
     if (chased) heistAlarm(dt * 22); else if (!HS.loud) HS.alarm = Math.max(0, HS.alarm - dt * 2);
+    stealthTick(dt);
     if (HS.special && !HS.special.taken) HS.special.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
     heistHud();
   }
@@ -1165,15 +1178,24 @@ export function initMission(ctx) {
     if (!HEIST || !M.active) { heistEl.style.display = 'none'; return; }
     const a = Math.round(HS.alarm), col = HS.loud ? '#ff2a3a' : a > 60 ? '#e8862c' : '#f2c14e';
     heistEl.style.display = 'block';
-    heistEl.innerHTML = `NACHTKLUS · ${HEIST.title || ''}<div style="margin:6px auto 0;width:220px;height:10px;border:2px solid #000;background:#1e140c"><div style="height:100%;width:${a}%;background:${col}"></div></div><div style="margin-top:4px;color:${col}">${HS.loud ? 'ALARM!' : 'ALARM ' + a + '%'}</div><div style="margin-top:6px;color:#ffd23a">BAG ${HS.bag.length}/${HEIST.cap || 3} · IN THE VAN ${HS.banked.length}${HS.cash ? ' · CASH W ' + HS.cash : ''}</div>`;
+    const lit = HS.lit, dk = lit < 0.4, md = lit < 0.7;
+    const gem = HS.loud ? '' : `<div class="hgem" style="margin-top:6px;color:${dk ? '#9fb0d8' : md ? '#e8c27a' : '#fff2b0'}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;background:${dk ? '#1c2440' : md ? '#a8742a' : '#ffe27a'};box-shadow:0 0 ${Math.round(lit * 12)}px ${dk ? '#000' : '#ffd23a'}"></span>${dk ? 'IN THE SHADOWS' : md ? 'HALF-LIT' : 'IN THE LIGHT'}</div>`;
+    const job = stealthJobLine();
+    heistEl.innerHTML = `NACHTKLUS · ${HEIST.title || ''}<div style="margin:6px auto 0;width:220px;height:10px;border:2px solid #000;background:#1e140c"><div style="height:100%;width:${a}%;background:${col}"></div></div><div style="margin-top:4px;color:${col}">${HS.loud ? (HS.failed ? 'CONTRACT BLOWN' : 'ALARM!') : 'ALARM ' + a + '%'}</div><div style="margin-top:6px;color:#ffd23a">BAG ${HS.bag.length}/${HEIST.cap || 3} · IN THE VAN ${HS.banked.length}${HS.cash ? ' · CASH W ' + HS.cash : ''}</div>${job ? `<div style="margin-top:6px;color:#e8c27a">${job}</div>` : ''}${gem}`;
   }
   function heistGrab() { // E near the special item, a crate or the safe
+    if (stealthUse()) return true; // takedown, bug, fuse box first: E near a dropped gun must not pick it up instead
     const near = (o, r = 1.2) => Math.hypot(o.position.x - player.position.x, o.position.z - player.position.z) < r;
     const cap = HEIST.cap || 3;
-    if (HS.special && !HS.special.taken && near(HS.special.g, 1.3)) {
+    if (HS.special && !HS.special.kind && !HS.special.taken && near(HS.special.g, 1.3)) {
       if (HS.bag.length) { toast('TOO HEAVY', "Dad's grill takes both hands. Take the bag to the Oofmobiel first.", 2.5); return true; }
       HS.special.taken = true; HS.special.g.visible = false; HS.bag.push('grill'); for (let k = 1; k < cap; k++) HS.bag.push('-');
       popup(player.position, "DAD'S OLD GRILL!", '#ffd23a', true); sfx('pick'); heistAlarm(8, 'CLANK!'); alertNoise(player.position, 3); return true;
+    }
+    if (HS.special && HS.special.kind === 'book' && !HS.special.taken && near(HS.special.g, 1.3)) {
+      if (HS.bag.length >= cap) { toast('BAG FULL', 'Empty the bag in the Oofmobiel first.', 2.2); return true; }
+      HS.special.taken = true; HS.special.g.visible = false; HS.bag.push('book');
+      popup(player.position, 'THE RECIPE BOOK!', '#ffd23a', true); sfx('pick'); return true;
     }
     for (const l of lootCrates) if (!l.taken && near(l.c)) {
       if (HS.bag.length >= cap) { toast('BAG FULL', 'Carry it out to the Oofmobiel, then come back for more.', 2.2); return true; }
@@ -1190,10 +1212,185 @@ export function initMission(ctx) {
   function heistVan() { // at the Oofmobiel: stash the bag, or drive home with the haul
     const inBag = HS.bag.filter((x) => x !== '-');
     if (inBag.length) { HS.banked.push(...inBag); HS.bag.length = 0; toast('IN THE VAN', `Stashed. ${HS.banked.length} item(s) in the Oofmobiel. Go back for more, or drive home.`, 2.5); sfx('pick'); heistHud(); return; }
-    const res = { crates: HS.banked.filter((x) => x === 'crate').length, grill: HS.banked.includes('grill'), cash: HS.cash, loud: HS.loud, alarm: Math.round(HS.alarm), kills: R.kills, ghost: !HS.loud && R.kills === 0 && HS.alarm < 35, level: LV.id, title: HEIST.title };
+    const res = { crates: HS.banked.filter((x) => x === 'crate').length, grill: HS.banked.includes('grill'), book: HS.banked.includes('book'), bugs: HS.bugs.filter((b) => b.done).length, bugsOf: HS.bugs.length, kos: HS.kos, dark: HS.dark, cash: HS.cash, loud: HS.loud, alarm: Math.round(HS.alarm), kills: R.kills, ghost: !HS.loud && R.kills === 0 && HS.alarm < 35, level: LV.id, title: HEIST.title, kind: HEIST.kind || 'kratten', failed: HS.failed };
     const done = HEIST.onEnd; exit(); if (done) setTimeout(() => done(res), 600);
   }
 
+  // ================================================================== STEALTH (2026-11-20): on a Nachtklus the dark hides you.
+  //   · light: guards see up to 9 m of you in a lit room, a third of that in the shadows (HUD: IN THE SHADOWS / HALF-LIT / IN THE LIGHT)
+  //   · stroomkast: E at the fuse box cuts the power. Every room goes dark, the guards switch on torches (a beam on the floor that
+  //     sees as far as a lit room), and the nearest one walks over to fix it (4 s at the box). Knock him out and it stays dark.
+  //   · slaapgreep: E behind a guard who hasn't seen you puts him to sleep. Not a kill (a ghost run allows it), but a sleeper
+  //     who gets found makes the finder wary, same as a body.
+  //   · jobs (opts.heist.kind): kratten (crates + safe), recept (steal the recipe book), bug (plant 2 bugs), stroom (blackout:
+  //     no power all night, torches from the start), spook (ghost contract: the alarm or a kill blows it)
+  //   · gear: opts.heist.shoes (soft soles: half the footstep range), nv (V / N, or the NACHTZICHT button on a phone)
+  const TORCH_A = 0.42, TORCH_R = 9.5, TORCH_N = 9;
+  const torchM = () => new THREE.MeshBasicMaterial({ color: 0xffe6a8, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  let kMax = 1, lightSave = null;
+  function freeNear(x0, z0) { // the nearest walkable floor cell to a spawn spot
+    let best = [Math.floor(x0), Math.floor(z0)], bd = 1e9;
+    for (let z = Math.max(1, Math.floor(z0) - 3); z <= Math.min(H - 2, Math.floor(z0) + 3); z++) for (let x = Math.max(1, Math.floor(x0) - 3); x <= Math.min(W - 2, Math.floor(x0) + 3); x++) {
+      if (!walkable(x, z) || G[z][x] !== '.') continue; const d = Math.hypot(x + 0.5 - x0, z + 0.5 - z0); if (d > 0.6 && d < bd) { bd = d; best = [x, z]; }
+    }
+    return best;
+  }
+  function wallSpot(seed, minD, maxD, avoid = []) { // a reachable floor cell against a wall, minD..maxD from the way in
+    if (!LV.validateFrom) return null;
+    const r = rng32(hashStr(seed)), start = L(LV.validateFrom[0], LV.validateFrom[1]), cand = [];
+    for (let z = 1; z < H - 1; z++) for (let x = 1; x < W - 1; x++) {
+      if (!walkable(x, z) || G[z][x] !== '.') continue;
+      const wall = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dz]) => G[z + dz][x + dx] === '#'); if (!wall) continue;
+      const p = L(x + 0.5, z + 0.5), d = Math.hypot(p.x - start.x, p.z - start.z);
+      if (d >= minD && d <= maxD && !avoid.some((a) => Math.hypot(a.x - p.x, a.z - p.z) < 4)) cand.push([x, z, wall]);
+    }
+    for (let tries = 0; tries < 14 && cand.length; tries++) {
+      const [x, z, wall] = cand.splice(Math.floor(r() * cand.length), 1)[0];
+      if (path(start, L(x + 0.5, z + 0.5))) return { x, z, wall, p: L(x + 0.5, z + 0.5) };
+    }
+    return null;
+  }
+  function stealthClear() {
+    if (HS.fuse) root.remove(HS.fuse.g); for (const b of HS.bugs) root.remove(b.g); for (const t of HS.torches) { root.remove(t, t.userData.bulb); t.geometry.dispose(); }
+    HS.fuse = null; HS.bugs = []; HS.torches = []; HS.dark = false; HS.fixer = null; lightSave = null;
+  }
+  function stealthSetup() {
+    kMax = Math.max(0.01, ...lights.map(([, k]) => k));
+    for (const e of enemies) { // a torch per guard: a warm beam on the floor, only while the power is off
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TORCH_N * 9), 3)); // world-space fan, cut off by walls like the sight cones
+      const m = new THREE.Mesh(geo, torchM()); m.frustumCulled = false; m.renderOrder = 2; m.visible = false; m.userData.e = e;
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff2c8 })); bulb.visible = false; root.add(bulb); m.userData.bulb = bulb;
+      root.add(m); HS.torches.push(m);
+    }
+    if (!HEIST.blackout) { // the fuse box: a grey cabinet on a wall near the way in, with a yellow lightning sticker
+      const s = wallSpot(`${LV.id}#fuse#${HEIST.day || 0}`, 4, 16);
+      if (s) {
+        const g = new THREE.Group(); g.position.copy(s.p); g.position.x += s.wall[0] * 0.36; g.position.z += s.wall[1] * 0.36; g.rotation.y = Math.atan2(-s.wall[0], -s.wall[1]);
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.8, 0.2), new THREE.MeshStandardMaterial({ color: 0x8a9096, metalness: 0.5, roughness: 0.5 })); cab.position.y = 1.15; g.add(cab);
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), new THREE.MeshBasicMaterial({ map: canvasTex(64, 64, (c) => { c.fillStyle = '#f2c14e'; c.beginPath(); c.moveTo(32, 4); c.lineTo(60, 58); c.lineTo(4, 58); c.closePath(); c.fill(); c.fillStyle = '#1a1208'; c.beginPath(); c.moveTo(36, 16); c.lineTo(24, 38); c.lineTo(32, 38); c.lineTo(27, 54); c.lineTo(41, 30); c.lineTo(33, 30); c.closePath(); c.fill(); }), transparent: true })); sign.position.set(0, 1.28, 0.105); g.add(sign);
+        const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: 0x6aff7a })); led.position.set(0.22, 0.88, 0.11); g.add(led);
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 20), new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.45, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.set(0, 0.04, 0.45); g.add(ring);
+        root.add(g); HS.fuse = { g, led, ring, cut: false, p: s.p.clone() };
+      }
+    }
+    if (HEIST.kind === 'bug') { // two bugs: one by the boss, one in a far room
+      const b = enemies.find((e) => e.userData.foe.boss), src = b ? b.userData.foe.spawn : (LV.loot && LV.loot.at(-1)) || LV.start;
+      const f0 = freeNear(src[0], src[1]), spots = [L(f0[0] + 0.5, f0[1] + 0.5)], far = wallSpot(`${LV.id}#bug#${HEIST.day || 0}`, 10, 99, spots);
+      if (far) spots.push(far.p);
+      for (const p of spots) {
+        const g = new THREE.Group(); g.position.copy(p);
+        const phone = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.18), lam({ color: 0x2a2420 })); phone.position.y = 0.82; g.add(phone);
+        const tbl = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.76, 0.4), lam({ color: 0x6a4a2a })); tbl.position.y = 0.38; g.add(tbl);
+        const led = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3a2a })); led.position.set(0.09, 0.9, 0.05); led.visible = false; g.add(led);
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 22), new THREE.MeshBasicMaterial({ color: 0xe8a33d, transparent: true, opacity: 0.6, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; g.add(ring);
+        root.add(g); HS.bugs.push({ g, led, ring, p: p.clone(), pick: 0, done: false });
+      }
+    }
+    if (HEIST.blackout) setTimeout(() => { if (M.active && HEIST && HEIST.blackout && !HS.dark) powerOut(true); }, 0);
+  }
+  function setPower(off) { // dims every lamp; keeps night vision's own light boost consistent
+    const nv = nvOn; if (nv) nightVision(false);
+    if (off) { lightSave = { l: lights.map(([l]) => l.intensity), hemi: hemi.intensity, sun: sun.intensity }; lights.forEach(([l]) => { l.intensity = 0; }); hemi.intensity *= 0.32; sun.intensity *= 0.25; }
+    else if (lightSave) { lights.forEach(([l], i) => { l.intensity = lightSave.l[i]; }); hemi.intensity = lightSave.hemi; sun.intensity = lightSave.sun; lightSave = null; }
+    if (nv) nightVision(true);
+  }
+  function powerOut(blackout) {
+    if (HS.dark) return; HS.dark = true; setPower(true);
+    if (HS.fuse) { HS.fuse.cut = true; HS.fuse.led.material.color.setHex(0xff3a2a); }
+    beep(160, 0.18, 'sawtooth', 0.05); beep(90, 0.3, 'square', 0.03);
+    if (blackout) return;
+    popup(player.position, 'LIGHTS OUT', '#9fb0d8', true);
+    if (!HEIST.nv && !state.gear.nvg) toast('LIGHTS OUT', 'Pitch dark. Night-vision goggles would help here (The Russian, Plannenbord).', 3);
+    sendFixer();
+    for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0 && e.position.distanceTo(HS.fuse.p) < 12) say(e.userData.bubble, ['Hé, wie deed het licht uit?', 'Stroomstoring? Nu?', 'Ik zie niks!', 'Wie heeft er weer een frituurpan aangezet?'][Math.floor(Math.random() * 4)], '#ffb36b'); }
+  }
+  function sendFixer() { // the nearest awake guard walks to the fuse box
+    let best = null, bd = 1e9;
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0 || f.state === 'chase' || !e.visible) continue; const d = e.position.distanceTo(HS.fuse.p); if (d < bd) { bd = d; best = e; } }
+    HS.fixer = best; HS.fixT = 0;
+    if (best) { const f = best.userData.foe; f.state = 'search'; f.sx = HS.fuse.p.x; f.sz = HS.fuse.p.z; f.searchT = -8; f.path = null; }
+  }
+  function powerBack(why) {
+    if (!HS.dark) return; HS.dark = false; setPower(false); HS.fixer = null;
+    if (HS.fuse) { HS.fuse.cut = false; HS.fuse.led.material.color.setHex(0x6aff7a); }
+    if (why) popup(player.position, why, '#ffe27a', true);
+    for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0) f.wary = true; } // somebody did that on purpose
+  }
+  function litAt(p) { // 0 (pitch dark) .. 1 (under a lamp)
+    if (HS.dark) {
+      for (const t of HS.torches) { if (!t.visible) continue; const e = t.userData.e, dx = p.x - e.position.x, dz = p.z - e.position.z, d = Math.hypot(dx, dz);
+        if (d < TORCH_R && Math.abs(angDiff(e.rotation.y, Math.atan2(dx, dz))) < TORCH_A && los(e.position, p)) return 1; }
+      return 0.08;
+    }
+    let m = 0;
+    for (const [l, k] of lights) { const d = Math.hypot(l.position.x - p.x, l.position.z - p.z); if (d > 7) continue; const v = (k / kMax) * (1 - d / 7); if (v > m) m = v; }
+    return Math.min(1, 0.18 + m * 1.05);
+  }
+  function heistSight(e, f, ang) { // how far this guard sees Eddy right now
+    let v = EASY.vision * (0.33 + 0.67 * HS.lit);
+    if (HS.dark && f.torch && Math.abs(angDiff(e.rotation.y, ang)) < TORCH_A) v = Math.max(v, TORCH_R);
+    return v;
+  }
+  function takedownTarget() {
+    if (!HEIST || HS.loud || P.dead || !M.active || ARR) return null;
+    const pp = player.position;
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0 || f.state === 'chase' || f.type || !e.visible) continue;
+      const dx = pp.x - e.position.x, dz = pp.z - e.position.z, d = Math.hypot(dx, dz); if (d > 1.5) continue;
+      if (Math.abs(angDiff(e.rotation.y, Math.atan2(dx, dz))) > 1.75 || (f.argue && f.state === 'idle')) return e; }
+    return null;
+  }
+  function knockOut(e) {
+    const f = e.userData.foe, u = e.userData; if (!f.alive) return;
+    f.alive = false; f.ko = true; f.body = false; f.vx = f.vz = 0; f.laser.visible = false; setFoeWeapon(e, null); poseDown(e, 1);
+    say(u.bubble, 'Zzz...', '#9fb0d8'); popup(e.position, 'SLAAPGREEP', '#9fb0d8', true); beep(220, 0.06, 'triangle', 0.04); beep(140, 0.12, 'sine', 0.03);
+    HS.kos++; R.score += 150; P.fireT = 0.5;
+    if (HS.fixer === e) HS.fixer = null;
+  }
+  function stealthTick(dt) {
+    HS.lit = litAt(player.position);
+    for (const t of HS.torches) { const e = t.userData.e, f = e.userData.foe, bulb = t.userData.bulb; f.torch = HS.dark; t.visible = bulb.visible = HS.dark && e.visible && f.alive && f.down <= 0 && e.position.distanceTo(player.position) < 28; if (!t.visible) continue;
+      const x = e.position.x, z = e.position.z, a0 = e.rotation.y, arr = t.geometry.attributes.position.array, y = 0.06; let px = 0, pz = 0;
+      for (let i = 0; i <= TORCH_N; i++) { const a = a0 - TORCH_A + 2 * TORCH_A * i / TORCH_N, sa = Math.sin(a), ca = Math.cos(a), L = rayLen(x, z, sa, ca, TORCH_R), qx = x + sa * L, qz = z + ca * L; if (i) arr.set([x, y, z, px, y, pz, qx, y, qz], (i - 1) * 9); px = qx; pz = qz; }
+      t.geometry.attributes.position.needsUpdate = true; bulb.position.set(x + Math.sin(a0) * 0.38, 1.05, z + Math.cos(a0) * 0.38);
+      t.material.opacity = (0.17 + Math.sin(performance.now() * 0.011 + t.id) * 0.02) * (nvOn ? 0.35 : 1); } // night vision would flare the beams white
+    if (HS.fuse) HS.fuse.ring.visible = !HS.fuse.cut;
+    for (const b of HS.bugs) b.ring.material.opacity = b.done ? 0 : 0.35 + Math.sin(performance.now() * 0.005) * 0.25;
+    if (HS.dark && HS.fuse && HS.fuse.cut && !HEIST.blackout && !HS.loud) { // the fixer at the box
+      const e = HS.fixer, f = e && e.userData.foe;
+      if (!e || !f.alive || f.down > 0) { HS.fixWait = (HS.fixWait || 0) + dt; if (HS.fixWait > 20) { HS.fixWait = 0; sendFixer(); } return; }
+      if (f.state === 'idle') { f.state = 'search'; f.sx = HS.fuse.p.x; f.sz = HS.fuse.p.z; f.searchT = -8; f.path = null; }
+      if (e.position.distanceTo(HS.fuse.p) < 1.6 && f.state !== 'chase') {
+        if (HS.fixT === 0) say(e.userData.bubble, 'Even de zekering...', '#ffb36b');
+        HS.fixT += dt; f.searchT = Math.min(f.searchT, 0); if (HS.fixT > 4) powerBack('THEY FIXED THE FUSE');
+      }
+    }
+  }
+  function stealthJobLine() {
+    const k = HEIST.kind;
+    if (k === 'recept') return HS.banked.includes('book') ? 'RECIPE BOOK IN THE VAN ✓' : HS.bag.includes('book') ? 'RECIPE BOOK IN THE BAG: TO THE VAN' : 'STEAL THE RECIPE BOOK';
+    if (k === 'bug') { const n = HS.bugs.filter((b) => b.done).length; return n >= HS.bugs.length ? 'BUGS PLANTED ✓ · BACK TO THE VAN' : `PLANT THE BUGS ${n}/${HS.bugs.length}`; }
+    if (k === 'spook') return HS.failed ? '' : `GHOST CONTRACT · NO ALARM, NO KILLS${R.kills ? ' · BLOWN' : ''}`;
+    if (k === 'stroom') return 'BLACKOUT · TORCHES SEE FAR';
+    return HS.kos ? `SLEEPING GUARDS ${HS.kos}` : '';
+  }
+  // E (or ACTIE) goes through heistGrab -> stealthUse(); the [E] prompts below also make them clickable / tappable
+  const fuseOK = () => M.active && !!HEIST && !!HS.fuse && !HS.fuse.cut && !HS.loud && !P.dead && !ARR && Math.hypot(HS.fuse.g.position.x - player.position.x, HS.fuse.g.position.z - player.position.z) < 1.5;
+  const nearBug = () => (M.active && HEIST && !P.dead && !ARR ? HS.bugs.find((b) => !b.done && Math.hypot(b.p.x - player.position.x, b.p.z - player.position.z) < 1.5) : null);
+  function plantBug(b) {
+    b.pick += 34; alertNoise(player.position, 1.2); beep(900 + b.pick * 5, 0.03, 'square', 0.02);
+    if (b.pick >= 100) { b.done = true; b.led.visible = true; popup(player.position, 'BUG PLANTED', '#ffd23a', true); sfx('pick'); } else popup(player.position, `WIRING ${b.pick}%`, '#e8a33d');
+  }
+  function stealthUse() {
+    const e = takedownTarget(); if (e) { knockOut(e); return true; }
+    const b = nearBug(); if (b) { plantBug(b); return true; }
+    if (fuseOK()) { powerOut(false); return true; }
+    return false;
+  }
+  addInteract({ get obj() { return HS.fuse ? HS.fuse.g : van; }, pos: () => (HS.fuse ? HS.fuse.g.position : van.position), r: 1.5, enabled: fuseOK, label: () => 'Stroomkast · cut the power', act: () => powerOut(false) });
+  addInteract({ get obj() { const b = nearBug(); return b ? b.g : van; }, pos: () => (nearBug() || { p: van.position }).p, r: 1.5,
+    enabled: () => !!nearBug(), label: () => `Plant a bug (E ×3) · ${Math.min(99, nearBug().pick)}%`, act: () => { const b = nearBug(); if (b) plantBug(b); } });
+  addInteract({ get obj() { return takedownTarget() || van; }, pos: () => { const e = takedownTarget(); return e ? e.position : van.position; }, r: 1.6,
+    enabled: () => !!takedownTarget(), label: () => 'Slaapgreep · quiet takedown', act: () => { const e = takedownTarget(); if (e) knockOut(e); } });
   function rollRemix(opt) {
     const r = rng32(opt.seed ^ 0x9e3779b9), m = REMIX_MODS[opt.mod] || REMIX_MODS.normaal;
     const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -1755,7 +1952,7 @@ export function initMission(ctx) {
     if (e.code === 'KeyG') { stop(); if (!e.repeat) { if (NADE_ORDER.some((k) => state.nades[k] > 0)) held.nade = true; else popup(player.position, 'NO GRENADES', '#e46a4c'); } return; }
     if (e.code === 'KeyQ') { stop(); if (!e.repeat) { const have = NADE_ORDER.filter((k) => state.nades[k] > 0); if (have.length) { state.nadeSel = have[(have.indexOf(nadeSel()) + 1) % have.length]; popup(player.position, NADES[state.nadeSel].name, '#e9d8b8'); hud(); } } return; }
     if (e.code === 'KeyH') { const tip = document.getElementById('shookitip'); if (tip && tip.offsetParent !== null && getComputedStyle(tip).display !== 'none') return; stop(); if (!e.repeat) startPlate(); return; } // a Shooki tip on screen takes H first
-    if (e.code === 'KeyV') { stop(); if (!e.repeat) { if (state.gear.nvg) setNV(!NV.on); else popup(player.position, 'NO NIGHT-VISION GOGGLES', '#e46a4c'); } return; }
+    if (e.code === 'KeyV') { stop(); if (!e.repeat) { if (HEIST && HEIST.nv) { nightVision(!nvOn); popup(player.position, nvOn ? 'NIGHT VISION ON' : 'NIGHT VISION OFF', '#6eff7a'); } else if (state.gear.nvg) setNV(!NV.on); else popup(player.position, 'NO NIGHT-VISION GOGGLES', '#e46a4c'); } return; }
     if (e.code === 'KeyB' && PK.on && !PK.paid) { stop(); payParking('app'); return; }
     if (e.code === 'Digit1' || e.code === 'Numpad1') { stop(); selectSlot(1); }
     else if (e.code === 'Digit2' || e.code === 'Numpad2') { stop(); selectSlot(2); }
@@ -2009,11 +2206,11 @@ export function initMission(ctx) {
     const mate = f.argue && f.state === 'idle' ? arguePartner(e) : null; if (f.argue && !mate && f.state === 'idle') f.argue = null; // partner gone: no more bickering
     const rage = f.rage > 0; if (rage) { f.rage -= dt; f.react -= dt; f.cd -= dt * 0.6; }
     if (mate && dist > 1.2) { /* arguing: blind and deaf past arm's length */ }
-    else if (!P.dead && dist < Math.min(f.state === 'chase' ? 13 : EASY.vision, sightCap)) {
-      const cone = f.state === 'chase' || dist < 1.6 || Math.abs(angDiff(e.rotation.y, ang)) < (f.state === 'search' ? 1.3 : EASY.cone + (f.wary ? 0.35 : 0));
+    else if (!P.dead && dist < Math.min(f.state === 'chase' ? 13 : HEIST && !HS.loud ? heistSight(e, f, ang) : EASY.vision, sightCap)) {
+      const cone = f.state === 'chase' || dist < (HEIST && !HS.loud ? 0.7 : 1.6) || Math.abs(angDiff(e.rotation.y, ang)) < (f.state === 'search' ? 1.3 : EASY.cone + (f.wary ? 0.35 : 0));
       if (cone && los(e.position, pp)) see = true;
     }
-    if (!see && !mate && !P.dead && f.state !== 'chase') { const spd = Math.hypot(pv[0], pv[1]); const hear = (spd > 5 ? 3.2 : 1.4) * (spd > 0.6 ? 1 : 0); if (dist < hear && los(e.position, pp)) { f.state = 'search'; f.sx = pp.x; f.sz = pp.z; f.searchT = 0; f.path = null; } }
+    if (!see && !mate && !P.dead && f.state !== 'chase') { const spd = Math.hypot(pv[0], pv[1]); const hear = (spd > 5 ? 3.2 : 1.4) * (spd > 0.6 ? 1 : 0) * (HEIST && HEIST.shoes ? 0.5 : 1); if (dist < hear && los(e.position, pp)) { f.state = 'search'; f.sx = pp.x; f.sz = pp.z; f.searchT = 0; f.path = null; } }
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }
@@ -2317,6 +2514,7 @@ export function initMission(ctx) {
   }
   Object.defineProperty(M, 'defend', { get: () => (DEF ? { ...DEF, wave: DS.wave, nextT: DS.nextT, pending: DS.pending.length, lost: DS.lost, naks: DS.naks.length, over: DS.over } : null), enumerable: true });
   Object.defineProperty(M, 'heist', { get: () => (HEIST ? { ...HEIST, ...HS } : null), enumerable: true });
+  Object.defineProperty(M, 'nvOK', { get: () => !!(M.active && ((HEIST && HEIST.nv) || state.gear.nvg)), enumerable: true });
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,
     canRestart: () => M.active && !!LV && !ownsLevel(LV.id) && !DEF, levelName: () => (LV ? LV.name : ''),
