@@ -22,6 +22,7 @@ import { LOOKS, bloody, cleanBlood, setHold, holdRecoil, holdPump } from './char
 import { weaponMesh as buildWeapon, fireFlash, tickFlash, weaponKind, isTwoGun } from './weapons.js';
 import { WD, CAL, MODS, ARMOUR, PLATE, NADES, GEAR_X, BASE_MAG, KILLPTS as KP, FORCE, isGunId, isMeleeId, SHOT_GUN } from './arsenal.js';
 import { gunAudio } from './gunaudio.js';
+import { enrichFloor, normalOf, macro, blobGeo } from './richtex.js'; // crisp, weathered floors with a bump, walls with grime
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
@@ -90,21 +91,23 @@ export function initMission(ctx) {
   const solidRun = (x0, x1, z0, z1) => solid(OX + x0, OX + x1, Z0 + z0, Z0 + z1);
   function floorW(x0, x1, z0, z1, tex, rep = 1, color = 0xffffff, y = 0.02) {
     const t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set((x1 - x0) / rep, (z1 - z0) / rep);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), lam({ map: t, color }));
+    const nm = normalOf(t), mt = macro(lam({ map: t, color }), 0.12, 0.25); if (nm) { nm.repeat.copy(t.repeat); mt.normalMap = nm; mt.normalScale.set(0.7, 0.7); }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), mt);
     m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); m.receiveShadow = true; root.add(m); return m;
   }
+  const ftex = (draw) => enrichFloor(draw); // the floor drawings at 4× with grain, scuffs and a normal map (js/richtex.js)
   const T = {
-    checker: canvasTex(64, 64, (g) => { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#b8202a' : '#f2e8d8'; g.fillRect(x * 32, y * 32, 32, 32); } }),
-    shag: canvasTex(64, 64, (g) => { g.fillStyle = '#c8602a'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 500; i++) { g.fillStyle = ['#d8743a', '#a84a1a', '#e08a4a'][i % 3]; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } }),
-    hall: canvasTex(64, 64, (g) => { g.fillStyle = '#3a1a4a'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#e8a33d'; g.fillRect(0, 28, 64, 3); g.fillStyle = '#5a2a6a'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 2, 64); }),
-    casino: canvasTex(64, 64, (g) => { g.fillStyle = '#123a2a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#d8b040'; g.lineWidth = 2; g.beginPath(); g.moveTo(32, 4); g.lineTo(60, 32); g.lineTo(32, 60); g.lineTo(4, 32); g.closePath(); g.stroke(); g.fillStyle = '#c8102e'; g.beginPath(); g.arc(32, 32, 5, 0, 7); g.fill(); }),
-    parquet: canvasTex(64, 64, (g) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = ['#7a4a22', '#8a5a2a', '#6a3a1a'][(x + y * 3) % 3]; if ((x + y) % 2) g.fillRect(x * 16, y * 16, 16, 16); else { for (let k = 0; k < 4; k++) { g.fillRect(x * 16 + k * 4, y * 16, 3, 16); } } } }),
-    rubber: canvasTex(64, 64, (g) => { g.fillStyle = '#2a2c30'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 300; i++) { g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } g.fillStyle = '#ffd23a'; g.fillRect(0, 0, 64, 2); }),
-    concrete: canvasTex(64, 64, (g) => { g.fillStyle = '#8a8680'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.12})`; g.fillRect(Math.random() * 64, Math.random() * 64, 3, 3); } }),
-    tiles: canvasTex(64, 64, (g) => { g.fillStyle = '#e8eef0'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#a8b8c0'; g.lineWidth = 2; for (let i = 0; i <= 64; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); } }),
-    garage: canvasTex(64, 64, (g) => { g.fillStyle = '#6a6862'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(10,10,10,.35)'; g.beginPath(); g.ellipse(Math.random() * 64, Math.random() * 64, 6 + Math.random() * 8, 4 + Math.random() * 5, Math.random(), 0, 7); g.fill(); } }),
-    asphalt: canvasTex(64, 64, (g) => { g.fillStyle = '#3a3a40'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * 0.06})`; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } }),
-    paving: canvasTex(64, 64, (g) => { g.fillStyle = '#a89a8a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#7a6e62'; g.lineWidth = 2; for (let y = 0; y < 64; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); for (let x = (y / 16) % 2 ? 0 : 16; x < 64; x += 32) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 16); g.stroke(); } } }),
+    checker: ftex((g) => { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#b8202a' : '#f2e8d8'; g.fillRect(x * 32, y * 32, 32, 32); } }),
+    shag: ftex((g) => { g.fillStyle = '#c8602a'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 500; i++) { g.fillStyle = ['#d8743a', '#a84a1a', '#e08a4a'][i % 3]; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } }),
+    hall: ftex((g) => { g.fillStyle = '#3a1a4a'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#e8a33d'; g.fillRect(0, 28, 64, 3); g.fillStyle = '#5a2a6a'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 2, 64); }),
+    casino: ftex((g) => { g.fillStyle = '#123a2a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#d8b040'; g.lineWidth = 2; g.beginPath(); g.moveTo(32, 4); g.lineTo(60, 32); g.lineTo(32, 60); g.lineTo(4, 32); g.closePath(); g.stroke(); g.fillStyle = '#c8102e'; g.beginPath(); g.arc(32, 32, 5, 0, 7); g.fill(); }),
+    parquet: ftex((g) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = ['#7a4a22', '#8a5a2a', '#6a3a1a'][(x + y * 3) % 3]; if ((x + y) % 2) g.fillRect(x * 16, y * 16, 16, 16); else { for (let k = 0; k < 4; k++) { g.fillRect(x * 16 + k * 4, y * 16, 3, 16); } } } }),
+    rubber: ftex((g) => { g.fillStyle = '#2a2c30'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 300; i++) { g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } g.fillStyle = '#ffd23a'; g.fillRect(0, 0, 64, 2); }),
+    concrete: ftex((g) => { g.fillStyle = '#8a8680'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.12})`; g.fillRect(Math.random() * 64, Math.random() * 64, 3, 3); } }),
+    tiles: ftex((g) => { g.fillStyle = '#e8eef0'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#a8b8c0'; g.lineWidth = 2; for (let i = 0; i <= 64; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); } }),
+    garage: ftex((g) => { g.fillStyle = '#6a6862'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(10,10,10,.35)'; g.beginPath(); g.ellipse(Math.random() * 64, Math.random() * 64, 6 + Math.random() * 8, 4 + Math.random() * 5, Math.random(), 0, 7); g.fill(); } }),
+    asphalt: ftex((g) => { g.fillStyle = '#3a3a40'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * 0.06})`; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } }),
+    paving: ftex((g) => { g.fillStyle = '#a89a8a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#7a6e62'; g.lineWidth = 2; for (let y = 0; y < 64; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); for (let x = (y / 16) % 2 ? 0 : 16; x < 64; x += 32) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 16); g.stroke(); } } }),
   };
   const FLOOR_REP = { checker: 1, garage: 3, concrete: 3 }; // texture repeat size in metres (default 1.4)
   // furniture looks: [height, colour]; a level can recolour these and add its own letters
@@ -139,8 +142,8 @@ export function initMission(ctx) {
       if (f.sight) SIGHT.add(ch);
     }
     const mood = def.mood;
-    wallM = lam({ color: mood.wall }); capM = lam({ color: mood.cap });
-    const floorT = { ...T }; for (const [k, draw] of Object.entries(def.floors || {})) floorT[k] = canvasTex(64, 64, draw);
+    wallM = macro(lam({ color: mood.wall }), 0.1, 0.35, 0.22); capM = lam({ color: mood.cap }); // plaster that varies, grime at the foot
+    const floorT = { ...T }; for (const [k, draw] of Object.entries(def.floors || {})) floorT[k] = ftex(draw);
     const rep = { ...FLOOR_REP, ...(def.floorRep || {}) };
     floorW(OX, OX + W, Z0, 0, T.concrete, 3, mood.under, 0.01); // under walls and doorways
     for (const [, x0, z0, x1, z1, f] of def.rooms) floorW(OX + x0, OX + x1 + 1, Z0 + z0, Z0 + z1 + 1, floorT[f], rep[f] ?? 1.4);
@@ -172,7 +175,7 @@ export function initMission(ctx) {
       if (ch === 'A') { solidRun(x, x1 + 1, z, z + 1); x = x1; continue; } // cars and boats: the level places the model
       const n = x1 - x + 1, [h, col, own] = FM[ch], cx = OX + x + n / 2, cz = Z0 + z + 0.5;
       if (own && own.draw) own.draw({ THREE, root, box, cyl, lam, x, x1, z, n, h, col, cx, cz, OX, Z0, G });
-      else if (ch === 'p') { for (let k = 0; k < n; k++) { cyl(0.22, 0.18, 0.4, lam({ color: 0x8a4a2a }), OX + x + k + 0.5, 0.2, cz, root, 10); const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), lam({ color: col })); b.position.set(OX + x + k + 0.5, 0.8, cz); b.castShadow = true; root.add(b); } }
+      else if (ch === 'p') { for (let k = 0; k < n; k++) { const px = OX + x + k + 0.5; cyl(0.22, 0.18, 0.4, lam({ color: 0x8a4a2a }), px, 0.2, cz, root, 10); cyl(0.235, 0.235, 0.05, lam({ color: 0x6a3a1e }), px, 0.39, cz, root, 10); const pm = lam({ color: col, flatShading: true }); for (let q = 0; q < 4; q++) { const b = new THREE.Mesh(blobGeo(1 + q, 1), pm); const a = q * 2.1 + k; b.position.set(px + (q ? Math.cos(a) * 0.16 : 0), q ? 0.72 : 0.92, cz + (q ? Math.sin(a) * 0.16 : 0)); b.scale.setScalar(q ? 0.26 : 0.32); b.castShadow = true; root.add(b); } } } // a potted shrub: a few lumpy leaf blobs
       else if (ch === 'c') { /* card tables: the level draws the round tops */ }
       else if (ch === 'T') { box(n - 0.08, 0.06, 0.92, lam({ color: col }), cx, h, cz, root); for (const ox of [-n / 2 + 0.2, n / 2 - 0.2]) box(0.08, h, 0.08, lam({ color: 0x3a2212 }), cx + ox, h / 2, cz, root, false); }
       else if (ch === 'R') { box(n - 0.04, h, 0.9, lam({ color: col }), cx, h / 2, cz, root); for (let k = 0; k < n; k++) for (let s = 0; s < 2; s++) box(0.42, 0.42, 0.6, lam({ color: (def.rackGoods || [0xe8a020, 0xc8402e, 0xf2c43a])[(x + k + s + z) % 3] }), OX + x + k + 0.5, 0.45 + s * 0.85, cz + (s ? 0.12 : -0.12), root); }

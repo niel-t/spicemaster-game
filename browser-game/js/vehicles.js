@@ -614,6 +614,15 @@ export function makeCar(THREE, canvasTex, opts = {}) {
     const pw = x1 - x0, ph = Math.min(y1 - y0, pw / 3.4), vm = vinylM(THREE, liveryTex(canvasTex, liv));
     for (const s of [1, -1]) { const q = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), vm); q.position.set((x0 + x1) / 2, (y0 + y1) / 2, s * (M.W / 2 + 0.012)); if (s < 0) q.rotation.y = Math.PI; g.add(q); }
   }
+  { // roof detail, the side the street camera sees most: rain gutters, a sunroof on some, an aerial on others
+    const roofX = M.body.filter((p) => p[1] > top - 0.06).map((p) => p[0]), rx0 = Math.min(...roofX), rx1 = Math.max(...roofX), rl = rx1 - rx0;
+    if (rl > 0.5 && M.n !== 'Countach' && !opts.lampas) {
+      for (const s of [1, -1]) box(rl, 0.03, 0.035, K.black, (rx0 + rx1) / 2, top + 0.012, s * (M.W / 2 - 0.1), false);
+      const r2 = rand();
+      if (r2 < 0.3 && rl > 1.1) { box(Math.min(0.7, rl * 0.45), 0.02, Math.min(0.62, M.W * 0.42), K.glass, rx0 + rl * 0.62, top + 0.012, 0, false); box(Math.min(0.76, rl * 0.48), 0.012, Math.min(0.68, M.W * 0.46), K.black, rx0 + rl * 0.62, top + 0.006, 0, false); }
+      else if (r2 < 0.6) { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.01, 0.55, 4), K.black); a.position.set(rx0 + 0.15, top + 0.27, M.W / 2 - 0.25); a.rotation.z = 0.35; g.add(a); }
+    }
+  }
   if (M.wing) { box(0.5, 0.06, M.W, pm, -Lb + 0.25, 1.1, 0); for (const zz of [-0.7, 0.7]) box(0.08, 0.25, 0.06, pm, -Lb + 0.25, 0.97, zz); }
   if (opts.lampas) { // Lampas chase car: black racing stripes and a big L on the roof
     for (const s of [-1, 1]) box(L + Lb - 0.4, 0.02, 0.14, K.black, (L - Lb) / 2, top + 0.075, s * 0.22);

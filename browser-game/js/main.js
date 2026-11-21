@@ -9,6 +9,7 @@ import { initInput, virt, isPaused, glyph, inputMode, onInputMode, controlsTable
 import { createGunShop } from './gunshop.js';
 import { initMission } from './mission.js';
 import { createPost } from './post.js';
+import { LOW as RICH_LOW, klinker, asphalt as asphaltTex, surface, macro, clapTexture, hardsteen, decal, mergeStatic, kit, kitMat, blobGeo, rng, rippleNormal } from './richtex.js'; // richer street surfaces, trees, roofs and street furniture
 import { createAeroWorld } from './aeroworld.js'; // the Aero setting's 3D look: clear sky, glossy canal, glass shop signs
 import { makeBikeModel, createFiets, BIKE_PAINT } from './bikes.js'; // Dutch street bikes + Eddy's own omafiets to ride
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, LOOKS, stats as charStats, repaint } from './characters.js';
@@ -193,7 +194,7 @@ function collide(p, r) {
 const RC = 1.6;
 const ROAD = { pN: RC - 5.0, lane: 3.0, pS: RC + 5.0, bike0: RC + 5.2, bike1: RC + 7.6, walk1: RC + 10.9 };
 const CZ = 15 + RC;
-const groundMat = lam({ map: tex('paving.jpg', 40, 20), color: 0xd8d2c4 });
+const groundMat = macro(lam({ map: tex('paving.jpg', 40, 20), color: 0xd8d2c4 }), 0.18, 0.08);
 for (const [z0, z1] of [[-70, CZ - 3.75], [CZ + 3.75, 70]]) {
   const g = new THREE.Mesh(new THREE.PlaneGeometry(140, z1 - z0), groundMat);
   g.rotation.x = -Math.PI / 2; g.position.z = (z0 + z1) / 2; g.receiveShadow = true; scene.add(g);
@@ -202,9 +203,9 @@ function strip(z0, z1, m, y = 0.02) {
   const p = new THREE.Mesh(new THREE.PlaneGeometry(140, z1 - z0), m);
   p.rotation.x = -Math.PI / 2; p.position.set(0, y, (z0 + z1) / 2); p.receiveShadow = true; scene.add(p); return p;
 }
-strip(RC - ROAD.lane, RC + ROAD.lane, lam({ map: tex('asphalt.jpg', 30, 3), color: 0xb0b0b0 }));
-// parking bays: grey klinkers with white bay lines
-const bayMat = lam({ map: tex('paving.jpg', 70, 1), color: 0x9a968e });
+strip(RC - ROAD.lane, RC + ROAD.lane, surface(asphaltTex('grey'), 22, 1.6, { color: 0xc4c2c0, rough: 0.88, nscale: 0.6, macroAmt: 0.12 })); // aggregate, tar-sealed cracks, patches (js/richtex.js)
+// parking bays: grey klinkers in herringbone (like the Drive street photos) with white bay lines
+const bayMat = surface(klinker('grey'), 70, 1, { rough: 0.9, nscale: 1.1, macroAmt: 0.16 });
 strip(ROAD.pN, RC - ROAD.lane, bayMat, 0.022); strip(RC + ROAD.lane, ROAD.pS, bayMat, 0.022);
 for (let x = -66; x < 66; x += 5.6) for (const z of [RC - 4, RC + 4]) box(0.1, 0.01, 1.9, mat.white, x, 0.032, z, scene, false);
 for (const z of [RC - ROAD.lane, RC + ROAD.lane]) box(140, 0.01, 0.1, mat.white, 0, 0.032, z, scene, false);
@@ -213,32 +214,51 @@ for (let x = -66; x < 66; x += 4) if (Math.abs(x + 18) > 3) box(2, 0.01, 0.14, m
 // zebra crossing spans the lanes and the bays
 for (let i = 0; i < 10; i++) box(3.2, 0.012, 0.5, mat.white, -18, 0.036, RC - 4.3 + i * 0.96, scene, false);
 // kerbs
-const kerbMat = pbr('concrete.jpg', 60, 1, 0xb8b4ac);
+const kerbMat = surface(hardsteen(), 70, 0.25, { color: 0xd8d4cc, rough: 0.8, nscale: 0.6 }); // bluestone kerbs
 for (const z of [RC - 5.1, RC + 5.1]) box(140, 0.16, 0.18, kerbMat, 0, 0.08, z, scene, false);
 // pavements
-for (const [z0, z1] of [[-7, RC - 5.2], [ROAD.bike1, ROAD.walk1]]) strip(z0, z1, pbr('tiles_stone.jpg', 46, (z1 - z0) / 3, 0xc9c4ba, 0.85, 0.6), 0.012);
+for (const [z0, z1] of [[-7, RC - 5.2], [ROAD.bike1, ROAD.walk1]]) strip(z0, z1, macro(pbr('tiles_stone.jpg', 46, (z1 - z0) / 3, 0xc9c4ba, 0.85, 0.6), 0.15, 0.1), 0.012);
 // fietspad: red asphalt with a dashed white centre line and bike symbols
-strip(ROAD.bike0, ROAD.bike1, lam({ map: tex('asphalt.jpg', 30, 1), color: 0xb24a3a }), 0.016);
+strip(ROAD.bike0, ROAD.bike1, surface(asphaltTex('red'), 28, 0.6, { color: 0xe0b0a4, rough: 0.85, nscale: 0.5, macroAmt: 0.1 }), 0.016);
 for (let x = -66; x < 66; x += 3) box(1.2, 0.01, 0.1, mat.white, x, 0.03, (ROAD.bike0 + ROAD.bike1) / 2, scene, false);
 const bikeSym = canvasTex(128, 128, (g) => { g.strokeStyle = '#fff'; g.lineWidth = 7; for (const x of [34, 94]) { g.beginPath(); g.arc(x, 82, 22, 0, 7); g.stroke(); } g.beginPath(); g.moveTo(34, 82); g.lineTo(58, 50); g.lineTo(94, 50); g.lineTo(94, 82); g.moveTo(58, 50); g.lineTo(70, 82); g.lineTo(94, 50); g.moveTo(52, 40); g.lineTo(66, 40); g.moveTo(94, 50); g.lineTo(88, 34); g.stroke(); });
 for (let x = -60; x < 60; x += 20) for (const [z, r] of [[RC + 5.8, 0], [RC + 7.0, Math.PI]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), lam({ map: bikeSym, transparent: true })); p.rotation.set(-Math.PI / 2, 0, r - Math.PI / 2); p.position.set(x, 0.034, z); scene.add(p); }
 box(140, 0.08, 0.12, kerbMat, 0, 0.04, ROAD.bike1, scene, false);
 
 // canal along the south side of the street (Amsterdam-style)
-const water = new THREE.Mesh(new THREE.PlaneGeometry(140, 7.5), new THREE.MeshPhongMaterial({ color: 0x2e5a5c, shininess: 80, specular: 0x88aaaa }));
+const waterRip = rippleNormal(); // slow ripples so the Klassiek canal catches the light (js/richtex.js)
+const water = new THREE.Mesh(new THREE.PlaneGeometry(140, 7.5), new THREE.MeshPhongMaterial({ color: 0x2e5a5c, shininess: 80, specular: 0x88aaaa, normalMap: waterRip, normalScale: new THREE.Vector2(0.45, 0.45) }));
 water.rotation.x = -Math.PI / 2; water.position.set(0, -1.1, CZ); scene.add(water);
-const quayMat = lam({ map: tex('brick_red.jpg', 60, 1), color: 0x9a7a6a });
+const quayMat = macro(pbr('brick_red.jpg', 60, 1, 0x9a7a6a, 0.9, 1.0), 0.2, 0.15);
 const q1 = new THREE.Mesh(new THREE.PlaneGeometry(140, 1.2), quayMat); q1.position.set(0, -0.55, CZ - 3.74); scene.add(q1);
 const q2 = new THREE.Mesh(new THREE.PlaneGeometry(140, 1.2), quayMat); q2.position.set(0, -0.55, CZ + 3.74); q2.rotation.y = Math.PI; scene.add(q2);
-box(140, 0.14, 0.4, pbr('concrete.jpg', 60, 1, 0xa8a49c), 0, 0.07, CZ - 3.9, scene, false);
+box(140, 0.14, 0.4, surface(hardsteen(), 80, 0.5, { color: 0xc8c4bc, rough: 0.8 }), 0, 0.07, CZ - 3.9, scene, false); // bluestone quay coping
 // bridge over the canal
 box(5, 0.4, 7.8, lam({ map: tex('paving.jpg', 2, 3) }), 14, -0.15, CZ);
-for (const x of [11.6, 16.4]) box(0.2, 0.9, 7.8, lam({ color: 0x2a2a2a }), x, 0.45, CZ);
+{ const K = kit(); // bridge: bluestone kerbs, a dark green iron railing with posts, a top rail and a mid rail, brick arch faces
+  for (const x of [11.6, 16.4]) {
+    K.box(0.34, 0.16, 7.8, 0x6a6e72, x, 0.13, CZ);
+    for (let z = CZ - 3.8; z <= CZ + 3.81; z += 0.95) K.box(0.07, 0.95, 0.07, 0x1f3a2c, x, 0.68, z);
+    K.box(0.1, 0.06, 7.8, 0x1f3a2c, x, 1.16, CZ); K.box(0.05, 0.05, 7.8, 0x1f3a2c, x, 0.68, CZ);
+    for (let z = CZ - 3.8; z < CZ + 3.8; z += 0.19) K.box(0.025, 0.42, 0.025, 0x1f3a2c, x, 0.43, z + 0.09); // balusters
+  }
+  for (const z of [CZ - 3.6, CZ + 3.6]) K.box(5, 0.9, 0.2, 0x8a4a3a, 14, -0.75, z);
+  scene.add(K.build()); }
 // trees between the fietspad and the pavement: Dutch lindens and the odd Vice palm, half-way between the lamps
-function tree(x, z, s = 1) {
-  cyl(0.12 * s, 0.16 * s, 2.4 * s, lam({ color: 0x5a4030 }), x, 1.2 * s, z);
-  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5 * s, 0), lam({ color: [0x4f7a34, 0x5f8a3c, 0x46703a][Math.abs(Math.round(x)) % 3], flatShading: true }));
-  m.position.set(x, 3.2 * s, z); m.castShadow = true; scene.add(m);
+const treeKit = kit(), decals = []; // all lindens in one mesh; flat ground decals collected and batched per texture below
+function tree(x, z, s = 1) { // Dutch linden: tapered trunk, a fork, and a lumpy canopy of overlapping blobs in a few greens
+  const r = rng(Math.round(x * 13 + 1000)), bark = 0x5e4636;
+  treeKit.cyl(0.11 * s, 0.19 * s, 2.3 * s, bark, x, 1.15 * s, z, 9);
+  treeKit.cyl(0.24 * s, 0.26 * s, 0.12, 0x4a3a2c, x, 0.06, z, 9); // root flare
+  for (const a of [0.5, 2.6, 4.4]) treeKit.cyl(0.05 * s, 0.08 * s, 1.3 * s, bark, x + Math.cos(a) * 0.3 * s, 2.6 * s, z + Math.sin(a) * 0.3 * s, 6, Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+  const greens = [0x4f7a34, 0x5f8a3c, 0x46703a, 0x6a9442, 0x3e6230], autumn = Math.abs(Math.round(x)) % 4 === 2; // the odd tree already turning turmeric
+  const blobs = [[0, 3.35, 0, 1.35], [0.85, 3.05, 0.3, 0.95], [-0.8, 3.1, -0.25, 1.0], [0.2, 3.0, -0.85, 0.9], [-0.25, 3.15, 0.85, 0.92], [0.1, 4.05, 0.1, 0.9], [0.6, 3.75, -0.5, 0.7]];
+  blobs.forEach(([bx, by, bz, br], i) => {
+    const c = autumn && i === 4 ? 0xa89a3a : greens[Math.floor(r() * greens.length)];
+    treeKit.geo(blobGeo(1 + (i % 4), 2), c, x + bx * s * 0.8, by * s * 0.95, z + bz * s * 0.8, r() * 3, r() * 3, 0, br * s * 0.82, br * s * 0.74, br * s * 0.82);
+  });
+  decals.push(['grate', x, z, 1.5, r() * 6]);
+  if (r() < 0.7) decals.push(['leaves', x + (r() - 0.5) * 1.6, z + (r() - 0.5) * 0.6, 1.8 + r(), r() * 6]);
   solid(x - 0.2, x + 0.2, z - 0.2, z + 0.2);
 }
 const frondTex = canvasTex(64, 256, (g, w, h) => {
@@ -265,6 +285,7 @@ function palm(x, z, s = 1) {
   solid(x - 0.22, x + 0.22, z - 0.22, z + 0.22);
 }
 for (let x = -54; x <= 54; x += 12) if (Math.abs(x - 14) > 3) (Math.abs(x / 12) % 2 === 0.5 || x === -6 || x === 30 ? palm : tree)(x, ROAD.bike1 + 0.45, x % 24 === 6 ? 1.05 : 0.9);
+{ const tm = treeKit.build(); if (tm) scene.add(tm); }
 
 // ------------------------------------------------------------------ houses (Amsterdam-style gables)
 const brickMats = [
@@ -278,16 +299,9 @@ const brickMats = [
 // Dutch 80s Neon Vice: Zaanse wooden houses (clapboard, white trim, pointed / bell gables, orange tiles) painted in Vice pastels
 const VICE = [0x23a07a, 0x2fb8b0, 0xff8fb8, 0x9a86e0, 0x4f9ee0, 0xffb48a, 0x7ad8b0, 0xffd86a, 0x1f7a5e, 0x6ac0ff];
 const NEON = [0xe8862c, 0xf2c14e, 0xffe14a, 0x8fbf4a];
-const clapTex = canvasTex(64, 256, (g, w, h) => {
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
-  for (let y = 0; y < h; y += 16) {
-    const gr = g.createLinearGradient(0, y, 0, y + 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.75, 'rgba(225,225,225,1)'); gr.addColorStop(1, 'rgba(150,150,150,1)');
-    g.fillStyle = gr; g.fillRect(0, y, w, 16); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, y + 15, w, 1);
-  }
-  for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.05})`; g.fillRect(Math.random() * w, Math.random() * h, 6 + Math.random() * 14, 1); }
-});
-clapTex.wrapS = clapTex.wrapT = THREE.RepeatWrapping; clapTex.repeat.set(1, 3);
-const clapMat = (c) => new THREE.MeshStandardMaterial({ map: clapTex, bumpMap: clapTex, bumpScale: 1.5, color: c, roughness: 0.72 });
+const clapTex = clapTexture(1, 3); // painted boards with wood grain, butt joints and chipped edges (js/richtex.js)
+
+const clapMat = (c) => new THREE.MeshStandardMaterial({ map: clapTex, bumpMap: clapTex, bumpScale: 2.2, color: c, roughness: 0.72 });
 const roofMat = pbr('roof_tiles.jpg', 2, 2, 0xf08048, 0.8, 1.0);
 const glassTex = canvasTex(64, 96, (g, w, h) => {
   const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#ffd8f0'); gr.addColorStop(0.45, '#8ab8e4'); gr.addColorStop(1, '#3a4a90');
@@ -344,6 +358,7 @@ function edge(g, x0, y0, x1, y1, z, m, t = 0.16) { const b = box(Math.hypot(x1 -
 function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
   const g = new THREE.Group(); g.position.set(x, opt.y || 0, z); g.rotation.y = facing; scene.add(g);
   g.userData.fade = 1; fadeables.push(g);
+  const K = kit(); // small detail (chimney, gutters, plinth, flower boxes...) baked into one mesh at the end
   const col = opt.color ?? VICE[mi % VICE.length], wall = opt.brick ? brickMats[mi % brickMats.length] : clapMat(col);
   const kind = opt.gable ?? ['point', 'bell', 'point', 'step', 'point', 'bell'][mi % 6];
   const F = d / 2;
@@ -368,7 +383,8 @@ function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
   const rs = new THREE.Shape(); rs.moveTo(-w / 2 - 0.25, -0.1); rs.lineTo(0, kind === 'point' ? apex : 2.3); rs.lineTo(w / 2 + 0.25, -0.1);
   const rm = new THREE.Mesh(new THREE.ExtrudeGeometry(rs, { depth: d - 0.6, bevelEnabled: false }), roofMat);
   rm.position.set(0, h, -F); rm.castShadow = true; g.add(rm);
-  if (opt.simple) { fadeables.pop(); return g; } // back-row filler: silhouette only
+  roofDetail(K, w, d, h, kind === 'point' ? apex : 2.3, F, mi, !opt.simple);
+  if (opt.simple) { fadeables.pop(); { const km = K.build(); if (km) g.add(km); } mergeStatic(g); return g; } // back-row filler: silhouette only
   // white bargeboards along the gable, neon tube on some houses
   const neon = opt.neon ?? (mi % 2 === 0 ? NEON[(mi >> 1) % NEON.length] : null);
   if (kind === 'point') {
@@ -391,6 +407,7 @@ function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
       box(0.95, 1.45, 0.07, winMat, wx, y, F + 0.04, g, false);
       box(0.06, 1.45, 0.09, frameMat, wx, y, F + 0.05, g, false); box(0.95, 0.06, 0.09, frameMat, wx, y + 0.25, F + 0.05, g, false);
       box(1.3, 0.08, 0.22, frameMat, wx, y - 0.88, F + 0.1, g, false);
+      if (f === 0 && (mi + k) % 3 === 0) { K.box(1.1, 0.24, 0.26, 0x6a4a2a, wx, y - 0.74, F + 0.22); for (let q = 0; q < 5; q++) K.geo(blobGeo(1 + (q % 4), 0), [0xc8402e, 0xf2c14e, 0xe8862c, 0x5f8a3c, 0xc8402e][(q + mi) % 5], wx - 0.42 + q * 0.21, y - 0.55, F + 0.24, q, q * 2, 0, 0.15, 0.13, 0.15); } // geraniums
     }
   }
   if (opt.clock) { // Zaandam-style clock gable
@@ -415,8 +432,33 @@ function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
     if (mi % 5 === 1 || mi % 5 === 3) poster(g, w * 0.04 + 0.5, 1.75, F + 0.035, mi * 3 + 2, 0.06);
     if (mi % 2 === 1) graffiti(g, -w * 0.2, 0.42, F + 0.03, mi, 1.5);
   }
+  // facade detail: bluestone plinth, a front step, wall anchors, a zinc downpipe
+  if (!opt.y) {
+    K.box(w - 0.04, 0.42, 0.06, 0x5c6064, 0, 0.21, F + 0.045);
+    if (!shopSign && !opt.noDoor) K.box(1.3, 0.16, 0.5, 0x6a6e72, w * 0.28, 0.08, F + 0.27);
+  }
+  for (let f = 1; f <= Math.floor((h - 1) / 2.8); f++) for (const sx of [-1, 1]) { const ax = sx * (w / 2 - 0.45), ay = 2.2 + f * 2.8 - 1.4; K.box(0.06, 0.42, 0.04, 0x1e1e20, ax, ay, F + 0.04, 0, 0, sx * 0.5); K.box(0.06, 0.42, 0.04, 0x1e1e20, ax, ay, F + 0.04, 0, 0, -sx * 0.5); }
+  if (mi % 2 === 0) { const px = (mi % 4 ? 1 : -1) * (w / 2 - 0.14); K.cyl(0.055, 0.055, h - 0.2, 0x9aa0a4, px, (h - 0.2) / 2, F + 0.1, 8); K.cyl(0.07, 0.07, 0.12, 0x8a9094, px, 0.06, F + 0.1, 8); }
+  { const km = K.build(); if (km) g.add(km); }
+  mergeStatic(g); // the plain boxes become one mesh per look (cheaper to draw, cheaper to ray-test for the cutaway)
   g.traverse((c) => { if (c.isMesh) { c.material = c.material.clone(); c.material.transparent = true; } });
   return g;
+}
+// roof detail: a ridge cap, zinc gutters on both eaves, a brick chimney with a pot, and a dormer on some roofs
+function roofDetail(K, w, d, h, R, F, mi, full) {
+  const L = d - 0.6, zc = -F + L / 2, half = w / 2 + 0.25, slopeY = (x) => -0.1 + (R + 0.1) * (1 - Math.abs(x) / half);
+  K.box(0.24, 0.14, L + 0.04, 0x9a4626, 0, h + R + 0.02, zc);
+  for (const sx of [-1, 1]) { K.cyl(0.075, 0.075, L, 0x9aa0a4, sx * (w / 2 + 0.24), h - 0.16, zc, 8, Math.PI / 2); }
+  const cx = (mi % 2 ? 1 : -1) * w * 0.22, cz = -F + 1.0 + (mi % 3) * 0.9, cy = h + slopeY(cx);
+  K.box(0.56, 1.25, 0.72, [0x8a4a3a, 0x7a3e30, 0x9a5a44][mi % 3], cx, cy + 0.3, cz);
+  K.box(0.7, 0.08, 0.86, 0x7a7c7e, cx, cy + 0.96, cz);
+  K.cyl(0.09, 0.11, 0.3, 0xb8602a, cx + 0.1, cy + 1.14, cz, 8); if (mi % 2) K.cyl(0.09, 0.11, 0.26, 0xb8602a, cx - 0.12, cy + 1.12, cz + 0.12, 8);
+  if (full && mi % 3 === 0 && w > 5 && R > 2) { // a dormer on the other slope, facing sideways
+    const sx = cx > 0 ? -1 : 1, dx = sx * w * 0.24, dy = h + slopeY(dx), dz = -F + L * 0.55;
+    K.box(0.9, 1.0, 1.15, 0xf6f4ee, dx, dy + 0.3, dz);
+    K.box(0.04, 0.6, 0.7, 0x2a3a50, dx + sx * 0.46, dy + 0.32, dz); K.box(0.05, 0.7, 0.08, 0xf6f4ee, dx + sx * 0.47, dy + 0.32, dz);
+    K.box(1.1, 0.1, 1.4, 0x9a4626, dx, dy + 0.85, dz, 0, 0, sx * 0.22);
+  }
 }
 // Inntel-style stack of houses: a landmark at the west end of the street
 function stackTower(x0, x1, z) {
@@ -546,15 +588,51 @@ const hokDoor = { leaf: null, pl: null }; // Het Hok: an open doorway while Eddy
 const isInside = (p) => p.x > WH.x0 && p.x < WH.x1 && p.z > WH.z0 && p.z < WH.z1 - 0.1;
 
 // ------------------------------------------------------------------ street props
-function lamp(x, z) {
-  cyl(0.07, 0.09, 4.6, mat.dark, x, 2.3, z);
-  const dir = z < 0 ? 1 : -1; // arm points out over the road
-  box(0.22, 0.12, 1.1, mat.dark, x, 4.6, z + dir * 0.5);
-  box(0.34, 0.1, 0.4, lam({ color: 0xfff4d0, emissive: 0x806a30 }), x, 4.52, z + dir * 0.95, scene, false);
+// street furniture is built into vertex-coloured kits (one draw call each); "clutter" is the optional layer that Simpel hides
+const streetKit = kit(), clutterKit = kit(), clutter = new THREE.Group(); scene.add(clutter);
+const lampHeadMat = lam({ color: 0xfff4d0, emissive: 0x806a30 }), LAMPS = [];
+function lamp(x, z) { // Amsterdam-style mast: stepped foot, collar rings, a curved arm and a lantern hood
+  const dir = z < 0 ? 1 : -1, K = streetKit, c = 0x26282c;
+  K.cyl(0.16, 0.2, 0.5, c, x, 0.25, z, 10); K.cyl(0.13, 0.13, 0.08, 0x3a3c40, x, 0.54, z, 10);
+  K.cyl(0.065, 0.09, 4.2, c, x, 2.65, z, 10); for (const y of [1.6, 3.2]) K.cyl(0.095, 0.095, 0.06, 0x3a3c40, x, y, z, 10);
+  K.cyl(0.04, 0.05, 0.75, c, x, 4.85, z + dir * 0.18, 8, -dir * 0.75); K.cyl(0.04, 0.04, 0.55, c, x, 5.06, z + dir * 0.62, 8, -dir * 1.45);
+  K.box(0.4, 0.08, 0.5, c, x, 4.98, z + dir * 0.95); K.cyl(0.05, 0.12, 0.16, c, x, 4.88, z + dir * 0.95, 8);
+  box(0.34, 0.1, 0.4, lampHeadMat, x, 4.86, z + dir * 0.95, scene, false); LAMPS.push([x, z]);
 }
 for (let x = -30; x <= 30; x += 12) { lamp(x === 6 ? 10.6 : x, RC - 5.3); lamp(x + 6, ROAD.bike1 + 0.2); }
+function bollard(x, z, K = streetKit) { // Amsterdammertje: dark paprika cast iron, three white-cross rings, a domed top
+  const c = 0x5a1a14; K.cyl(0.085, 0.11, 0.86, c, x, 0.43, z, 10); K.cyl(0.1, 0.1, 0.05, 0x6a2418, x, 0.62, z, 10); K.cyl(0.095, 0.095, 0.04, 0x6a2418, x, 0.72, z, 10);
+  K.geo(new THREE.SphereGeometry(0.088, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), c, x, 0.86, z);
+  for (let k = 0; k < 3; k++) K.box(0.025, 0.07, 0.025, 0xf2efe6, x + 0.09 * Math.cos(k * 2.1), 0.55 - k * 0.1, z + 0.09 * Math.sin(k * 2.1));
+}
 for (let x = -32; x <= 32; x += 2.6) if (Math.abs(x - 14) > 3) bollard(x, ROAD.walk1 + 0.05);
-function bollard(x, z) { cyl(0.09, 0.11, 0.9, lam({ color: 0x5a1a14 }), x, 0.45, z); }
+// north pavement: a row of Amsterdammertjes along the kerb (not at Eddy's driveway, the zebra or a lamp), green bins in the row
+if (!RICH_LOW) for (let x = -62.4; x <= 62; x += 2.4) {
+  if ((x > -0.6 && x < 10.8) || Math.abs(x + 18) < 2.6 || LAMPS.some(([lx, lz]) => lz < 0 && Math.abs(lx - x) < 0.9)) continue;
+  if (Math.round(x / 2.4) % 9 === 4) { // Dutch litter bin: a green drum on a post, a grey lid with a slot
+    clutterKit.cyl(0.05, 0.05, 1.0, 0x2a2c2e, x, 0.5, RC - 5.45, 8); clutterKit.cyl(0.24, 0.22, 0.62, 0x2f6a3a, x, 0.72, RC - 5.45, 12); clutterKit.cyl(0.25, 0.25, 0.06, 0x5a5e62, x, 1.05, RC - 5.45, 12); clutterKit.box(0.2, 0.03, 0.04, 0x1a1a1a, x, 1.085, RC - 5.33);
+  } else bollard(x, RC - 5.42, clutterKit);
+}
+// flat street decals: drain gullies by both kerbs, manholes on the lanes, oil under the parked cars (batched per texture)
+for (let x = -63, k = 0; x < 63; x += 11, k++) for (const z of [RC - 4.9, RC + 4.9]) decals.push(['gully', x + (k % 2) * 3, z, 0.95, 0]);
+for (const [x, z] of [[-44, RC - 1.5], [-26, RC + 1.4], [-4, RC - 1.5], [24, RC + 1.4], [41, RC - 1.5], [58, RC + 1.5]]) decals.push(['manhole', x, z, 0.9, x]);
+{ const r = rng(5); for (let x = -64; x < 64; x += 5.6) for (const z of [RC - 4, RC + 4]) if (r() < 0.45) decals.push(['oil', x + 2.8 + (r() - 0.5), z + (r() - 0.5) * 0.4, 1.3 + r() * 0.9, r() * 6]); }
+function flushDecals() { // one merged quad mesh per decal texture
+  const by = {}; for (const d of decals) (by[d[0]] = by[d[0]] || []).push(d); decals.length = 0;
+  for (const [kind, list] of Object.entries(by)) {
+    const pos = [], uv = [], idx = [];
+    list.forEach(([, x, z, size, rot], i) => {
+      const sx = kind === 'gully' ? size : size, sz = kind === 'gully' ? size * 0.6 : size, c = Math.cos(rot), sn = Math.sin(rot), y = kind === 'manhole' ? 0.04 : 0.036 + (i % 7) * 0.0004;
+      for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) { const lx = (u - 0.5) * sx, lz = (0.5 - v) * sz; pos.push(x + lx * c - lz * sn, y, z + lx * sn + lz * c); uv.push(u, v); }
+      idx.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3);
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, lam({ map: decal(kind), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })); m.receiveShadow = true; m.renderOrder = 1; scene.add(m);
+  }
+}
+if (!RICH_LOW) for (let x = -60; x <= 60; x += 9) if (Math.abs(x - 14) > 4) { const K = clutterKit, z = CZ - 3.85; K.cyl(0.13, 0.15, 0.42, 0x26282c, x, 0.35, z, 10); K.cyl(0.19, 0.19, 0.07, 0x26282c, x, 0.58, z, 10); K.geo(new THREE.TorusGeometry(0.12, 0.025, 6, 12), 0x3a3c40, x, -0.25, CZ - 3.73, 0, 0, 0); } // iron mooring posts, a ring in the quay wall
+flushDecals();
+{ const m = streetKit.build(); if (m) scene.add(m); const c = clutterKit.build(); if (c) clutter.add(c); }
 // 80s Kaasland cars: side profiles with rounded corners, extruded with a bevel, glass greenhouses, chrome bits
 const CAR_PAINT = [0xc8102e, 0xf2e8c8, 0x1f4fa0, 0x2f6a3a, 0xe8b020, 0x7a2a5a, 0xd8d8d8, 0x1a1a1a, 0xff7a3a, 0x5ac8c0, 0xff8fb8, 0x8a6a4a, 0x3a3a6a];
 let carSeed = 7;
@@ -2781,6 +2859,8 @@ function tick() {
   camera.position.copy(camPos); camera.lookAt(camLook);
   sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position);
   if (aeroWorld) aeroWorld.tick(dt);
+  clutter.visible = post.mode !== 'simple'; // Simpel: no street clutter (js/richtex.js)
+  if (post.mode === 'enhanced') { waterRip.offset.x = (waterRip.offset.x + dt * 0.01) % 1; waterRip.offset.y = (waterRip.offset.y + dt * 0.017) % 1; }
   if (!aeroWorld || !aeroWorld.on) water.material.color.setHSL(0.5, 0.55, 0.2 + Math.sin(performance.now() * 0.001) * 0.01);
   $('clock').textContent = new Date().toTimeString().slice(0, 5);
   // fade houses that stand between the camera and the player (Neon Vice-style cutaway)
