@@ -121,6 +121,7 @@ export function initMission(ctx) {
   const glassM = new THREE.MeshPhongMaterial({ color: 0x9ad8ff, transparent: true, opacity: 0.32, shininess: 120, specular: 0xffffff, depthWrite: false });
   const frameM = lam({ color: 0xe8e8f0 }), barrelM = lam({ color: 0xc81e1e });
   let wallM = null, capM = null, pristine = null;
+  let tableGuns = [];
   let glass = new Map(), barrels = new Map(), lights = [], van = null, levelTick = null, levelReset = null, START = null, VAN_PARK = 0;
 
   // builds a level into a fresh root group; the previous level is torn down first
@@ -201,7 +202,7 @@ export function initMission(ctx) {
     levelShot = deco.onShot || null; levelReset = deco.reset || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     const rolls = spits(def, G, THREE, root, lam, OX, Z0, dressed); mergeStatic(dg);
-    stash(def, G, THREE, root, lam, OX, Z0, (c) => FM[c][0], (id) => buildWeapon(id)); // covert ops: guns laid out on the tables // shoarma spits turning on the counters
+    tableGuns = stash(def, G, THREE, root, lam, OX, Z0, (c) => FM[c][0]); // covert ops: guns on the tables (picked up with E, dropped in by resetFloor) // shoarma spits turning on the counters
     levelTick = rolls.length ? (dt) => { for (const r of rolls) r.rotation.y += dt * 0.7; if (deco.tick) deco.tick(dt); } : deco.tick || null;
     // neon: one strip per room, top of the walls
     for (const [name, x0, z0, x1] of def.rooms) if (def.neon[name] !== undefined) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, def.neon[name]);
@@ -1465,6 +1466,7 @@ export function initMission(ctx) {
       e.position.set(OX + x, 0, Z0 + z); e.rotation.y = r; e.visible = !off && !pend; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; u.head.visible = true; cleanBlood(e); u.arms[1].visible = true; u.bubble.visible = false; f.laser.visible = false; f.grazed = 0; f.blind = 0;
     }
     for (const it of items) root.remove(it.g, it.ring); items.length = 0;
+    for (const t of tableGuns) { dropItem(t.id, new THREE.Vector3(t.x, 0, t.z)); const it = items[items.length - 1]; if (!it) continue; it.rest = t.y; it.g.position.y = t.y; it.g.rotation.y = t.ry; it.age = 2; } // the guns lying on the tables
     for (const b of bullets) root.remove(b.m); bullets.length = 0;
     for (const p of parts) root.remove(p.m); parts.length = 0;
     for (const g of gibs) root.remove(g.m); gibs.length = 0;
@@ -2200,8 +2202,9 @@ export function initMission(ctx) {
         const fr = it.flying ? 0.6 : 5; it.vx *= Math.exp(-dt * fr); it.vz *= Math.exp(-dt * fr);
         if (it.flying && Math.hypot(it.vx, it.vz) < 6) it.flying = false;
       }
-      p.y += ((it.flying ? 1.0 : 0.08) - p.y) * Math.min(1, dt * 10);
-      it.ring.position.set(p.x, 0.04, p.z); it.ring.visible = !it.flying;
+      p.y += ((it.flying ? 1.0 : it.rest ?? 0.08) - p.y) * Math.min(1, dt * 10);
+      if (it.flying || Math.abs(it.vx) + Math.abs(it.vz) > 0.05) it.rest = undefined; // knocked off the table: it falls to the floor
+      it.ring.position.set(p.x, it.rest ? it.rest - 0.05 : 0.04, p.z); it.ring.visible = !it.flying;
     }
   }
 
