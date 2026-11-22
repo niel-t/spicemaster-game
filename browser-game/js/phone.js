@@ -360,6 +360,8 @@ export function initPhone(d) {
     face.classList.toggle('noimg', !c.img); if (c.img) img.src = c.img;
     el.style.display = 'flex'; if (d.tip) d.tip('phone'); return true;
   }
+  // ringWith(id, caller): a one-off caller from another module (js/activists.js: Razim about the protesters)
+  function ringWith(id, c) { if (ringing || isOpen) return false; CALLERS[id] = c; return ring(id); }
   function stop() { ringing = 0; el.style.display = 'none'; }
   function answer() { if (!ringing || busy()) return; const id = who; stop(); CALLERS[id].talk(); }
   // garage.js calls this the day before the inspector comes; returns true when the phone takes over from the toast
@@ -411,5 +413,5 @@ export function initPhone(d) {
     const r = Math.random();
     ring(hakanOk && r < 0.5 ? 'hakan' : r < 0.75 ? 'razim' : 'shooki');
   }
-  return { update, ring, answer, warnHenk, callRas, razimText, open, close, get isOpen() { return isOpen; }, get ringing() { return ringing > 0; }, get caller() { return ringing > 0 ? who : null; } };
+  return { update, ring, ringWith, answer, warnHenk, callRas, razimText, open, close, get isOpen() { return isOpen; }, get ringing() { return ringing > 0; }, get caller() { return ringing > 0 ? who : null; } };
 }

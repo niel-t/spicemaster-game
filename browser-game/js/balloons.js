@@ -19,7 +19,7 @@ const CSS = `
   -webkit-backdrop-filter: blur(6px) saturate(1.5); backdrop-filter: blur(6px) saturate(1.5); will-change: transform, opacity; }
 .abal::before { content: ""; position: absolute; left: 7px; right: 7px; top: 2px; height: 46%; border-radius: 13px 13px 50% 50% / 13px 13px 9px 9px;
   background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.12)); pointer-events: none; }
-.abal .bt { position: relative; display: block; }
+.abal .bt { position: relative; display: block; white-space: pre-line; unicode-bidi: plaintext; } /* a Hebrew line + its transliteration (js/activists.js) */
 .abal .nm { position: relative; display: block; margin: -1px 0 1px; font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
   color: color-mix(in srgb, var(--c) 60%, #0a3a60); }
 .abal .tl { position: absolute; bottom: -8px; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); border-radius: 0 0 4px 0;

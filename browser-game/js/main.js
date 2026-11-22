@@ -34,6 +34,7 @@ import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades,
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { createMedia } from './kaasmedia.js'; // Kaasdows Mediaspeler: original live-generated desktop music
 import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
+import { createActivists } from './activists.js'; // the protesters' picket on the pavement, and what Pa, Shooki and Razim think of it
 import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
 import { createBalloons } from './balloons.js';
 import { createPortraits } from './portrait.js'; // Freddy Sr. and Eddy Jr. photos that talk and blink // Frutiger Aero speech balloons, kept on screen
@@ -1204,7 +1205,7 @@ function dialogue(lines, done) { if (freddy) lines = freddy.chime(lines); dlgQue
 function nextLine() {
   if (!dlgQueue.length) { $('dialogue').style.display = 'none'; state.inDialogue = false; const d = dlgDone; dlgDone = null; if (d) d(); return; }
   const [who, line] = dlgQueue.shift();
-  $('dlgwho').textContent = who; $('dlgline').textContent = line;
+  $('dlgwho').textContent = who; $('dlgline').textContent = line; { const ml = line.includes('\n'); $('dlgline').style.whiteSpace = ml ? 'pre-line' : ''; $('dlgline').style.unicodeBidi = ml ? 'plaintext' : ''; } // a Hebrew line + transliteration (js/activists.js)
   const f = faces[who];
   $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f); portraits.show(f, line);
   $('dialogue').style.display = 'block'; beep(520, 0.04, 'triangle');
@@ -1224,6 +1225,7 @@ const LOOT_PRICE = 150;
 const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['woning', 'H', 'Woning'], ['loods', '▦', 'De Loods'], ['bank', 'W', 'My Wilders'], ['media', '♪', 'Mediaspeler']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let freddy = null; // js/freddy.js, set up once the phone exists
+let activists = null; // js/activists.js, set up after Freddy
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 let phone = null; // js/phone.js, Hakan's kipkraud calls
 const econ = createEconomy({ boost: () => { const b = loods ? loods.boost() : {}; if (woning && woning.hokStorage()) b.cap = (b.cap || 0) + 80; return b; }, state, addMoney, toast, tip: (k) => tips.show(k), endDay: () => endDay(), onPlan: () => { updateObjective(); }, onDay: () => { if (ui.obj) updateObjective(); }, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
@@ -1674,6 +1676,7 @@ function talkRussian() {
   } else openShop();
 }
 function talkDad() {
+  if (freddy && freddy.back() && activists && activists.debrief('freddy')) return; // Eddy tells Pa about the protesters (js/activists.js)
   if (freddy && freddy.talk()) return; // back from Costa del Kaas (js/freddy.js)
   if (state.step === 'talk') {
     dialogue([
@@ -1745,7 +1748,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Freddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
   try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -2079,7 +2082,7 @@ let choiceOpen = false, choiceCb = null, choiceCancel = null, choiceN = 0;
 function choice(who, line, options, cb, cancel = options.length - 1) {
   { const pre = freddy && freddy.preChoice(who); if (pre) { dialogue(pre, () => choice(who, line, options, cb, cancel)); return; } } // Pa meets an old friend first (js/freddy.js)
   state.inPC = true; choiceOpen = true; choiceCb = cb; choiceCancel = cancel; choiceN = options.length;
-  $('dlgwho').textContent = who; $('dlgline').innerHTML = line + '<div id="choices" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>';
+  $('dlgwho').textContent = who; $('dlgline').style.whiteSpace = $('dlgline').style.unicodeBidi = ''; $('dlgline').innerHTML = line + '<div id="choices" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>';
   const f = faces[who]; $('dlgface').style.display = f ? 'block' : 'none'; if (f) $('dlgface').src = f; $('dialogue').classList.toggle('noface', !f); portraits.show(f, line);
   options.forEach((o, i) => { const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + o; b.style.cssText = 'font:700 15px Arial;padding:7px 14px;border-radius:6px;border:2px solid #ffd36b;background:#2a1a0e;color:#fff;cursor:pointer'; b.onclick = (ev) => { ev.stopPropagation(); closeChoice(i); }; $('choices').appendChild(b); });
   $('dialogue').style.display = 'block';
@@ -2710,7 +2713,8 @@ function updateStreet(dt) {
     }
     if (u.wait > 0) u.wait -= dt;
     else {
-      const lane = LANES[u.side][u.dir > 0 ? 0 : 1], reach = 1.0 + (cp ? Math.max(0, cp.ahead) : 0);
+      let lane = LANES[u.side][u.dir > 0 ? 0 : 1]; if (activists && activists.blocks(w.position.x, lane)) lane = Math.max(lane, -4.3); // round the protesters' picket (js/activists.js)
+      const reach = 1.0 + (cp ? Math.max(0, cp.ahead) : 0);
       let blocked = false;
       const near = (x, z, r) => { const dx = (x - w.position.x) * u.dir, dz = Math.abs(z - w.position.z); return dx > 0 && dx < r && dz < 0.6; };
       if (near(P.x, P.z, reach) || near(dad.position.x, dad.position.z, reach)) blocked = true;
@@ -2807,7 +2811,7 @@ function tick() {
   const toR = Math.atan2(player.position.x - russian.position.x, player.position.z - russian.position.z);
   if (isInShop(player.position)) { let dr = toR - russian.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); russian.rotation.y += dr * Math.min(1, dt * 4); }
   animate(russian, 0, dt);
-  if (!mOn) { score.update(dt, null); updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); updateSiege(); mission.street(dt); } else { mission.update(dt); updateRazimMission(dt); }
+  if (!mOn) { score.update(dt, null); updateStreet(dt); updateCanal(dt); updateOfficers(dt); updateGulls(dt); updateInspector(dt); updateRazim(dt); if (activists) { activists.update(dt); activists.tick(dt); } updateSiege(); mission.street(dt); } else { mission.update(dt); updateRazimMission(dt); }
   setDuck('fight', score.on ? 0 : 1); // the fight score replaces the street song
   const inJ = !mOn && updateJoint(dt);
   // naknikim walk to the table, then work: stir, and run little jobs around De Loods (js/naknikwork.js)
@@ -2940,7 +2944,7 @@ function afterDrive(res) {
   writeSave(); updateObjective();
 }
 deviceHints();
-npcs = initNpcs({ tutorial, THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave() });
+npcs = initNpcs({ tutorial, THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave(), debrief: (w) => !!(activists && activists.debrief(w)) });
 loods = createLoods({ tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), shutter,
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || oofDrive.active,
@@ -2969,6 +2973,11 @@ woning.loaded();
 { const start0 = oofDrive.start; oofDrive.start = (o) => { const ev0 = o.onEvent; o = { ...o, onEvent: (t, x) => { if (ev0) ev0(t, x); if (freddy) freddy.driveEvent(t, x); } }; const r = start0(o); /* Pa in the passenger seat */ setTimeout(() => tips.show('drive'), 1200); return r; }; }
 phone = initPhone({ freddyCall: () => freddy && freddy.onCall(), freddyMissed: () => freddy && freddy.onMissed(), freddyBack: () => !!(freddy && freddy.back()), freddyChat: () => freddy && freddy.chat(), tip: (k) => tips.show(k), state, econ, dialogue, choice, toast, beep, addMoney, busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || oofDrive.active || state.step === 'title', met: (id) => npcs.met(id), inspectorFine: () => garage.inspectorFine(), hasLuik: () => garage.has('luik'), save: () => writeSave() });
 freddy = createFreddy({ state, econ, dad, dadSolid, player, animate, dialogue, choice, toast, beep, addMoney, save: () => writeSave(), objective: () => updateObjective(), phone: () => phone, drive: () => oofDrive, van: () => garage.stats(), afterDrive: () => { clearPlayerSplats(); clock.getDelta(); },
+  busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || oofDrive.active || state.step === 'title' || !!(phone && phone.isOpen) || isPaused(),
+  hidden: () => state.step === 'title' || mission.active || oofDrive.active || !!(woning && woning.inside()) });
+activists = createActivists({ scene, lam, box, passerBy, personBubble, animate, player, dad, state, econ, folk, addInteract, dialogue, choice, toast, beep, save: () => writeSave(),
+  freddy: () => freddy, phone: () => phone, metShooki: () => npcs.met('shooki'), inspectorDue: () => garage.inspectorDue(),
+  ready: () => state.step === 'free' && !(state.tut && !state.tut.done),
   busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || oofDrive.active || state.step === 'title' || !!(phone && phone.isOpen) || isPaused(),
   hidden: () => state.step === 'title' || mission.active || oofDrive.active || !!(woning && woning.inside()) });
 // Shooki's guided tutorial (js/guide.js): click-through cards that point at the thing to click or the place to go
@@ -3001,7 +3010,7 @@ freddy = createFreddy({ state, econ, dad, dadSolid, player, animate, dialogue, c
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+window.__sme = { get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
 fiets = createFiets({ THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
   busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });

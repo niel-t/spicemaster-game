@@ -41,6 +41,7 @@ export function initNpcs(d) {
       talk() {
         if (!met('shooki') && tutorial && tutorial.at('shooki')) { meet('shooki'); return tutorial.shooki(() => d.save()); } // the tour starts here
         const tip = tutorial && tutorial.shookiTip(); if (tip) return dialogue([['Shooki', tip]]);
+        if (d.debrief && d.debrief('shooki')) return; // he saw Eddy with the protesters (js/activists.js)
         if (met('shooki') && state.district1 && !state.npcs.kangoo) { // the first talk after the district falls: his new van
           state.npcs.kangoo = true;
           return dialogue([

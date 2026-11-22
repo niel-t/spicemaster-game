@@ -24,6 +24,12 @@ const A = {
   pet: { lo: 0.64, ax: -0.85, ay: 0.2, el: 0.25 },      // reaching down to the dog
   jog: { lo: 0.62, ax: -0.25, ay: 0.3, el: 1.6 },       // jogging arms
   cup: { lo: 0.62, ax: -0.5, ay: 0.4, el: 1.45 },       // coffee in hand
+  // the activists' picket (js/activists.js)
+  horn: { lo: 0.92, ax: -1.25, ay: 0.55, el: 1.9 },     // megaphone at the mouth
+  fist: { lo: 0.2, ax: -2.85, ay: -0.05, el: 0.25 },    // fist in the air
+  pole: { lo: 0.58, ax: -0.85, ay: 0.32, el: 1.05 },    // both hands up a banner pole
+  board: { lo: 0.62, ax: -0.75, ay: 0.62, el: 1.35 },   // clipboard held out at the chest
+  offer: { lo: 0.5, ax: -1.25, ay: 0.12, el: 0.35 },    // a flyer held out at arm's length
 };
 
 // ---------- the archetypes ----------
@@ -320,5 +326,7 @@ export function createStreetFolk({ scene, lam, mat, box, beep }) {
     }
   }
   function mutter(w) { const f = w.userData.folk; return f ? { text: pick(f.a.mutters), col: f.a.col, name: '' } : null; }
-  return { dress, update, interact, mutter, ARCH, SLOTS };
+  // pose(p, hands): give any person the street-folk arm poses (the activists' picket uses it); change p.userData.folk.hands later
+  function pose(p, hands) { const u = p.userData; u.folk = { id: 'pose', a: { hands }, name: '', hands: hands.slice(), head: 0, tmp: null, moving: false, props: {} }; install(p); return u.folk; }
+  return { dress, update, interact, mutter, pose, hold, ARCH, SLOTS };
 }
