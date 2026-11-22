@@ -13,7 +13,21 @@ const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 const RLI = '⁧', PDI = '⁩';
 
 // ---------- the groups (all fictional) ----------
+// PRO (Tristan 2026-11-22: "a red socialist party... pro palestina and left wing activities, make them stereotypical") is a
+// made-up party, the Partij voor Rood Ongenoegen. The jokes are about the activist type: the checked scarf from a webshop,
+// the tote bag, oat milk, the iPhone, the boycott list, speaking for people they have never met. Never about the people
+// they say they speak for.
 const GROUPS = [
+  { pro: true, name: 'Partij voor Rood Ongenoegen', tag: 'PRO', col: '#c8102e', ink: '#ffffff', slogan: 'DE KRUIDENBAAS BETAALT!', sub: 'gratis havermelk voor het volk',
+    chants: ['ARBEIDERS VAN KAASLAND, VERENIGT U!', 'KAPITALISME? KAPOT-ALISME!', 'BOYCOT DE KRUIDENBAAS!', 'HAVERMELK VOOR HET VOLK!', 'WIJ ZIJN DE 99 PROCENT! (VAN DIT PLEIN)', 'PRO! PRO! PRO!'],
+    pitch: ['Wist je dat jouw komijn medeplichtig is? Wij hebben een spreadsheet.', 'Teken je onze petitie voor vrede? Daarna tekenen we er één tegen jou.', 'Ik sta hier al sinds negen uur voor de goede zaak. Nou ja, sinds half twaalf. Er was brunch.', 'Ik ben vorig jaar in Antalya geweest. All-inclusive. Ik ken de regio dus heel goed.', 'Deze sjaal? Webshop. Solidariteit gaat tegenwoordig ook via iDEAL.', 'Jij hebt een bestelbus en personeel. Weet je hoe wij dat noemen? Uitbuiting. Weet je hoe ik mijn werkster noem? Ilse.'],
+    flyer: '"BOYCOT ALLES! De volledige boycotlijst staat op de achterkant. En op de voorkant. En in onze 47 Instagram-slides. Swipe!"',
+    nl: ['Jullie spreken voor mensen die jullie nog nooit hebben ontmoet.', 'Mooie sjaal. Webshop zeker? Solidariteit met gratis verzending.', 'Havermelk-socialisme, vanaf een iPhone van twaalfhonderd euro.', 'Ben jij ooit verder geweest dan Zandvoort?', 'Eerst je studieschuld afbetalen, dan de wereld redden.', 'Boycot mijn kruiden maar. Jullie havermelk wordt er niet lekkerder van.', 'Rode vlag, rode wangen, rood staan bij de bank.'],
+    he: [['הייתם פעם בכלל במזרח התיכון?', "heytem pa'am bikhlal bamizrach hatikhon?", 'zijn jullie er ooit überhaupt geweest, in het Midden-Oosten?'],
+      ['תורידו את המגפון ותלכו לקרוא ספר.', 'toridu et hamegafon ve-telkhu likro sefer.', 'leg die megafoon neer en ga een boek lezen.'],
+      ['אתם לא מבינים כלום, אבל בקול רם.', 'atem lo mevinim klum, aval bekol ram.', 'jullie snappen er niks van, maar wel heel hard.']],
+    afterNl: ['Typisch. Een kapitalist met een bestelbus.', 'Ik voel me nu echt onderdrukt. Door jou. Met je kruiden.', 'Dit gaat in onze nieuwsbrief. Die leest niemand, maar toch.', 'Kameraden! Hij heeft een MENING!'],
+    afterHe: ['Hij doet het in het Hebreeuws om ons te provoceren!', 'Wacht, ik vraag het aan mijn groepsapp. Daar zit iemand die een keer een documentaire heeft gezien.', 'Ik versta het niet, maar ik ga er een statement over posten.'] },
   { name: 'Comité Tegen Alles', tag: 'CTA', col: '#d8322a', ink: '#ffffff', slogan: 'TEGEN!', sub: '(waartegen volgt nog)',
     chants: ['TEGEN! TEGEN! TEGEN!', 'ALLES MOET ANDERS!', 'WAARTEGEN? MAAKT NIET UIT!'],
     pitch: ['Wij zijn tegen. Jij bent toch ook ergens tegen? Dan ben je één van ons!', 'Teken je even? Het is tegen het systeem. En tegen maandagen.'],
@@ -81,9 +95,14 @@ const AFTER_HE = ['Wat zegt hij?', 'Is dat een nieuwe taal? Mogen wij die ook le
 const BOO = ['SCHANDE!', 'BOE!', 'WIJ ZIEN JE!', 'DIT GAAT ONLINE!', 'TEGEN! TEGEN!'];
 
 // ---------- what Pa, Shooki and Razim make of it ----------
+const PA_NOW_PRO = ['Red flags. In my day red flags meant: do not swim. Same here, jongen.', 'Do not argue with the PRO, Eddy. They have a committee for arguing.', 'A scarf, a tote bag and Papa\'s credit card. The revolution is very well funded.'];
 const PA_NOW = ['Leave them, jongen. In 1983 they protested our paprika. Too red, they said.', 'A megaphone and no job. In my day we had a job and no megaphone.', 'Did you sign? Never sign. Your grandfather signed once. We lost the garage.', 'Walk on, Eddy. You cannot argue with a megaphone. It is louder.'];
 function paTalk(g, kind) {
   const G = g.name;
+  if (g.pro && Math.random() < 0.7) return rnd([
+    [['Eddy Jr.', 'Pa, the PRO were outside. Red flags, scarves, a megaphone. They want to boycott me.'], ['Freddy Sr.', 'The PRO! In 1979 the red ones wanted to nationalise our paprika. I said: take it, it is already red.'], ['Eddy Jr.', 'And?'], ['Freddy Sr.', 'They asked if it was fair trade. I said: I trade, you pay, very fair. They bought two kilo.'], ['Freddy Sr.', 'Remember, jongen: a socialist is a capitalist who has not found his product yet.']],
+    [['Eddy Jr.', 'Pa, they said my cumin is "complicit".'], ['Freddy Sr.', 'Complicit in what? In a good kapsalon?'], ['Eddy Jr.', 'They had a spreadsheet.'], ['Freddy Sr.', 'A spreadsheet! The Lampas never had a spreadsheet. These people are more dangerous than the Lampas.'], ['Freddy Sr.', 'Let them boycott. Their mothers buy from Schmatzel, and Schmatzel buys from us.']],
+  ]);
   if (kind === 'he') return [['Eddy Jr.', 'Pa, those protesters by the loods. I told them off in Hebrew.'], ['Freddy Sr.', 'In Hebrew! Your mother would be proud. What did they say?'], ['Eddy Jr.', 'That they are against it.'], ['Freddy Sr.', 'Of course. They are against everything they cannot read. Which is the menu at Schmatzel\'s, mostly.'], ['Freddy Sr.', 'Next time say it slower. Shouting is for the Lampas. A Van... an Eddy & Zn man says it once, calm, and walks on.']];
   if (kind === 'flyer') return [['Eddy Jr.', `I took a flyer from the ${G}.`], ['Freddy Sr.', 'Show me. ...Hm. Hm! Glossy. Both sides. In colour. For the planet.'], ['Freddy Sr.', 'Good paper though. Fold it four times. We put it under the wobbly table in the loods.'], ['Eddy Jr.', 'That\'s what I was going to do.'], ['Freddy Sr.', 'You see? You are my son after all.']];
   return rnd([
@@ -92,6 +111,10 @@ function paTalk(g, kind) {
   ]);
 }
 function shookiTalk(g, kind) {
+  if (g.pro && Math.random() < 0.7) return rnd([
+    [['Shooki', 'Bro, the PRO girl sold me a scarf. Forty Wilders.'], ['Eddy Jr.', 'Why do you need a scarf?'], ['Shooki', 'I don\'t, bro. Then she told me I am "appropriating". I said sister, YOU sold it to me. She said that is different. I asked how. She is still thinking.'], ['Shooki', 'I am selling it back to her tomorrow. Forty-five.']],
+    [['Shooki', 'Bro, the PRO want to boycott you. I read their list.'], ['Eddy Jr.', 'And?'], ['Shooki', 'Your spice is on it, Hakan\'s döner is on it, the Kangoo is on it. Their own oat milk is on it, bro. They boycott themselves. Respect. Commitment.']],
+  ]);
   if (kind === 'he') return [['Shooki', 'Bro! "Yalla, tazuzu"? I was in the Kangoo, I heard everything. I almost cried.'], ['Eddy Jr.', 'Was it that bad?'], ['Shooki', 'It was BEAUTIFUL, bro. Next time say "khalas". Khalas works in four languages. Even on Tante Gerda.'], ['Shooki', 'Also, the girl with the clipboard asked if you are single. I said you are married to the Kruidenbeurs.']];
   if (kind === 'flyer') return [['Shooki', 'Bro, you took a flyer from those people? Give it.'], ['Eddy Jr.', 'Why?'], ['Shooki', 'Their printer is better than mine. Look at this colour. I am going to ask where they print. "Shooki Koerier, 24/7" in glossy, bro. Both sides.'], ['Shooki', 'Planet-friendly. It says so on the flyer.']];
   return rnd([
@@ -101,13 +124,17 @@ function shookiTalk(g, kind) {
 }
 const RAZIM = 'Razim (telefoon)';
 function razimTalk(g, kind) {
+  if (g.pro && Math.random() < 0.6) return rnd([
+    [[RAZIM, 'Eddy! The PRO people. They want to boycott everything.'], ['Eddy Jr.', 'I know.'], [RAZIM, 'So I asked: who sells the boycott list? Nobody, they give it away. For FREE. Eddy, these are real communists. I didn\'t believe they existed.'], [RAZIM, 'I printed a hundred, I sell them at the market. Two Wilders. Boycott list, premium edition. Shoarma?']],
+    [[RAZIM, 'Eddy, I went to their meeting. The PRO.'], ['Eddy Jr.', 'Why?'], [RAZIM, 'Free oat milk. Then they voted to share everything equally. I said great, I share my shoarma bill. Meeting over in four minutes. Fastest meeting I ever saw.'], [RAZIM, 'Speaking of shoarma...']],
+  ]);
   return rnd([
     [[RAZIM, 'Eddy! I saw you with the protest people. What were they selling?'], ['Eddy Jr.', 'Nothing. They want me to sign a petition.'], [RAZIM, 'For FREE? Eddy. Everybody has a price. Even a signature. Especially a signature.'], [RAZIM, 'Next time, fifteen Wilders a name. I bring my cousins. We sign everything. We signed against ourselves once, very good money.'], [RAZIM, 'Anyway. Shoarma?']],
     [[RAZIM, `Eddy. I joined the ${g.name}.`], ['Eddy Jr.', 'You WHAT?'], [RAZIM, 'Ten minutes. They had free stroopwafels. Then they asked for a donation, so I left. A donation, Eddy. Money for nothing. Can you imagine?'], ['Eddy Jr.', 'Razim, that is literally what you do.'], [RAZIM, 'Exactly, so I know a bad deal when I see one. I took four stroopwafels for you. I ate them. Shoarma?']],
     ...(kind === 'he' ? [[[RAZIM, 'Eddy, you yelled at the bakfiets people IN HEBREW? Legend.'], ['Eddy Jr.', 'They didn\'t understand a word.'], [RAZIM, 'Perfect. Now they don\'t know if they lost. Never let them know if they lost. That is business.'], [RAZIM, 'Shoarma to celebrate? You\'re buying, you won.']]] : []),
   ]);
 }
-const RAZIM_TXT = (g) => [rnd(['eddy was that you at the protest', 'eddy i saw u with the megaphone ppl']), rnd(['legend', 'they gave me a flyer', 'i signed with your name btw. jk. or am i']), rnd(['i sold their flyer to tony for 2 wilders', 'they had free stroopwafels', `the ${g.tag} want a donation. i asked how much they pay me`]), 'shoarma?'];
+const RAZIM_TXT = (g) => g.pro ? ['eddy the PRO ppl gave me a flyer', 'boycott list. 3 pages', 'you are on page 1!!', 'i sold it to tony for 2 wilders', 'shoarma? (not boycotted)'] : [rnd(['eddy was that you at the protest', 'eddy i saw u with the megaphone ppl']), rnd(['legend', 'they gave me a flyer', 'i signed with your name btw. jk. or am i']), rnd(['i sold their flyer to tony for 2 wilders', 'they had free stroopwafels', `the ${g.tag} want a donation. i asked how much they pay me`]), 'shoarma?'];
 
 export function createActivists(d) {
   const { scene, lam, box, passerBy, personBubble, animate, player, dad, state, econ, folk, addInteract, dialogue, choice, toast, beep } = d;
@@ -154,30 +181,68 @@ export function createActivists(d) {
     tex2.needsUpdate = true;
   }
 
-  // the people: two on the banner, one with the megaphone, one with the clipboard
-  const LOOKS = [
-    { shirt: '#5a8a3a', pants: 0x3a4a3a, glasses: true, bun: true, female: true },
-    { shirt: '#c8a03a', pants: 0x2a2a30, ballcap: 0x2a2a2a },
-    { shirt: '#2a2a30', pants: 0x3a3a48, glasses: true },
-    { shirt: '#e86a9as', pants: 0x2a3a5a, female: true, glasses: true },
+  // the people: two on the banner, one with the megaphone, one with the clipboard. Two crews: the general activists, and the
+  // PRO crowd in party red with the checked scarves and the tote bags (only one of them stands on the pavement at a time)
+  const scarfTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#f4f1ea'; x.fillRect(0, 0, 64, 64); x.strokeStyle = '#1a1a1a'; x.lineWidth = 3;
+    for (let i = 0; i <= 64; i += 8) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 64); x.moveTo(0, i); x.lineTo(64, i); x.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 1); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  function scarf(p) { // a checked scarf round the neck, one end hanging down the front
+    const y = 1.36 * (p.userData.body.scale.y || 1), m = new THREE.MeshLambertMaterial({ map: scarfTex });
+    const r = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.04, 6, 14), m); r.rotation.x = Math.PI / 2 - 0.25; r.position.set(0, y + 0.02, 0.06); p.add(r);
+    const end = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.34, 0.03), m); end.position.set(0.07, y - 0.2, 0.2); end.rotation.x = -0.12; p.add(end);
+  }
+  function tote(p, text) { // canvas tote bag on the shoulder, a slogan on it
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#e8dcc0'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#c8102e'; x.font = '900 15px Arial'; x.textAlign = 'center'; x.fillText(text, 32, 38);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const plain = lam({ color: 0xe8dcc0 }), face = new THREE.MeshLambertMaterial({ map: t });
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.34, 0.06), [plain, plain, plain, plain, face, face]);
+    b.rotation.y = Math.PI / 2; b.position.set(0.27 * (p.userData.body.scale.y || 1), 0.9 * (p.userData.body.scale.y || 1), 0); p.add(b);
+  }
+  const HOME = new THREE.Vector3(-2.75, 0, 0.75);
+  function makeCrew(looks, seed, pro) {
+    const g = new THREE.Group(); root.add(g);
+    const ppl = looks.map((look, i) => { const p = passerBy(seed + i * 3, { look, female: look.female }); g.add(p); return p; });
+    const [left, right, horn, can] = ppl;
+    left.position.set(-BW / 2 - 0.05, 0, -0.32); right.position.set(BW / 2 + 0.05, 0, -0.32);
+    horn.position.set(2.35, 0, 0.45); horn.rotation.y = -0.35; can.position.copy(HOME);
+    const fl = [folk.pose(left, ['pole', 'pole']), folk.pose(right, ['pole', 'pole']), folk.pose(horn, ['horn', 'fist']), folk.pose(can, ['board', null])];
+    // megaphone at the mouth (on the body, so it stays put whatever the arm does)
+    const meg = new THREE.Group(); horn.add(meg); meg.position.set(-0.03, 1.5 * (horn.userData.body.scale.y || 1), 0.24);
+    { const red = lam({ color: 0xe8e8e0 }), rim = lam({ color: 0xd02a20 });
+      const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.045, 0.3, 14, 1, true), new THREE.MeshLambertMaterial({ color: 0xf2f2ea, side: THREE.DoubleSide })); cone.rotation.x = Math.PI / 2; cone.position.z = 0.15; meg.add(cone);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.012, 6, 16), rim); ring.position.z = 0.3; meg.add(ring);
+      box(0.05, 0.05, 0.12, red, 0, 0, 0, meg, false); box(0.035, 0.14, 0.04, rim, 0, -0.08, 0.06, meg, false); }
+    // clipboard at the chest, a flyer in the free hand when she holds one out
+    const clip = new THREE.Group(); can.add(clip); clip.position.set(0.02, 1.08 * (can.userData.body.scale.y || 1), 0.27); clip.rotation.x = -0.75;
+    box(0.24, 0.32, 0.012, lam({ color: 0x9a6a3a }), 0, 0, 0, clip, false); box(0.2, 0.26, 0.004, flyerMat, 0, -0.01, 0.009, clip, false); box(0.08, 0.03, 0.02, lam({ color: 0xb8b8b8 }), 0, 0.15, 0.012, clip, false);
+    const flyer = new THREE.Group(); box(0.15, 0.21, 0.006, flyerMat, 0, 0, 0, flyer, false);
+    folk.hold(can, 1, flyer, 0, -0.7, 0.08); flyer.visible = false;
+    if (pro) { scarf(left); scarf(horn); scarf(can); tote(right, 'PRO'); tote(can, 'HAVER'); }
+    return { g, ppl, left, right, horn, can, fl, flyer };
+  }
+  const CREWS = [
+    makeCrew([
+      { shirt: '#5a8a3a', pants: 0x3a4a3a, glasses: true, bun: true, female: true },
+      { shirt: '#c8a03a', pants: 0x2a2a30, ballcap: 0x2a2a2a },
+      { shirt: '#2a2a30', pants: 0x3a3a48, glasses: true },
+      { shirt: '#e86a9as', pants: 0x2a3a5a, female: true, glasses: true },
+    ], 700, false),
+    makeCrew([ // PRO: party red and black, round glasses, a man bun, checked scarves, tote bags
+      { shirt: '#c8102e', pants: 0x1a1a22, glasses: true, bun: true, female: true },
+      { shirt: '#1a1a22', pants: 0x3a3a48, glasses: true, bun: true },
+      { shirt: '#c8102e', pants: 0x2a2a30, ballcap: 0xc8102e },
+      { shirt: '#2a2a30', pants: 0x2a3a5a, female: true, glasses: true },
+    ], 760, true),
   ];
-  const ppl = LOOKS.map((look, i) => { const p = passerBy(700 + i * 3, { look, female: look.female }); root.add(p); return p; });
-  const [left, right, horn, can] = ppl;
-  left.position.set(-BW / 2 - 0.05, 0, -0.32); right.position.set(BW / 2 + 0.05, 0, -0.32);
-  horn.position.set(2.35, 0, 0.45); horn.rotation.y = -0.35;
-  const HOME = new THREE.Vector3(-2.75, 0, 0.75); can.position.copy(HOME);
-  const fl = [folk.pose(left, ['pole', 'pole']), folk.pose(right, ['pole', 'pole']), folk.pose(horn, ['horn', 'fist']), folk.pose(can, ['board', null])];
-  // megaphone at the mouth (on the body, so it stays put whatever the arm does)
-  const meg = new THREE.Group(); horn.add(meg); meg.position.set(-0.03, 1.5 * (horn.userData.body.scale.y || 1), 0.24);
-  { const red = lam({ color: 0xe8e8e0 }), rim = lam({ color: 0xd02a20 });
-    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.045, 0.3, 14, 1, true), new THREE.MeshLambertMaterial({ color: 0xf2f2ea, side: THREE.DoubleSide })); cone.rotation.x = Math.PI / 2; cone.position.z = 0.15; meg.add(cone);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.012, 6, 16), rim); ring.position.z = 0.3; meg.add(ring);
-    box(0.05, 0.05, 0.12, red, 0, 0, 0, meg, false); box(0.035, 0.14, 0.04, rim, 0, -0.08, 0.06, meg, false); }
-  // clipboard at the chest, a flyer in the free hand when she holds one out
-  const clip = new THREE.Group(); can.add(clip); clip.position.set(0.02, 1.08 * (can.userData.body.scale.y || 1), 0.27); clip.rotation.x = -0.75;
-  box(0.24, 0.32, 0.012, lam({ color: 0x9a6a3a }), 0, 0, 0, clip, false); box(0.2, 0.26, 0.004, flyerMat, 0, -0.01, 0.009, clip, false); box(0.08, 0.03, 0.02, lam({ color: 0xb8b8b8 }), 0, 0.15, 0.012, clip, false);
-  const flyer = new THREE.Group(); box(0.15, 0.21, 0.006, flyerMat, 0, 0, 0, flyer, false);
-  folk.hold(can, 1, flyer, 0, -0.7, 0.08); flyer.visible = false;
+  let left, right, horn, can, fl, flyer, ppl, crew = null;
+  function useCrew(c) { if (crew === c) return; crew = c; ({ left, right, horn, can, fl, flyer, ppl } = c); for (const k of CREWS) k.g.visible = k === c; follow = 0; }
+  // the PRO table: a red party flag with a fist, a small flag of Palestine, oat milk for the comrades
+  const proProps = new THREE.Group(); table.add(proProps); proProps.visible = false;
+  { const flagMat = (draw) => { const c = document.createElement('canvas'); c.width = 96; c.height = 64; draw(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide }); };
+    const red = flagMat((x) => { x.fillStyle = '#c8102e'; x.fillRect(0, 0, 96, 64); x.fillStyle = '#fff'; x.font = '900 24px Impact, Arial'; x.textAlign = 'center'; x.fillText('PRO', 48, 28); x.fillRect(38, 38, 20, 18); x.fillRect(37, 32, 5, 9); x.fillRect(43, 30, 5, 10); x.fillRect(49, 30, 5, 10); x.fillRect(55, 32, 4, 9); });
+    const pal = flagMat((x) => { x.fillStyle = '#000'; x.fillRect(0, 0, 96, 22); x.fillStyle = '#fff'; x.fillRect(0, 21, 96, 22); x.fillStyle = '#007a3d'; x.fillRect(0, 42, 96, 22); x.fillStyle = '#ce1126'; x.beginPath(); x.moveTo(0, 0); x.lineTo(40, 32); x.lineTo(0, 64); x.closePath(); x.fill(); });
+    for (const [mat, x0] of [[red, 0.36], [pal, -0.4]]) { const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.55, 5), wood); stick.position.set(x0, 1.03, -0.18); proProps.add(stick); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.18), mat); f.position.set(x0 + 0.14, 1.2, -0.18); proProps.add(f); }
+    box(0.08, 0.2, 0.08, lam({ color: 0xe8e0c8 }), 0.3, 0.86, 0.12, proProps, false); box(0.081, 0.06, 0.081, lam({ color: 0x3a8a5a }), 0.3, 0.9, 0.12, proProps, false); } // oat milk carton
 
   // ---------- day rolls ----------
   function roll() {
@@ -186,24 +251,25 @@ export function createActivists(d) {
     s.day = day;
     s.here = !s.seen || Math.random() < 0.4; // the first eligible day they are always there, so the player meets them once
     if (d.inspectorDue && d.inspectorDue()) s.here = false; // the parking inspector has the pavement that day
-    if (s.here) { let gi; do gi = Math.floor(Math.random() * GROUPS.length); while (GROUPS.length > 1 && gi === s.gi); s.gi = gi; paint(); }
+    if (s.here) { let gi; if (Math.random() < 0.5 && s.gi !== 0) gi = 0; else do gi = 1 + Math.floor(Math.random() * (GROUPS.length - 1)); while (gi === s.gi); s.gi = gi; paint(); } // PRO (index 0) half the time
   }
   let painted = -1;
 
   // ---------- per frame ----------
-  let chantT = 3, chantBeat = 0, pitchCd = 0, follow = 0, walking = false, booT = 0;
+  let chantT = 3, chantBeat = 0, pitchCd = 0, follow = 0, walking = false, booT = 0; useCrew(CREWS[0]);
   const tmpV = new THREE.Vector3();
   const near = () => player.position.distanceTo(tmpV.set(SPOT.x, 0, SPOT.z));
   function squawk() { beep(620, 0.06, 'sawtooth', 0.025); setTimeout(() => beep(540, 0.09, 'sawtooth', 0.025), 70); }
   // speech balloons fade on their own clock here (the street loop only ticks its walkers)
   function tickB(o, dt) { const b = o.userData.bubble, u = b && b.userData; if (u && u.life > 0 && (u.life -= dt) <= 0) b.visible = false; }
   function update(dt) {
-    tickB(player, dt); for (const p of ppl) tickB(p, dt);
+    tickB(player, dt); for (const c of CREWS) for (const p of c.ppl) tickB(p, dt);
     if (d.ready()) roll();
     const s = A(), on = !!s.here && d.ready() && !d.hidden();
     root.visible = on;
     if (!on) return;
     if (painted !== s.gi) { painted = s.gi; paint(); }
+    useCrew(CREWS[G().pro ? 1 : 0]); proProps.visible = !!G().pro; // the PRO crowd has its own people and table
     if (!s.seen) { s.seen = true; d.save(); }
     const g = G(), dist = near(), busy = d.busy();
     for (const p of [left, right]) animate(p, 0, dt);
@@ -251,11 +317,12 @@ export function createActivists(d) {
     choice(`Actievoerder · ${g.name}`, `<i>"${pitch}"</i><br><small style="opacity:.75">Banner: ${g.slogan}</small>`, ['Say it in Dutch', 'Say it in Hebrew', 'Take a flyer', 'Walk on'], (i) => {
       const done = (kind) => { fl[3].hands[1] = null; flyer.visible = false; pitchCd = 30; if (kind) encounter(kind); };
       if (i === 0) {
-        const line = rnd(NL);
-        dialogue([['Eddy Jr.', line], [`Actievoerder · ${g.tag}`, rnd(AFTER_NL)]], () => { eddySay(line); booT = 1.4; done('nl'); });
+        const line = g.nl && Math.random() < 0.7 ? rnd(g.nl) : rnd(NL);
+        dialogue([['Eddy Jr.', line], [`Actievoerder · ${g.tag}`, rnd(g.afterNl && Math.random() < 0.7 ? g.afterNl : AFTER_NL)]], () => { eddySay(line); booT = 1.4; done('nl'); });
       } else if (i === 1) {
-        let h; do h = rnd(HE); while (HE.length > 1 && h === s.lastHe); s.lastHe = h;
-        dialogue([['Eddy Jr.', `${RLI}${h[0]}${PDI}\n(${h[1]}: "${h[2]}")`], [`Actievoerder · ${g.tag}`, rnd(AFTER_HE)]], () => { eddySay(heLine(h)); booT = 1.6; done('he'); });
+        const pool = g.he && Math.random() < 0.6 ? g.he : HE;
+        let h; do h = rnd(pool); while (pool.length > 1 && h[0] === s.lastHe); s.lastHe = h[0];
+        dialogue([['Eddy Jr.', `${RLI}${h[0]}${PDI}\n(${h[1]}: "${h[2]}")`], [`Actievoerder · ${g.tag}`, rnd(g.afterHe && Math.random() < 0.7 ? g.afterHe : AFTER_HE)]], () => { eddySay(heLine(h)); booT = 1.6; done('he'); });
       } else if (i === 2) {
         dialogue([['Eddy Jr.', rnd(['Fine. Give me one. ...Glossy. Both sides. In colour. For the planet, right?', 'One flyer. Then you leave me alone. Deal?', 'Sure. I need something for under the wobbly table.'])], [`Actievoerder · ${g.tag}`, rnd(['Het is gerecycled! ...De eerste keer niet.', 'Dank je! Je hebt net de planeet gered! Een klein stukje!', 'Lees hem wel, hè! Hij is niet om je frikandel op te leggen!'])]],
           () => { toast('FLYER', `${g.flyer} Eddy folds it in four.`, 4); done('flyer'); });
@@ -268,7 +335,7 @@ export function createActivists(d) {
     const fr = d.freddy();
     if (fr && fr.back()) {
       s.due.freddy = true;
-      if (dad.visible && dad.position.distanceTo(player.position) < 9) { fr.SAY.activists = PA_NOW; setTimeout(() => fr.say('activists', true), 2200); }
+      if (dad.visible && dad.position.distanceTo(player.position) < 9) { fr.SAY.activists = GROUPS[s.gi].pro ? PA_NOW_PRO : PA_NOW; setTimeout(() => fr.say('activists', true), 2200); }
     }
     if (d.metShooki()) s.due.shooki = true;
     if (s.razimDay !== s.day) { s.razimDay = s.day; s.due.razim = true; s.razimIn = 35 + Math.random() * 35; }
@@ -291,7 +358,7 @@ export function createActivists(d) {
     return true;
   }
 
-  for (const p of ppl) addInteract({ obj: p, pos: () => p.getWorldPosition(new THREE.Vector3()), r: p === can ? 1.7 : 1.6, enabled: () => root.visible, label: () => 'Talk back to the protesters', act: respond });
+  for (const c of CREWS) for (const p of c.ppl) addInteract({ obj: p, pos: () => p.getWorldPosition(new THREE.Vector3()), r: p === c.can ? 1.7 : 1.6, enabled: () => root.visible && crew === c, label: () => 'Talk back to the protesters', act: respond });
 
   // walkers on the north pavement step to the kerb side while they pass the picket (main.js street loop)
   const blocks = (x, z) => root.visible && z < 0 && Math.abs(x - SPOT.x) < 5.5;
