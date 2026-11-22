@@ -143,7 +143,7 @@ export function createActivists(d) {
 
   // ---------- the picket: built once, dressed per group ----------
   const root = new THREE.Group(); root.visible = false; scene.add(root);
-  const SPOT = { x: 13.6, z: -6.05 }; // north pavement between the parking lot and The Russian's shop, facing the street
+  const SPOT = { x: -9.0, z: -6.2 }; // right next to Eddy's warehouse (Tristan 2026-11-22): in front of its west wall, clear of the shutter, facing the street
   root.position.set(SPOT.x, 0, SPOT.z);
   // the banner: two poles, a cloth with the group's name and slogan on both faces
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 320;
@@ -243,6 +243,26 @@ export function createActivists(d) {
     const pal = flagMat((x) => { x.fillStyle = '#000'; x.fillRect(0, 0, 96, 22); x.fillStyle = '#fff'; x.fillRect(0, 21, 96, 22); x.fillStyle = '#007a3d'; x.fillRect(0, 42, 96, 22); x.fillStyle = '#ce1126'; x.beginPath(); x.moveTo(0, 0); x.lineTo(40, 32); x.lineTo(0, 64); x.closePath(); x.fill(); });
     for (const [mat, x0] of [[red, 0.36], [pal, -0.4]]) { const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.55, 5), wood); stick.position.set(x0, 1.03, -0.18); proProps.add(stick); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.18), mat); f.position.set(x0 + 0.14, 1.2, -0.18); proProps.add(f); }
     box(0.08, 0.2, 0.08, lam({ color: 0xe8e0c8 }), 0.3, 0.86, 0.12, proProps, false); box(0.081, 0.06, 0.081, lam({ color: 0x3a8a5a }), 0.3, 0.9, 0.12, proProps, false); } // oat milk carton
+  // the PRO crowd's big flags: two tall Palestine flags with FREE PALESTINE across the white stripe, on poles in weighted stands
+  const proFlags = new THREE.Group(); root.add(proFlags); proFlags.visible = false;
+  const waving = [];
+  { const c = document.createElement('canvas'); c.width = 384; c.height = 256; const x = c.getContext('2d');
+    x.fillStyle = '#000'; x.fillRect(0, 0, 384, 86); x.fillStyle = '#fff'; x.fillRect(0, 85, 384, 86); x.fillStyle = '#007a3d'; x.fillRect(0, 170, 384, 86);
+    x.fillStyle = '#ce1126'; x.beginPath(); x.moveTo(0, 0); x.lineTo(150, 128); x.lineTo(0, 256); x.closePath(); x.fill();
+    x.fillStyle = '#111'; x.font = '900 34px Impact, "Arial Black", Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('FREE PALESTINE', 255, 129);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    const fm = new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide }), base = lam({ color: 0x2a2a2a });
+    for (const [px, pz, ph] of [[-4.0, -0.15, 0], [3.35, -0.05, 1.7]]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 3.1, 6), wood); pole.position.set(px, 1.55, pz); pole.castShadow = true; proFlags.add(pole);
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.12, 10), base); foot.position.set(px, 0.06, pz); proFlags.add(foot);
+      const geo = new THREE.PlaneGeometry(1.2, 0.8, 10, 1); geo.translate(0.6, 0, 0); // hinge on the pole
+      const flag = new THREE.Mesh(geo, fm); flag.position.set(px + 0.02, 2.65, pz); flag.castShadow = true; proFlags.add(flag);
+      waving.push({ flag, ph, x0: geo.attributes.position.array.filter((_, i) => i % 3 === 0) });
+    }
+  }
+  function wave(t) { // a slow ripple through the cloth, stronger at the free end
+    for (const w of waving) { const a = w.flag.geometry.attributes.position; for (let i = 0; i < a.count; i++) { const x = w.x0[i]; a.setZ(i, Math.sin(t * 2.4 + w.ph - x * 4) * 0.09 * x); } a.needsUpdate = true; w.flag.rotation.y = Math.sin(t * 0.7 + w.ph) * 0.25 - 0.2; }
+  }
 
   // ---------- day rolls ----------
   function roll() {
@@ -251,7 +271,7 @@ export function createActivists(d) {
     s.day = day;
     s.here = !s.seen || Math.random() < 0.4; // the first eligible day they are always there, so the player meets them once
     if (d.inspectorDue && d.inspectorDue()) s.here = false; // the parking inspector has the pavement that day
-    if (s.here) { let gi; if (Math.random() < 0.5 && s.gi !== 0) gi = 0; else do gi = 1 + Math.floor(Math.random() * (GROUPS.length - 1)); while (gi === s.gi); s.gi = gi; paint(); } // PRO (index 0) half the time
+    if (s.here) { let gi; if (Math.random() < 0.65 && s.gi !== 0) gi = 0; else do gi = 1 + Math.floor(Math.random() * (GROUPS.length - 1)); while (gi === s.gi); s.gi = gi; paint(); } // PRO (index 0) most of the time
   }
   let painted = -1;
 
@@ -269,7 +289,8 @@ export function createActivists(d) {
     root.visible = on;
     if (!on) return;
     if (painted !== s.gi) { painted = s.gi; paint(); }
-    useCrew(CREWS[G().pro ? 1 : 0]); proProps.visible = !!G().pro; // the PRO crowd has its own people and table
+    useCrew(CREWS[G().pro ? 1 : 0]); proProps.visible = proFlags.visible = !!G().pro; // the PRO crowd has its own people, table and flags
+    if (proFlags.visible) wave(performance.now() / 1000);
     if (!s.seen) { s.seen = true; d.save(); }
     const g = G(), dist = near(), busy = d.busy();
     for (const p of [left, right]) animate(p, 0, dt);
@@ -361,7 +382,7 @@ export function createActivists(d) {
   for (const c of CREWS) for (const p of c.ppl) addInteract({ obj: p, pos: () => p.getWorldPosition(new THREE.Vector3()), r: p === c.can ? 1.7 : 1.6, enabled: () => root.visible && crew === c, label: () => 'Talk back to the protesters', act: respond });
 
   // walkers on the north pavement step to the kerb side while they pass the picket (main.js street loop)
-  const blocks = (x, z) => root.visible && z < 0 && Math.abs(x - SPOT.x) < 5.5;
+  const blocks = (x, z) => root.visible && z < 0 && x > SPOT.x - 6 && x < SPOT.x + 5;
   // test hook: spawn(gi) puts the picket out today
   function spawn(gi = Math.floor(Math.random() * GROUPS.length)) { const s = A(); s.day = econ.ensure().day; s.here = true; s.seen = true; s.gi = gi; paint(); painted = gi; return G().name; }
   return { update, tick, debrief, blocks, respond, spawn, encounter, callRazim, GROUPS, HE, NL, root, get people() { return ppl; }, SPOT };
