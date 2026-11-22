@@ -9,10 +9,11 @@
 //   street → alley gate → back alley · street → CAFÉ door → bar
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide } from './story.js';
 
 const W = 40, H = 28;
 
-export default {
+export default eastSide({
   id: 'knoflooksteeg', name: 'Knoflooksteeg', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
     ['storage', 1, 1, 7, 10, 'concrete'], ['kitchen', 1, 12, 7, 17, 'tiles'], ['shop', 1, 19, 7, 24, 'shoptile'],
@@ -94,6 +95,27 @@ export default {
     [32, 1.8, 'makarov', 0, 'bar'], [30, 7, 'bat', Math.PI / 2, 'bar'], [35.5, 9, 'makarov', -Math.PI / 2, 'bar'], [30.5, 13.5, 'bat', 0, 'bar'], [37, 4.5, 'shotgun', -Math.PI / 2, 'bar'],
     [29.5, 22.5, 'bat', Math.PI / 2, 'mixing'], [36, 18.5, 'makarov', -Math.PI / 2, 'mixing'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: De Knoflookbol, a giant garlic-bulb lantern hanging over the street from an iron bracket
+      const { THREE, root, box, lam } = c, p = c.at(11, 25.2);
+      box(0.08, 0.08, 1.6, lam({ color: 0x1a1a1e }), p.x, 4.2, p.z + 0.6, root, false); box(0.06, 1.0, 0.06, lam({ color: 0x1a1a1e }), p.x, 4.6, p.z - 0.1, root, false);
+      const g = new THREE.Group(); g.position.set(p.x, 4.15, p.z + 1.3); root.add(g);
+      const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4), lam({ color: 0x1a1a1e })); chain.position.y = -0.25; g.add(chain);
+      const bulbM = new THREE.MeshLambertMaterial({ color: 0xf3ecd8, emissive: 0x5a4a30 });
+      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2, clove = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), bulbM); clove.scale.set(0.7, 1.15, 0.7); clove.position.set(Math.cos(a) * 0.24, -1.0, Math.sin(a) * 0.24); clove.rotation.z = Math.cos(a) * 0.25; clove.rotation.x = -Math.sin(a) * 0.25; g.add(clove); }
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 10), bulbM); tip.position.y = -0.38; g.add(tip);
+      for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.6, 0.02), lam({ color: 0x8a5aa8 })); const a = i / 6 * Math.PI * 2; s.position.set(Math.cos(a) * 0.43, -1.0, Math.sin(a) * 0.43); g.add(s); }
+      const gl = c.glow(0xffe0a0, 2.6, 2.6, 0.45); gl.position.y = -1.0; g.add(gl);
+      let t = 0; return (dt) => { t += dt; g.rotation.z = Math.sin(t * 0.9) * 0.06; g.rotation.x = Math.sin(t * 0.7) * 0.04; };
+    } },
+    { k: 'board', at: [17.5, 1.5], wall: 'n', style: 'chalk', title: 'SCHULDEN', lines: ['Henk de Visser: W 900', 'Kleine Ruud: W 1.200', '~Bertus: W 300', 'Snackbar Bram: zijn zaak', 'DE HUIS WINT ALTIJD'], read: ['SCHULDEN', 'The debts of the poker room, chalked on the wall. Bertus paid. Snackbar Bram lost his whole snack bar on one hand.'] },
+    { k: 'cards', at: [17.5, 3.5], y: 0.79, read: ['POTJE', 'A hand left mid-game. Four aces on the Lampas side of the table, four more up a Lampas sleeve.'] },
+    { k: 'cards', at: [23.5, 20.5], y: 0.79 },
+    { k: 'dart', at: [35.5, 1.5], wall: 'n', face: 'EDDY', read: ['DARTBORD', "Eddy's face, pinned to the dartboard behind the bar. Most of the darts missed."] },
+    { k: 'holes', at: [21.5, 24.5], wall: 's', n: 7 }, { k: 'chair', at: [20.5, 23.5] }, { k: 'chair', at: [33.5, 12.5], color: 0x4a2a14 },
+    { k: 'papers', at: [33.5, 21.5], read: ['BESTELLIJST', 'An order for "Kipkruiden van Eddy (namaak)": forty kilos of sawdust and paprika, to be sold as Eddy\'s.'] },
+    { k: 'mattress', at: [10.5, 9.5], color: 0x5a3a6a }, { k: 'bags', at: [12.5, 12.5] }, { k: 'lamp', at: [11.5, 18.5], color: 0xc8a8e8, flicker: true },
+  ],
   loot: [[2.5, 9.5], [7.5, 2.5], [25.5, 1.5], [15.5, 18], [38, 14.5], [36.5, 22.5]], // cell
   text: {
     area: 'OUD-VETTENBURG · KNOFLOOKSTEEG',
@@ -105,7 +127,7 @@ export default {
     resultsHint: 'The cards are on the floor and the alley is quiet. Grab the spice crates (E), then drive home.',
     ownedBanner: ['KNOFLOOKSTEEG IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['DE KAARTGEVER IS DOWN', 'He should have folded.'],
-    tips: ['Four ways in: the hatch shop, the alley gate, the café door, and the kitchen door into the alley.', 'Shots in the alley bring every den running. The Maboota is silent.', 'Bins and crates in the alley stop bullets. Card tables and sofas don\'t.'],
+    tips: ['Four ways in from the street: the hatch shop, the alley gate, the café door, the kitchen door into the alley. And a fifth, quiet one: the brandgang behind the bar.', 'Shots in the alley bring every den running. The Maboota is silent.', 'Bins and crates in the alley stop bullets. Card tables and sofas don\'t.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
     const ticks = [];
@@ -163,4 +185,4 @@ export default {
       bulb.material.opacity = 0.5 + (Math.sin(t * 13) > 0.9 ? -0.35 : 0.1 * Math.sin(t * 3)); // the bare bulb flickers
     } };
   },
-};
+}, { kind: 'door', door: [12, 13], street: [26, 27], guard: [8, 'bat', -Math.PI / 2], sign: 'ACHTERDEUR', tip: 'The quiet way in: the brandgang down the east side of the bar. One Lampas smokes back there, facing the wall.', read: ['BRANDGANG', 'A sign on the bar\'s back door: "NOODUITGANG. Vrijhouden." Somebody has propped it open with a beer mat.'] });

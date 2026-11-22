@@ -7,12 +7,13 @@
 //   street → café → lounge → office · café / lounge / office → pool deck
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide } from './story.js';
 import { NOSHGEY, WATER_FURN } from './noshgey.js';
 
 const W = 44, H = 30;
 const GUESTS = [[6, 4], [9, 11], [33, 3], [36, 11], [14, 12], [28, 12], [40, 6], [3, 9]];
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'oatoase', name: 'Oat-oase', W, H,
   hazard: { ch: '~', text: 'IN HET ZWEMBAD!', death: 'Pushed into the pool.' },
@@ -75,6 +76,23 @@ export default {
     [8, 2.5, 'makarov', 0, 'deck'], [9, 3.5, 'bat', 0, 'deck'], [33, 11, 'makarov', Math.PI, 'deck'], [34, 12, 'bat', Math.PI, 'deck'], [20, 13, 'shotgun', Math.PI, 'deck'],
     [39, 4, 'shotgun', Math.PI / 2, 'deck', true], [41, 8, 'makarov', -Math.PI / 2, 'deck'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a giant inflatable flamingo drifting on the rooftop pool, under string lights
+      const { THREE, root, lam } = c, p = c.at(21.5, 7.2);
+      const pink = lam({ color: 0xe87a9a }), g = new THREE.Group(); g.position.set(p.x, 0.25, p.z); root.add(g);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.38, 10, 22), pink); ring.rotation.x = Math.PI / 2; g.add(ring);
+      const neck = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.16, 8, 16, Math.PI * 1.2), pink); neck.position.set(0.8, 0.9, 0); neck.rotation.z = -0.5; g.add(neck);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), pink); head.position.set(0.5, 1.6, 0); g.add(head);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 8), lam({ color: 0x2a2a2a })); beak.rotation.z = Math.PI / 2 + 0.5; beak.position.set(0.3, 1.5, 0); g.add(beak);
+      const bulbs = []; for (let i = 0; i < 14; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffe0a0 })); const k = i / 13; b.position.set(p.x - 9 + k * 18, 2.9 - Math.sin(k * Math.PI) * 0.5, p.z - 3.4); root.add(b); bulbs.push(b); }
+      for (let i = 0; i < 14; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffd0e0 })); const k = i / 13; b.position.set(p.x - 9 + k * 18, 2.9 - Math.sin(k * Math.PI) * 0.5, p.z + 3.4); root.add(b); bulbs.push(b); }
+      let t = 0; return (dt) => { t += dt; g.position.x = p.x + Math.sin(t * 0.15) * 4; g.position.z = p.z + Math.sin(t * 0.11) * 1.2; g.rotation.y = t * 0.08; g.position.y = 0.25 + Math.sin(t * 1.2) * 0.04; };
+    } },
+    { k: 'board', at: [1.5, 18.5], wall: 'w', style: 'green', title: 'WELLNESS', lines: ['08:00 adem', '09:00 oat-yoga', '13:00 stilte', '22:00 wapens poetsen'], read: ['WELLNESS', 'The wellness schedule: breathing at eight, oat yoga at nine, silence at one. At ten at night: "polish weapons".'] },
+    { k: 'board', at: [34.5, 16.5], wall: 'n', style: 'white', title: 'GASTENLIJST DAK', lines: ['Goeroe Granola', 'DJ Linzensoep', 'Floor (kombucha)', 'GEEN LAMPAS'], read: ['GASTENLIJST', 'Tonight\'s rooftop list. Every Noshgey boss you have met so far, and the Guru himself on top.'] },
+    { k: 'cups', at: [8.5, 7.5], y: 0, free: true }, { k: 'papers', at: [37.5, 20.5], read: ['BRIEF VAN DE GOEROE', '"Kinderen van de haver: na de Oat-oase rest alleen nog de Speltpolder. Kom naar het eiland." The next stop is the Guru\'s island.'] },
+    { k: 'chair', at: [26.5, 2.5], color: 0xf3ecd8 }, { k: 'spill', at: [17.5, 11.5], color: 0x8ad8e8, r: 0.6 },
+  ],
   loot: [[1.5, 6.5], [42, 10.5], [14.5, 23.5], [42, 23.5], [16.5, 23.5], [30, 2.5]], // cell
   text: {
     area: 'HIPSTERHEUVEL · OAT-OASE',
@@ -127,4 +145,4 @@ export default {
       }
     } };
   },
-};
+}, { kind: 'fire', door: [9, 10], street: [26, 29], sign: 'NOODTRAP', tip: 'The quiet way in: the iron fire escape up the east side of the building comes out on the pool deck, behind the guards.', read: ['NOODTRAP', '"NOODTRAP · Alleen bij brand." On the landing somebody left a yoga mat and a pack of oat biscuits.'] });

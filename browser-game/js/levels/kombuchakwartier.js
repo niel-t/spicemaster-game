@@ -6,12 +6,13 @@
 //   street → bar → lounge → fermentation hall → lab (Fermenteur Floor) · lounge → mixing room → street (LEVERINGEN)
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 40, H = 28;
 const TANKS = [[16, 2], [21, 2], [26, 2], [31, 2], [16, 7], [26, 7], [35, 6]]; // 2x2 copper tanks (top-left cell)
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'kombuchakwartier', name: 'Kombucha-kwartier', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -77,6 +78,25 @@ export default {
     [5, 1.6, 'shotgun', 0, 'lab', true], [9, 6, 'makarov', -Math.PI / 2, 'lab'],
     [31, 19.5, 'bat', Math.PI, 'mixing'], [36, 14, 'makarov', -Math.PI / 2, 'mixing'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a three-metre glass fermenting jar on the pavement, amber kombucha, the mother floating, bubbles rising
+      const { THREE, root, box, cyl, lam } = c, p = c.at(24, 0); p.z = 1.5;
+      cyl(0.8, 0.9, 0.3, lam({ color: 0xb87333 }), p.x, 0.15, p.z, root, 20); c.solid(p.x - 0.85, p.x + 0.85, p.z - 0.85, p.z + 0.85);
+      const brew = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 2.3, 20), new THREE.MeshPhongMaterial({ color: 0xd8862a, transparent: true, opacity: 0.75, emissive: 0x4a2408 })); brew.position.set(p.x, 1.5, p.z); root.add(brew);
+      const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 2.7, 20, 1, true), new THREE.MeshPhongMaterial({ color: 0xd8f0ff, transparent: true, opacity: 0.25, shininess: 140, side: THREE.DoubleSide, depthWrite: false })); jar.position.set(p.x, 1.65, p.z); root.add(jar);
+      const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.74, 0.3, 20), lam({ color: 0xb87333 })); lid.position.set(p.x, 3.1, p.z); root.add(lid);
+      const mother = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 18), lam({ color: 0xe8d8b0 })); mother.position.set(p.x, 2.55, p.z); root.add(mother);
+      const bubbles = []; for (let i = 0; i < 10; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.04 + (i % 3) * 0.02, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.7 })); b.position.set(p.x + Math.cos(i * 2.3) * 0.4, 0.5 + i * 0.2, p.z + Math.sin(i * 2.3) * 0.4); root.add(b); bubbles.push(b); }
+      c.plate('LEVENDE KOMBUCHA · NIET TIKKEN', p.x, 0.15, p.z + 0.92, 0, 1.5, 0.22, '#2a1a0e', '#e8a33d');
+      const gl = c.glow(0xe8a33d, 3, 4, 0.35); gl.position.set(p.x, 1.6, p.z); root.add(gl);
+      let t = 0; return (dt) => { t += dt; mother.position.y = 2.55 + Math.sin(t * 0.8) * 0.03; for (const b of bubbles) { b.position.y += dt * 0.5; if (b.position.y > 2.45) b.position.y = 0.4; } };
+    } },
+    { k: 'board', at: [16.5, 1.5], wall: 'n', style: 'white', title: 'NIET AANRAKEN', lines: ['De moeder is heilig.', 'Wie haar aanraakt,', 'gaat de tank in.', '- Floor'], read: ['NIET AANRAKEN', '"The mother is sacred. Whoever touches her goes in the tank." Signed Floor, the head brewer.'] },
+    { k: 'papers', at: [6.5, 8.5], read: ['LABJOURNAAL', "Batch 112: added Lampas fryer oil, tastes like victory. Batch 113: a pinch of kipkruiden from Eddy's stall. Customers cried. Sales doubled."] },
+    { k: 'spill', at: [26.5, 9.5], color: 0xd8862a, r: 0.7 }, { k: 'crates', at: [36.5, 9.5], label: 'FLESSEN', color: '#b87333' },
+    { k: 'candles', at: [18.5, 15.5], y: 0.77, n: 3 },
+    { k: 'poster', at: [1.5, 18.5], wall: 'w', w: 0.9, h: 1.2, style: 'green', title: 'KOMBUCHA', lines: ['W 7', 'probiotisch', 'spiritueel', 'bubbels'] },
+  ],
   loot: [[1.5, 10.5], [12, 2.5], [14.5, 10.5], [38, 3.5], [38, 13.5], [28.5, 21]], // cell
   text: {
     area: 'HIPSTERHEUVEL · KOMBUCHA-KWARTIER',
@@ -118,4 +138,4 @@ export default {
       tick(dt) { for (const f of ticks) f(dt); },
     };
   },
-};
+}, { kind: 'door', door: [5, 6], street: [24, 27], sign: 'ACHTERDEUR', tip: 'The quiet way in: the alley on the east side, past the bottle bins, to the brew hall\'s back door. Nobody guards the empties.', read: ['ACHTERDEUR', '"LEGE FLESSEN HIER. Niet roken: alles hier gist." The back door is held open with a crate of empties.'] });

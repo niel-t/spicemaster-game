@@ -7,11 +7,12 @@
 //   terrace → grill shop → kitchen → order office → server room / Kippenvel's office → mixing room → storage → terrace
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide } from './story.js';
 
 const W = 42, H = 28;
 const PCS = [[22, 15.5, 'Order PC · bookings'], [18, 3.5, 'Server · the client list'], [27, 3.5, 'Kippenvel\'s PC · the ledger']]; // world cell of each task terminal
 
-export default {
+export default eastSide({
   id: 'halvekipplein', name: 'Halve Kip Plein', W, H,
   taskName: 'PC',
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -96,6 +97,29 @@ export default {
     [27, 2.2, 'shotgun', 0, 'boss', true], [29.5, 6.5, 'makarov', -Math.PI / 2, 'boss'],
     [35, 7.5, 'bat', Math.PI, 'mixing'], [38.5, 2.5, 'makarov', -Math.PI / 2, 'mixing'], [36, 18, 'makarov', Math.PI, 'storage'], [39, 20.5, 'bat', -Math.PI / 2, 'storage'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a big painted rooster on a pole over the corner, turning in the wind like a weathervane
+      const { THREE, root, box, cyl, lam } = c, p = c.at(26, 0); p.z = 1.4;
+      cyl(0.1, 0.13, 4.4, lam({ color: 0x2a2a2e }), p.x, 2.2, p.z, root, 10); c.solid(p.x - 0.25, p.x + 0.25, p.z - 0.25, p.z + 0.25);
+      const g = new THREE.Group(); g.position.set(p.x, 5.1, p.z); root.add(g);
+      const gold = lam({ color: 0xe8a33d }), red = lam({ color: 0xc2412d }), cream = lam({ color: 0xf3e6c8 });
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), gold); body.scale.set(1.3, 0.9, 0.8); g.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), gold); head.position.set(0.75, 0.55, 0); g.add(head);
+      const comb = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.06), red); comb.position.set(0.78, 0.88, 0); g.add(comb);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 6), cream); beak.rotation.z = -Math.PI / 2; beak.position.set(1.1, 0.52, 0); g.add(beak);
+      const wattle = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), red); wattle.position.set(0.98, 0.38, 0); g.add(wattle);
+      for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.75, 0.05), i % 2 ? red : gold); f.position.set(-0.85, 0.45 + i * 0.05, 0); f.rotation.z = 0.5 + i * 0.22; g.add(f); }
+      box(0.06, 0.4, 0.06, cream, 0.1, -0.7, 0, g, false); box(1.4, 0.04, 0.04, lam({ color: 0x2a2a2e }), 0, -0.95, 0, g, false);
+      const gl = c.glow(0xe8862c, 3.2, 3.2, 0.4); gl.position.set(p.x, 5.1, p.z); root.add(gl);
+      let t = 0; return (dt) => { t += dt; g.rotation.y = Math.sin(t * 0.25) * 1.2 + Math.sin(t * 1.3) * 0.08; };
+    } },
+    { k: 'board', at: [20.5, 10.5], wall: 'n', w: 2.2, h: 1.3, strings: true, title: 'BESTELLINGEN', big: 40, left: true, size: 21, lines: ['Snackbar Bram: 40 kg', 'Café Ans: 12 kg', 'Kapsalon Koning: 25 kg', 'KLANTEN VAN EDDY:', '~Restaurant Mok', '~Shoarma Ali', 'Lunchroom Fien: deze week'], read: ['BESTELLINGEN', "Every Lampas delivery in Oud-Vettenburg, with red string between the snack bars. A column on the right is headed 'KLANTEN VAN EDDY'. Half of them are already crossed out: taken over."] },
+    { k: 'candles', at: [27.5, 4.5], y: 0.81, n: 4, photo: 'JAN VAN KAAS', read: ['ALTAARTJE', 'Kippenvel keeps a little shrine to Jan van Kaas on his desk. The candles are still warm.'] },
+    { k: 'papers', at: [18.5, 7.5], n: 8 }, { k: 'spill', at: [8.5, 10.5], color: 0x9a6a2a, r: 0.6 },
+    { k: 'crates', at: [37.5, 16.5], label: 'BEZORGING', color: '#c2412d' },
+    { k: 'poster', at: [1.5, 16.5], wall: 'w', w: 0.9, h: 1.2, title: 'HALVE HAAN', lines: ['halve kip', 'W 5', 'heel gezin', 'W 9'], style: 'menu' },
+    { k: 'chair', at: [25.5, 19.5], color: 0x2a2a2a }, { k: 'cups', at: [22.5, 14.5], y: 0.81 },
+  ],
   loot: [[1.5, 9.5], [14.5, 2.5], [30, 2.5], [39.5, 9.5], [36.5, 13.5], [32.5, 22.5]], // cell
   text: {
     area: 'OUD-VETTENBURG · HALVE KIP PLEIN',
@@ -153,4 +177,4 @@ export default {
     let t = 0;
     return { tasks, tick(dt) { t += dt; for (const f of ticks) f(dt); for (const c of chicks) c.rotation.z += dt * 2; chickGlow.material.opacity = 0.4 + Math.sin(t * 2) * 0.08; } };
   },
-};
+}, { kind: 'door', door: [5, 6], street: [24, 27], guard: [11, 'makarov', -Math.PI / 2], sign: 'ACHTERDEUR', tip: 'The quiet way in: the back alley on the east side, past the bins, to the mixing room\'s back door. One Lampas is out there on his phone.', read: ['ACHTERDEUR', 'Taped to the back door: "Kippen worden hier geleverd. NIET via de zaak!" The chicken deliveries come in round the back.'] });

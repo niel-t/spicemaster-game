@@ -7,11 +7,12 @@
 //   market → shop → hall (or the two open loading bays straight into the hall) · shop → mixing room → depot office (window onto the hall)
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 
 const W = 46, H = 30;
 const STACKS = [[14, 7], [20, 6], [27, 8], [34, 6], [40, 9], [15, 13], [23, 12], [31, 14], [38, 14], [13, 19], [27, 19], [41, 19]]; // 2x2 pallet stacks (top-left cell)
 
-export default {
+export default eastSide({
   id: 'mayonaisemarkt', name: 'Mayonaisemarkt', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
     ['office', 1, 1, 9, 7, 'panel'], ['mixing', 1, 9, 9, 13, 'tiles'], ['shop', 1, 15, 9, 23, 'shoptile'],
@@ -75,6 +76,29 @@ export default {
     [13, 10.5, 'bat', Math.PI / 2, 'hall'], [19, 10, 'makarov', Math.PI / 2, 'hall'], [36, 11, 'bat', -Math.PI / 2, 'hall'], [43, 13, 'makarov', -Math.PI / 2, 'hall'],
     [16, 17, 'makarov', Math.PI, 'hall'], [22, 21, 'bat', Math.PI, 'hall'], [32, 18, 'makarov', Math.PI, 'hall'], [39, 21, 'bat', -Math.PI / 2, 'hall'], [24, 16, 'bat', 0, 'hall'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: the old cast-iron market clock on the square, two faces, keeping Lampas time
+      const { THREE, root, box, cyl, lam, canvasTex } = c, p = c.at(37, 0); p.z = 1.35;
+      const iron = lam({ color: 0x1e2a24 });
+      cyl(0.35, 0.45, 0.5, iron, p.x, 0.25, p.z, root, 12); cyl(0.12, 0.16, 3.6, iron, p.x, 2.2, p.z, root, 10); c.solid(p.x - 0.45, p.x + 0.45, p.z - 0.45, p.z + 0.45);
+      box(1.3, 1.3, 0.5, iron, p.x, 4.5, p.z, root); const cap = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.7, 4), iron); cap.position.set(p.x, 5.5, p.z); cap.rotation.y = Math.PI / 4; root.add(cap);
+      const face = canvasTex(128, 128, (g) => { g.fillStyle = '#f3ecd8'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.fillStyle = '#1e2a24'; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.fillRect(64 + Math.sin(a) * 50 - 3, 64 - Math.cos(a) * 50 - 3, 6, 6); } g.font = '700 11px Arial'; g.textAlign = 'center'; g.fillText('MAYONAISEMARKT', 64, 92); });
+      const hands = [];
+      for (const s of [1, -1]) {
+        const f = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ map: face })); f.position.set(p.x, 4.5, p.z + s * 0.26); if (s < 0) f.rotation.y = Math.PI; root.add(f);
+        for (const [len, w] of [[0.32, 0.05], [0.46, 0.03]]) { const h = new THREE.Group(); h.position.set(p.x, 4.5, p.z + s * 0.28); h.rotation.y = s < 0 ? Math.PI : 0; const piv = new THREE.Group(); h.add(piv); const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len), new THREE.MeshBasicMaterial({ color: 0x1a1a1a })); m.position.y = len / 2; piv.add(m); root.add(h); hands.push([piv, len]); }
+      }
+      const gl = c.glow(0xffe0a0, 2.2, 2.2, 0.3); gl.position.set(p.x, 4.5, p.z + 0.4); root.add(gl);
+      c.plate('LAMPAS TIJD', p.x, 3.55, p.z + 0.27, 0, 1.1, 0.26, '#c2412d', '#f3ecd8');
+      let t = 4.3; return (dt) => { t += dt / 60; for (const [piv, len] of hands) piv.rotation.z = -(len > 0.4 ? t * Math.PI * 2 : t * Math.PI / 6); };
+    } },
+    { k: 'board', at: [5.5, 1.5], wall: 'n', style: 'white', title: 'PRIJZEN', lines: ['Mayo 1 liter: W 1', 'Mayo 10 liter: W 7', 'Kruiden van Eddy: VERBODEN', 'Wie bij Eddy koopt, krijgt geen mayo meer'], read: ['PRIJZEN', 'The depot price list: mayo by the bucket for next to nothing. Underneath: "Whoever buys from Eddy gets no more mayo." That is how they emptied the market.'] },
+    { k: 'papers', at: [20.5, 28.5], n: 5, read: ['FLYER', '"Kruidenkraam Eddy: GESLOTEN op last van de Lampas." The flyer is nailed over the spot where Eddy\'s dad had his market stall.'] },
+    { k: 'spill', at: [25.5, 7.5], color: 0xf8f2dc, r: 0.9 }, { k: 'crates', at: [24.5, 6.5], label: 'MAYO', color: '#c2412d' },
+    { k: 'crates', at: [36.5, 15.5], n: 3, label: 'IN BESLAG', color: '#1a1a1a', read: ['IN BESLAG', "Crates marked 'confiscated': spice tins with Eddy's logo, taken off the market stalls that sold them."] },
+    { k: 'poster', at: [1.5, 15.5], wall: 'w', w: 0.9, h: 1.2, title: 'MAYO-ACTIE', lines: ['2e emmer', 'GRATIS', 'zolang de Lampas', 'voorraad strekt'] },
+    { k: 'cash', at: [4.5, 3.5], y: 0.81 }, { k: 'cups', at: [6.5, 3.5], y: 0.81 },
+  ],
   loot: [[12.5, 3.5], [22.5, 2.5], [33.5, 2.5], [43.5, 2.5], [18.5, 9.5], [36.5, 9.5], [12, 22.5], [25.5, 22.5], [43.5, 21.5], [2.5, 4.5]], // cell
   text: {
     area: 'OUD-VETTENBURG · MAYONAISEMARKT',
@@ -86,7 +110,7 @@ export default {
     resultsHint: 'The Lampas lost their depot. Grab the spice crates (E): there are ten in here. Then drive home.',
     ownedBanner: ['MAYONAISEMARKT IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['THE DEPOTBAAS IS DOWN', 'Delivery cancelled.'],
-    tips: ['The loading bays lead straight into the hall. The shop is the quiet way in.', 'Pallet stacks stop bullets. Out in the open aisles, nothing does.', 'Ten spice crates in this depot. Worth the walk.'],
+    tips: ['The loading bays lead straight into the hall. The shop is quieter, and the builders\' door behind the scaffolding is quietest.', 'Pallet stacks stop bullets. Out in the open aisles, nothing does.', 'Ten spice crates in this depot. Worth the walk.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
     const ticks = [];
@@ -120,4 +144,4 @@ export default {
     ticks.push(rain(THREE, root, [[OX - 12, Z0 + 25, OX + W + 12, 12]], 800));
     return { tick(dt) { for (const f of ticks) f(dt); } };
   },
-};
+}, { kind: 'scaffold', door: [16, 17], street: [25, 29], sign: 'BOUWDEUR', tip: 'The quiet way in: behind the scaffolding on the east side of the hall, a builders\' door stands open. The two Lampas near it face the other way.', read: ['BOUWPLAATS', 'A builders\' notice: "Herstel gevelplaten. Deur blijft open voor de steiger." Nobody told the Lampas.'] });

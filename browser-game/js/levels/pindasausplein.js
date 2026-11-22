@@ -7,12 +7,13 @@
 //   pier gate → yard (kiosk, towers, sandbags) → factory (roller door) → office · yard → barracks → office
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 
 const W = 48, H = 34;
 const HOPPERS = [[7, 6], [14, 6], [21, 6], [7, 13], [21, 13]]; // 2x2 hoppers (top-left cell)
 const TOWERS = [[10, 23], [36, 23], [24, 29]]; // 2x2 watchtowers (top-left cell); each carries a searchlight
 
-export default {
+export default eastSide({
   id: 'pindasausplein', name: 'Pindasausplein', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
     ['factory', 1, 1, 30, 18, 'factory'], ['office', 32, 1, 46, 10, 'redcarpet'], ['barracks', 32, 12, 46, 18, 'hall'],
@@ -91,6 +92,28 @@ export default {
     [35, 15, 'bat', Math.PI / 2, 'barracks'], [44, 15, 'makarov', -Math.PI / 2, 'barracks'], [39, 17.5, 'shotgun', Math.PI, 'barracks'],
     [38.5, 1.8, 'shotgun', 0, 'office', true, 'janvankaas'], [34, 5, 'makarov', Math.PI / 2, 'office'], [44, 4, 'makarov', -Math.PI / 2, 'office'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a bronze Jan van Kaas on a plinth outside the gate, fry-fork raised over the city
+      const { THREE, root, box, cyl, lam } = c, p = c.at(31, 0); p.z = 1.7;
+      const stone = lam({ color: 0x8a8278 }), bronze = new THREE.MeshStandardMaterial({ color: 0x8a5a2a, metalness: 0.7, roughness: 0.4 });
+      box(1.6, 1.2, 1.6, stone, p.x, 0.6, p.z, root); box(1.8, 0.15, 1.8, stone, p.x, 1.25, p.z, root, false); c.solid(p.x - 0.9, p.x + 0.9, p.z - 0.9, p.z + 0.9);
+      const g = new THREE.Group(); g.position.set(p.x, 1.3, p.z); g.rotation.y = Math.PI; root.add(g);
+      for (const s of [-1, 1]) box(0.26, 0.9, 0.3, bronze, s * 0.17, 0.45, 0, g);
+      const belly = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 10), bronze); belly.scale.set(1, 1.15, 0.85); belly.position.y = 1.25; g.add(belly);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), bronze); head.position.y = 1.9; g.add(head);
+      const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.3, 12), bronze); hat.position.y = 2.15; g.add(hat);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.8, 8), bronze); arm.position.set(0.42, 1.75, 0); arm.rotation.z = -2.6; g.add(arm);
+      const fork = new THREE.Group(); fork.position.set(0.62, 2.15, 0); g.add(fork); box(0.03, 0.8, 0.03, bronze, 0, 0.35, 0, fork, false); for (const dx of [-0.07, 0, 0.07]) box(0.02, 0.22, 0.02, bronze, dx, 0.82, 0, fork, false); box(0.18, 0.03, 0.03, bronze, 0, 0.72, 0, fork, false);
+      const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.7, 8), bronze); arm2.position.set(-0.42, 1.2, 0.05); arm2.rotation.z = 0.3; g.add(arm2);
+      c.plate('ONZE LEIDER · JAN VAN KAAS', p.x, 0.75, p.z + 0.82, 0, 1.5, 0.3, '#3a3228', '#e8c890');
+      const gl = c.glow(0xe8a33d, 3.0, 4.0, 0.25); gl.position.set(p.x, 2.6, p.z); root.add(gl);
+    } },
+    { k: 'board', at: [35.5, 1.5], wall: 'n', w: 2.2, h: 1.1, strings: true, title: 'PLAN KIPKRUIDENKWARTIER', size: 24, left: true, lines: ['Dag 1: zijn leveranciers', 'Dag 2: zijn klanten', 'Dag 3: zijn kraam', 'Dag 4: Eddy zelf'], read: ['PLAN KIPKRUIDENKWARTIER', "Jan van Kaas's war plan, with red string across a map of Eddy's home district: first his suppliers, then his customers, then the stall. Day four just says 'Eddy zelf'."] },
+    { k: 'poster', at: [46.5, 16.5], wall: 'e', w: 1.0, h: 1.3, title: 'GEZOCHT', lines: ['EDDY JR.', 'levend', 'W 10.000'], face: 'EDDY', read: ['GEZOCHT', 'The bounty on Eddy has gone up: W 10.000, alive. Jan van Kaas wants to do it himself.'] },
+    { k: 'cards', at: [39.5, 15.5], y: 0.77 },
+    { k: 'crates', at: [33.5, 26.5], label: 'PINDA', color: '#a8642a' }, { k: 'spill', at: [20.5, 14.5], color: 0xa8642a, r: 0.8 },
+    { k: 'papers', at: [42.5, 7.5], read: ['BRIEF VAN DE NOSHGEY', 'A letter on green recycled paper: "Dear Jan, we would like to buy the Lampas pier. Cash. No meat on the premises. Namaste, the Noshgey." Jan wrote NOOIT across it.'] },
+  ],
   loot: [[2.5, 3.5], [29.5, 1.5], [24.5, 18], [46, 2.5], [46, 18], [45.5, 30.5], [1.5, 22.5], [33.5, 22]], // cell
   text: {
     area: 'OUD-VETTENBURG · PINDASAUSPLEIN',
@@ -102,7 +125,7 @@ export default {
     resultsHint: 'Jan van Kaas is down and Oud-Vettenburg is yours. Grab the spice crates (E), then drive home.',
     ownedBanner: ['PINDASAUSPLEIN IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['JAN VAN KAAS IS DOWN', 'The Lampas are finished.'],
-    tips: ['A searchlight beam on you brings every guard in the yard. Watch the beams and move between them.', 'Sandbags stop bullets. Barbed wire does not, but you can\'t walk through it.', 'Jan van Kaas takes five hits. Use the factory door or the barracks to reach his office.'],
+    tips: ['A searchlight beam on you brings every guard in the yard. Watch the beams and move between them, or skip the yard: a ledge along the east side of the pier leads to the barracks\' water gate.', 'Sandbags stop bullets. Barbed wire does not, but you can\'t walk through it.', 'Jan van Kaas takes five hits. Use the factory door or the barracks to reach his office.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex, player, run, alarm, popup }) {
     const ticks = [];
@@ -153,4 +176,4 @@ export default {
       }
     } };
   },
-};
+}, { kind: 'canal', door: [14, 15], sign: 'WATERPOORT', tip: 'The quiet way in: a ledge runs along the east side of the pier, over the water, to the barracks\' water gate. It skips the searchlights in the yard.', read: ['WATERPOORT', 'A rusty sign on the water gate: "Alleen voor bootjes van Jan." There are no boats. There is no lock either.'] });

@@ -8,10 +8,11 @@
 //   back hall → mixing room → stairs · café → office → street (PERSONEEL)
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 
 const W = 40, H = 28;
 
-export default {
+export default eastSide({
   id: 'bitterbalbuurt', name: 'Bitterbalbuurt', W, H,
   taskName: 'VAULT',
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -92,6 +93,27 @@ export default {
     [35, 3, 'shotgun', Math.PI, 'vault', true], [33, 7.5, 'makarov', 0, 'vault'], [37, 6, 'bat', -Math.PI / 2, 'vault'],
     [35, 18.5, 'makarov', Math.PI, 'office'], [33, 21, 'bat', Math.PI / 2, 'office'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: De Gouden Bitterbal, a gilded bitterbal the size of a beer barrel on an iron bracket over the café door
+      const { THREE, root, box, lam, canvasTex } = c, p = c.at(19.8, 24.2);
+      const iron = lam({ color: 0x1a1a1e });
+      box(0.08, 0.08, 1.4, iron, p.x, 3.4, p.z - 0.5, root, false); box(0.06, 0.06, 0.9, iron, p.x, 3.05, p.z - 0.75, root, false).rotation.x = 0.7;
+      const crumb = canvasTex(64, 64, (g) => { g.fillStyle = '#c8901e'; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 260; i++) { g.fillStyle = ['#e8b030', '#a8701a', '#f2c84e', '#8a5a14'][i % 4]; g.fillRect(Math.random() * 64, Math.random() * 64, 2 + Math.random() * 3, 2 + Math.random() * 3); } });
+      const g = new THREE.Group(); g.position.set(p.x, 2.6, p.z + 0.15); root.add(g);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.42, 18, 14), new THREE.MeshStandardMaterial({ map: crumb, metalness: 0.55, roughness: 0.45, emissive: 0x3a2408 })); ball.scale.set(1, 0.92, 1); g.add(ball);
+      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.7, 6), lam({ color: 0xf3ecd8 })); stick.position.y = 0.55; g.add(stick);
+      const mustard = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), lam({ color: 0xe8b020 })); mustard.scale.y = 0.5; mustard.position.y = 0.38; g.add(mustard);
+      const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5, 4), iron); chain.position.y = 0.95; g.add(chain);
+      const gl = c.glow(0xf2c14e, 2.4, 2.4, 0.4); gl.position.copy(g.position); root.add(gl);
+      c.plate('DE GOUDEN BITTERBAL', p.x, 3.6, p.z + 0.2, 0, 2.0, 0.32, '#1a0e08', '#f2c14e');
+      let t = 0; return (dt) => { t += dt; g.rotation.z = Math.sin(t * 1.1) * 0.05; g.rotation.y += dt * 0.2; };
+    } },
+    { k: 'board', at: [16.5, 12.5], wall: 'n', style: 'chalk', title: 'HUISREGELS', lines: ['1. Geen kruiden van Eddy', '2. Lampas drinkt gratis', '3. Wie klaagt, gaat de kelder in'], read: ['HUISREGELS', 'The house rules of De Gouden Bitterbal, in chalk: no spices from Eddy, the Lampas drink for free, and whoever complains goes down to the cellar.'] },
+    { k: 'papers', at: [34.5, 8.5], read: ['SCHATKIST', 'The Lampas treasury book. Every snack bar in Oud-Vettenburg pays in on Fridays. The last line only says: "Rest: door naar Jan, Pindasausplein."'] },
+    { k: 'poster', at: [38.5, 16.5], wall: 'e', w: 1.0, h: 1.3, style: 'kraft', title: 'DE LAMPAS', lines: ['sinds 1987', 'Frituren is', 'familie'], face: 'JAN VAN KAAS', read: ['DE LAMPAS', 'A framed portrait of Jan van Kaas, "frying since 1987". Every Lampas joint has one. This is where the money goes.'] },
+    { k: 'cards', at: [13.5, 3.5], y: 0, free: true }, { k: 'chair', at: [14.5, 2.5] }, { k: 'holes', at: [20.5, 1.5], wall: 'n', n: 5 },
+    { k: 'cups', at: [15.5, 13.5], y: 1.1 }, { k: 'spill', at: [22.5, 18.5], color: 0xc8901e, r: 0.4 },
+  ],
   loot: [[1.5, 5.5], [11.5, 1.5], [26.5, 1.5], [32.5, 1.5], [38, 10.5], [37.5, 13.5]], // cell
   text: {
     area: 'OUD-VETTENBURG · BITTERBALBUURT',
@@ -105,7 +127,7 @@ export default {
     bossDown: ['THE PENNINGMEESTER IS DOWN', 'Account closed.'],
     taskHint: 'Crack the Lampas vault (E).',
     tasksDone: 'VAULT CRACKED',
-    tips: ['Two ways into the cellar: the stairs behind the bar, or the kitchen door at the back of the shop.', 'The vault is at the far end of the cellar, through the round door.', 'The bar stops bullets. The pool table doesn\'t.'],
+    tips: ['Two ways into the cellar: the stairs behind the bar, or the kitchen door at the back of the shop. The quiet way skips the cellar: the coal door into the vault, down the east alley.', 'The vault is at the far end of the cellar, through the round door.', 'The bar stops bullets. The pool table doesn\'t.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
     const ticks = [];
@@ -151,4 +173,4 @@ export default {
     ticks.push(rain(THREE, root, [[OX - 12, Z0 + 24, OX + W + 12, 8]], 800));
     return { tasks, tick(dt) { for (const f of ticks) f(dt); if (tasks[0].spin > 0) { tasks[0].spin -= dt; dial.rotation.y += dt * 12; } } };
   },
-};
+}, { kind: 'door', door: [4, 5], street: [24, 27], sign: 'KOLENLUIK', tip: 'The quiet way in: the old coal alley down the east side ends at the coal door into the vault. Nobody has used it since the café went over to gas.', read: ['KOLENLUIK', 'Painted on the old coal door: "KOLEN · W. DE BOER · 1931". Behind it, the Lampas built their vault. They forgot the door.'] });

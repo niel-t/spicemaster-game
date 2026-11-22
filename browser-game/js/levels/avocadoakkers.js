@@ -7,11 +7,12 @@
 //   street → café → greenhouse beds → lab · café → garden → greenhouse · street → garden gate
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 40, H = 28;
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'avocadoakkers', name: 'Avocado-akkers', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -81,6 +82,23 @@ export default {
     [33, 4.5, 'shotgun', 0, 'lab', true], [36, 8.5, 'makarov', -Math.PI / 2, 'lab'],
     [32, 16, 'bat', Math.PI / 2, 'nursery'], [36, 20, 'makarov', -Math.PI / 2, 'nursery'], [35, 16, 'bat', 0, 'nursery'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a giant half avocado on the pavement, pit and all, the Noshgey's pride
+      const { THREE, root, box, lam } = c, p = c.at(21, 0); p.z = 1.6;
+      box(1.6, 0.4, 1.0, lam({ color: 0x5a6a3a }), p.x, 0.2, p.z, root); c.solid(p.x - 0.9, p.x + 0.9, p.z - 0.6, p.z + 0.6);
+      const g = new THREE.Group(); g.position.set(p.x, 1.85, p.z - 0.1); g.rotation.x = -0.25; root.add(g);
+      const skin = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2), lam({ color: 0x2f4a1e, side: THREE.DoubleSide })); skin.scale.set(1.0, 0.35, 1.45); skin.rotation.x = Math.PI / 2; g.add(skin);
+      const flesh = new THREE.Mesh(new THREE.CircleGeometry(0.97, 24), lam({ color: 0xd8e08a })); flesh.scale.set(1, 1.42, 1); flesh.position.z = 0.01; g.add(flesh);
+      const rim = new THREE.Mesh(new THREE.RingGeometry(0.78, 0.97, 24), lam({ color: 0x9ab84a })); rim.scale.set(1, 1.42, 1); rim.position.z = 0.015; g.add(rim);
+      const pit = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), lam({ color: 0x7a4a2a })); pit.position.set(0, -0.25, 0.12); g.add(pit);
+      c.plate('AVOCADO-AKKERS', p.x, 0.25, p.z + 0.52, 0, 1.4, 0.24, '#2a3a1a', '#d8e08a');
+    } },
+    { k: 'board', at: [38.5, 15.5], wall: 'e', style: 'green', title: 'OOGSTQUOTA', lines: ['Week 46: 400 avocado\'s', 'Week 47: 600', 'Week 48: ALLES', 'Wie achterloopt, wordt compost'], read: ['OOGSTQUOTA', 'Harvest quotas for the nursery workers. Week 48 just says "EVERYTHING". "Whoever falls behind becomes compost."'] },
+    { k: 'board', at: [1.5, 15.5], wall: 'w', w: 1.6, h: 1.1, title: 'INFLUENCERS', lines: ['#avocadoakkers', '#plantbased', '#noshgey', '#eddyisuit'], read: ['INFLUENCERS', 'A wall of polaroids: influencers posing with avocado toast. The newest hashtag is #eddyisuit. "Eddy is out."'] },
+    { k: 'crates', at: [31.5, 19.5], label: 'AVOCADO', color: '#2f4a1e' }, { k: 'spill', at: [32.5, 20.5], color: 0x9ab84a, r: 0.4 },
+    { k: 'papers', at: [31.5, 8.5], read: ['KWEEKPROEF', 'Lab notes: "Avocado watered with chili oil from Eddy\'s recipe grows twice as fast." The page is stamped GEHEIM.'] },
+    { k: 'bags', at: [5.5, 10.5], color: 0x5a4a2a, n: 2 },
+  ],
   loot: [[1.5, 10.5], [14, 3.5], [26, 1.5], [38, 3.5], [38, 13.5], [28.5, 21.5]], // cell
   text: {
     area: 'HIPSTERHEUVEL · AVOCADO-AKKERS',
@@ -92,7 +110,7 @@ export default {
     resultsHint: 'Broken glass everywhere. Grab the spice crates (E), then drive home.',
     ownedBanner: ['AVOCADO-AKKERS IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['DOCTOR GUACAMOLE IS DOWN', 'Smashed.'],
-    tips: ['Glass walls stop nothing: line up shots through them, and keep moving.', 'Growing tables are low. Bullets fly over them.', 'The roof garden behind the café is a quieter way into the greenhouse.'],
+    tips: ['Glass walls stop nothing: line up shots through them, and keep moving.', 'Growing tables are low. Bullets fly over them.', 'The roof garden behind the café is a quieter way into the greenhouse. The quietest: the compost path on the east side, straight to the lab.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
     const ticks = [];
@@ -115,4 +133,4 @@ export default {
     ticks.push(rain(THREE, root, [[OX - 12, Z0 + 24, OX + W + 12, 8], [OX + 1, Z0 + 1, OX + 15, Z0 + 12]], 800));
     return { tick(dt) { for (const f of ticks) f(dt); } };
   },
-};
+}, { kind: 'door', door: [3, 4], street: [24, 27], sign: 'TUINDEUR', tip: 'The quiet way in: the compost path down the east side of the greenhouse, to the lab\'s garden door. It stinks, so nobody stands guard.', read: ['TUINDEUR', '"COMPOST: alleen GFT. Deur dicht ivm vliegjes." The door is not shut.'] });

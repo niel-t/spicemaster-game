@@ -7,12 +7,13 @@
 //   jetty → restaurant → kitchen → garden → greenhouse (the chest) · restaurant → disco dome → meditation hall → greenhouse
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
+import { eastSide } from './story.js';
 import { makeSloep, makeCruiser, rockBoat } from '../boats.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 50, H = 34;
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'speltpolder', name: 'Speltpolder', W, H,
   taskName: 'CHEST',
@@ -89,6 +90,23 @@ export default {
     [40, 5, 'makarov', Math.PI / 2, 'greenhouse'], [46, 9, 'bat', -Math.PI / 2, 'greenhouse'],
     [42, 18, 'shotgun', 0, 'hall', true, 'goeroe'], [38, 21, 'makarov', Math.PI / 2, 'hall'], [46, 25, 'makarov', -Math.PI / 2, 'hall'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: an old polder windmill on the island behind the compound, sails turning
+      const { THREE, root, box, cyl, lam } = c, p = c.at(12, -4.5);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2.2, 7, 8), lam({ color: 0x5a4a3a })); body.position.set(p.x, 3.5, p.z); root.add(body);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(1.8, 1.6, 8), lam({ color: 0x3a2a1e })); cap.position.set(p.x, 7.8, p.z); root.add(cap);
+      box(0.9, 1.4, 0.1, lam({ color: 0x2a1a10 }), p.x, 0.7, p.z + 2.1, root, false);
+      const hub = new THREE.Group(); hub.position.set(p.x, 7.2, p.z + 1.8); root.add(hub);
+      for (let i = 0; i < 4; i++) { const arm = new THREE.Group(); arm.rotation.z = i * Math.PI / 2; hub.add(arm); box(0.18, 4.6, 0.1, lam({ color: 0xd8c8a0 }), 0, 2.4, 0, arm, false); box(0.9, 3.6, 0.04, lam({ color: 0xf3ecd8, transparent: true, opacity: 0.85 }), 0.5, 2.7, 0.04, arm, false); }
+      const gl = c.glow(0xf2c14e, 1.6, 1.6, 0.6); gl.position.set(p.x, 3.5, p.z + 2.2); root.add(gl);
+      return (dt) => { hub.rotation.z -= dt * 0.35; };
+    } },
+    { k: 'board', at: [36.5, 18.5], wall: 'w', style: 'kraft', title: 'DE 10 REGELS', size: 22, left: true, lines: ['1. De Goeroe heeft gelijk', '2. Spelt boven alles', '3. Geen vlees, geen Lampas', '4. Wie twijfelt, mediteert', '5. Wie blijft twijfelen, roeit'], read: ['DE 10 REGELS', 'The Guru\'s ten rules, burnt into a plank. Rule 5: "whoever keeps doubting, rows." The rowing boats at the jetty start to make sense.'] },
+    { k: 'candles', at: [42.5, 22.5], n: 6, read: ['MEDITATIEKRING', 'A circle of candles on the tatami. The Noshgey sit here every night and chant the Guru\'s name. The candles smell of oats.'] },
+    { k: 'board', at: [1.5, 18.5], wall: 'w', style: 'chalk', title: 'MENU VAN HET EILAND', lines: ['speltpap', 'speltbrood', 'spelt met spelt', 'water (spelt)'] },
+    { k: 'papers', at: [44.5, 3.5], read: ['NOTITIE VAN DE GOEROE', '"The page from the notebook stays in the chest. If the Lampas ever find out where the ships moor..." The rest is torn off.'] },
+    { k: 'crates', at: [9.5, 30.5], label: 'SPELT', color: '#8a6a3a' }, { k: 'spill', at: [6.5, 8.5], color: 0xd8c8a0, r: 0.6 },
+  ],
   loot: [[1.5, 11.5], [16, 12.5], [18.5, 9.5], [48, 1.5], [48, 25.5], [32.5, 29.5], [18.5, 25.5]], // cell
   text: {
     area: 'HIPSTERHEUVEL · SPELTPOLDER',
@@ -144,4 +162,4 @@ export default {
       page.rotation.y += dt; beam.material.opacity = 0.5 + Math.sin(t * 2) * 0.12; gong.rotation.z = Math.sin(t * 0.8) * 0.05;
     } };
   },
-};
+}, { kind: 'canal', door: [5, 6], street: [28, 33], sign: 'WATERDEUR', tip: 'The quiet way in: a quay along the east shore of the island, to the greenhouse\'s water door. The chest is right there.', read: ['WATERDEUR', '"Alleen voor de roeiers van de Goeroe." There is a rowing boat, and no rower.'] });

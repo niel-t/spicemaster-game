@@ -8,11 +8,12 @@
 //   quay → terrace → café → stairs → disco → brewery → loading door · café → office → brewery
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 42, H = 28;
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'frikandelhaven', name: 'Frikandelhaven', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -82,6 +83,24 @@ export default {
     [23, 5.5, 'makarov', Math.PI / 2, 'brewery'], [28, 5.5, 'bat', Math.PI, 'brewery'], [33, 7, 'makarov', -Math.PI / 2, 'brewery'], [38, 5, 'bat', -Math.PI / 2, 'brewery'], [25, 12, 'shotgun', 0, 'brewery'],
     [26, 21, 'bat', Math.PI, 'mixing'], [35, 20, 'makarov', Math.PI, 'store'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a four-metre plant-based frikandel on a stick, painted cardamom green, outside the café
+      const { THREE, root, box, cyl, lam, canvasTex } = c, p = c.at(22, 0); p.z = 1.5;
+      box(1.2, 0.5, 1.2, lam({ color: 0x5a6a3a }), p.x, 0.25, p.z, root); c.solid(p.x - 0.6, p.x + 0.6, p.z - 0.6, p.z + 0.6);
+      cyl(0.06, 0.06, 1.6, lam({ color: 0xd8c8a0 }), p.x, 1.2, p.z, root, 8);
+      const fk = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 2.4, 6, 14), lam({ color: 0x7a9a3a })); fk.position.set(p.x, 3.4, p.z); root.add(fk);
+      for (let i = 0; i < 5; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.03, 5, 16), lam({ color: 0x5a7a2a })); ring.rotation.x = Math.PI / 2; ring.position.set(p.x, 2.5 + i * 0.45, p.z); root.add(ring); }
+      const sauce = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.0, 0.12), lam({ color: 0xf3ecd8 })); sauce.position.set(p.x, 3.4, p.z + 0.4); root.add(sauce);
+      const onion = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.6, 0.06), lam({ color: 0xc8b080 })); onion.position.set(p.x + 0.12, 3.4, p.z + 0.44); root.add(onion);
+      c.plate('100% PLANT · 0% SPIJT', p.x, 0.36, p.z + 0.62, 0, 1.15, 0.24, '#2a3a1a', '#a9c46a');
+      const gl = c.glow(0xa9c46a, 3.2, 4.4, 0.25); gl.position.set(p.x, 3.4, p.z); root.add(gl);
+    } },
+    { k: 'board', at: [1.5, 8.5], wall: 'w', style: 'white', title: 'GASTENLIJST', lines: ['Goeroe Granola +1', 'DJ Linzensoep', 'Influencer Fleur', '~De Lampas', '~Eddy Jr.'], read: ['GASTENLIJST', "The disco guest list. Goeroe Granola is on it, plus one. The Lampas are crossed out, and so is Eddy."] },
+    { k: 'board', at: [21.5, 1.5], wall: 'n', style: 'chalk', title: 'BROUWSCHEMA', lines: ['Frikandel-bier batch 9', 'hop, zeewier, gist', 'HET GEHEIME KRUID', '(van Eddy?? navragen)'], read: ['BROUWSCHEMA', 'The brewing schedule for "frikandel beer": hops, seaweed, yeast, and "the secret herb (Eddy\'s?? ask around)". They want his recipe.'] },
+    { k: 'poster', at: [1.5, 19.5], wall: 'w', w: 0.9, h: 1.2, style: 'green', title: 'VEGAN FRIKANDEL', lines: ['W 4', '100% plant', '0% smaak'] },
+    { k: 'crates', at: [35.5, 19.5], label: 'ZEEWIER', color: '#3a6a3a' }, { k: 'spill', at: [30.5, 11.5], color: 0xc87a3a, r: 0.6 },
+    { k: 'papers', at: [5.5, 12.5], read: ['BRIEF AAN DE LAMPAS', 'A draft letter: "Dear Lampas, the harbour is ours now. You may keep one snack bar, as a museum." Signed with a little leaf.'] },
+  ],
   loot: [[1.5, 12.5], [16, 1.5], [18.5, 13.5], [40, 3.5], [30.5, 21.5], [39.5, 16.5]], // cell
   text: {
     area: 'HIPSTERHEUVEL · FRIKANDELHAVEN',
@@ -128,4 +147,4 @@ export default {
       strobe.intensity = on ? 5 : 0; dark.material.opacity = on ? 0 : 0.78;
     } };
   },
-};
+}, { kind: 'canal', door: [11, 12], street: [24, 27], guard: [6, 'bat', Math.PI / 2], sign: 'WATERDEUR', tip: 'The quiet way in: a quay along the harbour canal on the east side, to the brewery\'s water door. One Noshgey keeps watch there, facing the water.', read: ['WATERDEUR', 'A chalkboard by the water door: "Hop en zeewier: per boot. Geen schoenen op de kade." Nobody else comes this way.'] });

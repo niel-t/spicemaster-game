@@ -7,12 +7,13 @@
 //   street → tasting room → kitchen → office · tasting room / kitchen → club → storage / VIP · street → CLUB door
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 44, H = 30;
 const EXIT = [38.5, 29.5]; // the club door: where the dancers run
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'gembergracht', name: 'Gembergracht', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -71,6 +72,24 @@ export default {
     [4, 20.5, 'makarov', Math.PI, 'tasting'], [12, 23.5, 'bat', -Math.PI / 2, 'tasting'], [8, 15.5, 'bat', Math.PI, 'kitchen'], [10, 5.5, 'makarov', Math.PI / 2, 'office'],
     [22, 11, 'makarov', Math.PI, 'club'], [30, 11, 'bat', Math.PI, 'club'], [20, 20, 'makarov', Math.PI / 2, 'club'], [40, 20.5, 'bat', -Math.PI / 2, 'club'], [36, 24, 'shotgun', Math.PI, 'club'], [24, 25, 'bat', Math.PI, 'club'],
     [25, 4.5, 'makarov', Math.PI / 2, 'storage'], [36.5, 1.6, 'shotgun', 0, 'vip', true], [40, 5, 'makarov', -Math.PI / 2, 'vip'], [33, 5, 'bat', Math.PI / 2, 'vip'],
+  ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a giant knobbly ginger root on a brick plinth with flower boxes, the Gembergracht sign
+      const { THREE, root, box, lam } = c, p = c.at(25, 0); p.z = 1.5;
+      box(2.4, 0.7, 1.2, lam({ color: 0x7a3a2a }), p.x, 0.35, p.z, root); c.solid(p.x - 1.2, p.x + 1.2, p.z - 0.6, p.z + 0.6);
+      for (const s of [-1, 1]) { box(0.7, 0.3, 0.5, lam({ color: 0x6a4a2a }), p.x + s * 1.5, 0.15, p.z + 0.2, root, false); for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), lam({ color: [0xe8862c, 0xc2412d, 0xf2c14e][i] })); f.position.set(p.x + s * 1.5 - 0.2 + i * 0.2, 0.38, p.z + 0.2); root.add(f); } }
+      const skin = lam({ color: 0xc8a060 }), g = new THREE.Group(); g.position.set(p.x, 1.4, p.z); root.add(g);
+      const lumps = [[0, 0, 0, 0.55, 1.6], [0.7, 0.35, 0, 0.4, 1.1], [-0.65, 0.3, 0.1, 0.42, 1.2], [0.25, 0.9, 0, 0.32, 0.9], [-0.3, 1.0, -0.05, 0.3, 1.0], [1.15, 0.7, 0.05, 0.25, 0.8]];
+      for (const [x, y, z, r, sy] of lumps) { const l = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), skin); l.scale.set(1.3, sy, 0.8); l.position.set(x, y, z); l.rotation.z = x * 0.6; g.add(l); }
+      for (let i = 0; i < 9; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.015, 4, 14), lam({ color: 0x8a6a3a })); ring.position.set(-0.8 + i * 0.22, 0.2 + (i % 3) * 0.3, 0.32); g.add(ring); }
+      c.plate('GEMBERGRACHT', p.x, 0.5, p.z + 0.62, 0, 1.8, 0.3, '#2a1a0e', '#e8a33d');
+      const gl = c.glow(0xe8a33d, 4, 3, 0.25); gl.position.set(p.x, 1.9, p.z); root.add(gl);
+    } },
+    { k: 'board', at: [20.5, 8.5], wall: 'n', style: 'chalk', title: 'SETLIST', lines: ['22:00 gong-ambient', '23:00 adem-house', '00:00 DE GOEROE SPREEKT', '01:00 gembershots'], read: ['SETLIST', '"DJ Linzensoep: gong ambient, breath house, and at midnight: the Guru speaks." The Noshgey party the way other people go to church.'] },
+    { k: 'papers', at: [36.5, 5.5], read: ['SMOKKELROUTE', 'A canal map with a route drawn in from the harbour: "gember, per boot, \'s nachts". Their ginger comes in from the docks, where the spice ships moor.'] },
+    { k: 'cash', at: [37.5, 4.5], y: 0.77 }, { k: 'cups', at: [4.5, 22.5], y: 0.77 },
+    { k: 'crates', at: [22.5, 5.5], label: 'GEMBER', color: '#c87a3a' }, { k: 'spill', at: [28.5, 21.5], color: 0xe8b020, r: 0.5 },
+    { k: 'poster', at: [1.5, 15.5], wall: 'w', w: 0.9, h: 1.2, style: 'menu', title: 'GEMBERSHOT', lines: ['W 6', 'scherp', 'zuiverend', 'pijnlijk'] },
   ],
   loot: [[1.5, 9.5], [16, 1.5], [18.5, 1.5], [42, 3.5], [41, 25.5], [18.5, 8.5]], // cell
   text: {
@@ -132,4 +151,4 @@ export default {
       }
     } };
   },
-};
+}, { kind: 'canal', door: [20, 21], street: [28, 29], sign: 'WATERDEUR', tip: 'The quiet way in: a quay up the side canal on the east, to the club\'s water door. That is how the ginger comes in at night.', read: ['WATERDEUR', 'A brass plate on the water door: "LEVERINGEN PER BOOT. Niet aanbellen tijdens de gong."'] });

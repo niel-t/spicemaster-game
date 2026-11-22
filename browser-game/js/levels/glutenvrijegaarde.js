@@ -7,11 +7,12 @@
 //   street → deli → kitchen · deli / kitchen → bamboo garden → conservatory → mixing room · street → garden gate
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide } from './story.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 42, H = 28;
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'glutenvrijegaarde', name: 'Glutenvrije Gaarde', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -76,6 +77,22 @@ export default {
     [37, 3, 'shotgun', 0, 'conservatory', true], [33, 12.5, 'makarov', Math.PI, 'conservatory'], [38, 8, 'bat', -Math.PI / 2, 'conservatory'],
     [33, 21, 'bat', Math.PI, 'mixing'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: the stone fountain in the bamboo garden, with paper lanterns strung over it
+      const { THREE, root, cyl, lam } = c, p = c.at(21.5, 11.5);
+      const stone = lam({ color: 0x8a8a7a }), moss = lam({ color: 0x4a6a2a });
+      cyl(0.62, 0.7, 0.4, stone, p.x, 0.2, p.z, root, 18); cyl(0.12, 0.16, 0.9, stone, p.x, 0.75, p.z, root, 10); cyl(0.38, 0.22, 0.14, stone, p.x, 1.22, p.z, root, 14);
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(0.56, 18), new THREE.MeshPhongMaterial({ color: 0x3a6a7a, shininess: 120 })); pool.rotation.x = -Math.PI / 2; pool.position.set(p.x, 0.41, p.z); root.add(pool);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.64, 0.06, 6, 18), moss); ring.rotation.x = Math.PI / 2; ring.position.set(p.x, 0.41, p.z); root.add(ring);
+      const drops = []; for (let i = 0; i < 6; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), new THREE.MeshBasicMaterial({ color: 0xc8e8f8 })); d.position.set(p.x, 1.3, p.z); root.add(d); drops.push([d, i / 6 * Math.PI * 2, i / 6]); }
+      const lant = []; for (let i = 0; i < 6; i++) { const lx = p.x - 4 + i * 1.6, lz = p.z - 2 + (i % 2) * 0.6; const l = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), new THREE.MeshBasicMaterial({ color: 0xf3e6c8 })); l.scale.y = 1.2; l.position.set(lx, 2.5, lz); root.add(l); const gl = c.glow(0xffd890, 1.4, 1.4, 0.4); gl.position.copy(l.position); root.add(gl); lant.push(l); }
+      let t = 0; return (dt) => { t += dt; for (const [d, a, o] of drops) { const k = (t * 0.9 + o) % 1; d.position.set(p.x + Math.cos(a) * 0.45 * k, 1.3 + k * 0.25 - k * k * 1.1, p.z + Math.sin(a) * 0.45 * k); } lant.forEach((l, i) => { l.position.y = 2.5 + Math.sin(t * 1.3 + i) * 0.04; }); };
+    } },
+    { k: 'poster', at: [1.5, 15.5], wall: 'w', w: 0.9, h: 1.2, style: 'paper', title: 'GLUTEN = GIF', lines: ['brood is', 'een keuze.', 'een slechte.'], read: ['GLUTEN = GIF', '"Bread is a choice. A bad one." The deli sells nine kinds of seed crackers and one very lonely spelt bun.'] },
+    { k: 'board', at: [30.5, 1.5], wall: 'n', style: 'white', title: 'BEWIJSSTUK', lines: ['1 x stokbrood (Lampas)', '1 x kruidenmix (Eddy)', 'Status: VERNIETIGEN'], read: ['BEWIJSSTUK', 'An evidence board in the lab: one Lampas baguette and one tin of Eddy\'s spice mix, both marked "destroy". They test everything that sells better than them.'] },
+    { k: 'papers', at: [33.5, 4.5], n: 6 }, { k: 'crates', at: [37.5, 20.5], label: 'BOEKWEIT', color: '#8a6a3a' },
+    { k: 'cups', at: [5.5, 3.5], y: 0.97 }, { k: 'spill', at: [24.5, 18.5], color: 0x6a5a3a, r: 0.5 },
+  ],
   loot: [[1.5, 9.5], [12, 1.5], [14.5, 11.5], [28.5, 21.5], [40, 3.5], [40, 17.5]], // cell
   text: {
     area: 'HIPSTERHEUVEL · GLUTENVRIJE GAARDE',
@@ -106,4 +123,4 @@ export default {
     ticks.push(rain(THREE, root, [[OX - 12, Z0 + 24, OX + W + 12, 8], [OX + 14, Z0 + 1, OX + 29, Z0 + 23]], 900));
     return { tick(dt) { for (const f of ticks) f(dt); } };
   },
-};
+}, { kind: 'door', door: [18, 19], street: [24, 27], sign: 'LEVERINGEN', tip: 'The quiet way in: the delivery alley on the east side, to the mixing room. The deli and the garden never see you.', read: ['LEVERINGEN', '"Meel: alleen glutenvrij. Overige leveranciers worden aangegeven." The flour comes in round the back.'] });

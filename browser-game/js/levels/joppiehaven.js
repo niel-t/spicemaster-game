@@ -19,7 +19,7 @@ export default {
     ['kitchen', 6, 1, 20, 4, 'tiles'], ['office', 22, 1, 30, 4, 'panel'], ['mixing', 32, 1, 37, 4, 'tiles'],
     ['bar', 6, 6, 20, 14, 'pine'], ['lounge', 22, 6, 37, 14, 'lounge'],
     ['deck', 6, 16, 37, 23, 'deck'], ['jetty', 18, 24, 25, 28, 'deck'],
-    ['w1', 1, 1, 4, 28, 'harbour'], ['w2', 39, 1, 42, 28, 'harbour'], ['w3', 6, 24, 16, 28, 'harbour'], ['w4', 27, 24, 37, 28, 'harbour'],
+    ['w1', 1, 1, 4, 28, 'harbour'], ['w2', 40, 1, 42, 28, 'harbour'], ['w2c', 39, 17, 39, 28, 'harbour'], ['quay', 39, 1, 39, 16, 'deck'], ['quay', 38, 16, 38, 16, 'deck'], ['w3', 6, 24, 16, 28, 'harbour'], ['w4', 27, 24, 37, 28, 'harbour'],
   ],
   layout({ carve, put, putR }) {
     // the harbour water around the boardwalk (the walls between the water patches open up so it reads as one harbour)
@@ -28,6 +28,8 @@ export default {
     putR(1, 1, 4, 28, '~'); putR(39, 1, 42, 28, '~'); putR(5, 16, 5, 28, '~'); putR(38, 16, 38, 28, '~');
     putR(6, 24, 17, 28, '~'); putR(26, 24, 38, 28, '~');
     carve(18, 29, 25, 29);      // the jetty meets the quay road
+    carve(39, 1, 39, 16); carve(38, 16, 38, 16); // the quiet way in: a plank walkway along the boathouse over the harbour
+    put(38, 1, 'D');            // walkway ↔ mixing room (the water door)
     // doors
     carve(12, 15, 13, 15);      // the wrap bar's front door onto the boardwalk (open)
     putR(30, 15, 31, 15, 'D');  // lounge ↔ boardwalk
@@ -66,7 +68,7 @@ export default {
   },
   floorRep: { deck: 2, pine: 1.5, lounge: 1.4, panel: 1.5, harbour: 4 },
   hallCells: [[12, 15], [13, 15]],
-  doorSigns: { '30,15': 'LOUNGE', '21,2': 'KANTOOR' },
+  doorSigns: { '30,15': 'LOUNGE', '21,2': 'KANTOOR', '38,1': 'WATERDEUR' },
   neon: { kitchen: 0xf2c14e, office: 0xe8a33d, mixing: 0xf2c14e, bar: 0xa9c46a, lounge: 0xe8a33d, deck: 0xa9c46a, jetty: 0xa9c46a, w1: 0x1a2a3a, w2: 0x1a2a3a, w3: 0x1a2a3a, w4: 0x1a2a3a },
   lights: [[13, 10, 0xf3e6c8, 1.7], [13, 3, 0xf2c14e, 1.1], [29, 10, 0xe8a33d, 1.6], [34, 10, 0xc87a3a, 1.2], [26, 3, 0xe8a33d, 1.3], [34, 3, 0xf2c14e, 1.0], [10, 20, 0xa9c46a, 1.1], [22, 20, 0xf2c14e, 1.2], [33, 20, 0xa9c46a, 1.1], [21, 27, 0xf2c14e, 0.9]],
   mood: { bg: 0x081018, fogNear: 32, fogFar: 80, hemi: 0.5, sun: 0.55, sky: 0xf0f0dc, ground: 0x3a4038, wall: 0x7a3a2a, cap: 0xe0d4bc, under: 0x3a2a24 },
@@ -83,6 +85,30 @@ export default {
     [26, 3.5, 'shotgun', 0, 'office', true], [29, 3, 'makarov', -Math.PI / 2, 'office'],
     [34.5, 1.5, 'bat', 0, 'mixing'],
   ],
+  side: { doors: [[38, 1]], name: 'WATERDEUR', kind: 'canal' },
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a little striped lighthouse on a pile in the harbour, its lamp turning
+      const { THREE, root, box, cyl, lam } = c, p = c.at(32, 26.5);
+      cyl(0.9, 1.0, 0.6, lam({ color: 0x5a5048 }), p.x, 0.1, p.z, root, 14);
+      for (let i = 0; i < 5; i++) cyl(0.62 - i * 0.05, 0.66 - i * 0.05, 0.9, lam({ color: i % 2 ? 0xf3ecd8 : 0xe8862c }), p.x, 0.85 + i * 0.9, p.z, root, 14);
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.5, 12), new THREE.MeshBasicMaterial({ color: 0xffe8a8 })); lamp.position.set(p.x, 5.2, p.z); root.add(lamp);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.6, 12), lam({ color: 0x2f7a2a })); roof.position.set(p.x, 5.75, p.z); root.add(roof);
+      const beam = new THREE.Mesh(new THREE.ConeGeometry(1.4, 9, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe8a8, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      beam.rotation.z = Math.PI / 2; beam.position.x = 4.5; const piv = new THREE.Group(); piv.position.set(p.x, 5.2, p.z); piv.add(beam); root.add(piv);
+      const gl = c.glow(0xffe8a8, 3, 3, 0.5); gl.position.set(p.x, 5.2, p.z); root.add(gl);
+      c.plate('JOPPIE-VUUR', p.x, 0.55, p.z + 0.95, 0, 1.0, 0.22, '#1a2a1a', '#a9c46a');
+      return (dt) => { piv.rotation.y += dt * 0.6; };
+    } },
+    { k: 'board', at: [36.5, 6.5], wall: 'n', style: 'green', title: 'ONZE MISSIE', lines: ['1. Geen vlees', '2. Geen plastic', '3. Geen Lampas', '4. Wel winst'], read: ['ONZE MISSIE', 'The Noshgey mission statement, on recycled board: no meat, no plastic, no Lampas. Point four: profit.'] },
+    { k: 'board', at: [14.5, 1.5], wall: 'n', style: 'chalk', title: 'WRAPS', lines: ['hummus · tempeh', 'jackfruit "pulled"', 'JOPPIE (vegan!)', 'kipkruiden: UITVERKOCHT'], read: ['WRAPS', "The wrap menu. At the bottom: 'chicken spice: SOLD OUT'. They have been buying up Eddy's spice to keep it off the market."] },
+    { k: 'crates', at: [14.5, 7.5], label: 'LAMPAS FRITUUR', color: '#c2412d', read: ['SLECHT KARMA', 'A deep fryer taken off a Lampas snack bar, covered in stickers: "SLECHT KARMA". The Noshgey are moving in on Lampas turf.'] },
+    { k: 'papers', at: [24.5, 2.5], read: ['HUURCONTRACT', 'A lease: the Noshgey got Joppiehaven from the harbour board for one Wilder and "a lifetime supply of oat milk".'] },
+    { k: 'cups', at: [8.5, 20.5], y: 0.77 }, { k: 'spill', at: [27.5, 19.5], color: 0xe8dcc0, r: 0.5 },
+    { k: 'boat', at: [40.8, 9.5], rot: 0.05 }, { k: 'bollard', at: [39.85, 8.6], rope: [40.4, 9.2], free: true }, { k: 'bollard', at: [39.85, 13.5], free: true },
+    { k: 'ring', at: [39.5, 6.5], wall: 'w' }, { k: 'chalk', at: [39.5, 15.3], dir: 0, free: true }, { k: 'chalk', at: [38.5, 16.5], dir: -Math.PI / 2, free: true },
+    { k: 'lamp', at: [39.35, 1.9], color: 0x9ab8e8 },
+    { k: 'sign', at: [39.5, 4.6], wall: 'w', title: 'WATERDEUR', w: 0.8, h: 0.5, style: 'paper', hy: 1.5, read: ['WATERDEUR', '"Leveringen per sloep. Geen schoenen op de steiger." The planks creak, but nobody listens.'] },
+  ],
   loot: [[6.5, 2.5], [20.5, 3.5], [30, 3.5], [37, 3.5], [37, 13.5], [7, 22.5]], // cell
   text: {
     area: 'HIPSTERHEUVEL · JOPPIEHAVEN',
@@ -94,7 +120,7 @@ export default {
     resultsHint: 'The wraps are cold and the Noshgey are wet. Grab the spice crates (E), then drive home.',
     ownedBanner: ['JOPPIEHAVEN IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['WRAPMEESTER WESSEL IS DOWN', 'That\'s a wrap.'],
-    tips: ['Noshgey guards take two hits. The Maboota knocks them down; hit them again on the floor.', 'Knock a Noshgey into the harbour edge: splash, gone.', 'Two ways in: the wrap bar door and the lounge door, both on the boardwalk.'],
+    tips: ['Noshgey guards take two hits. The Maboota knocks them down; hit them again on the floor.', 'Knock a Noshgey into the harbour edge: splash, gone.', 'Two ways in on the boardwalk: the wrap bar door and the lounge door. The quiet third: the plank walkway round the east side of the boathouse to the water door.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
     const ticks = [];

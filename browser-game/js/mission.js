@@ -24,6 +24,7 @@ import { WD, CAL, MODS, ARMOUR, PLATE, NADES, GEAR_X, BASE_MAG, KILLPTS as KP, F
 import { gunAudio } from './gunaudio.js';
 import { enrichFloor, normalOf, macro, blobGeo, mergeStatic } from './richtex.js'; // crisp, weathered floors with a bump, walls with grime
 import { DRESS_FURN, dress, spits, dressGroup, stash } from './dressing.js'; // spice sacks, big bags, meat racks, shoarma spits on every level
+import { buildStory } from './levels/story.js'; // story props, readable notes and quiet side entrances (Act 1 and Act 2)
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
@@ -122,6 +123,7 @@ export function initMission(ctx) {
   const frameM = lam({ color: 0xe8e8f0 }), barrelM = lam({ color: 0xc81e1e });
   let wallM = null, capM = null, pristine = null;
   let tableGuns = [];
+  let notes = []; // story props Eddy reads when he walks up to them (js/levels/story.js)
   let glass = new Map(), barrels = new Map(), lights = [], van = null, levelTick = null, levelReset = null, START = null, VAN_PARK = 0;
 
   // builds a level into a fresh root group; the previous level is torn down first
@@ -203,7 +205,9 @@ export function initMission(ctx) {
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
     const rolls = spits(def, G, THREE, root, lam, OX, Z0, dressed); mergeStatic(dg);
     tableGuns = stash(def, G, THREE, root, lam, OX, Z0, (c) => FM[c][0]); // covert ops: guns on the tables (picked up with E, dropped in by resetFloor) // shoarma spits turning on the counters
-    levelTick = rolls.length ? (dt) => { for (const r of rolls) r.rotation.y += dt * 0.7; if (deco.tick) deco.tick(dt); } : deco.tick || null;
+    const story = buildStory(def, { THREE, root, OX, Z0, W, H, G, box, cyl, lam, canvasTex, signTex, WALL_H, solid }); notes = story.notes; // after decorate: props that tell what happens here
+    const decoTick = deco.tick && story.tick ? (dt) => { deco.tick(dt); story.tick(dt); } : deco.tick || story.tick;
+    levelTick = rolls.length ? (dt) => { for (const r of rolls) r.rotation.y += dt * 0.7; if (decoTick) decoTick(dt); } : decoTick || null;
     // neon: one strip per room, top of the walls
     for (const [name, x0, z0, x1] of def.rooms) if (def.neon[name] !== undefined) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, def.neon[name]);
     lights = [];
@@ -1477,7 +1481,7 @@ export function initMission(ctx) {
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
     for (const t of tasks) { t.done = !!done; if (t.reset) t.reset(t.done); }
     smoke.clear(); for (const n of nades) root.remove(n.g); nades.length = 0; for (const c of clouds) root.remove(c.m); clouds.length = 0; sightCap = Infinity; if (levelReset) levelReset(); waveReset();
-    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, tin: false, paraAlarm: false, foes: Math.max(1, alive().length + pendingN()) });
+    Object.assign(R, { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: done, results: false, lastOneShown: false, tin: false, paraAlarm: false, sideIn: false, foes: Math.max(1, alive().length + pendingN()) });
     if (R.loadoutAtStart) state.loadout = JSON.parse(JSON.stringify(R.loadoutAtStart)); // a restart puts back the kit you came in with
     loadKit(); P.rl = null;
     Object.assign(P, { hp: EASY.hp + Math.min(3, pk('tough')), maxhp: EASY.hp + Math.min(3, pk('tough')), armor: armourOf(state.loadout) ? state.loadout.vest | 0 : 0, armourT: armourOf(state.loadout), plateT: 0, nadeT: 0, invT: 0, lastHurt: 0, dead: false, deadT: 0, fireT: 0, bloom: 0, exec: 0, vx: 0, vz: 0, rl: null, sprint: false, stepT: 0 });
@@ -2119,13 +2123,27 @@ export function initMission(ctx) {
     vigEl.style.background = `radial-gradient(ellipse at center, rgba(255,0,30,0) 45%, rgba(255,0,30,${vig.toFixed(3)}) 100%)`; vigEl.style.opacity = 1;
     for (const l of lootCrates) if (!l.taken) l.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
     if (levelTick) levelTick(dt);
-    heistTick(dt); defendTick(dt); waveTick(dt); parkTick(dt); navTick(dt);
+    heistTick(dt); defendTick(dt); waveTick(dt); parkTick(dt); navTick(dt); storyTick();
     for (let i = pops.length - 1; i >= 0; i--) {
       const p = pops[i]; p.t += dt; p.p.y += dt * 0.8;
       const v = p.p.clone().project(camera); p.el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; p.el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; p.el.style.opacity = Math.min(1, 2.2 - p.t * 1.6);
       if (p.t > 1.4) { p.el.remove(); pops.splice(i, 1); }
     }
     P.last.copy(player.position);
+  }
+  // story notes and the quiet way in (js/levels/story.js): walk up to a note and Eddy reads it (not in the middle of a fight);
+  // come in through the level's side door (def.side) before anyone has seen you and it pays a bonus
+  function storyTick() {
+    if (P.dead || !M.active) return;
+    const px = player.position.x, pz = player.position.z;
+    const fight = enemies.some((e) => { const f = e.userData.foe; return f.alive && f.down <= 0 && f.state === 'chase'; });
+    if (!fight) for (const n of notes) if (!n.seen && Math.hypot(n.x - px, n.z - pz) < 1.6) { n.seen = true; toast(n.title, n.text, 4.5); sfx('pick'); break; }
+    const sd = LV.side; if (!sd || R.sideIn) return;
+    for (const [x, z] of sd.doors) if (Math.hypot(OX + x + 0.5 - px, Z0 + z + 0.5 - pz) < 0.9) {
+      R.sideIn = true;
+      if (!fight && !(HEIST && HS.loud)) { R.score += 300; popup(player.position, 'QUIET WAY IN  +W 300', '#f2c14e', true); toast('QUIET WAY IN', `In through the ${sd.name.toLowerCase()}. Nobody saw you. Swing doors make no sound.`, 2.6); beep(660, 0.05, 'triangle', 0.03); beep(990, 0.08, 'triangle', 0.03); }
+      break;
+    }
   }
   // bodies: launched up, spin, slide, splat on walls and cover, smash through glass, bowl over standing Lampas (Neon Vice slideBody)
   function slide(obj, s, dt, r) {

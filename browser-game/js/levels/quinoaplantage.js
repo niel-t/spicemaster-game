@@ -6,11 +6,12 @@
 //   street → shop → warehouse → stairs → lounge · shop → office → lounge · street → loading door → warehouse
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide, plate } from './story.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 44, H = 30;
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'quinoaplantage', name: 'Quinoaplantage', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -70,6 +71,23 @@ export default {
     [20, 15.5, 'makarov', Math.PI, 'warehouse'], [29, 15, 'bat', Math.PI / 2, 'warehouse'], [37, 16, 'makarov', -Math.PI / 2, 'warehouse'], [16, 21, 'bat', Math.PI / 2, 'warehouse'], [28, 21, 'shotgun', Math.PI, 'warehouse'], [38, 23, 'bat', -Math.PI / 2, 'warehouse'],
     [33, 2.5, 'shotgun', 0, 'lounge', true], [20, 4.5, 'makarov', Math.PI / 2, 'lounge'], [38, 7, 'makarov', -Math.PI / 2, 'lounge'], [29, 8, 'bat', Math.PI, 'lounge'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: the copper roaster chimney over the warehouse roof, smoke drifting off it
+      const { THREE, root, cyl, lam } = c, p = c.at(30, -1.6);
+      const copper = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.75, roughness: 0.35 });
+      cyl(0.5, 0.6, 7.5, copper, p.x, 3.75, p.z, root, 16); cyl(0.65, 0.65, 0.3, copper, p.x, 7.6, p.z, root, 16);
+      for (let i = 0; i < 4; i++) cyl(0.62, 0.62, 0.08, lam({ color: 0x6a3a1a }), p.x, 1.5 + i * 1.6, p.z, root, 16);
+      const puffs = [], pm = new THREE.MeshBasicMaterial({ color: 0xd8ccb8, transparent: true, opacity: 0.25, depthWrite: false });
+      for (let i = 0; i < 8; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), pm); s.position.set(p.x, 8 + i * 0.6, p.z); root.add(s); puffs.push([s, i / 8]); }
+      c.plate('QUINOAPLANTAGE · GEBRAND', p.x, 2.6, p.z + 0.62, 0, 1.6, 0.3, '#2a1a0e', '#e8a33d');
+      let t = 0; return (dt) => { t += dt; for (const [s, o] of puffs) { const k = (t * 0.12 + o) % 1; s.position.set(p.x + k * 3, 8 + k * 5, p.z - k * 1.5); s.scale.setScalar(0.6 + k * 2.2); s.material.opacity = 0.25 * (1 - k); } };
+    } },
+    { k: 'board', at: [1.5, 18.5], wall: 'w', style: 'kraft', title: 'QUINOA', lines: ['rood W 9', 'wit W 9', 'zwart W 14', 'Goeroe-blend W 40'], read: ['QUINOA', 'A price list. The "Guru blend" costs forty Wilders a bag. Underneath, smaller: "contains no quinoa".'] },
+    { k: 'papers', at: [6.5, 5.5], read: ['VELVET-LEDEN', 'The membership list of the Velvet lounge upstairs. Every Noshgey boss in Hipsterheuvel, and one surprise: a Lampas lieutenant, "for the oat lattes".'] },
+    { k: 'board', at: [20.5, 1.5], wall: 'n', style: 'paper', title: 'HUISREGELS VELVET', lines: ['Fluisteren.', 'Geen vlees.', 'Geen Eddy.'], read: ['HUISREGELS', '"Whisper. No meat. No Eddy." The Velvet has a rule about you.'] },
+    { k: 'spill', at: [24.5, 18.5], color: 0xd8c8a0, r: 0.8 }, { k: 'crates', at: [40.5, 12.5], label: 'QUINOA', color: '#c2412d' },
+    { k: 'cups', at: [8.5, 11.5], y: 0 , free: true },
+  ],
   loot: [[1.5, 12.5], [12, 2.5], [41.5, 1.5], [14.5, 12.5], [42, 21.5], [26.5, 24]], // cell
   text: {
     area: 'HIPSTERHEUVEL · QUINOAPLANTAGE',
@@ -112,4 +130,4 @@ export default {
       },
     };
   },
-};
+}, { kind: 'scaffold', door: [15, 16], street: [26, 29], sign: 'BOUWDEUR', tip: 'The quiet way in: the scaffolding on the east side of the roastery, where the chimney is being fixed. The builders\' door leads straight into the warehouse.', read: ['BOUWPLAATS', '"Schoorsteen in reparatie. Deur open laten voor de stukadoor." The plasterer went home hours ago.'] });

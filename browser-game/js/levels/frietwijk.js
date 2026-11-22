@@ -9,6 +9,7 @@
 //   terrace → PERSONEEL door → staff room
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { plate } from './story.js';
 
 const W = 46, H = 27;
 
@@ -61,6 +62,7 @@ export default {
     put(2, 2, 'C'); putR(1, 7, 2, 7, 'C'); put(3, 12, 'X');
     putR(2, 23, 4, 23, 'v'); putR(12, 23, 15, 23, 'v'); put(6, 24, 't'); put(13, 25, 't'); put(17, 24, 't'); put(21, 25, 't'); put(25, 24, 't');
     putR(30, 23, 33, 23, 'v'); put(36, 24, 't'); putR(28, 25, 29, 25, 'h');
+    put(27, 24, 'o'); // the foot of the giant fries cone (story)
     put(1, 26, 'l'); put(19, 26, 'l'); put(38, 26, 'l'); for (const x of [8, 24, 32, 44]) put(x, 26, 'o');
   },
   furn: {
@@ -119,7 +121,7 @@ export default {
   hallCells: [[9, 21], [10, 21]],
   doorSigns: { '42,21': 'PERSONEEL', '5,3': 'LEVERINGEN', '35,3': 'KANTOOR' },
   neon: { store: 0xffd8a0, mixing: 0xf2c14e, cold: 0xd8e8f0, office: 0xe8a33d, shop: 0xe8862c, kitchen: 0xf2c14e, staff: 0xf2c14e, side: 0xe8a33d, terrace: 0xe8862c },
-  lights: [[10, 17, 0xe8862c, 1.8], [21, 11, 0xff8a3a, 1.8], [30, 11, 0xf2c14e, 1.4], [21, 17, 0xf3e6c8, 1.4], [30, 18, 0xf3e6c8, 1.4], [10, 6, 0xffd8a0, 1.4], [20, 4, 0xf2c14e, 1.4], [30, 4, 0xc8dcf0, 1.2], [40, 5, 0xe8a33d, 1.7], [40, 17, 0xf2c14e, 1.1], [2.5, 10, 0xe8a33d, 1.0], [9, 24, 0xe8862c, 1.4], [27, 24, 0xe8a33d, 1.2], [38, 24, 0xe8a33d, 1.2]],
+  lights: [[10, 17, 0xe8862c, 1.8], [21, 11, 0xff8a3a, 1.8], [30, 11, 0xf2c14e, 1.4], [21, 17, 0xf3e6c8, 1.4], [30, 18, 0xf3e6c8, 1.4], [10, 6, 0xffd8a0, 1.4], [20, 4, 0xf2c14e, 1.4], [30, 4, 0xc8dcf0, 1.2], [40, 5, 0xe8a33d, 1.7], [40, 17, 0xf2c14e, 1.1], [9, 24, 0xe8862c, 1.4], [27, 24, 0xe8a33d, 1.2], [38, 24, 0xe8a33d, 1.2]],
   mood: { bg: 0x0e0c10, fogNear: 30, fogFar: 74, hemi: 0.55, sun: 0.65, sky: 0xfff0dc, ground: 0x5a4a3a, wall: 0x6a3a2a, cap: 0xe8d8c0, under: 0x3a2a24 },
   van: { park: [14, 4.6], rot: Math.PI, from: W + 14, exit: [14.6, 3.0], solid: [10.7, 16.8, 3.45, 5.75] }, // world; drives in along the plaza, nose first
   start: [10, -0.8],              // world: on the terrace in front of the shop
@@ -128,7 +130,7 @@ export default {
   bossLook: { cap: 0xc2412d, shirt: 0xf3e6c8, front: '#f3e6c8', pants: 0x2a2a2a, belly: 0.9, head: { hair: '#5a3a1a', brow: '#3a2414', hairLine: 46, iris: '#4a3a1a' } }, // Friet-Fred: paper hat red, cream chef's whites
   spawns: [ // cell x, cell z, weapon, facing (0 = +z/south), room, boss
     [5, 24, 'bat', Math.PI / 2, 'terrace'], [22, 23, 'makarov', Math.PI, 'terrace'], [34, 25, 'bat', -Math.PI / 2, 'terrace'],
-    [2, 15, 'makarov', Math.PI, 'side'], [3, 5, 'bat', 0, 'side'],
+    [2, 15, 'makarov', Math.PI, 'side'], [9.5, 10.5, 'bat', Math.PI / 2, 'store'],
     [11, 14, 'makarov', 0, 'shop'], [9, 19, 'bat', Math.PI / 2, 'shop'], [14, 17, 'bat', -Math.PI / 2, 'shop'],
     [19, 10.5, 'bat', 0, 'kitchen'], [23, 14, 'makarov', Math.PI / 2, 'kitchen'], [27, 10.5, 'makarov', 0, 'kitchen'], [31, 14, 'bat', -Math.PI / 2, 'kitchen'],
     [20, 16.5, 'makarov', Math.PI / 2, 'kitchen'], [29, 17, 'bat', Math.PI, 'kitchen'], [33, 19, 'shotgun', -Math.PI / 2, 'kitchen'],
@@ -136,6 +138,28 @@ export default {
     [20, 6, 'bat', Math.PI, 'mixing'], [29, 3.5, 'makarov', Math.PI / 2, 'cold'], [33, 6, 'bat', -Math.PI / 2, 'cold'],
     [39.5, 2.2, 'shotgun', 0, 'office', true], [42, 6, 'makarov', -Math.PI / 2, 'office'],
     [38, 18, 'bat', Math.PI / 2, 'staff'], [43, 15.5, 'makarov', -Math.PI / 2, 'staff'],
+  ],
+  // the quiet way in: up the dark side alley (one Lampas on a smoke break, his back to the plaza) to the delivery door
+  side: { doors: [[5, 3], [5, 4]], name: 'LEVERINGEN', kind: 'door' },
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a giant fibreglass cone of fries on a pole over the plaza, slowly turning
+      const { THREE, root, box, cyl, lam, canvasTex } = c, p = c.at(27.5, 24.5);
+      cyl(0.09, 0.12, 4.2, lam({ color: 0x2a2a2e }), p.x, 2.1, p.z, root, 10);
+      const g = new THREE.Group(); g.position.set(p.x, 4.9, p.z); root.add(g);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.85, 1.7, 20, 1, true), lam({ color: 0xc2412d, side: THREE.DoubleSide })); cone.rotation.x = Math.PI; g.add(cone);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.6, 0.34, 20, 1, true), lam({ map: canvasTex(256, 32, (x) => { x.fillStyle = '#f3e6c8'; x.fillRect(0, 0, 256, 32); x.fillStyle = '#c2412d'; x.font = '900 22px Arial'; x.textAlign = 'center'; x.fillText('DE VETTE HAP · FRIET', 128, 24); }), side: THREE.DoubleSide })); band.position.y = 0.2; g.add(band);
+      for (let i = 0; i < 16; i++) { const a = i * 2.4, rr = 0.25 + (i % 4) * 0.13; box(0.13, 1.1 + (i % 3) * 0.3, 0.13, lam({ color: i % 5 ? 0xf2c14e : 0xe8a33d }), Math.cos(a) * rr, 0.95, Math.sin(a) * rr, g, false); }
+      const mayo = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 8), lam({ color: 0xf8f2dc })); mayo.scale.y = 0.45; mayo.position.set(0.15, 1.15, 0.1); g.add(mayo);
+      const gl = c.glow(0xf2c14e, 4, 4, 0.35); gl.position.set(p.x, 4.9, p.z); root.add(gl);
+      return (dt) => { g.rotation.y += dt * 0.35; };
+    } },
+    { k: 'board', at: [36.5, 18.5], wall: 'w', title: 'WIE BETAALT NIET?', lines: ['~Snackbar Bram', 'Kapsalon Koning: W 400', 'Lunchroom Ans: W 250', 'Shoarma Ali: W 600', 'EDDY JR.: ALLES'], read: ['WIE BETAALT NIET?', "Friet-Fred's list of shops behind on their Lampas 'frituurvet'. Bram is crossed out. At the bottom, in red: Eddy Jr. owes everything."] },
+    { k: 'poster', at: [6.5, 16.5], wall: 'w', w: 0.9, h: 1.2, title: 'GEZOCHT', lines: ['EDDY JR.', 'W 2.000', 'voor zijn kruidenkist'], face: 'EDDY', read: ['GEZOCHT', "A Lampas poster: W 2.000 for Eddy Jr.'s spice chest. Somebody drew a moustache on the photo."] },
+    { k: 'papers', at: [40.5, 6.5], read: ['TWEE BOEKHOUDINGEN', 'Two sets of books. The one for the tax office says De Vette Hap sold 40 portions of fries last year. The other one smells of frying oil.'] },
+    { k: 'cups', at: [13.5, 25.5], y: 0.77, read: ['BONNETJE', 'A receipt under a cold portion of fries: "Bescherming, week 46: W 250. Betaald." Signed with a fry-fork: the Lampas.'] },
+    { k: 'spill', at: [29.5, 10.6], color: 0xe8a33d, r: 0.6 }, { k: 'chair', at: [33.5, 13.5], color: 0x9aa2aa },
+    { k: 'sign', at: [4.5, 2.5], wall: 'e', title: 'LEVERINGEN NA 22:00', lines: ['deur klemt: duwen'], w: 0.9, h: 0.5, style: 'paper', hy: 1.5, read: ['LEVERINGEN', '"Deliveries after 22:00. The door sticks: just push." Nobody watches the delivery door at night.'] },
+    { k: 'mattress', at: [1.5, 9.5], color: 0x3a5a7a }, { k: 'bags', at: [3.5, 19.5] }, { k: 'chalk', at: [2.5, 21.2], dir: 0, free: true }, { k: 'chalk', at: [2.5, 13.5], dir: 0, free: true },
   ],
   loot: [[13.5, 4.5], [8.5, 7.5], [22.5, 1.5], [27.5, 6.5], [44, 3.5], [36.5, 20], [2.5, 3.5]], // cell
   text: {
@@ -148,7 +172,7 @@ export default {
     resultsHint: 'Your first joint in Oud-Vettenburg. The Lampas heartland just got smaller. Grab the spice crates (E), then drive home.',
     ownedBanner: ['FRIETWIJK IS YOURS', 'Grab the spice crates, then drive home in the Oofmobiel.'],
     bossDown: ['FRIET-FRED IS DOWN', 'Fried.'],
-    tips: ['The kitchen is glass: the Lampas see you through every partition. Use the steel islands and the fry line for cover.', 'Three ways in: the front door, the delivery door in the alley, and the PERSONEEL door at the end of the terrace.', 'The office window looks onto the kitchen. Friet-Fred will see you coming.', 'Knock a Lampas into the fry line: deep fried. Mind your own fingers.'],
+    tips: ['The kitchen is glass: the Lampas see you through every partition. Use the steel islands and the fry line for cover.', 'Three ways in: the front door, the PERSONEEL door at the end of the terrace, and the quiet one: up the dark side alley to the delivery door.', 'The office window looks onto the kitchen. Friet-Fred will see you coming.', 'Knock a Lampas into the fry line: deep fried. Mind your own fingers.'],
   },
   decorate({ THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex }) {
     const ticks = [];

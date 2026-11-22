@@ -9,13 +9,14 @@
 //   back hall → Sausmeester's office (glass wall onto the kettle hall)
 
 import { rain, puddles, glowSprite, water, STREET_FURN } from './props.js';
+import { eastSide } from './story.js';
 
 const W = 40, H = 26;
 const KETTLES = [[15, 4], [20, 4], [25, 4], [20, 10]]; // cell centre of each 2x2 kettle
 const WORKERS = [[14, 7], [23, 7], [27, 10], [16, 18], [24, 22], [35, 4]]; // where the sauce workers stand (cells)
 const EXIT = [21.5, 25.5]; // the loading bay: where they run to
 
-export default {
+export default eastSide({
   id: 'sauzenbuurt', name: 'Sauzenbuurt', W, H,
   taskName: 'KETTLE',
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -93,8 +94,27 @@ export default {
     [5.5, 1.6, 'shotgun', 0, 'office', true], [8, 5.5, 'makarov', -Math.PI / 2, 'office'],
     [13, 3, 'bat', 0, 'kettles'], [17.5, 7, 'makarov', Math.PI, 'kettles'], [22.5, 2, 'bat', 0, 'kettles'], [28, 4, 'makarov', -Math.PI / 2, 'kettles'], [24, 11, 'bat', Math.PI, 'kettles'], [14, 11, 'makarov', Math.PI / 2, 'kettles'],
     [13, 16.5, 'bat', Math.PI / 2, 'bottling'], [21, 16.5, 'makarov', 0, 'bottling'], [29, 16.5, 'bat', -Math.PI / 2, 'bottling'], [21.5, 22.5, 'shotgun', Math.PI, 'bottling'], [16, 23, 'bat', Math.PI / 2, 'bottling'],
-    [34, 3.5, 'bat', Math.PI / 2, 'flour'], [37.5, 6.5, 'makarov', -Math.PI / 2, 'flour'],
+    [34, 3.5, 'bat', 0, 'flour'], [37.5, 6.5, 'makarov', -Math.PI / 2, 'flour'],
     [33, 21, 'makarov', Math.PI / 2, 'mixing'], [37, 15, 'bat', -Math.PI / 2, 'mixing'],
+  ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a giant squeeze bottle of watery garlic sauce on the roof behind the factory
+      const { THREE, root, box, lam, canvasTex } = c, p = c.at(21, -1.6);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.25, 3.4, 20), lam({ color: 0xf3ecd8 })); body.position.set(p.x, 4.0, p.z); root.add(body);
+      const shoulder = new THREE.Mesh(new THREE.ConeGeometry(1.1, 1.0, 20), lam({ color: 0xf3ecd8 })); shoulder.position.set(p.x, 6.2, p.z); root.add(shoulder);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.4, 0.9, 12), lam({ color: 0x2f7a2a })); cap.position.set(p.x, 7.0, p.z); root.add(cap);
+      const label = new THREE.Mesh(new THREE.CylinderGeometry(1.13, 1.27, 1.6, 20, 1, true, -Math.PI / 2, Math.PI), lam({ map: canvasTex(256, 96, (g) => { g.fillStyle = '#2f7a2a'; g.fillRect(0, 0, 256, 96); g.fillStyle = '#f3ecd8'; g.font = '900 30px Arial'; g.textAlign = 'center'; g.fillText('HET DUNNE', 128, 40); g.fillText('SAUSJE', 128, 76); }) }));
+      label.position.set(p.x, 4.1, p.z); root.add(label);
+      box(2.8, 1.5, 0.12, lam({ color: 0x3a3a3a }), p.x, 1.6, p.z, root, false); // the frame it stands on
+      const drip = []; for (let i = 0; i < 4; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshPhongMaterial({ color: 0xe8f4f8, transparent: true, opacity: 0.7 })); d.position.set(p.x + 0.1, 7.4 - i, p.z + 0.2); root.add(d); drip.push(d); }
+      return (dt) => { for (const d of drip) { d.position.y -= dt * 1.4; if (d.position.y < 2.3) d.position.y = 7.4; } };
+    } },
+    { k: 'board', at: [17.5, 1.5], wall: 'n', style: 'chalk', title: 'RECEPT', lines: ['1 deel knoflooksaus', '4 delen water', 'snuf behangplaksel', 'NIET AAN EDDY VERTELLEN'], read: ['RECEPT', "The dilution recipe, chalked up for the workers: one part garlic sauce, four parts water, a pinch of wallpaper paste. 'Don't tell Eddy.'"] },
+    { k: 'board', at: [2.5, 13.5], wall: 's', style: 'paper', title: 'MEDEDELING', lines: ['Pauze: 3 minuten.', 'Wie praat, vliegt eruit.', 'Wie loopt, ook.', '- de Sausmeester'], read: ['MEDEDELING', 'A notice for the sauce workers: three-minute breaks, no talking, and "whoever walks out stays out". No wonder they run.'] },
+    { k: 'papers', at: [19.5, 16.5], n: 9, read: ['ETIKETTEN', 'Rolls of labels: "100% ECHTE KNOFLOOKSAUS. Ambachtelijk bereid." The tubs they go on are 80% tap water.'] },
+    { k: 'spill', at: [16.5, 8.5], color: 0xf3ecd8, r: 0.7 }, { k: 'spill', at: [25.5, 12.3], color: 0xf3ecd8, r: 0.45 },
+    { k: 'cash', at: [5.5, 3.5], y: 0.81, n: 5 },
+    { k: 'crates', at: [35.5, 9.5], label: 'BLOEM', color: '#8a6a3a' },
   ],
   loot: [[1.5, 2.5], [37.5, 3.5], [33.5, 10.5], [37.5, 23.5], [12.5, 23], [29.5, 2.5]], // cell
   text: {
@@ -196,4 +216,4 @@ export default {
       }
     } };
   },
-};
+}, { kind: 'canal', door: [3, 4], guard: [12, 'bat', Math.PI / 2], tip: 'The quiet way in: a quay runs up the side canal along the east wall to the water door of the flour store. The flour comes in by boat. One Lampas keeps watch, but he watches the water.', read: ['WATERDEUR', 'A note on the water door: "Bloem: dinsdag, per boot. Deur niet op slot, de sleutel is kwijt."'] });

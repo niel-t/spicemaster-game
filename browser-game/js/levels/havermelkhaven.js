@@ -6,12 +6,13 @@
 //   street → terrace → café → kitchen → tank hall → club → office · street → office (PERSONEEL)
 
 import { rain, puddles, glowSprite, STREET_FURN } from './props.js';
+import { eastSide } from './story.js';
 import { NOSHGEY } from './noshgey.js';
 
 const W = 44, H = 28;
 const TANKS = [[19, 3], [24, 3], [29, 3], [34, 3], [19, 9], [29, 9]]; // 2x2 oat-milk tanks (top-left cell)
 
-export default {
+export default eastSide({
   ...NOSHGEY,
   id: 'havermelkhaven', name: 'Havermelkhaven', W, H,
   rooms: [ // name, x0, z0, x1, z1 (interior cells), floor
@@ -78,6 +79,23 @@ export default {
     [21, 18.5, 'makarov', Math.PI, 'club'], [27, 21, 'bat', Math.PI / 2, 'club'],
     [36, 17, 'shotgun', 0, 'office', true], [40, 21, 'makarov', -Math.PI / 2, 'office'],
   ],
+  story: [
+    { k: 'custom', draw: (c) => { // the landmark: a giant oat-milk carton standing on the roof behind the hall, like a water tower
+      const { THREE, root, box, lam, canvasTex } = c, p = c.at(29, -2.2);
+      for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box(0.12, 3.0, 0.12, lam({ color: 0x3a3a34 }), p.x + dx * 1.1, 1.5, p.z + dz * 1.1, root, false);
+      const face = canvasTex(256, 320, (g) => { g.fillStyle = '#f3ecd8'; g.fillRect(0, 0, 256, 320); g.fillStyle = '#a9c46a'; g.fillRect(0, 200, 256, 120); g.fillStyle = '#5a6a3a'; g.font = '900 64px Arial'; g.textAlign = 'center'; g.fillText('HAVER', 128, 110); g.font = '700 30px Arial'; g.fillText('melk · barista', 128, 160); g.fillStyle = '#f3ecd8'; for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(60 + i * 34, 260, 9, 22, 0.3, 0, 7); g.fill(); } });
+      const carton = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.6, 2.6), [lam({ map: face }), lam({ map: face }), lam({ color: 0xf3ecd8 }), lam({ color: 0xf3ecd8 }), lam({ map: face }), lam({ map: face })]);
+      carton.position.set(p.x, 4.8, p.z); root.add(carton);
+      const roof = new THREE.Mesh(new THREE.CylinderGeometry(0, 1.85, 1.1, 4, 1), lam({ color: 0xa9c46a })); roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 0.35); roof.position.set(p.x, 7.15, p.z); root.add(roof);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.3, 12), lam({ color: 0xe8862c })); cap.position.set(p.x + 0.6, 7.35, p.z + 0.5); root.add(cap);
+      const gl = c.glow(0xf3ecd8, 4, 5, 0.18); gl.position.set(p.x, 4.8, p.z + 1.4); root.add(gl);
+    } },
+    { k: 'board', at: [1.5, 18.5], wall: 'w', style: 'menu', title: 'KOFFIEKAART', lines: ['Havermelk latte W 9', 'Havermelk flat white W 10', 'Haver-havermelk W 12', 'Koemelk: VERBODEN'], read: ['KOFFIEKAART', 'Nine Wilders for a latte. Oat milk, oat-oat milk, and at the bottom: "Cow\'s milk: FORBIDDEN".'] },
+    { k: 'board', at: [34.5, 16.5], wall: 'n', style: 'white', title: 'MARKTAANDEEL', lines: ['Havermelk: 61%', 'Koemelk: 12%', 'Kruiden van Eddy: ???', 'DOEL: 100%'], read: ['MARKTAANDEEL', 'A whiteboard of market share. Oat milk 61%. Next to "Eddy\'s spices" somebody wrote three question marks and circled them twice.'] },
+    { k: 'spill', at: [27.5, 9.5], color: 0xe8dcc0, r: 0.9 }, { k: 'crates', at: [37.5, 8.5], label: 'HAVER', color: '#5a6a3a' },
+    { k: 'cups', at: [20.5, 20.5], y: 0.77 },
+    { k: 'papers', at: [7.5, 5.5], read: ['BARISTA-EXAMEN', 'A barista exam, failed: "Too much love in the foam. Not enough market dominance." The Noshgey grade everything.'] },
+  ],
   loot: [[1.5, 10.5], [14, 1.5], [21.5, 13.5], [42, 3.5], [29.5, 22], [41.5, 17.5]], // cell
   text: {
     area: 'HIPSTERHEUVEL · HAVERMELKHAVEN',
@@ -123,4 +141,4 @@ export default {
       tick(dt) { for (const f of ticks) f(dt); for (const t of all) if (t.burst && t.grow < 1) { t.grow = Math.min(1, t.grow + dt * 2); t.pool.scale.setScalar(0.1 + t.grow * 0.9); } },
     };
   },
-};
+}, { kind: 'canal', door: [7, 8], street: [24, 27], guard: [14, 'bat', Math.PI / 2], sign: 'WATERDEUR', tip: 'The quiet way in: the quay along the east canal, to the water door of the oat hall. The Noshgey on the quay faces the water.', read: ['WATERDEUR', '"Haverleveringen per schip. Deur blijft los, de sleutel ligt in het meer." Very sustainable.'] });
