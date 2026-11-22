@@ -1226,7 +1226,7 @@ let phone = null; // js/phone.js, Hakan's kipkraud calls
 const econ = createEconomy({ boost: () => { const b = loods ? loods.boost() : {}; if (woning && woning.hokStorage()) b.cap = (b.cap || 0) + 80; return b; }, state, addMoney, toast, tip: (k) => tips.show(k), endDay: () => endDay(), onPlan: () => { updateObjective(); }, onDay: () => { if (ui.obj) updateObjective(); }, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const haggle = createHaggle({ state, day: () => econ.ensure().day, toast, beep, save: () => writeSave() });
 let guide = null; // js/guide.js, set up once the street, the van and the NPCs exist
-const tips = createTips({ state, beep, save: () => writeSave(), held: (k) => !!(guide && guide.on() && guide.script && GUIDE_TIPS.includes(k)), busy: () => !!(guide && guide.showing()) });
+const tips = createTips({ state, beep, save: () => writeSave(), held: (k) => !!(guide && guide.on() && guide.script && GUIDE_TIPS.includes(k)), busy: () => !!(guide && guide.showing()), away: () => { try { return !!(state.inDialogue || choiceOpen); } catch (e) { return false; } } }); // a dialogue or choice is up: the tip card waits (choiceOpen is declared further down)
 const tutorial = createTutorial({ state, econ, toast, beep, save: () => writeSave(), dialogue, choice, objective: () => updateObjective(), guided: () => !!(guide && guide.on()), refresh: () => { if (state.inPC && pcMode === 'pc' && $('pc').style.display === 'block') renderPC(); } });
 const stall = createSpiceStall({ state, econ, haggle, addMoney, toast, save: () => writeSave() });
 const rankNow = () => rankOf(econ.ensure().rep).i;
@@ -2959,7 +2959,7 @@ phone = initPhone({ tip: (k) => tips.show(k), state, econ, dialogue, choice, toa
 {
   const V = (x, z, y = 1.6) => new THREE.Vector3(x, y, z);
   const at = (o) => (o && o.position ? o.position.clone().setY(o.position.y + 1.9) : null);
-  const castPos = (id) => { const c = npcs && npcs.CAST.find((x) => x.id === id); const p = c && c.pos(); return p ? V(p[0], p[1], 2.1) : null; };
+  const castPos = (id) => { const c = npcs && npcs.CAST.find((x) => x.id === id); if (c && c.p.visible) return V(c.p.position.x, c.p.position.z, 2.1); const p = c && c.pos(); return p ? V(p[0], p[1], 2.1) : null; }; // where he really stands (he may be mid-walk)
   const pcReady = () => state.inPC && pcMode === 'pc' && $('pc').style.display === 'block' && !kd.booting;
   const L = lessons({ state, tutorial, money: () => state.money,
     near: (v, r) => !!v && Math.hypot(v.x - player.position.x, v.z - player.position.z) < r,

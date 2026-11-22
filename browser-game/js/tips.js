@@ -75,10 +75,10 @@ export function createTips(d) {
     el.querySelector('.st-ok').onclick = (e) => { e.stopPropagation(); close(); };
     el.querySelector('.st-off').onclick = (e) => { e.stopPropagation(); T().off = true; queue.length = 0; close(); if (d.save) d.save(); };
     el.addEventListener('click', (e) => e.stopPropagation());
-    addEventListener('keydown', (e) => { if (cur && e.code === 'KeyH' && !e.repeat) close(); });
+    addEventListener('keydown', (e) => { if (cur && !away && e.code === 'KeyH' && !e.repeat) close(); });
   }
   function next() {
-    if (cur || !queue.length || (d.busy && d.busy())) return; // Shooki's guide card is up: wait for it
+    if (cur || !queue.length || (d.busy && d.busy()) || (d.away && d.away())) return; // Shooki's guide card is up: wait for it
     const k = queue.shift(), t = TIPS[k]; if (!t || stale(k)) return next(); // a Chapter 0 step the player already left
     if (!el) build();
     cur = k; life = 9 + t[1].replace(/<[^>]+>/g, '').length / 14; // reading time
@@ -87,7 +87,7 @@ export function createTips(d) {
     if (beep) { beep(1180, 0.05, 'square', 0.03); setTimeout(() => beep(1480, 0.06, 'square', 0.03), 90); }
   }
   const stale = (k) => k.startsWith('step:') && state.step !== k.slice(5);
-  function close() { if (!el) return; el.style.display = 'none'; cur = null; setTimeout(next, 350); }
+  function close() { if (!el) return; el.style.display = 'none'; cur = null; away = false; setTimeout(next, 350); }
   // show a topic's tip the first time it comes up
   function show(k) {
     const t = T(); if (t.off || !TIPS[k] || t.told[k]) return false;
@@ -99,7 +99,14 @@ export function createTips(d) {
   }
   // the Kaasdows Help menu: show a topic's tip again on request, even if it was seen or tips are off
   function again(k) { if (!TIPS[k]) return false; queue.unshift(k); if (cur) close(); else next(); return true; }
-  function update(dt) { if (cur && (life -= dt) <= 0) close(); else if (!cur && queue.length) next(); } // fades by itself
+  // fades by itself; while a dialogue or choice is up the card steps aside and its reading time waits (it used to run out
+  // behind the dialogue box, so a tip that popped up mid-conversation was gone before anyone could read it)
+  let away = false;
+  function update(dt) {
+    if (cur && d.away && d.away()) { if (!away) { away = true; el.style.display = 'none'; } return; }
+    if (away) { away = false; if (cur) { el.style.display = 'flex'; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; } }
+    if (cur && (life -= dt) <= 0) close(); else if (!cur && queue.length) next();
+  }
   // a save from before the tips: anything already past Chapter 0 doesn't need the Chapter 0 ones
   function migrate(saved) { state.tips = saved && typeof saved === 'object' ? { told: { ...(saved.told || {}) }, off: !!saved.off } : { told: {}, off: false }; if (state.step === 'free') for (const k of STEP_KEYS) state.tips.told[k] = true; }
   function reset() { state.tips = { told: {}, off: false }; }

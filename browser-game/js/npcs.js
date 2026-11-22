@@ -12,20 +12,31 @@ export function initNpcs(d) {
   const name = (id) => econ.INGREDIENTS.find((g) => g.id === id).name;
   const B = () => econ.ensure().blends;
 
-  const SHOOKI_LOODS = [-0.6, -8.6, Math.PI], SHOOKI_VAN = [6.4, -8.9, 0.35]; // inside the warehouse by the east wall / in front of his Kangoo
+  const SHOOKI_LOODS = [-0.6, -8.6, Math.PI], SHOOKI_VAN = [6.4, -8.9, 0.35], SHOOKI_DOOR = [3.2, -5.6, 0]; // inside the warehouse by the east wall / in front of his Kangoo / waiting outside the shutter
+  // Shooki's errands: he stays a while at one spot, and only when he has got there and lingered does he head for the other.
+  // (This used to flip on the wall clock every 26 s: a slow frame rate or a dialogue paused his walk, the clock flipped back,
+  // and he vanished mid-pavement and popped up at the other end.)
+  const errand = { van: false, wait: 18 };
+  // the warehouse (WH in main.js), the street in front of it, and the private lot where the Kangoo stands
+  const zone = (p) => (p[0] > -11 && p[0] < 1 && p[1] < -7 && p[1] > -19 ? 0 : p[0] > 1.6 && p[1] < -6.3 ? 2 : 1);
+  const LEGS = [[[-3.2, -8.4], [-3.2, -6.0]], [[5.2, -6.0]]]; // warehouse <-> street through the open shutter, street <-> lot along the pavement
   const CAST = [
     { // Shooki: the cousin (Game Bible idea, Drive 06_Shooki)
       id: 'shooki', who: 'Shooki', label: 'Talk to cousin Shooki',
       look: { front: '#1e1f24a', shirt: 0x1e1f24, apron: 0x3a4248, pants: 0x34343a, head: { skin: 0xc8946c, hair: '#2a2420', brow: '#1a1410', hairLine: 64, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3430' }, belly: 0.3, skin: 0xc8946c }, // black tee, worn denim apron, stubble (assets/face_shooki.jpg)
       // once the district is Eddy's he runs errands: a while by his Kangoo, a while in the loods, walking between the two
-      pos: () => (state.district1 && met('shooki') ? (Math.floor(performance.now() / 26000) % 2 ? SHOOKI_LOODS : SHOOKI_VAN) : met('shooki') ? SHOOKI_LOODS : [3.2, -5.6, 0]),
-      route: (from, to) => { // out through the open shutter, along the pavement, into the parking
-        const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1.5, way = [[-3.2, -8.4], [-3.2, -6.0], [5.2, -6.0]];
-        if (near(from, SHOOKI_LOODS) && near(to, SHOOKI_VAN)) return [...way, to];
-        if (near(from, SHOOKI_VAN) && near(to, SHOOKI_LOODS)) return [...way.slice().reverse(), to];
-        return null; // anything else: just appear there
+      pos: () => (state.district1 && met('shooki') ? (errand.van ? SHOOKI_VAN : SHOOKI_LOODS) : met('shooki') ? SHOOKI_LOODS : SHOOKI_DOOR),
+      tick(dt) { // runs while he is on screen: count down only while he stands still and nobody is talking to him
+        if (!state.district1 || !met('shooki') || this.path || state.inDialogue) return;
+        if ((errand.wait -= dt) <= 0) { errand.van = !errand.van; errand.wait = 20 + Math.random() * 14; }
       },
-      show: () => met('shooki') || owns('spekbuurt') || (state.step === 'free' && tutorial && tutorial.at('shooki')),
+      route: (from, to) => { // every move is walked: out through the open shutter, along the pavement, into the parking
+        const a = zone(from), b = zone(to), way = [];
+        if (a < b) for (let k = a; k < b; k++) way.push(...LEGS[k]);
+        else for (let k = a - 1; k >= b; k--) way.push(...LEGS[k].slice().reverse());
+        return [...way, to];
+      },
+      show: () => met('shooki') || owns('spekbuurt') || (state.step === 'free' && tutorial && (tutorial.at('shooki') || !tutorial.active())), // a skipped tour still leaves him outside the shutter
       news: () => !met('shooki') || (owns('spekbuurt') && !econ.has('koerier')) || (!!state.district1 && !state.npcs.kangoo),
       talk() {
         if (!met('shooki') && tutorial && tutorial.at('shooki')) { meet('shooki'); return tutorial.shooki(() => d.save()); } // the tour starts here
@@ -42,6 +53,15 @@ export function initNpcs(d) {
           ], () => { if (!econ.has('koerier')) econ.learn('koerier'); d.save(); });
         }
         if (met('shooki') && !econ.has('koerier') && owns('spekbuurt')) return dialogue([['Shooki', 'Bro! Spekbuurt! Respect. Now I run errands for you: pick-ups, drop-offs, whatever. Family price.'], ['Shooki', 'Every day I put one extra job on your Klusbord. You do the job, I take a little kebab. Deal? Deal.']], () => { econ.learn('koerier'); d.save(); });
+        if (!met('shooki') && !owns('spekbuurt')) { // the tour was skipped before he was met: he says hello anyway
+          meet('shooki');
+          return dialogue([
+            ['Shooki', 'Cousin! Eddy! Tante Gerda said you took over the warehouse. Respect, bro.'],
+            ['Eddy Jr.', 'Shooki? Last time I saw you, you were selling ringtones.'],
+            ['Shooki', 'Ringtones were the future, bro. Now spice is the future. You know the trade already, I see it in your eyes. Tired eyes. Trader eyes.'],
+            ['Shooki', 'Take a joint from the Lampas and I come work for you. Family price. Until then I hang around the loods, eat your stroopwafels.'],
+          ], () => d.save());
+        }
         if (!met('shooki')) {
           meet('shooki');
           return dialogue([
@@ -238,6 +258,7 @@ export function initNpcs(d) {
     }
     for (const c of CAST) {
       if (!c.p.visible) continue;
+      if (c.tick) c.tick(dt);
       const dx = player.position.x - c.p.position.x, dz = player.position.z - c.p.position.z;
       if (c.path && !state.inDialogue) { // walking to a new spot
         const w = c.path[0], mx = w[0] - c.p.position.x, mz = w[1] - c.p.position.z, L = Math.hypot(mx, mz), sp = 1.7;
@@ -254,5 +275,5 @@ export function initNpcs(d) {
       }
     }
   }
-  return { CAST, update, meet, met };
+  return { CAST, update, meet, met, errand };
 }
