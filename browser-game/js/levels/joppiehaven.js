@@ -43,9 +43,9 @@ export default {
     // kitchen
     putR(9, 2, 14, 2, 'w'); put(6, 1, 'F'); put(20, 1, 'C');
     // smoothie lounge: the smoothie bar, sofas, low tables
-    putR(28, 6, 34, 6, 'B'); putR(23, 10, 23, 12, 'S'); putR(36, 9, 36, 12, 'S'); put(27, 11, 'T'); put(32, 11, 'T'); put(37, 14, 'p'); put(29, 13, 'p');
+    putR(28, 6, 34, 6, 'B'); putR(24, 10, 24, 12, 'S'); putR(36, 9, 36, 12, 'S'); put(27, 11, 'T'); put(32, 11, 'T'); put(37, 14, 'p'); put(29, 13, 'p');
     // office and mixing room
-    putR(25, 2, 27, 2, 'O'); put(30, 1, 'V'); putR(33, 2, 35, 3, 'w'); put(37, 4, 'C');
+    putR(25, 2, 27, 2, 'O'); put(30, 1, 'V'); putR(34, 2, 36, 3, 'w'); put(37, 4, 'C');
     // boardwalk: tables, planters, crates of produce, lamps
     putR(7, 17, 10, 17, 'v'); put(8, 20, 't'); put(13, 21, 't'); put(25, 20, 't'); put(30, 21, 't'); putR(33, 17, 36, 17, 'v'); putR(16, 18, 17, 18, 'C'); put(35, 22, 'C');
     put(6, 23, 'l'); put(37, 23, 'l'); put(18, 28, 'l'); put(25, 28, 'l');

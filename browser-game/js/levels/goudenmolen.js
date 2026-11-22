@@ -36,7 +36,7 @@ export default {
     carve(21, 5, 22, 5);        // the loft stairs down into the cap
     putR(16, 21, 18, 21, '%'); putR(25, 21, 27, 21, '%'); // mill windows onto the garden
     // shop: the counter, a döner, a fridge
-    putR(8, 9, 12, 9, 'K'); put(13, 6, 'F'); put(8, 14, 'T'); put(12, 17, 'p');
+    putR(8, 9, 12, 9, 'K'); put(13, 6, 'F'); put(8, 14, 'T'); put(11, 17, 'p');
     // grinding floor: two millstones, sacks
     putR(18, 16, 19, 17, 'U'); putR(24, 16, 25, 17, 'U'); putR(15, 20, 16, 20, 'n'); putR(27, 20, 28, 20, 'n');
     // grind tower: the great shaft and gears, sacks

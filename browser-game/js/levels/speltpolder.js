@@ -37,7 +37,7 @@ export default {
     // kitchen: wood-fired ovens, prep tables, sacks of spelt
     putR(2, 1, 5, 1, 'H'); putR(3, 5, 8, 6, 'w'); putR(12, 9, 14, 10, 'n'); put(16, 1, 'F');
     // restaurant: long timber tables, the bar
-    putR(2, 15, 9, 15, 'B'); putR(3, 19, 7, 19, 'T'); putR(10, 19, 14, 19, 'T'); putR(3, 23, 7, 23, 'T'); putR(10, 23, 14, 23, 'T'); put(16, 14, 'p'); put(1, 26, 'p');
+    putR(2, 15, 7, 15, 'B'); putR(3, 19, 7, 19, 'T'); putR(10, 19, 14, 19, 'T'); putR(3, 23, 7, 23, 'T'); putR(10, 23, 14, 23, 'T'); put(16, 14, 'p'); put(1, 26, 'p');
     // garden: beds and bamboo
     putR(20, 2, 23, 2, 'g'); putR(27, 2, 31, 2, 'g'); putR(20, 7, 23, 7, 'g'); putR(28, 7, 32, 7, 'g'); putR(33, 3, 34, 4, 'j');
     // disco dome: the DJ booth, booths round the edge

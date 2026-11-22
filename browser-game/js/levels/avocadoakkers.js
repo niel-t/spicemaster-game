@@ -37,7 +37,7 @@ export default {
     // café: counter, hanging plants (decorate), tables
     putR(2, 15, 9, 15, 'K'); put(14, 13, 'F'); put(3, 19, 'T'); put(8, 20, 'T'); put(12, 18, 'T'); put(1, 22, 'p'); put(14, 22, 'p');
     // roof garden: planters, a bench, string lights
-    putR(2, 2, 6, 2, 'v'); putR(9, 2, 13, 2, 'v'); putR(3, 6, 4, 8, 'v'); putR(10, 6, 11, 8, 'v'); putR(6, 10, 9, 10, 'h');
+    putR(2, 2, 6, 2, 'v'); putR(9, 2, 13, 2, 'v'); putR(3, 6, 4, 8, 'v'); putR(10, 6, 11, 8, 'v'); putR(6, 9, 9, 9, 'h');
     // greenhouse beds: long growing tables of avocado plants
     for (const z of [3, 7, 11, 15, 19]) { putR(17, z, 20, z, 'g'); putR(22, z, 25, z, 'g'); }
     // lab: tanks, a workbench, shelves, a safe

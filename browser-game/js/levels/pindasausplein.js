@@ -40,7 +40,7 @@ export default {
     // the yard: watchtowers, sandbag walls, barbed wire, crates
     for (const [x, z] of TOWERS) putR(x, z, x + 1, z + 1, 'W');
     putR(3, 26, 7, 26, 'g'); putR(15, 24, 19, 24, 'g'); putR(28, 26, 32, 26, 'g'); putR(14, 30, 18, 30, 'g'); putR(30, 30, 34, 30, 'g');
-    putR(2, 30, 9, 30, 'z'); putR(36, 21, 46, 21, 'z');
+    putR(2, 30, 9, 30, 'z'); putR(36, 21, 37, 21, 'z'); putR(41, 21, 46, 21, 'z');
     putR(22, 21, 23, 22, 'C'); put(3, 21, 'C'); put(46, 23, 'X'); put(1, 32, 'X');
   },
   furn: {

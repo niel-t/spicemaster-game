@@ -32,11 +32,11 @@ export default {
     putR(38, 27, 39, 27, 'D');  // club ↔ street (the CLUB door)
     putR(1, 27, 6, 27, '%'); putR(9, 27, 16, 27, '%'); putR(32, 7, 36, 7, '%'); // tasting room windows; the VIP glass over the club
     // tasting room: the tasting bar, long tables
-    putR(2, 19, 10, 19, 'K'); putR(3, 22, 6, 22, 'T'); putR(10, 22, 13, 22, 'T'); putR(3, 25, 6, 25, 'T'); putR(10, 25, 13, 25, 'T'); put(16, 18, 'p');
+    putR(2, 19, 6, 19, 'K'); putR(3, 22, 6, 22, 'T'); putR(10, 22, 13, 22, 'T'); putR(3, 25, 6, 25, 'T'); putR(10, 25, 13, 25, 'T'); put(16, 18, 'p');
     // kitchen and office
     putR(3, 14, 10, 14, 'w'); put(16, 12, 'F'); putR(4, 3, 7, 3, 'O'); put(1, 1, 'V'); putR(12, 7, 14, 7, 'S'); put(16, 10, 'p');
     // club: the long bar, booths round the edge, the DJ booth; the middle is the dance floor
-    putR(19, 9, 34, 9, 'B'); putR(18, 17, 18, 20, 'S'); putR(42, 12, 42, 18, 'S'); putR(28, 25, 32, 25, 'B'); put(20, 24, 'T'); put(40, 23, 'T'); put(18, 26, 'p');
+    putR(19, 9, 23, 9, 'B'); putR(27, 9, 34, 9, 'B'); putR(18, 17, 18, 20, 'S'); putR(42, 12, 42, 18, 'S'); putR(28, 25, 32, 25, 'B'); put(20, 24, 'T'); put(40, 23, 'T'); put(18, 26, 'p');
     // storage and VIP
     putR(19, 2, 22, 3, 'C'); putR(27, 1, 30, 1, 'R'); put(30, 6, 'X'); putR(34, 2, 40, 2, 'S'); put(37, 4, 'T'); put(42, 1, 'V');
     put(1, 29, 'l'); put(20, 29, 'l'); put(42, 29, 'l');

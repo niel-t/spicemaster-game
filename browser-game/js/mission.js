@@ -268,7 +268,7 @@ export function initMission(ctx) {
   function sweep(hx, hz, base, len, s, a0, a1) {
     const own = Math.abs(Math.sin(base)) > 0.5 ? 'x' : 'z', ox = Math.floor(hx - OX), oz = Math.floor(hz - Z0);
     const blocked = (wx, wz) => { const x = Math.floor(wx - OX), z = Math.floor(wz - Z0);
-      if (x < 0 || z < 0 || x >= W || z >= H) return true; if (own === 'x' ? x === ox : z === oz) return false; return isBlock(G[z][x]); };
+      if (x < 0 || z < 0 || x >= W || z >= H) return true; if (own === 'x' ? x === ox : z === oz) return false; const c = G[z][x]; return isBlock(c) && !(FM[c] && FM[c][0] < 0.15); }; // flat (water) is fine
     let a = a0;
     for (let t = a0 + 0.035; t <= a1; t += 0.035) { const A = base + s * t, cx = Math.cos(A), cz = -Math.sin(A), [px, pz] = hingeAt(hx, hz, base, s * t);
       for (let r = 0.2; r <= len - 0.02; r += 0.1) if (blocked(px + cx * r, pz + cz * r)) return a;

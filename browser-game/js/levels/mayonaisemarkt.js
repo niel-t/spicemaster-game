@@ -30,7 +30,7 @@ export default {
     // shop
     putR(2, 17, 7, 17, 'K'); put(9, 15, 'F'); put(3, 21, 'T'); put(7, 21, 'T');
     // mixing room and office
-    putR(2, 11, 4, 12, 'w'); put(9, 13, 'C'); putR(3, 3, 6, 3, 'O'); putR(1, 1, 1, 2, 'V'); put(9, 1, 'F'); putR(8, 6, 9, 7, 'S');
+    putR(1, 11, 3, 12, 'w'); put(9, 13, 'C'); putR(3, 3, 6, 3, 'O'); putR(1, 1, 1, 2, 'V'); put(9, 1, 'F'); putR(8, 6, 9, 7, 'S');
     // the hall: shelving along the back wall, pallet stacks, crates, barrels
     putR(13, 1, 20, 1, 'R'); putR(24, 1, 31, 1, 'R'); putR(35, 1, 42, 1, 'R');
     for (const [x, z] of STACKS) putR(x, z, x + 1, z + 1, 'C');

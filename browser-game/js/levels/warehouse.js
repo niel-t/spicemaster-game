@@ -31,9 +31,9 @@ export default {
     // office: Dad's desk, lockers, the Kaasdows corner
     putR(24, 3, 26, 3, 'T'); putR(28, 1, 28, 3, 'F');
     // storeroom: stacked spice crates
-    putR(23, 9, 23, 10, 'C'); putR(27, 9, 28, 9, 'C'); putR(26, 12, 26, 13, 'C');
+    putR(23, 8, 23, 9, 'C'); putR(27, 9, 28, 9, 'C'); putR(26, 12, 26, 13, 'C');
     // red oil drums by each entrance (the trap: only the one you set stays)
-    put(11, 13, 'X'); put(23, 13, 'X'); put(28, 12, 'X');
+    put(11, 13, 'X'); put(23, 13, 'X'); put(27, 13, 'X');
     // the Oofmobiel's spot on the street
     putR(2, 18, 6, 20, 'A');
   },

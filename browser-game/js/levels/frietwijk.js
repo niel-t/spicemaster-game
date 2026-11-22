@@ -42,13 +42,13 @@ export default {
     putR(27, 15, 29, 15, '%'); putR(32, 15, 34, 15, '%');
     putR(35, 9, 35, 11, '%');
     // shop: the counter, fridges, a few tables
-    putR(8, 15, 15, 15, 'K'); put(6, 13, 'F'); put(7, 18, 'T'); put(13, 18, 'T'); put(6, 20, 'p');
+    putR(8, 15, 15, 15, 'K'); put(6, 13, 'F'); put(8, 18, 'T'); put(13, 18, 'T'); put(6, 20, 'p');
     // kitchen: four döner spits, the fry line, steel prep islands
-    putR(18, 9, 21, 9, 'Y'); putR(26, 9, 29, 9, 'Z'); putR(32, 9, 34, 9, 'Z');
+    putR(19, 9, 21, 9, 'Y'); putR(26, 9, 29, 9, 'Z'); putR(32, 9, 34, 9, 'Z');
     putR(19, 12, 22, 13, 'w'); putR(19, 18, 22, 19, 'w'); putR(28, 12, 31, 12, 'w'); putR(28, 18, 31, 19, 'w');
     put(34, 20, 'X'); put(17, 20, 'C');
     // storeroom: racks of boxes, potato sacks, a barrel
-    putR(7, 3, 13, 3, 'R'); putR(7, 6, 13, 6, 'R'); putR(7, 9, 12, 9, 'R'); putR(12, 1, 13, 1, 'n'); put(15, 1, 'X'); putR(6, 11, 7, 11, 'C');
+    putR(8, 3, 13, 3, 'R'); putR(7, 6, 13, 6, 'R'); putR(7, 9, 12, 9, 'R'); putR(12, 1, 13, 1, 'n'); put(15, 1, 'X'); putR(6, 11, 7, 11, 'C');
     // mixing room: the mixing table and spice drums
     putR(19, 3, 22, 4, 'w'); putR(17, 7, 18, 7, 'C'); put(24, 1, 'C');
     // cold store: hanging meat, freezers
@@ -56,7 +56,7 @@ export default {
     // office: the desk with the PC, the safe, a filing cabinet, the boss's sofa
     putR(38, 4, 41, 4, 'O'); putR(43, 1, 44, 1, 'V'); put(36, 1, 'F'); putR(43, 7, 43, 9, 'S'); put(44, 11, 'p');
     // staff room: lockers, a bench, the break table
-    putR(36, 13, 38, 13, 'L'); putR(43, 13, 44, 13, 'L'); putR(38, 16, 40, 16, 'G'); putR(41, 19, 42, 19, 'T'); put(44, 20, 'F');
+    putR(36, 13, 38, 13, 'L'); putR(43, 13, 44, 13, 'L'); putR(38, 16, 40, 16, 'G'); putR(41, 18, 42, 18, 'T'); put(44, 20, 'F');
     // the alley: bins and crates; the terrace: bistro tables, planters, lamps, bollards
     put(2, 2, 'C'); putR(1, 7, 2, 7, 'C'); put(3, 12, 'X');
     putR(2, 23, 4, 23, 'v'); putR(12, 23, 15, 23, 'v'); put(6, 24, 't'); put(13, 25, 't'); put(17, 24, 't'); put(21, 25, 't'); put(25, 24, 't');

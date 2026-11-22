@@ -34,9 +34,9 @@ export default {
     putR(34, 23, 35, 23, 'D');  // store ↔ terrace (LEVERINGEN)
     putR(1, 23, 6, 23, '%'); putR(10, 23, 16, 23, '%'); // the café's glass front
     // café: the counter, tables, framed art (decorate), plants
-    putR(2, 16, 9, 16, 'K'); put(16, 15, 'F'); put(3, 20, 'T'); put(7, 21, 'T'); put(12, 19, 'T'); put(16, 22, 'p'); put(1, 22, 'p');
+    putR(2, 16, 4, 16, 'K'); putR(8, 16, 9, 16, 'K'); put(16, 15, 'F'); put(3, 20, 'T'); put(7, 21, 'T'); put(12, 19, 'T'); put(16, 22, 'p'); put(1, 22, 'p');
     // office: desk, safe
-    putR(3, 12, 5, 12, 'O'); put(1, 11, 'V');
+    putR(2, 12, 4, 12, 'O'); put(1, 11, 'V');
     // disco: the DJ booth, booths along the walls, the bar
     putR(6, 1, 10, 1, 'B'); putR(1, 3, 1, 7, 'S'); putR(15, 6, 16, 8, 'S'); put(3, 8, 'T'); put(13, 2, 'T');
     // brewery: copper kettles (2x2), kegs, sacks of malt

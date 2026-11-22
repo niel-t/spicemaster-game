@@ -34,7 +34,7 @@ export default {
     // kitchen
     putR(3, 3, 9, 3, 'w'); put(1, 1, 'F'); putR(11, 8, 12, 9, 'C');
     // the garden: bamboo clumps (block sight), a fountain, stepping stones, benches
-    for (const [x, z, w, d] of [[15, 2, 2, 2], [19, 1, 3, 1], [25, 2, 2, 3], [15, 7, 1, 3], [22, 6, 2, 2], [27, 9, 2, 2], [16, 13, 2, 2], [24, 14, 3, 1], [15, 19, 2, 2], [26, 18, 2, 2], [20, 19, 1, 2]]) putR(x, z, x + w - 1, z + d - 1, 'j');
+    for (const [x, z, w, d] of [[15, 2, 2, 2], [19, 1, 3, 1], [25, 2, 2, 3], [15, 7, 1, 3], [22, 6, 2, 2], [27, 9, 2, 2], [16, 13, 2, 2], [24, 14, 3, 1], [15, 19, 2, 2], [25, 18, 2, 2], [20, 19, 1, 2]]) putR(x, z, x + w - 1, z + d - 1, 'j');
     putR(20, 10, 21, 11, 'f'); putR(17, 11, 18, 11, 'h'); putR(23, 11, 24, 11, 'h');
     // conservatory: lab shelves, steel tables, a safe
     putR(31, 1, 36, 1, 'R'); putR(32, 5, 35, 6, 'w'); putR(32, 10, 35, 10, 'w'); put(40, 1, 'V'); put(40, 14, 'F');

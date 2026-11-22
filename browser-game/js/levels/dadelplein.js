@@ -20,7 +20,7 @@ export default souk({
     putR(21, 18, 24, 20, '~'); // the oasis pond
     for (const [x, z] of [[19, 17], [26, 17], [19, 22], [26, 22], [15, 14], [30, 14], [15, 26], [31, 26]]) put(x, z, 'P');
     for (const [x, z] of TABLES) put(x, z, 'T');
-    put(13, 16, 'y'); put(32, 23, 'y'); put(18, 13, 'u'); put(27, 27, 'u');
+    put(13, 16, 'y'); put(32, 23, 'y'); put(22, 13, 'u'); put(27, 27, 'u');
   },
   hallLayout({ put, putR }) {
     // the counting room: tables of coins, a strongbox wall, sacks of dates

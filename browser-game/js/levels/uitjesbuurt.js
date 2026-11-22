@@ -33,7 +33,7 @@ export default {
     putR(3, 16, 13, 16, 'K'); put(2, 19, 't'); put(13, 19, 't');
     put(24, 17, 'C');
     // onion cellar: the oven at the back, onion sacks, crates, vault pillars
-    putR(14, 1, 17, 1, 'H'); putR(9, 2, 10, 3, 'n'); putR(19, 6, 20, 7, 'n'); putR(11, 8, 12, 8, 'n'); putR(22, 2, 23, 3, 'C'); putR(16, 9, 17, 9, 'C');
+    putR(14, 1, 17, 1, 'H'); putR(10, 2, 11, 3, 'n'); putR(19, 6, 20, 7, 'n'); putR(11, 8, 12, 8, 'n'); putR(22, 2, 23, 3, 'C'); putR(16, 9, 17, 9, 'C');
     put(12, 5, '#'); put(18, 5, '#');
     // gambling den: the poker table, a shelf of bottles, a barrel, crates of bottles
     putR(2, 4, 4, 5, 'c'); putR(1, 7, 1, 8, 'B'); put(6, 1, 'e'); putR(1, 10, 2, 11, 'C');

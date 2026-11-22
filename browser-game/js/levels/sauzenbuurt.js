@@ -51,7 +51,7 @@ export default {
     putR(14, 18, 28, 18, 'q'); putR(14, 21, 19, 21, 'q'); putR(24, 21, 28, 21, 'q');
     putR(12, 24, 13, 24, 'C'); putR(28, 23, 30, 24, 'C'); put(12, 15, 'C');
     // flour store: rows of flour sacks
-    putR(33, 2, 37, 2, 'n'); putR(33, 5, 36, 5, 'n'); putR(33, 8, 37, 8, 'n'); put(38, 11, 'X');
+    putR(33, 2, 37, 2, 'n'); putR(34, 5, 37, 5, 'n'); putR(33, 8, 37, 8, 'n'); put(38, 11, 'X');
     // mixing room
     putR(34, 16, 36, 17, 'w'); putR(32, 24, 33, 24, 'C'); put(38, 13, 'F');
   },
