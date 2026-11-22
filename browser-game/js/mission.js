@@ -22,7 +22,8 @@ import { LOOKS, bloody, cleanBlood, setHold, holdRecoil, holdPump } from './char
 import { weaponMesh as buildWeapon, fireFlash, tickFlash, weaponKind, isTwoGun } from './weapons.js';
 import { WD, CAL, MODS, ARMOUR, PLATE, NADES, GEAR_X, BASE_MAG, KILLPTS as KP, FORCE, isGunId, isMeleeId, SHOT_GUN } from './arsenal.js';
 import { gunAudio } from './gunaudio.js';
-import { enrichFloor, normalOf, macro, blobGeo } from './richtex.js'; // crisp, weathered floors with a bump, walls with grime
+import { enrichFloor, normalOf, macro, blobGeo, mergeStatic } from './richtex.js'; // crisp, weathered floors with a bump, walls with grime
+import { DRESS_FURN, dress, spits, dressGroup } from './dressing.js'; // spice sacks, big bags, meat racks, shoarma spits on every level
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
@@ -135,12 +136,13 @@ export function initMission(ctx) {
     def.layout({ carve, put, putR, G, W, H });
     // furniture rules: the shared letters plus the level's own
     FM = { ...FM0 }; BLOCK = new Set(BASE_BLOCK); COVER = new Set(BASE_COVER); SIGHT = new Set(BASE_SIGHT);
-    for (const [ch, f] of Object.entries(def.furn || {})) {
+    for (const [ch, f] of Object.entries({ ...DRESS_FURN, ...(def.furn || {}) })) {
       FM[ch] = [f.h ?? (FM0[ch] ? FM0[ch][0] : 1), f.color ?? (FM0[ch] ? FM0[ch][1] : 0x888888), f];
       BLOCK.add(ch);
       if (f.cover === true) COVER.add(ch); else if (f.cover === false) COVER.delete(ch); else if (!FM0[ch]) COVER.add(ch);
       if (f.sight) SIGHT.add(ch);
     }
+    const dressed = dress(def, G, isBlock); // spice sacks, big bags of spice and meat racks against the walls (js/dressing.js)
     const mood = def.mood;
     wallM = macro(lam({ color: mood.wall }), 0.1, 0.35, 0.22); capM = lam({ color: mood.cap }); // plaster that varies, grime at the foot
     const floorT = { ...T }; for (const [k, draw] of Object.entries(def.floors || {})) floorT[k] = ftex(draw);
@@ -168,6 +170,7 @@ export function initMission(ctx) {
       box(1, 0.06, 0.1, frameM, 0, 2.27, 0, g, false); box(0.06, 1.75, 0.1, frameM, 0.47, 1.4, 0, g, false);
       glass.set(x + ',' + z, { g, pane, s: solidRun(x, x + 1, z, z + 1), x, z, horiz });
     }
+    const dg = dressGroup(THREE, root); // the dressing (js/dressing.js) draws in here; merged once the level is up
     // furniture: merged runs per type, with a look per type
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
       const ch = G[z][x]; if (!FM[ch] && ch !== 'A') continue;
@@ -197,7 +200,8 @@ export function initMission(ctx) {
     const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt, sight: (m) => { sightCap = m; }, banner, shake, reinforce, reserves: () => enemies.filter((e) => e.userData.foe.res).length, alive: () => alive().length, foes: () => enemies, paraAlarm: (at) => paraAlarm(at), checkClear: () => { if (!alive().length && !tasksLeft() && !wavePending() && !R.cleared && !R.results) { R.cleared = true; banner('FLOOR CLEAR', '', 1.5); setTimeout(results, 1500); hud(); } } }) || {};
     levelShot = deco.onShot || null; levelReset = deco.reset || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
-    levelTick = deco.tick || null;
+    const rolls = spits(def, G, THREE, root, lam, OX, Z0, dressed); mergeStatic(dg); // shoarma spits turning on the counters
+    levelTick = rolls.length ? (dt) => { for (const r of rolls) r.rotation.y += dt * 0.7; if (deco.tick) deco.tick(dt); } : deco.tick || null;
     // neon: one strip per room, top of the walls
     for (const [name, x0, z0, x1] of def.rooms) if (def.neon[name] !== undefined) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, def.neon[name]);
     lights = [];
