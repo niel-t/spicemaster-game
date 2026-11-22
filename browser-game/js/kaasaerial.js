@@ -7,7 +7,7 @@
 import * as G from './kaasgeo.js';
 import { topBoat } from './boat2d.js';
 
-const { W, H, C0, polar, arc, RIVER, ISLAND, CANALS, BASINS, MARINA, SLOOT, YARDS, SILOS, PARKS, FIELDS, REGIONS, ROADS, HOME, KASBAH, SOUK, inPoly } = G;
+const { W, H, C0, polar, arc, RIVER, ISLAND, CANALS, BASINS, MARINA, SLOOT, YARDS, SILOS, PARKS, FIELDS, REGIONS, ROADS, HOME, KASBAH, SOUK, AIRPORT, inPoly } = G;
 const DUNE = [40, 506, 42, 26]; // a sand lot at the edge of De Zandwijk
 
 const PAL = {
@@ -56,7 +56,8 @@ export function paintKaasland({ R = 2.5, still = false } = {}) {
     for (let v = -ext; v <= ext; v += sv) keepRuns(line(to(-ext, v), to(ext, v)), ok, w, region);
     for (let u = -ext; u <= ext; u += su) keepRuns(line(to(u, -ext), to(u, ext)), ok, w, region);
   };
-  const okStart = (x, y) => inPoly(x, y, REGIONS.start) && Math.hypot(x - C0[0], y - C0[1]) > 268 && !inPark(x, y) && !wet(x, y);
+  const inAir = (x, y) => x > AIRPORT.x - 3 && x < AIRPORT.x + AIRPORT.w + 3 && y > AIRPORT.y - 3 && y < AIRPORT.y + AIRPORT.h + 3;
+  const okStart = (x, y) => inPoly(x, y, REGIONS.start) && Math.hypot(x - C0[0], y - C0[1]) > 268 && !inPark(x, y) && !wet(x, y) && !inAir(x, y);
   grid(330, 600, -12 * Math.PI / 180, 26, 18, 460, okStart, 3, 'start');
   // Hipsterheuvel: winding lanes and cross streets, farmland further east
   const okNosh = (x, y) => inPoly(x, y, REGIONS.nosh) && x < 885 && !inPark(x, y) && !wet(x, y) && y < G.NORTH_BANK.reduce((m, [bx, by], i, a) => (i && x >= a[i - 1][0] && x <= bx ? a[i - 1][1] + (by - a[i - 1][1]) * (x - a[i - 1][0]) / (bx - a[i - 1][0]) : m), 230) - 3;
@@ -88,6 +89,7 @@ export function paintKaasland({ R = 2.5, still = false } = {}) {
   trace(m, SLOOT, false); m.lineWidth = 9; m.stroke();
   for (const p of parkPolys) { trace(m, p); m.fill(); }
   trace(m, FIELDS); m.fill();
+  m.fillRect(AIRPORT.x - 2, AIRPORT.y - 2, AIRPORT.w + 4, AIRPORT.h + 4); // Schiptagat
   for (const s of streets) { trace(m, s.pts, false); m.lineWidth = s.w + (s.region === 'nosh' ? 6 : s.region === 'abd' ? 3 : s.region === 'start' ? 2.2 : s.region === 'para' ? 0.6 : 1); m.stroke(); }
   for (const r of ROADS) { trace(m, r.pts, false); m.lineWidth = r.ring ? 10 : 8; m.stroke(); }
   m.beginPath(); m.arc(600, 352, 15, 0, 7); m.fill(); // the market square
@@ -126,6 +128,22 @@ export function paintKaasland({ R = 2.5, still = false } = {}) {
     ctx.beginPath(); ctx.moveTo(cx - rx, cy + ry * 0.2); ctx.quadraticCurveTo(cx, cy - ry * 0.4, cx + rx, cy + ry * 0.1); ctx.stroke();
     if (pond) { ctx.beginPath(); ctx.ellipse(cx + rx * 0.2, cy + ry * 0.1, rx * 0.22, ry * 0.2, 0.4, 0, 7); ctx.fillStyle = PAL.pond; ctx.fill(); ctx.strokeStyle = '#8fc0cc'; ctx.lineWidth = 0.6; ctx.stroke(); }
     ctx.restore();
+  }
+  // Schiptagat: grass, one runway, a taxiway, the apron and a terminal, two planes at the gate
+  { const { x, y, w, h } = AIRPORT;
+    ctx.fillStyle = '#cfe0b0'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = '#b4c995'; ctx.lineWidth = 0.6; ctx.strokeRect(x, y, w, h);
+    const ry = y + h - 13; ctx.fillStyle = '#6f7378'; ctx.fillRect(x + 4, ry, w - 8, 8); // runway
+    ctx.fillStyle = '#fff'; for (let k = x + 16; k < x + w - 16; k += 7) ctx.fillRect(k, ry + 3.7, 3.6, 0.6);
+    for (const ex of [x + 6, x + w - 11]) for (let k = 0; k < 4; k++) ctx.fillRect(ex, ry + 1 + k * 1.7, 5, 0.8);
+    ctx.fillStyle = '#9a9ea2'; ctx.fillRect(x + 10, ry - 7, w - 20, 2.6); // taxiway
+    for (const tx of [x + 14, x + w - 16]) ctx.fillRect(tx, ry - 7, 2.6, 7);
+    ctx.fillStyle = '#c6c8c8'; ctx.fillRect(x + 18, y + 12, w - 36, ry - y - 20); // apron
+    ctx.fillStyle = '#e9e4da'; ctx.fillRect(x + 22, y + 3, w - 44, 9); ctx.fillStyle = '#5d7fa0'; ctx.fillRect(x + 22, y + 10.5, w - 44, 1.5); // terminal
+    ctx.fillStyle = '#f4f2ee'; ctx.beginPath(); ctx.arc(x + w - 14, y + 8, 3.2, 0, 7); ctx.fill(); ctx.fillStyle = '#4c79a6'; ctx.beginPath(); ctx.arc(x + w - 14, y + 8, 1.8, 0, 7); ctx.fill(); // tower
+    const plane = (px, py, s) => { ctx.save(); ctx.translate(px, py); ctx.fillStyle = '#ffffff'; ctx.strokeStyle = 'rgba(60,60,60,.35)'; ctx.lineWidth = 0.4;
+      ctx.beginPath(); ctx.ellipse(0, 0, 1.1 * s, 6 * s, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillRect(-6 * s, -0.6 * s, 12 * s, 2 * s); ctx.fillRect(-2.6 * s, 4.4 * s, 5.2 * s, 1.1 * s);
+      ctx.fillStyle = '#1a3a8a'; ctx.fillRect(-0.3 * s, 4 * s, 0.6 * s, 2 * s); ctx.restore(); };
+    plane(x + 40, y + 22, 1.3); plane(x + 66, y + 22, 1.3);
   }
   // yards
   for (const [x, y, w, h] of YARDS) { ctx.fillStyle = '#d3cdc0'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = '#bdb6a6'; ctx.lineWidth = 0.6; ctx.strokeRect(x, y, w, h); }

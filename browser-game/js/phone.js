@@ -229,6 +229,7 @@ export function initPhone(d) {
       if (state.table) list.push({ l: 'Kruidenbeurs', go: 'beurs' });
       if (econ.has('prognose')) list.push({ l: 'Henk Cijfer', go: 'henk' });
       if (econ.has('geruchten')) list.push({ l: 'De Fluisteraar', go: 'fluist' });
+      if (d.freddyBack && d.freddyBack()) list.push({ l: 'Pa', act: () => { close(); if (d.freddyChat) d.freddyChat(); } }); // Freddy Sr., back from Costa del Kaas (js/freddy.js)
       list.push({ l: 'Tante Gerda', go: 'gerda' });
       return { t: 'Contacten', items: list, foot: `W ${state.money.toLocaleString('nl-NL')}` };
     },
@@ -344,6 +345,7 @@ export function initPhone(d) {
     henk: { name: 'Henk Cijfer', img: './assets/face_henk.jpg', talk: talkHenk, missed: henkVoicemail },
     ras: { name: 'Onbekend nummer', img: null, talk: talkRas, missed: rasVoicemail },
     razim: { name: 'Razim', img: RAZ_IMG, talk: talkRazim, missed: razimMissed },
+    freddy: { name: 'Pa (Freddy Sr.)', img: './assets/face_sr.jpg', talk: () => d.freddyCall && d.freddyCall(), missed: () => d.freddyMissed && d.freddyMissed() },
     shooki: { name: 'Shooki', img: './assets/face_shooki.jpg', talk: talkShooki, missed: () => toast('GEMISTE OPROEP', 'Shooki. Probably nothing. It\'s always nothing.', 2.4) },
   };
   let razWait = 40 + Math.random() * 60;
@@ -351,7 +353,7 @@ export function initPhone(d) {
   const randomOk = () => state.step === 'free' && met('shooki') && !(state.tut && !state.tut.done) && econ.ensure().callDay !== econ.ensure().day;
 
   function ring(id = 'hakan') {
-    if (ringing) return false;
+    if (ringing || isOpen) return false;
     const c = CALLERS[id]; who = id; ringing = id === 'henk' || id === 'ras' ? 20 : 12; buzz = 0;
     el.querySelector('.ph-name').innerHTML = c.name;
     const face = el.querySelector('.ph-face'), img = face.querySelector('img');

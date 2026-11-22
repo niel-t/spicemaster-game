@@ -52,6 +52,8 @@ export const PLACES = {
   'De Gouden Molen': [ISLAND.cx, ISLAND.cy],
 };
 export const HOME = [300, 600]; // the Eddy & Zn warehouse
+// Schiptagat, the little airport south of Kaaspark (Freddy Sr. flies back from Costa del Kaas here, js/freddy.js)
+export const AIRPORT = { x: 584, y: 736, w: 112, h: 58, pin: [636, 750] };
 export const ACT_AT = { start: [250, 770], lampas: [600, 560], nosh: [690, 112], abd: [980, 785], para: [150, 528] };
 // De Zandwijk: the Paravim came from the desert and took the west quay. Six missions (main.js PARA), open after Act 2.
 export const KASBAH = { cx: 72, cy: 340, s: 34 }; // Ras al Gara's fortress
@@ -67,7 +69,7 @@ export const NODES = {
   wbs: [400, 318, 'lampas'], c: [600, 352, 'lampas'], ow: [...polar(150, 170), 'lampas'], os: [...polar(90, 150), 'lampas'], oe: [...polar(30, 170), 'lampas'],
   nwb: [400, 218, 'nosh'], nc: [600, 232, 'nosh'], neb: [878, 196, 'nosh'],
   n1: [150, 192, 'nosh'], n2: [400, 172, 'nosh'], n3: [600, 168, 'nosh'], n4: [800, 158, 'nosh'], n5: [960, 128, 'nosh'], n6: [1080, 82, 'nosh'], n7: [540, 60, 'nosh'],
-  d1: [895, 392, 'abd'], d2: [985, 545, 'abd'], d3: [1165, 525, 'abd'], d4: [1080, 690, 'abd'], d5: [820, 600, 'abd'],
+  ap: [636, 744, 'start'], d1: [895, 392, 'abd'], d2: [985, 545, 'abd'], d3: [1165, 525, 'abd'], d4: [1080, 690, 'abd'], d5: [820, 600, 'abd'],
 };
 const R = (a, b, name, o = {}) => ({ a, b, name, ...o });
 export const ROADS = [
@@ -77,8 +79,9 @@ export const ROADS = [
   R('wbs', 'nwb', 'Westerbrug', { bridge: 1 }), R('c', 'nc', 'Kaasbrug', { bridge: 1 }), R('re', 'neb', 'Oosterbrug', { bridge: 1 }),
   R('n1', 'n2', 'Hipsterlaan'), R('n2', 'n3', 'Hipsterlaan'), R('n3', 'n4', 'Avocadoweg'), R('n4', 'n5', 'Oatlaan'), R('n5', 'n6', 'Speltdijk'), R('n3', 'n7', 'Akkerweg'),
   R('nwb', 'n2', 'Brugstraat'), R('nc', 'n3', 'Kombuchalaan'), R('neb', 'n4', 'Gemberdijk'),
+  R('s1', 'ap', 'Schiptagatweg', { via: [[590, 666]] }),
   R('re', 'd1', 'Kadeweg'), R('d1', 'd2', 'Containerweg'), R('d2', 'd3', 'Havenstraat'), R('d2', 'd4', 'Containerweg'), R('rse', 'd5', 'Dokweg'), R('d5', 'd2', 'Dokweg'),
-].map((r) => ({ ...r, pts: r.ring ? arc(r.ring[0], r.ring[1], RING_R, 4) : [NODES[r.a].slice(0, 2), NODES[r.b].slice(0, 2)] }));
+].map((r) => ({ ...r, pts: r.ring ? arc(r.ring[0], r.ring[1], RING_R, 4) : [NODES[r.a].slice(0, 2), ...(r.via || []), NODES[r.b].slice(0, 2)] }));
 
 export function inPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 export const regionOf = (x, y) => (inPoly(x, y, RIVER) ? 'water' : Object.keys(REGIONS).find((r) => inPoly(x, y, REGIONS[r])) || 'start');

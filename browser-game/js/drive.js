@@ -169,6 +169,7 @@ export function initDrive(ctx) {
     // welcome sign on the north quay
     const lampasSign = label([{ t: 'WELKOM IN OUD-VETTENBURG', size: 54 }, { t: 'LAMPAS GEBIED · VERDUNNEN VERPLICHT', size: 28, color: '#1a0a10' }], '#ff7a1a', '#1a0a10', 22, 4, 110, 0.09, CANAL.z0 - 6.2, 0, scene, 1024, 190);
     buildThemes(lampasSign);
+    buildAirport();
     label([{ t: 'DE GROTE GRACHT', size: 60 }], 'none', '#bfe8ff', 26, 3, 110, -1.1, (CANAL.z0 + CANAL.z1) / 2, 0, scene, 1024, 110);
     // target ring on the plaza
     targetRing = new THREE.Mesh(new THREE.RingGeometry(TARGET.r - 0.8, TARGET.r, 48), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.9, depthWrite: false }));
@@ -295,6 +296,45 @@ export function initDrive(ctx) {
     if (THEMES.lampas.sign) THEMES.lampas.sign.visible = th === 'lampas';
     for (const n of lampasNeons) n.visible = th === 'lampas';
     hemi.color.set(THEMES[th].hemi[0]); hemi.groundColor.set(THEMES[th].hemi[1]);
+  }
+  // Schiptagat, the airport (Freddy Sr. flies home from Costa del Kaas, js/freddy.js): the kiss & ride on the east edge,
+  // a control tower over the rooftops, planes coming in low, and Pa on the pavement with his suitcases and a sombrero
+  let airport = null, jet = null;
+  const AIR = { i: 5, j: 3 }; // the crossing the pick-up parks on (start({ target: [5, 3] }))
+  function buildAirport() {
+    const g = airport = new THREE.Group(); g.visible = false; scene.add(g);
+    const x = GX[AIR.i], z = GZ[AIR.j];
+    label([{ t: 'SCHIPTAGAT', size: 70 }, { t: 'AANKOMST · ARRIVALS · KISS & RIDE', size: 26, color: '#ffffff' }], '#1a3a8a', '#ffd36b', 22, 4.6, x + 22, 23, z, Math.PI / 2, g, 1024, 210);
+    label([{ t: 'KISS & RIDE', size: 66 }, { t: 'max. 3 min · ook voor vaders', size: 28, color: '#ffffff' }], 'none', '#ffd36b', 9, 2.2, x, 0.2, z + 17, 0, g);
+    // the control tower behind the edge row
+    const tw = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.8, 34, 16), lam({ color: 0xe8e4dc })); tw.position.set(x + 30, 17, z - 18); tw.castShadow = true; g.add(tw);
+    const cab = new THREE.Mesh(new THREE.CylinderGeometry(4.4, 3.6, 3, 16), lam({ color: 0x3a6a9a, emissive: 0x10305a })); cab.position.set(x + 30, 35.5, z - 18); g.add(cab);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 4.8, 0.6, 16), lam({ color: 0xf2f0ea })); cap.position.set(x + 30, 37.3, z - 18); g.add(cap);
+    // Pa: navy shirt, white hair, a sombrero you can see from the sky, two suitcases
+    const pa = new THREE.Group(); pa.position.set(x + 6.6, 0, z + 7.5); g.add(pa);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.44, 1.25, 10), lam({ color: 0x232a40 })); body.position.y = 0.82; body.castShadow = true; pa.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), lam({ color: 0xdc9c82 })); head.position.y = 1.66; pa.add(head);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.06, 20), lam({ color: 0xe8c860 })); brim.position.y = 1.86; brim.castShadow = true; pa.add(brim);
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.5, 14), lam({ color: 0xd8a830 })); crown.position.y = 2.1; pa.add(crown);
+    for (const [dx, c] of [[0.9, 0xb03a2a], [1.6, 0x2a6a4a]]) { const sc = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.75, 0.3), lam({ color: c })); sc.position.set(dx, 0.4, 0.2); sc.castShadow = true; pa.add(sc); }
+    label([{ t: 'PA', size: 90 }], 'none', '#ffd36b', 3, 1.4, x + 6.6, 0.22, z + 9.6, 0, g, 256, 128);
+    // a jet on final approach, over the rooftops
+    jet = new THREE.Group(); g.add(jet);
+    const white = lam({ color: 0xf4f4f0 }), blue = lam({ color: 0x1a3a8a });
+    const fus = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 22, 12), white); fus.rotation.x = Math.PI / 2; fus.castShadow = true; jet.add(fus);
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(1.4, 12, 8), white); nose.position.z = 11; nose.scale.z = 1.8; jet.add(nose);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 4), white); wing.position.z = 1; wing.castShadow = true; jet.add(wing);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(8, 0.3, 2.4), white); tail.position.z = -9.5; jet.add(tail);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 3), blue); fin.position.set(0, 2, -9.5); jet.add(fin);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.5, 20), blue); stripe.position.y = 0.2; jet.add(stripe);
+    jet.userData.t = 0;
+  }
+  function updateAirport(dt) { // a plane every dozen seconds, low over the kiss & ride
+    if (!airport || !airport.visible || !jet) return;
+    const T = 12, t = (jet.userData.t = (jet.userData.t + dt) % T), k = t / T;
+    const x = GX[AIR.i] + 60 - k * 260, z = GZ[AIR.j] - 30 + k * 40;
+    jet.position.set(x, 30 - k * 6, z); jet.rotation.y = -Math.PI / 2 + Math.atan2(40, 260);
+    jet.visible = k < 0.9;
   }
   function buildPark(b) {
     plane(b.x1 - b.x0 + 2, b.z1 - b.z0 + 2, grassM, (b.x0 + b.x1) / 2, 0.16, (b.z0 + b.z1) / 2);
@@ -537,7 +577,7 @@ export function initDrive(ctx) {
   }
   const smokeM = new THREE.MeshBasicMaterial({ color: 0x3a3a3a, transparent: true, opacity: 0.5, depthWrite: false });
   function wreckLampas(l) {
-    l.dead = true; l.g.userData.body.color.set(0x3a2a20); run.wrecked++;
+    l.dead = true; l.g.userData.body.color.set(0x3a2a20); run.wrecked++; ev('wreck');
     banner('LAMPAS WEG!', `+W ${LAMPAS_BOUNTY}`, 1.6); beep(523, 0.12, 'triangle', 0.06); setTimeout(() => beep(784, 0.18, 'triangle', 0.06), 110);
     for (let k = 0; k < 5; k++) { const s = new THREE.Mesh(new THREE.CircleGeometry(0.9, 10), smokeM); s.rotation.x = -Math.PI / 2; s.position.set(l.x, 2 + k * 0.4, l.z); scene.add(s); l.smoke.push({ m: s, t: k * 0.4 }); }
   }
@@ -638,7 +678,7 @@ export function initDrive(ctx) {
       if (Math.abs(lx) < 1.5 && Math.abs(lz) < 2.9) {
         if (sp < 2.5) { p.flee = Math.max(p.flee, 0.6); continue; } // slow bumps just make them hop
         p.down = 2.6; p.vx = van.vx * 0.8 + Math.sign(lx || 1) * fz * 3; p.vz = van.vz * 0.8 - Math.sign(lx || 1) * fx * 3; p.vy = 5 + sp * 0.15; p.spin = 8;
-        run.bumped++; run.smart += SMART; floatText(`−W ${SMART}`, p.g.position.x, p.g.position.z);
+        run.bumped++; run.smart += SMART; ev('ped'); floatText(`−W ${SMART}`, p.g.position.x, p.g.position.z);
         beep(160, 0.1, 'square', 0.05); setTimeout(() => beep(120, 0.12, 'square', 0.04), 80);
         if (Math.random() < 0.7) say(HIT_LINES[(Math.random() * HIT_LINES.length) | 0], p.g.position.x, p.g.position.z, '#ffd0d0');
       }
@@ -843,6 +883,7 @@ export function initDrive(ctx) {
 
   // ---------------------------------------------------------------- flow
   let opts = null, resActions = [];
+  const ev = (type, data) => { if (opts && opts.onEvent) try { opts.onEvent(type, data); } catch (e) { console.error(e); } }; // a passenger (Freddy Sr., js/freddy.js) comments on the drive
   function resBtn(k) { const f = resActions[k]; if (f) f(); }
   function showRes(title, sub, rows, buttons) {
     const r = $('drvRes');
@@ -874,11 +915,15 @@ export function initDrive(ctx) {
     tp.gas = tp.rev = tp.steer = 0; route.t = 0; routeCalc();
     camera.position.set(van.x, 60, van.z); shake = 0;
   }
-  function payFor() { return Math.max(0, BASE_PAY + run.wrecked * LAMPAS_BOUNTY + Math.max(0, Math.round((PAR - run.t) * 3)) - run.smart); }
+  function payFor() { if (opts && opts.noPay) return -run.smart; return Math.max(0, BASE_PAY + run.wrecked * LAMPAS_BOUNTY + Math.max(0, Math.round((PAR - run.t) * 3)) - run.smart); }
   function arrive() {
     run.over = true; const pay = payFor();
     beep(523, 0.15, 'triangle', 0.06); setTimeout(() => beep(659, 0.15, 'triangle', 0.06), 130); setTimeout(() => beep(784, 0.3, 'triangle', 0.06), 260);
     const tm = fmt(run.t);
+    ev('arrive', { t: run.t, par: PAR, bumped: run.bumped, dents: Math.round(100 - van.hp) });
+    if (opts.noPay) return showRes('AANGEKOMEN!', `${opts.to}. ${opts.arrived || ''}`, [ // a pick-up, not a delivery: nobody pays you to fetch your father
+      ['Time', `${tm} (par ${fmt(PAR)})`], ['Smartengeld', `${run.bumped} × −W ${SMART}`], ['Dents in the Oofmobiel', `${Math.round(100 - van.hp)}%`], ['Honks', `${run.honks}`],
+    ], [[(opts.doneLabel || 'Drive home') + ' · [E]', () => finish({ arrived: true, pay, time: run.t, wrecked: run.wrecked, bumped: run.bumped })], ['Drive again · [⌫]', reset]]);
     showRes('AANGEKOMEN!', opts.mission ? `${opts.to}. ${opts.mission}` : `${opts.to}. Lampas heartland, scouted.`, [
       ['Time', `${tm} (par ${fmt(PAR)})`], ['Delivery fee', `W ${BASE_PAY}`], ['On-time bonus', `W ${Math.max(0, Math.round((PAR - run.t) * 3))}`],
       ['Lampas cars wrecked', `${run.wrecked} × W ${LAMPAS_BOUNTY}`], ['Smartengeld', `${run.bumped} × −W ${SMART}`], ['Dents in the Oofmobiel', `${Math.round(100 - van.hp)}%`], ['Honks', `${run.honks}`],
@@ -886,7 +931,7 @@ export function initDrive(ctx) {
     ], [[opts.mission ? 'Raid the joint · [E]' : 'Drive home · [E]', () => finish({ arrived: true, pay, time: run.t, wrecked: run.wrecked, bumped: run.bumped })], ['Drive again · [⌫]', reset]]);
   }
   function fail(title, sub) {
-    run.over = true; beep(160, 0.3, 'sawtooth', 0.06); setTimeout(() => beep(110, 0.5, 'sawtooth', 0.06), 250);
+    run.over = true; ev('fail', { title }); beep(160, 0.3, 'sawtooth', 0.06); setTimeout(() => beep(110, 0.5, 'sawtooth', 0.06), 250);
     showRes(title, sub, [['Time', fmt(run.t)], ['Lampas cars wrecked', `${run.wrecked}`], ['Pedestrians bumped', `${run.bumped}`]],
       [['Try again · [E]', reset], ['Back to the warehouse · [⌫]', () => finish({ arrived: false, pay: 0 })]]);
   }
@@ -903,6 +948,8 @@ export function initDrive(ctx) {
     route.dist = null;
     for (const k in keys) keys[k] = false;
     reset(); applyTheme(opts.theme);
+    if (airport) { airport.visible = !!opts.airport; if (THEMES.lampas.sign) THEMES.lampas.sign.visible = THEMES.lampas.sign.visible && !opts.airport; }
+    ev('start', { to: opts.to });
   }
   function stop() { D.active = false; document.body.classList.remove('driving'); hud.style.display = 'none'; $('drvRes').style.display = 'none'; $('drvBanner').style.display = 'none'; }
 
@@ -927,11 +974,11 @@ export function initDrive(ctx) {
     const grip = keys.ShiftLeft || keys.ShiftRight ? 1.4 : 7;
     const sp = drivePhysics(van, thr, st, dt, (opts.van && opts.van.maxV) || MAXV, grip); // Garage Mo: van tier + chip tuning
     const hit = bodyCollide(van, 1.7);
-    if (hit && hit.imp > 6 && !run.over) { damage((hit.imp - 6) * 1.6); shake = Math.max(shake, Math.min(0.7, hit.imp / 25)); beep(70, 0.16, 'sawtooth', 0.06); run.dents++; }
+    if (hit && hit.imp > 6 && !run.over) { if (hit.imp > 14) ev('crash'); damage((hit.imp - 6) * 1.6); shake = Math.max(shake, Math.min(0.7, hit.imp / 25)); beep(70, 0.16, 'sawtooth', 0.06); run.dents++; }
     vanVsMovers();
     // into the canal? Splash, back to the last safe spot
     if (!run.over && isWater(van.x, van.z)) {
-      run.plunges++; banner('PLONS!', 'The Oofmobiel can\'t swim. A tow truck fishes you out.', 2); beep(200, 0.4, 'sine', 0.07);
+      run.plunges++; ev('canal'); banner('PLONS!', 'The Oofmobiel can\'t swim. A tow truck fishes you out.', 2); beep(200, 0.4, 'sine', 0.07);
       Object.assign(van, { x: van.safe.x, z: van.safe.z, h: van.safe.h, vx: 0, vz: 0, freeze: 1 }); damage(20);
     }
     van.safeT -= dt;
@@ -947,11 +994,12 @@ export function initDrive(ctx) {
     // ambush when you cross into Lampas turf
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0 && opts.van && opts.van.tint) run.ambush = 1; // tinted windows: they don't spot you at the canal
     if (!run.over && van.z < CANAL.z0 - 10 && run.ambush === 0) {
-      run.ambush = 1; banner('HINDERLAAG!', `The ${({ nosh: 'Noshgey Kariot', docks: 'Abdavissies', sand: 'Paravim' })[opts.theme] || 'Lampas'} want their street back. Ram them into a wall.`, 2.6);
+      run.ambush = 1; ev('ambush'); banner('HINDERLAAG!', `The ${({ nosh: 'Noshgey Kariot', docks: 'Abdavissies', sand: 'Paravim' })[opts.theme] || 'Lampas'} want their street back. Ram them into a wall.`, 2.6);
       for (const [dx, dz] of [[-30, -46], [26, -52], [0, -80]]) spawnLampas(Math.max(GX[0], Math.min(GX[5], Math.round((van.x + dx) / 44) * 44)) + 2.2, Math.max(GZ[9] + 2, van.z + dz));
     }
     if (!run.over && van.z < GZ[7] && run.ambush === 1) { run.ambush = 2; spawnLampas(GX[5] + 2.2, GZ[9] + 2); spawnLampas(GX[3] - 2.2, GZ[9] + 2); }
     for (const c of cars) updateCar(c, dt);
+    updateAirport(dt);
     for (const l of lampas) updateLampas(l, dt);
     for (const p of peds) updatePed(p, dt);
     for (const b of bubbles) if (b.t > 0) { b.t -= dt; b.s.position.y += dt * 2; b.s.userData.life = b.t; if (b.t <= 0) b.s.visible = false; }

@@ -36,11 +36,11 @@ const C = {
   water: '#a9d3e8', land: '#f3f0ea', street: '#ffffff', park: '#cde8c4', parkInk: '#3b7a3b',
   tint: { start: '#f3f0ea', lampas: '#f6eee8', nosh: '#eef3e6', abd: '#ebf0f3', fin: '#f6efd6' },
   edge: '#b9b2a6', road: '#fde9a4', roadCase: '#e5c46a', ink: '#3c4043', sub: '#70757a', blue: '#1a73e8',
-  st: { open: '#e8710a', own: '#188038', lost: '#d93025', locked: '#80868b', para: '#b4542c' },
+  st: { open: '#e8710a', own: '#188038', lost: '#d93025', locked: '#80868b', para: '#b4542c', air: '#1a73e8', due: '#e8710a' },
 };
 const STATUS = { own: 'own', lost: 'lost', m1: 'open', m2: 'open', m3: 'open' };
 const statusOf = (k) => STATUS[k] || 'locked';
-const STLABEL = { open: 'Mission open', own: 'Yours', lost: 'Retaken', locked: 'Locked', para: 'Paravim turf' };
+const STLABEL = { open: 'Mission open', own: 'Yours', lost: 'Retaken', locked: 'Locked', para: 'Paravim turf', air: 'Airport', due: 'Pick up Pa' };
 const path = (poly) => 'M' + poly.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L') + 'Z';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 // place icons (screen px around 0,0)
@@ -49,6 +49,7 @@ function icon(kind, st) {
   const r = kind === 'boss' ? 9 : st === 'open' || st === 'lost' ? 8 : 6.5;
   const g = kind === 'wh' ? '<path d="M-4,0.5 L0,-3.5 L4,0.5 V4 H-4Z" fill="#fff"/>'
     : kind === 'person' ? '<circle cy="-2" r="2.2" fill="#fff"/><path d="M-3.8,4 a3.8,3.4 0 0 1 7.6,0Z" fill="#fff"/>'
+    : kind === 'air' ? '<path d="M0,-4.6 L0.9,-1.2 L4.4,0.8 V1.8 L0.9,0.6 L0.6,3 L1.8,4 V4.6 L0,4 L-1.8,4.6 V4 L-0.6,3 L-0.9,0.6 L-4.4,1.8 V0.8 L-0.9,-1.2Z" fill="#fff"/>'
     : kind === 'boss' ? '<path d="M-5,3 L-5,-2.5 L-2.5,0 L0,-4.5 L2.5,0 L5,-2.5 L5,3Z" fill="#fff"/>'
     : st === 'own' ? '<path d="M-3,0 L-0.8,2.4 L3.2,-2.4" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
     : (st === 'locked' || st === 'para') ? '<path d="M-2.2,-0.4 V-1.8 a2.2,2.2 0 0 1 4.4,0 V-0.4 M-3,-0.4 H3 V3.2 H-3Z" fill="#fff" stroke="#fff" stroke-width=".7"/>'
@@ -89,6 +90,7 @@ export function createKaasMap() {
     const openAct = (r) => !!ACT[r].open(d);
     const terr = o.terr.filter((t) => t.n !== 'Kipkruidenkwartier' && PLACES[t.n]).map((t) => ({ ...t, st: statusOf(t.k), boss: BOSS.includes(t.n), x: PLACES[t.n][0], y: PLACES[t.n][1] }));
     for (const [n, [x, y]] of Object.entries(PARA_PLACES)) { const pk = openAct('para') && o.para && o.para[n]; terr.push(pk ? { n, k: pk, st: statusOf(pk), region: 'para', boss: BOSS.includes(n), x, y } : { n, k: 'para', st: 'para', region: 'para', boss: BOSS.includes(n), x, y, para: true }); }
+    if (o.air) terr.push({ n: 'Schiptagat', k: 'air', st: o.air, region: 'start', air: true, x: G.AIRPORT.pin[0], y: G.AIRPORT.pin[1] }); // the airport: a landmark, and where Pa lands
     cur = { ...o, terr, openAct };
     let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
 <defs>${ROAD_LABELS.map(([, p], i) => `<path id="kmRd${i}" d="${path(p).slice(0, -1)}"/>`).join('')}${CANALS.map((r, i) => `<path id="kmCn${i}" d="${path(arc(150, 30, r, 3)).slice(0, -1)}"/>`).join('')}<path id="kmRiver" d="M80,268 C300,262 500,286 760,276"/></defs>
@@ -101,20 +103,20 @@ export function createKaasMap() {
 <path class="km-route-case" d="" fill="none"/><path class="km-route" d="" fill="none"/>
 <g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district km-d-${a.r}" data-x="${ACT_AT[a.r][0]}" data-y="${ACT_AT[a.r][1]}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="14" class="km-dsub">${a.r === 'para' ? 'PARAVIM · RAS AL GARA' : `LOCKED · ${a.tag.toUpperCase()}`}</text>`}</g>`).join('')}<g class="km-t km-district km-d-bay" data-x="1120" data-y="232"><text text-anchor="middle" class="km-bay">Kaasbaai</text></g></g>
 <g class="km-places">`;
-    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" ${t.para ? 'data-para' : 'data-pin'}="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
+    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" ${t.para ? 'data-para' : 'data-pin'}="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' || t.st === 'due' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.air ? 'air' : t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
     for (const w of o.warehouses || []) { const t = terr.find((x) => x.n === w.n); if (t) s += `<g class="km-pl km-wh" data-x="${t.x + 12}" data-y="${t.y - 12}" data-pri="-1"><title>${esc(w.name)}</title>${icon('wh')}</g>`; }
     s += `<g class="km-pl km-home" data-pin="Kipkruidenkwartier" data-k="own" data-x="${HOME[0]}" data-y="${HOME[1]}" data-pri="4"><circle r="14" fill="transparent"/>${ICON_DOT}<g class="km-lab"><rect x="11" y="-8" height="16" rx="8"/><text x="17" y="4">You are here</text></g></g>`;
     s += `<g class="km-selpin" style="display:none">${ICON_SEL}</g></g></svg>`;
 
-    const row = (t) => `<button class="km-item km-i-${t.st}${sel === t.n ? ' on' : ''}" data-go="${esc(t.n)}"><svg width="20" height="20" viewBox="-10 -10 20 20">${icon(t.boss ? 'boss' : 'joint', t.st)}</svg><span>${esc(t.n)}</span><em>${STLABEL[t.st]}</em></button>`;
-    const ord = { open: 0, lost: 0, own: 1, locked: 2, para: 2 };
+    const row = (t) => `<button class="km-item km-i-${t.st}${sel === t.n ? ' on' : ''}" data-go="${esc(t.n)}"><svg width="20" height="20" viewBox="-10 -10 20 20">${icon(t.air ? 'air' : t.boss ? 'boss' : 'joint', t.st)}</svg><span>${esc(t.n)}</span><em>${STLABEL[t.st]}</em></button>`;
+    const ord = { open: 0, lost: 0, due: 0, own: 1, air: 1, locked: 2, para: 2 };
     const groups = ACTS.map((a) => {
-      const ts = terr.filter((t) => t.region === a.r).sort((x, y) => ord[x.st] - ord[y.st]), mine = ts.filter((t) => t.st === 'own').length + (a.r === 'start' ? 1 : 0), all = ts.length + (a.r === 'start' ? 1 : 0);
+      const ts = terr.filter((t) => t.region === a.r).sort((x, y) => ord[x.st] - ord[y.st]), mine = ts.filter((t) => t.st === 'own').length + (a.r === 'start' ? 1 : 0), all = ts.filter((t) => !t.air).length + (a.r === 'start' ? 1 : 0);
       if (a.r === 'para') return `<div class="km-grp"><button class="km-gh km-gh-para" data-frame="para" title="Show on the map"><b>Paravim · De Zandwijk</b><small>${openAct('para') ? `${mine}/${all}` : 'side act'}</small></button><div class="km-pnote">Ras al Gara's desert clan. Always angry, the toughest crew in Kaasland.${openAct('para') ? ' Optional, and hard: three hits each.' : ' Opens once the Noshgey Kariot are beaten.'}</div>${ts.map(row).join('')}</div>`;
       if (!openAct(a.r)) return `<div class="km-grp km-shut" data-frame="${a.r}"><b>${a.tag} · ${esc(a.name)}</b><small>Locked: ${esc(a.need)}</small></div>`;
       return `<div class="km-grp"><button class="km-gh" data-frame="${a.r}" title="Show on the map"><b>${a.tag} · ${esc(a.name)}</b><small>${mine}/${all}</small></button>${ts.map(row).join('')}</div>`;
     }).join('');
-    const own = terr.filter((t) => t.st === 'own').length + 1, nTerr = terr.filter((t) => !t.para).length;
+    const own = terr.filter((t) => t.st === 'own').length + 1, nTerr = terr.filter((t) => !t.para && !t.air).length;
     return `<div class="kmap">
   <div class="km-side">
     <div class="well km-info"><div class="km-ihead"></div><div id="pininfo">${o.van ? 'Where to? Pick a place on the map or in the list.' : 'Click a place on the map or in the list.'}</div></div>

@@ -1882,7 +1882,7 @@ export function initMission(ctx) {
       popup(player.position, P.hp === 1 ? 'LAST HIT!' : 'HIT!', '#ff4a5a', true); bloodBurst(player.position, dir, 14, 3); floorDecal(player.position.x, player.position.z, 0.6, Math.random() * 6);
       P.vx += dir[0] * 5; P.vz += dir[1] * 5; hud(); return;
     }
-    P.hp = 0; P.dead = true; P.deadT = 0; P.cause = cause; R.combo = 0; R.comboT = 0;
+    P.hp = 0; P.dead = true; P.deadT = 0; P.cause = cause; R.combo = 0; R.comboT = 0; if (ctx.onEvent) ctx.onEvent('dead', { cause }); // Freddy Sr. in the van has something to say (js/freddy.js)
     player.rotation.y = Math.atan2(-dir[0], -dir[1]); P.vx = dir[0] * (FORCE[cause] || 4); P.vz = dir[1] * (FORCE[cause] || 4);
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
@@ -1907,6 +1907,7 @@ export function initMission(ctx) {
     const bs = state.best[LV.id]; bs.stars = { ...(bs.stars || {}) }; const newStar = Object.keys(ch).some((k) => ch[k] && !bs.stars[k]); for (const k of Object.keys(ch)) if (ch[k]) bs.stars[k] = true;
     if (REMIX && REMIX.daily) { const d = state.daily && state.daily.date === REMIX.daily ? state.daily : { date: REMIX.daily, best: 0 }; d.best = Math.max(d.best, R.score); state.daily = d; }
     Object.assign(state.lastRaid, { grade: gr, score: R.score, daily: !!(REMIX && REMIX.daily) });
+    if (ctx.onEvent) ctx.onEvent('results', { grade: gr, kills: R.kills, shots: R.shots, taken: R.taken, time: R.time, par });
     const CH = [['S', 'S GRADE'], ['melee', 'NO GUNS FIRED'], ['par', `UNDER ${Math.floor(par / 60)}:${String(par % 60).padStart(2, '0')}`], ['clean', 'NO HITS TAKEN']];
     const chLine = CH.map(([k, t]) => `<span style="color:${ch[k] ? '#ffd36b' : bs.stars[k] ? '#9a8a60' : '#555'}">${ch[k] || bs.stars[k] ? '★' : '☆'} ${t}</span>`).join(' &nbsp; ') + ` &nbsp; <span style="color:${R.tin ? '#e8a33d' : state.tins && state.tins[LV.id] ? '#9a8a60' : '#555'}">${state.tins && state.tins[LV.id] ? '◆' : '◇'} ${state.tins && state.tins[LV.id] ? 'KRUIDENBLIK' : 'HIDDEN TIN'}</span>`;
     const t = Math.floor(R.time), acc = R.shots ? Math.round(R.hits / R.shots * 100) + '%' : '—';
