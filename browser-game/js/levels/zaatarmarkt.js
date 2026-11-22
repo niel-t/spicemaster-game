@@ -1,5 +1,5 @@
 // De Zandwijk, mission 2: Za'atarmarkt. The Paravim souk: striped awnings, spice pyramids, a weigh-house at the back and a lot of
-// shouting. Built on the shared De Zandwijk compound (js/levels/zandwijk.js): the courtyard is the market, the back house the weigh-house
+// shouting. Built on the De Zandwijk compound outside (js/levels/zandwijk.js): the courtyard is the market, the back house the weigh-house
 // where the market tax is counted, Marktmeester Mustafa in the diwan.
 // The twist: the stall keepers. Each one is already angry with you; shoot his stall and he joins the fight. The striped awnings block
 // sight both ways. Tray shields show up for the first time in the weigh-house.
@@ -12,6 +12,32 @@ const KEEPERS = STALLS.filter((s) => s[3]);
 
 export default souk({
   id: 'zaatarmarkt', name: "Za'atarmarkt", kiosk: 'THEEHUIS ZA\'ATAR', sign: "ZA'ATARMARKT",
+  // The ring: the souk spills all the way to the west wall and opens straight onto the street through its own market gate, Mustafa's
+  // diwan sits over it in the north-west corner, and the tea house has moved across to the east side.
+  mood: { wall: 0xc0703a },
+  plan: {
+    rooms: [['diwan', 1, 1, 10, 10, 'carpet'], ['hall', 12, 1, 44, 10, 'plaster'], ['court', 1, 12, 33, 28, 'sand'], ['theehuis', 35, 12, 44, 28, 'zellige']],
+    gate: [20, 25], tea: 40,
+    layout({ carve, put, putR }) {
+      carve(4, 29, 7, 29); // the market's own gate, where you come in
+      putR(36, 29, 38, 29, '%'); carve(39, 29, 40, 29); putR(41, 29, 43, 29, '%');
+      putR(5, 11, 6, 11, 'D'); putR(11, 4, 11, 5, 'D'); putR(18, 11, 19, 11, 'D'); putR(28, 11, 29, 11, 'D'); putR(34, 18, 34, 19, 'D'); putR(40, 11, 41, 11, 'D');
+      // the west end of the souk: more stalls (no keepers), spice pyramids
+      putR(2, 15, 4, 15, 'm'); putR(7, 18, 9, 18, 'm'); putR(2, 22, 4, 22, 'm'); putR(7, 25, 9, 25, 'm'); put(9, 13, 'u'); put(1, 28, 'u');
+      // Mustafa's diwan
+      putR(2, 2, 8, 2, 'd'); putR(3, 6, 6, 7, 'O'); put(1, 1, 'V'); put(10, 1, 'p');
+      // the tea house
+      putR(42, 14, 43, 14, 'K'); put(44, 12, 'F'); put(37, 17, 'T'); put(42, 20, 'T'); put(37, 24, 'T'); putR(36, 27, 37, 27, 'd'); putR(42, 27, 43, 27, 'd');
+    },
+    hallCells: [[4, 29], [5, 29], [6, 29], [7, 29], [39, 29], [40, 29]],
+    doorSigns: { '5,11': 'PRIVÉ' },
+    spawns: [
+      [38, 22, 'makarov', Math.PI, 'theehuis', false, { argue: 'tea' }], [39, 22.8, 'machete', 0, 'theehuis', false, { argue: 'tea' }],
+      [5, 4, 'revolver', 0, 'diwan', true], [8, 9, 'makarov', -Math.PI / 2, 'diwan'],
+      [6, 20, 'machete', Math.PI / 2, 'court'], [3, 26, 'makarov', 0, 'court'],
+    ],
+    loot: [[1.5, 9.5], [9.5, 1.5], [44, 1.5], [44, 27.5], [1.5, 26]],
+  },
   courtName: 'Souk', hallName: 'Weeghuis',
   furn: { m: { ...SOUK_FURN.m, sight: true } }, // the awnings block sight both ways
   courtLayout({ put, putR }) {

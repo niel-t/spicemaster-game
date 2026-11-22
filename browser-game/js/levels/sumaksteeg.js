@@ -1,4 +1,4 @@
-// De Zandwijk, mission 3: Sumaksteeg. An alley so narrow the Paravim can glare at you from both sides at once. Built on the shared
+// De Zandwijk, mission 3: Sumaksteeg. An alley so narrow the Paravim can glare at you from both sides at once. Built on the De Zandwijk
 // De Zandwijk compound (js/levels/zandwijk.js): the courtyard is filled with houses, leaving a winding alley from the gate to the back
 // house, with carpets hung across it to dry. Sumak-Sami keeps the diwan.
 // The twist: lookouts. Three Paravim stand in doorway niches along the alley; once one spots you he lights a sumak-red flare, and if it
@@ -17,10 +17,35 @@ const FLARE_T = 6;
 
 export default souk({
   id: 'sumaksteeg', name: 'Sumaksteeg', kiosk: 'THEEHUIS DE STEEG', sign: 'SUMAKSTEEG',
+  // The ring: a long tea house runs down the whole west side with a little tiled hamam above it; Sumak-Sami's diwan hides in the
+  // south-east corner behind the store, so the alley is the only quick way to him.
+  plan: {
+    rooms: [['hamam', 1, 1, 10, 10, 'zellige'], ['theehuis', 1, 12, 10, 28, 'zellige'], ['hall', 12, 1, 44, 10, 'plaster'], ['court', 12, 12, 33, 28, 'cobble'], ['store', 35, 12, 44, 19, 'planks'], ['diwan', 35, 21, 44, 28, 'carpet']],
+    layout({ carve, put, putR }) {
+      carve(5, 29, 6, 29); putR(1, 29, 3, 29, '%'); putR(8, 29, 10, 29, '%');
+      putR(5, 11, 6, 11, 'D'); putR(11, 4, 11, 5, 'D'); putR(11, 20, 11, 21, 'D'); putR(18, 11, 19, 11, 'D'); putR(28, 11, 29, 11, 'D'); putR(34, 18, 34, 19, 'D'); putR(40, 11, 41, 11, 'D'); putR(39, 20, 40, 20, 'D');
+      // the tea house
+      putR(2, 14, 7, 14, 'K'); put(10, 13, 'F'); put(3, 18, 'T'); put(8, 17, 'T'); put(3, 24, 'T'); put(8, 25, 'T'); putR(2, 27, 3, 27, 'd'); putR(8, 27, 9, 27, 'd');
+      // the hamam: two basins, cushions
+      put(3, 4, 'W'); put(7, 4, 'W'); putR(2, 8, 4, 8, 'd'); put(10, 1, 'p');
+      // the store and Sami's diwan
+      putR(37, 14, 42, 14, 'y'); putR(37, 17, 42, 17, 'y'); put(44, 12, 'X');
+      putR(37, 27, 42, 27, 'd'); putR(38, 23, 41, 23, 'O'); putR(44, 22, 44, 26, 'S'); put(35, 28, 'V'); put(44, 28, 'p');
+    },
+    hallCells: [[5, 29], [6, 29]],
+    doorSigns: { '39,20': 'PRIVÉ' },
+    spawns: [
+      [4, 22, 'makarov', Math.PI, 'theehuis', false, { argue: 'tea' }], [5, 22.8, 'machete', 0, 'theehuis', false, { argue: 'tea' }],
+      [5, 6, 'makarov', Math.PI, 'hamam'], [8, 9, 'machete', Math.PI / 2, 'hamam'],
+      [39, 16, 'machete', Math.PI / 2, 'store'], [42, 15.5, 'makarov', -Math.PI / 2, 'store'],
+      [40, 25, 'revolver', 0, 'diwan', true], [37, 22, 'makarov', Math.PI / 2, 'diwan'],
+    ],
+    loot: [[1.5, 10], [9.5, 1.5], [44, 1.5], [44, 19], [1.5, 26]],
+  },
   courtName: 'Steeg', court: 'cobble',
   floors: { cobble: (g) => { g.fillStyle = '#8a6a4a'; g.fillRect(0, 0, 64, 64); for (let y = 0; y < 64; y += 10) for (let x = (y / 10) % 2 ? 0 : 8; x < 64; x += 16) { g.fillStyle = ['#a8845a', '#9a7650', '#b48e62'][(x + y) % 3]; g.beginPath(); g.ellipse(x + 6, y + 5, 6, 4, 0, 0, 6.3); g.fill(); } } },
   floorRep: { cobble: 2 },
-  mood: { bg: 0x140a06, hemi: 0.5, sun: 0.45 },
+  mood: { bg: 0x140a06, hemi: 0.5, sun: 0.45, wall: 0x9a3a2a },
   courtLayout({ carve, putR, put }) {
     putR(12, 12, 33, 28, '#');
     for (const [x0, z0, x1, z1] of ALLEY) carve(x0, z0, x1, z1);

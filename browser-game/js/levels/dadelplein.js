@@ -12,10 +12,34 @@ const CHEST_T = 40;
 
 export default souk({
   id: 'dadelplein', name: 'Dadelplein', kiosk: 'THEEHUIS DE OASE', sign: 'DADELPLEIN', taskName: 'CHEST',
+  // The ring: you come in through the date store, a long barn of sacks down the west side; Penningmeester Faris keeps a small diwan
+  // above it, and the tea house looks onto the oasis from the east.
+  plan: {
+    rooms: [['diwan', 1, 1, 10, 10, 'carpet'], ['store', 1, 12, 10, 28, 'planks'], ['hall', 12, 1, 44, 10, 'plaster'], ['court', 12, 12, 33, 28, 'sand'], ['theehuis', 35, 12, 44, 28, 'zellige']],
+    gate: [20, 25], tea: 40,
+    layout({ carve, put, putR }) {
+      carve(5, 29, 6, 29); putR(36, 29, 38, 29, '%'); carve(39, 29, 40, 29); putR(41, 29, 43, 29, '%');
+      putR(5, 11, 6, 11, 'D'); putR(11, 4, 11, 5, 'D'); putR(11, 17, 11, 18, 'D'); putR(11, 24, 11, 25, 'D'); putR(18, 11, 19, 11, 'D'); putR(28, 11, 29, 11, 'D'); putR(34, 20, 34, 21, 'D'); putR(40, 11, 41, 11, 'D');
+      // the date store
+      putR(2, 13, 3, 14, 'y'); putR(7, 13, 8, 14, 'y'); putR(2, 19, 3, 20, 'y'); putR(7, 21, 8, 22, 'y'); putR(1, 26, 2, 27, 'y'); put(10, 12, 'X'); putR(9, 27, 10, 28, 'C');
+      // Faris's diwan
+      putR(2, 2, 8, 2, 'd'); putR(3, 6, 6, 7, 'O'); put(1, 1, 'V'); put(10, 1, 'p');
+      // the tea house
+      putR(42, 14, 43, 14, 'K'); put(44, 12, 'F'); put(37, 17, 'T'); put(42, 21, 'T'); put(37, 25, 'T'); putR(36, 27, 37, 27, 'd'); putR(42, 27, 43, 27, 'd');
+    },
+    hallCells: [[5, 29], [6, 29], [39, 29], [40, 29]],
+    doorSigns: { '5,11': 'PRIVÉ' },
+    spawns: [
+      [38, 22, 'makarov', Math.PI, 'theehuis', false, { argue: 'tea' }], [39, 22.8, 'machete', 0, 'theehuis', false, { argue: 'tea' }],
+      [5, 4, 'revolver', 0, 'diwan', true], [8, 9, 'makarov', -Math.PI / 2, 'diwan'],
+      [5, 17, 'machete', Math.PI / 2, 'store'], [6, 24, 'makarov', Math.PI, 'store'],
+    ],
+    loot: [[1.5, 9.5], [9.5, 1.5], [44, 1.5], [44, 27.5], [1.5, 23]],
+  },
   courtName: 'Oase', hallName: 'Telkamer',
   hazard: WATER_HAZARD,
   furn: { ...WATER_FURN },
-  mood: { sky: 0xf8d8a0, hemi: 0.66, sun: 0.7 },
+  mood: { sky: 0xf8d8a0, hemi: 0.66, sun: 0.7, wall: 0xc8925a },
   courtLayout({ put, putR }) {
     putR(21, 18, 24, 20, '~'); // the oasis pond
     for (const [x, z] of [[19, 17], [26, 17], [19, 22], [26, 22], [15, 14], [30, 14], [15, 26], [31, 26]]) put(x, z, 'P');

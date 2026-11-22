@@ -76,19 +76,25 @@ export const SOUK_FURN = {
   S: { color: 0x8a1a1a }, O: { color: 0x5a3a1a }, C: { color: 0x8a6a3a }, R: { color: 0x6a4628 }, T: { color: 0x8a5a32 },
 };
 
+// A place can bring its own ring of rooms round the courtyard (cfg.plan): { rooms, layout(api) (front openings, doors, the ring's
+// furniture; runs before courtLayout/hallLayout), spawns (the ring's people; court and hall spawns are added), loot, gate: [x0, x1]
+// (the open arch on row 29), tea: x (the lit sign over the tea house door), hallCells, doorSigns, lights }. The courtyard contents and
+// the back house contents stay with the place's own courtLayout/hallLayout, as before.
 export function souk(cfg) {
   const diwan = cfg.diwan || 'carpet', hall = cfg.hall || 'plaster', court = cfg.court || 'sand', store = cfg.store || 'planks';
+  const P = cfg.plan, gate = (P && P.gate) || [20, 25], tea = (P && P.tea) ?? 5.5;
   return {
     ...PARAVIM, ...(cfg.faction || {}),
     id: cfg.id, name: cfg.name, W, H,
     taskName: cfg.taskName, hazard: cfg.hazard,
-    rooms: [
+    rooms: P ? [...P.rooms, ...(cfg.extraRooms || [])] : [
       ['diwan', 1, 1, 10, 16, diwan], ['theehuis', 1, 18, 10, 28, 'zellige'], ['hall', 12, 1, 44, 10, hall], ['court', ...(cfg.courtBox || [12, 12, 33, 28]), court], ['store', 35, 12, 44, 28, store],
       ...(cfg.extraRooms || []),
     ],
     roomNames: { diwan: cfg.diwanName || 'Diwan', theehuis: 'Theehuis', hall: cfg.hallName || 'Achterhuis', court: cfg.courtName || 'Binnenplaats', store: cfg.storeName || 'Opslag', ...(cfg.roomNames || {}) },
     layout(api) {
       const { carve, put, putR } = api;
+      if (P) { carve(gate[0], 29, gate[1], 29); P.layout(api); cfg.courtLayout(api); cfg.hallLayout(api); return; }
       carve(5, 29, 6, 29); carve(20, 29, 25, 29); // the tea house door and the open gate
       putR(5, 17, 6, 17, 'D'); putR(11, 22, 11, 23, 'D'); putR(11, 4, 11, 5, 'D'); putR(18, 11, 19, 11, 'D'); putR(28, 11, 29, 11, 'D'); putR(34, 18, 34, 19, 'D'); putR(40, 11, 41, 11, 'D');
       putR(1, 29, 3, 29, '%'); putR(8, 29, 10, 29, '%'); // the tea house window onto the street
@@ -102,23 +108,23 @@ export function souk(cfg) {
     rackGoods: cfg.rackGoods || [0xb8301a, 0xe8a33d, 0x6a7a2a],
     floors: { ...DEF_FLOORS, ...(cfg.floors || {}) },
     floorRep: { sand: 3, zellige: 1.2, carpet: 3, plaster: 3, planks: 2, ...(cfg.floorRep || {}) },
-    hallCells: [[5, 29], [6, 29], ...[20, 21, 22, 23, 24, 25].map((x) => [x, 29]), ...(cfg.hallCells || [])],
+    hallCells: P ? [...Array.from({ length: gate[1] - gate[0] + 1 }, (_, i) => [gate[0] + i, 29]), ...(P.hallCells || []), ...(cfg.hallCells || [])] : [[5, 29], [6, 29], ...[20, 21, 22, 23, 24, 25].map((x) => [x, 29]), ...(cfg.hallCells || [])],
     doorFloor: 'plaster',
-    doorSigns: { '5,17': 'PRIVÉ', ...(cfg.doorSigns || {}) },
+    doorSigns: P ? { ...(P.doorSigns || {}), ...(cfg.doorSigns || {}) } : { '5,17': 'PRIVÉ', ...(cfg.doorSigns || {}) },
     neon: { diwan: SAFFRON, theehuis: 0x2a8a9a, hall: cfg.hallLight || 0xffc878, store: 0xd8a83a, ...(cfg.neon || {}) },
-    lights: cfg.lights || [[5, 23, 0xffd8a0, 1.4], [5, 8, SAFFRON, 1.6], [18, 5, 0xffc878, 1.3], [30, 5, 0xffc878, 1.3], [40, 5, 0xffc878, 1.2], [18, 18, 0xffb060, 1.0], [28, 22, 0xffb060, 1.0], [40, 20, 0xd8a83a, 1.2]],
+    lights: cfg.lights || (P && P.lights) || [[5, 23, 0xffd8a0, 1.4], [5, 8, SAFFRON, 1.6], [18, 5, 0xffc878, 1.3], [30, 5, 0xffc878, 1.3], [40, 5, 0xffc878, 1.2], [18, 18, 0xffb060, 1.0], [28, 22, 0xffb060, 1.0], [40, 20, 0xd8a83a, 1.2]],
     mood: { bg: 0x1a0e08, fogNear: 32, fogFar: 80, hemi: 0.62, sun: 0.6, sky: 0xf0c890, ground: 0xc8a070, wall: TERRA, cap: 0xe8d0a0, under: 0x6a4a2a, ...(cfg.mood || {}) },
     van: { park: [16, 4.6], rot: Math.PI, from: W + 14, exit: [16.6, 3.0], solid: [12.7, 18.8, 3.45, 5.75] },
     start: [6, -0.6],
     bounds: [0.5, W - 0.3, -H, 9],
     validateFrom: [6, 26],
     bossLook: cfg.bossLook || { shirt: INDIGO, front: '#2a2e6a', pants: INDIGO, belt: SAFFRON, wrap: SAFFRON, belly: 0.8, skin: 0xc8946a, head: { hair: '#5a5a5a', brow: '#3a3a3a', hairLine: 60, iris: '#2a1a10', beard: '#6a6a6a', glasses: false } },
-    spawns: [
+    spawns: P ? [...P.spawns, ...cfg.courtSpawns, ...cfg.hallSpawns] : [
       [4, 22, 'makarov', Math.PI, 'theehuis', false, { argue: 'tea' }], [5, 22.8, 'machete', 0, 'theehuis', false, { argue: 'tea' }],
       ...(cfg.diwanSpawns || [[5, 4, 'revolver', 0, 'diwan', true], [8, 10, 'makarov', -Math.PI / 2, 'diwan']]),
       ...cfg.courtSpawns, ...cfg.hallSpawns, ...(cfg.storeSpawns || [[39, 16, 'machete', Math.PI / 2, 'store'], [42, 24, 'makarov', -Math.PI / 2, 'store']]),
     ],
-    loot: [[1.5, 16], [9.5, 1.5], [44, 1.5], [44, 27.5], [12.5, 27.5], ...(cfg.loot || [])],
+    loot: [...(P ? P.loot : [[1.5, 16], [9.5, 1.5], [44, 1.5], [44, 27.5], [12.5, 27.5]]), ...(cfg.loot || [])],
     text: cfg.text,
     decorate(ctx) {
       const { THREE, root, OX, Z0, G, box, cyl, lam, floorW, T, WALL_H, neonRect, signTex, canvasTex } = ctx;
@@ -130,12 +136,12 @@ export function souk(cfg) {
       for (let i = 0; i < 9; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), lam({ color: 0xd8b884 })); d.scale.set(3 + (i % 3), 0.6 + (i % 2) * 0.4, 1.6); d.position.set(OX - 10 + i * 8, 0, 11 + (i % 3)); root.add(d); }
       // (no palms on the street: they'd stand between the camera and the action)
       // the gate arch over the courtyard entrance, with the clan sign; the tea house sign and lanterns
-      box(0.6, WALL_H + 1.4, 0.8, lam({ color: TERRA }), OX + 19.7, (WALL_H + 1.4) / 2, Z0 + 29.5, root); box(0.6, WALL_H + 1.4, 0.8, lam({ color: TERRA }), OX + 26.3, (WALL_H + 1.4) / 2, Z0 + 29.5, root);
-      box(7.2, 0.9, 0.8, lam({ color: TERRA }), OX + 23, WALL_H + 0.95, Z0 + 29.5, root);
-      sign(cfg.sign || cfg.name.toUpperCase(), 6.2, 0.6, '#2a2e6a', '#e8a33d', OX + 23, WALL_H + 0.95, Z0 + 29.92, 0, 46);
-      sign(cfg.kiosk || 'THEEHUIS', 4.8, 0.6, '#1a0e08', '#e8a33d', OX + 5.5, 2.7, Z0 + 29.98, 0, 60); neonRect(root, OX + 5.5, 2.7, 5, 0.75, Z0 + 30.02, SAFFRON);
-      for (const x of [4, 7, 21, 25]) { const lan = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), new THREE.MeshBasicMaterial({ color: 0xffc070 })); lan.position.set(OX + x, 2.5, Z0 + 30.3); root.add(lan); const gl = glowSprite(THREE, 0xffa040, 2.2, 2.2, 0.45); gl.position.copy(lan.position); root.add(gl); }
-      const kGlow = glowSprite(THREE, SAFFRON, 6, 3, 0.35); kGlow.position.set(OX + 5.5, 1.6, Z0 + 31); root.add(kGlow);
+      box(0.6, WALL_H + 1.4, 0.8, lam({ color: TERRA }), OX + gate[0] - 0.3, (WALL_H + 1.4) / 2, Z0 + 29.5, root); box(0.6, WALL_H + 1.4, 0.8, lam({ color: TERRA }), OX + gate[1] + 1.3, (WALL_H + 1.4) / 2, Z0 + 29.5, root);
+      box(gate[1] - gate[0] + 2.2, 0.9, 0.8, lam({ color: TERRA }), OX + (gate[0] + gate[1] + 1) / 2, WALL_H + 0.95, Z0 + 29.5, root);
+      sign(cfg.sign || cfg.name.toUpperCase(), Math.min(6.2, gate[1] - gate[0] + 1.2), 0.6, '#2a2e6a', '#e8a33d', OX + (gate[0] + gate[1] + 1) / 2, WALL_H + 0.95, Z0 + 29.92, 0, 46);
+      sign(cfg.kiosk || 'THEEHUIS', 4.8, 0.6, '#1a0e08', '#e8a33d', OX + tea, 2.7, Z0 + 29.98, 0, 60); neonRect(root, OX + tea, 2.7, 5, 0.75, Z0 + 30.02, SAFFRON);
+      for (const x of [tea - 1.5, tea + 1.5, gate[0] + 1, gate[1]]) { const lan = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), new THREE.MeshBasicMaterial({ color: 0xffc070 })); lan.position.set(OX + x, 2.5, Z0 + 30.3); root.add(lan); const gl = glowSprite(THREE, 0xffa040, 2.2, 2.2, 0.45); gl.position.copy(lan.position); root.add(gl); }
+      const kGlow = glowSprite(THREE, SAFFRON, 6, 3, 0.35); kGlow.position.set(OX + tea, 1.6, Z0 + 31); root.add(kGlow);
       // blowing sand over the street
       const grains = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xe8d0a0, size: 0.06, transparent: true, opacity: 0.6 }));
       const N = 500, gp = new Float32Array(N * 3); for (let i = 0; i < N; i++) { gp[i * 3] = OX - 14 + Math.random() * (W + 28); gp[i * 3 + 1] = Math.random() * 1.2; gp[i * 3 + 2] = Math.random() * 9; }

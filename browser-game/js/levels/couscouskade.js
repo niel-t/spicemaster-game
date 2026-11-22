@@ -1,5 +1,5 @@
 // De Zandwijk, mission 1: Couscouskade. The Paravim quay at night: boats come in from the south and nobody asks what is under the
-// couscous. Built on the shared De Zandwijk compound (js/levels/zandwijk.js): the courtyard is a quay with a dock basin on its east side,
+// couscous. Built on the De Zandwijk compound outside (js/levels/zandwijk.js): the courtyard is a quay with a dock basin on its east side,
 // sacks of couscous stacked everywhere, a warehouse in the back house and Havenmeester Hamid in the diwan.
 // The twist: boats. Every 60 s a boat brings three more Paravim to the jetty until all three mooring lines are cut (E). Somewhere under
 // the couscous in the store is the smuggled crate (E). Shot sacks burst: the couscous knocks over whoever stands next to them.
@@ -13,6 +13,26 @@ const RES = ['makarov', 'machete', 'revolver', 'machete', 'makarov', 'makarov', 
 
 export default souk({
   id: 'couscouskade', name: 'Couscouskade', kiosk: 'THEEHUIS DE KADE', sign: 'COUSCOUSKADE',
+  // The ring: the couscous store moves to the left behind the tea house, and Havenmeester Hamid's office takes the right side,
+  // looking straight down the dock basin.
+  plan: {
+    rooms: [['store', 1, 1, 10, 16, 'planks'], ['theehuis', 1, 18, 10, 28, 'zellige'], ['hall', 12, 1, 44, 10, 'plaster'], ['court', 12, 12, 33, 28, 'quay'], ['diwan', 35, 12, 44, 28, 'carpet']],
+    layout({ carve, put, putR }) {
+      carve(5, 29, 6, 29); putR(1, 29, 3, 29, '%'); putR(8, 29, 10, 29, '%');
+      putR(5, 17, 6, 17, 'D'); putR(11, 22, 11, 23, 'D'); putR(11, 4, 11, 5, 'D'); putR(18, 11, 19, 11, 'D'); putR(28, 11, 29, 11, 'D'); putR(34, 18, 34, 19, 'D'); putR(40, 11, 41, 11, 'D');
+      putR(2, 20, 7, 20, 'K'); put(10, 19, 'F'); put(3, 24, 'T'); put(8, 24, 'T'); putR(2, 27, 3, 27, 'd'); putR(8, 27, 9, 27, 'd');
+      for (const z of [2, 6, 10, 14]) putR(3, z, 8, z, 'y'); put(1, 1, 'X');
+      putR(37, 14, 42, 14, 'd'); putR(38, 20, 41, 21, 'O'); put(44, 12, 'V'); putR(44, 24, 44, 27, 'S'); put(35, 28, 'p'); put(44, 18, 'p');
+    },
+    hallCells: [[5, 29], [6, 29]],
+    doorSigns: { '34,18': 'HAVENMEESTER' },
+    spawns: [
+      [4, 22, 'makarov', Math.PI, 'theehuis', false, { argue: 'tea' }], [5, 22.8, 'machete', 0, 'theehuis', false, { argue: 'tea' }],
+      [40, 17, 'revolver', Math.PI / 2, 'diwan', true], [37, 25, 'makarov', -Math.PI / 2, 'diwan'],
+      [3, 4, 'machete', Math.PI / 2, 'store'], [8, 12, 'makarov', -Math.PI / 2, 'store'],
+    ],
+    loot: [[1.5, 16], [9.5, 1.5], [44, 1.5], [42, 28], [12.5, 27.5]],
+  },
   hazard: WATER_HAZARD,
   courtName: 'Kade',
   floors: {
@@ -21,7 +41,7 @@ export default souk({
   },
   court: 'quay', floorRep: { harbour: 4, quay: 2 },
   furn: { ...WATER_FURN },
-  mood: { bg: 0x0a1020, sky: 0x8a9ab8, ground: 0x5a4830, hemi: 0.62, sun: 0.45 },
+  mood: { bg: 0x0a1020, sky: 0x8a9ab8, ground: 0x5a4830, hemi: 0.62, sun: 0.45, wall: 0x8a6a52 },
   lights: [[5, 23, 0xffd8a0, 1.4], [5, 8, 0xe8a33d, 1.6], [18, 5, 0xffc878, 1.2], [30, 5, 0xffc878, 1.2], [40, 5, 0xffc878, 1.1], [17, 19, 0xffb060, 1.1], [24, 24, 0xffb060, 1.0], [30, 20, 0x6a8aa8, 0.7], [40, 20, 0xd8a83a, 1.2]],
   courtLayout({ put, putR }) {
     putR(28, 13, 32, 26, '~'); // the dock basin, with a quay all round it
@@ -73,9 +93,9 @@ export default souk({
         act() { rope.visible = false; drift = 1; }, reset(done) { rope.visible = !done; drift = done ? 2 : 0; b.position.x = OX + 30.3 + (done ? 1.2 : 0); }, b, tick(dt) { if (drift > 0 && drift < 2) { drift = Math.min(2, drift + dt * 0.3); b.position.x = OX + 30.3 + (drift - 1) * 1.2; } } });
     });
     // the smuggled crate under a couscous pile in the store
-    const crate = new THREE.Group(); crate.position.set(OX + 39.5, 0, Z0 + 23.4); root.add(crate);
+    const crate = new THREE.Group(); crate.position.set(OX + 5.5, 0, Z0 + 12.4); root.add(crate);
     box(0.6, 0.45, 0.6, lam({ color: 0x3a2a1a }), 0, 0.23, 0, crate); box(0.62, 0.06, 0.62, lam({ color: 0xe8a33d }), 0, 0.46, 0, crate, false);
-    tasks.push({ pos: new THREE.Vector3(OX + 39.5, 0, Z0 + 23.5), obj: crate, label: 'Search the couscous', score: 1200, doneText: 'DE SMOKKELKIST!',
+    tasks.push({ pos: new THREE.Vector3(OX + 5.5, 0, Z0 + 12.5), obj: crate, label: 'Search the couscous', score: 1200, doneText: 'DE SMOKKELKIST!',
       act() { crate.visible = true; crate.position.y = 0; }, reset(done) { crate.visible = !!done; } });
     crate.visible = false;
     // the reinforcement boat: glides down the basin and drops three Paravim on the jetty

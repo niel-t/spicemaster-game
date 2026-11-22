@@ -1,4 +1,4 @@
-// De Zandwijk finale: Kasbah al Gara. Ras al Gara's fortress on the west quay. Built on the shared De Zandwijk compound
+// De Zandwijk finale: Kasbah al Gara. Ras al Gara's fortress on the west quay. Built on the De Zandwijk compound outside
 // (js/levels/zandwijk.js): a walled courtyard behind the gate, the guard room in the diwan, a watchtower in the store, and Ras's hall in
 // the back house, pillars down both sides and his cushions on a dais at the end.
 // The finale: Ras al Gara (seven hits) holds the hall behind a row of tray-shield guards and fires his long rifle down it; at three hits
@@ -9,6 +9,28 @@ import { souk } from './zandwijk.js';
 
 export default souk({
   id: 'kasbahalgara', name: 'Kasbah al Gara', kiosk: 'POORTWACHT', sign: 'KASBAH AL GARA', taskName: 'LEDGER',
+  // The ring: a tall guard room fills the west side over the gatehouse (the way in for anyone who doesn't use the main gate), the
+  // watchtower keeps the east, and Ras al Gara's pillared hall spans the north.
+  plan: {
+    rooms: [['diwan', 1, 1, 10, 20, 'plaster'], ['theehuis', 1, 22, 10, 28, 'planks'], ['hall', 12, 1, 44, 10, 'plaster'], ['court', 12, 12, 33, 28, 'sand'], ['store', 35, 12, 44, 28, 'planks']],
+    layout({ carve, put, putR }) {
+      carve(5, 29, 6, 29);
+      putR(11, 4, 11, 5, 'D'); putR(11, 15, 11, 16, 'D'); putR(5, 21, 6, 21, 'D'); putR(11, 25, 11, 26, 'D'); putR(18, 11, 19, 11, 'D'); putR(28, 11, 29, 11, 'D'); putR(34, 18, 34, 19, 'D'); putR(40, 11, 41, 11, 'D');
+      // the guard room: weapon racks, the guards' table, benches, a barrel
+      putR(2, 2, 8, 2, 'R'); putR(3, 7, 6, 8, 'T'); putR(1, 12, 1, 15, 'S'); put(10, 13, 'X'); putR(2, 18, 4, 18, 'R');
+      // the gatehouse
+      put(3, 24, 'T'); put(8, 24, 'T'); putR(2, 27, 3, 27, 'C');
+      // the watchtower
+      putR(37, 14, 38, 15, 'C'); putR(41, 18, 42, 19, 'C'); putR(37, 23, 38, 24, 'C'); put(44, 27, 'X');
+    },
+    hallCells: [[5, 29], [6, 29]],
+    spawns: [
+      [4, 26, 'makarov', Math.PI, 'theehuis', false, { argue: 'tea' }], [5.2, 26, 'machete', 0, 'theehuis', false, { argue: 'tea' }],
+      [4, 4.5, 'makarov', 0, 'diwan'], [8, 10, 'machete', -Math.PI / 2, 'diwan', false, { shield: true }], [3, 11, 'revolver', Math.PI / 2, 'diwan'], [7, 16, 'makarov', Math.PI, 'diwan'],
+      [39.5, 13, 'revolver', Math.PI / 2, 'store'], [40, 21.5, 'revolver', -Math.PI / 2, 'store'], [43, 25, 'machete', Math.PI, 'store'],
+    ],
+    loot: [[1.5, 20], [9.5, 1.5], [44, 1.5], [42, 28], [12.5, 27.5]],
+  },
   courtName: 'Binnenhof', hallName: 'Hal van Ras', diwanName: 'Wachtkamer', storeName: 'Wachttoren',
   mood: { bg: 0x120806, sky: 0xe8a070, hemi: 0.55, sun: 0.5, wall: 0xa8481e },
   neon: { hall: 0xe8a33d },

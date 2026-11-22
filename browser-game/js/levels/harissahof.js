@@ -1,4 +1,4 @@
-// De Zandwijk, mission 4: Harissahof. A courtyard of big harissa pots, red and hot, with guards to match. Built on the shared
+// De Zandwijk, mission 4: Harissahof. A courtyard of big harissa pots, red and hot, with guards to match. Built on the De Zandwijk
 // De Zandwijk compound (js/levels/zandwijk.js): pots in rows round the well, the kitchen in the back house, the cellar (store) where
 // Ras al Gara's own harissa recipe is kept. Kok Kadir runs the kitchen from the diwan.
 // The twist: the pots. Shoot one and burning harissa splashes everyone next to it, Paravim and Eddy alike. And the guards here argue
@@ -10,6 +10,32 @@ const POTS = []; for (const z of [14, 17, 23, 26]) for (const x of [14, 17, 20, 
 
 export default souk({
   id: 'harissahof', name: 'Harissahof', kiosk: 'THEEHUIS HARISSA', sign: 'HARISSAHOF',
+  // The ring: the kitchen runs the full width of the north side, Kok Kadir's diwan opens off it on the west with the tea house
+  // below, and the cellar keeps the east side.
+  plan: {
+    rooms: [['hall', 1, 1, 44, 10, 'plaster'], ['diwan', 1, 12, 10, 20, 'carpet'], ['theehuis', 1, 22, 10, 28, 'zellige'], ['court', 12, 12, 33, 28, 'sand'], ['store', 35, 12, 44, 28, 'planks']],
+    layout({ carve, put, putR }) {
+      carve(5, 29, 6, 29); putR(1, 29, 3, 29, '%'); putR(8, 29, 10, 29, '%');
+      putR(5, 11, 6, 11, 'D'); putR(11, 15, 11, 16, 'D'); putR(5, 21, 6, 21, 'D'); putR(11, 25, 11, 26, 'D'); putR(18, 11, 19, 11, 'D'); putR(28, 11, 29, 11, 'D'); putR(34, 18, 34, 19, 'D'); putR(40, 11, 41, 11, 'D');
+      // the west end of the kitchen: the stoves, chilli sacks
+      putR(3, 3, 9, 3, 'K'); putR(2, 8, 3, 9, 'y'); put(10, 1, 'X');
+      // Kadir's diwan
+      putR(2, 19, 4, 19, 'd'); putR(3, 15, 6, 16, 'O'); put(1, 12, 'V'); putR(1, 14, 1, 17, 'S');
+      // the tea house
+      putR(2, 24, 4, 24, 'K'); put(8, 23, 'T'); put(10, 22, 'F'); putR(2, 27, 3, 27, 'd'); putR(8, 28, 9, 28, 'd');
+      // the cellar: racks of harissa jars, a pot pair, a barrel
+      for (const z of [14, 17, 20, 23]) putR(37, z, 42, z, 'R'); putR(43, 26, 44, 27, 'h'); put(44, 12, 'X');
+    },
+    hallCells: [[5, 29], [6, 29]],
+    doorSigns: { '11,15': 'PRIVÉ' },
+    spawns: [
+      [3, 26, 'makarov', Math.PI, 'theehuis', false, { argue: 'tea' }], [4.2, 26, 'machete', 0, 'theehuis', false, { argue: 'tea' }],
+      [5, 18, 'revolver', 0, 'diwan', true], [8, 14, 'makarov', -Math.PI / 2, 'diwan'],
+      [6, 6, 'machete', Math.PI / 2, 'hall'],
+      [39.5, 15.5, 'makarov', Math.PI / 2, 'store', false, { shield: true }], [40, 21.5, 'machete', -Math.PI / 2, 'store'], [36, 26, 'revolver', 0, 'store'],
+    ],
+    loot: [[1.5, 10], [9.5, 1.5], [44, 1.5], [42, 28], [12.5, 27.5]],
+  },
   courtName: 'Hof', hallName: 'Keuken', storeName: 'Kelder',
   mood: { bg: 0x1a0806, sky: 0xf0b080, hemi: 0.58 },
   lights: [[5, 23, 0xffd8a0, 1.4], [5, 8, 0xe8a33d, 1.6], [18, 5, 0xff9a60, 1.4], [30, 5, 0xff9a60, 1.4], [40, 5, 0xffc878, 1.1], [17, 20, 0xff7040, 1.1], [28, 20, 0xff7040, 1.1], [40, 20, 0xd8a83a, 1.0]],
