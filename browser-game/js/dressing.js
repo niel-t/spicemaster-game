@@ -151,3 +151,32 @@ export function spits(def, G, THREE, root, lam, OX, Z0, placed = []) {
   }
   return out;
 }
+
+// covert ops: in the places that are really an armoury behind the counter, the work tables are covered in guns, magazines and
+// boxes of rounds, laid out ready to hand out. Decoration only (the guns you can pick up still come from the Lampas).
+const STASH = { spekbuurt: { rooms: /prep|kantoor|opslag/, guns: ['makarov', 'cz', 'revolver', 'smg', 'pump', 'shotgun', 'm16', 'silenced', 'machete', 'dualuzi'] } };
+export function stash(def, G, THREE, root, lam, OX, Z0, heightOf, weaponMesh) {
+  const S = STASH[def.id]; if (!S) return;
+  const r = rng(def.id + '#stash'), olive = lam({ color: 0x4a5a2a }), brass = lam({ color: 0xc8a040 }), black = lam({ color: 0x1a1a1e }), card = lam({ color: 0x8a6a3a });
+  const surf = new Set(['w', 'T', 'O']);
+  for (const [name, x0, z0, x1, z1] of def.rooms) {
+    if (!S.rooms.test(name)) continue;
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      const ch = G[z][x]; if (!surf.has(ch) || r() < 0.15) continue;
+      const top = heightOf(ch) + 0.01, cx = OX + x + 0.5, cz = Z0 + z + 0.5;
+      const items = 1 + (r() < 0.55 ? 1 : 0);
+      for (let i = 0; i < items; i++) {
+        const ox = (r() - 0.5) * 0.5, oz = (r() - 0.5) * 0.45, kind = r();
+        if (kind < 0.55) { // a gun, lying on its side
+          const g = weaponMesh(S.guns[Math.floor(r() * S.guns.length)]); g.rotation.set(0, r() * Math.PI * 2, Math.PI / 2); g.position.set(cx + ox, top + 0.02, cz + oz); root.add(g);
+        } else if (kind < 0.8) { // a box of rounds, lid off, brass showing
+          const b = new THREE.Group(); b.position.set(cx + ox, top, cz + oz); b.rotation.y = r() * 3; root.add(b);
+          const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.13), kind < 0.68 ? olive : card); box.position.y = 0.035; b.add(box);
+          for (let k = 0; k < 12; k++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.03, 6), brass); c.position.set(-0.075 + (k % 6) * 0.03, 0.08, -0.025 + Math.floor(k / 6) * 0.05); b.add(c); }
+        } else { // loose magazines
+          for (let k = 0; k < 2 + Math.floor(r() * 2); k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.11), black); m.position.set(cx + ox + k * 0.045, top + 0.01, cz + oz); m.rotation.y = 0.2 * k; root.add(m); }
+        }
+      }
+    }
+  }
+}

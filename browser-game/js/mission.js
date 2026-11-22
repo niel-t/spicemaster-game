@@ -23,7 +23,7 @@ import { weaponMesh as buildWeapon, fireFlash, tickFlash, weaponKind, isTwoGun }
 import { WD, CAL, MODS, ARMOUR, PLATE, NADES, GEAR_X, BASE_MAG, KILLPTS as KP, FORCE, isGunId, isMeleeId, SHOT_GUN } from './arsenal.js';
 import { gunAudio } from './gunaudio.js';
 import { enrichFloor, normalOf, macro, blobGeo, mergeStatic } from './richtex.js'; // crisp, weathered floors with a bump, walls with grime
-import { DRESS_FURN, dress, spits, dressGroup } from './dressing.js'; // spice sacks, big bags, meat racks, shoarma spits on every level
+import { DRESS_FURN, dress, spits, dressGroup, stash } from './dressing.js'; // spice sacks, big bags, meat racks, shoarma spits on every level
 import spekbuurt from './levels/spekbuurt.js';
 import kroketkade from './levels/kroketkade.js';
 import uitjesbuurt from './levels/uitjesbuurt.js';
@@ -200,7 +200,8 @@ export function initMission(ctx) {
     const deco = def.decorate({ THREE, root, OX, Z0, W, H, G, L, box, cyl, lam, solid, solidRun, floorW, T: floorT, WALL_H, neonTube, neonRect, signTex, canvasTex, brand: ctx.brand ? ctx.brand() : 'zn', car: carIn, wallM, capM, makePerson, animate, player, path, run: () => R, LOOKS, alarm: alertNoise, popup, spill, smokeAt, sight: (m) => { sightCap = m; }, banner, shake, reinforce, reserves: () => enemies.filter((e) => e.userData.foe.res).length, alive: () => alive().length, foes: () => enemies, paraAlarm: (at) => paraAlarm(at), checkClear: () => { if (!alive().length && !tasksLeft() && !wavePending() && !R.cleared && !R.results) { R.cleared = true; banner('FLOOR CLEAR', '', 1.5); setTimeout(results, 1500); hud(); } } }) || {};
     levelShot = deco.onShot || null; levelReset = deco.reset || null;
     tasks = deco.tasks || []; for (const t of tasks) t.done = false; // objective props: sabotage these as well as clearing the floor
-    const rolls = spits(def, G, THREE, root, lam, OX, Z0, dressed); mergeStatic(dg); // shoarma spits turning on the counters
+    const rolls = spits(def, G, THREE, root, lam, OX, Z0, dressed); mergeStatic(dg);
+    stash(def, G, THREE, root, lam, OX, Z0, (c) => FM[c][0], (id) => buildWeapon(id)); // covert ops: guns laid out on the tables // shoarma spits turning on the counters
     levelTick = rolls.length ? (dt) => { for (const r of rolls) r.rotation.y += dt * 0.7; if (deco.tick) deco.tick(dt); } : deco.tick || null;
     // neon: one strip per room, top of the walls
     for (const [name, x0, z0, x1] of def.rooms) if (def.neon[name] !== undefined) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, def.neon[name]);
