@@ -136,7 +136,7 @@ export default {
     // the big neon name sign and the boathouse front
     sign('JOPPIEHAVEN', 7.5, 1.0, '#0a140c', '#a9c46a', OX + 13, 3.0, Z0 + 15.02, 0, 90); neonRect(root, OX + 13, 3.0, 7.7, 1.15, Z0 + 15.06, 0xa9c46a);
     sign('ORGANIC WRAP BAR', 5, 0.38, '#0a140c', '#f3e6c8', OX + 13, 2.25, Z0 + 15.03, 0, 40);
-    sign('SMOOTHIE LOUNGE', 4.4, 0.5, '#140a0a', '#e8a33d', OX + 30, 2.7, Z0 + 15.02, 0, 50); neonRect(root, OX + 30, 2.7, 4.6, 0.62, Z0 + 15.06, 0xe8a33d);
+    sign('NUTELLABAR', 4.4, 0.5, '#140a0a', '#e8a33d', OX + 30, 2.7, Z0 + 15.02, 0, 50); neonRect(root, OX + 30, 2.7, 4.6, 0.62, Z0 + 15.06, 0xe8a33d);
     // the lounge glow, the juice dispensers' glow
     const lg = glowSprite(THREE, 0xe8a33d, 10, 6, 0.18); lg.position.set(OX + 30, 1.8, Z0 + 10); root.add(lg);
     for (let k = 0; k < 3; k++) { const g = glowSprite(THREE, [0xa9c46a, 0xe8a33d, 0xc2412d][k], 1.2, 1.2, 0.5); g.position.set(OX + 18.5 + k, 1.6, Z0 + 6.8); root.add(g); }

@@ -77,16 +77,27 @@ export default eastSide({
     [39, 4, 'shotgun', Math.PI / 2, 'deck', true], [41, 8, 'makarov', -Math.PI / 2, 'deck'],
   ],
   story: [
-    { k: 'custom', draw: (c) => { // the landmark: a giant inflatable flamingo drifting on the rooftop pool, under string lights
-      const { THREE, root, lam } = c, p = c.at(21.5, 7.2);
-      const pink = lam({ color: 0xe87a9a }), g = new THREE.Group(); g.position.set(p.x, 0.25, p.z); root.add(g);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.38, 10, 22), pink); ring.rotation.x = Math.PI / 2; g.add(ring);
-      const neck = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.16, 8, 16, Math.PI * 1.2), pink); neck.position.set(0.8, 0.9, 0); neck.rotation.z = -0.5; g.add(neck);
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), pink); head.position.set(0.5, 1.6, 0); g.add(head);
-      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 8), lam({ color: 0x2a2a2a })); beak.rotation.z = Math.PI / 2 + 0.5; beak.position.set(0.3, 1.5, 0); g.add(beak);
-      const bulbs = []; for (let i = 0; i < 14; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffe0a0 })); const k = i / 13; b.position.set(p.x - 9 + k * 18, 2.9 - Math.sin(k * Math.PI) * 0.5, p.z - 3.4); root.add(b); bulbs.push(b); }
-      for (let i = 0; i < 14; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffd0e0 })); const k = i / 13; b.position.set(p.x - 9 + k * 18, 2.9 - Math.sin(k * Math.PI) * 0.5, p.z + 3.4); root.add(b); bulbs.push(b); }
-      let t = 0; return (dt) => { t += dt; g.position.x = p.x + Math.sin(t * 0.15) * 4; g.position.z = p.z + Math.sin(t * 0.11) * 1.2; g.rotation.y = t * 0.08; g.position.y = 0.25 + Math.sin(t * 1.2) * 0.04; };
+    { k: 'custom', draw: (c) => { // the landmark: the roof pool sits among Amsterdam gables. A row of canal-house tops with hoisting
+      // beams rises behind the deck, a bakfiets hangs off one of them, and a little wooden sloep with a Dutch flag drifts on the pool
+      const { THREE, root, box, cyl, lam } = c, p = c.at(21.5, 7.2);
+      const brick = [0x6a3428, 0x4a2a24, 0x7a4430, 0x5a3a30, 0x3a2a26], winM = new THREE.MeshBasicMaterial({ color: 0xf2c14e }), darkM = new THREE.MeshBasicMaterial({ color: 0x2a3040 });
+      for (let i = 0; i < 7; i++) {
+        const x = c.OX + 3 + i * 6.2, z = c.Z0 - 2.6, w = 5.6, h = 3.4 + (i % 3) * 0.8, col = lam({ color: brick[i % 5] });
+        box(w, h, 3, col, x, h / 2 + 2.3, z, root);
+        if (i % 2) { const tri = new THREE.Mesh(new THREE.CylinderGeometry(0, w * 0.62, 1.8, 3), col); tri.rotation.set(Math.PI / 2, 0, 0); tri.rotation.z = Math.PI; tri.scale.set(1, 1, 1); tri.position.set(x, h + 2.3 + 0.6, z + 1.2); root.add(tri); }
+        else for (let s2 = 0; s2 < 3; s2++) box(w * (0.75 - s2 * 0.22), 0.6, 3, col, x, h + 2.6 + s2 * 0.6, z, root, false); // stepped gable
+        for (let k = 0; k < 3; k++) box(0.8, 1.1, 0.05, (i + k) % 3 ? winM : darkM, x - 1.6 + k * 1.6, 3.4 + (h - 3) * 0.5, z + 1.53, root, false);
+        box(0.12, 0.12, 1.1, lam({ color: 0x2a1a10 }), x, h + 2.0, z + 2.0, root, false); // the hoisting beam
+        if (i === 3) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.4, 4), lam({ color: 0x1a1a1a })); r.position.set(x, h + 1.3, z + 2.5); root.add(r); const bk = new THREE.Group(); bk.position.set(x, h + 0.35, z + 2.5); root.add(bk); box(1.0, 0.5, 0.7, lam({ color: 0x2f7a2a }), 0.3, 0, 0, bk, false); for (const dx of [-0.6, 0.7]) { const wh = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.04, 6, 14), lam({ color: 0x1a1a1a })); wh.position.set(dx, -0.3, 0); bk.add(wh); } }
+      }
+      const g = new THREE.Group(); g.position.set(p.x, 0.12, p.z); root.add(g);
+      const hull = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.35, 1.1), lam({ color: 0x7a4a2a })); g.add(hull);
+      const bow = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.35, 12, 1, false, 0, Math.PI), lam({ color: 0x7a4a2a })); bow.rotation.y = Math.PI / 2; bow.position.x = 1.3; g.add(bow);
+      box(2.4, 0.06, 0.9, lam({ color: 0xc8a060 }), 0, 0.2, 0, g, false); box(0.6, 0.3, 0.9, lam({ color: 0xf3ecd8 }), -0.6, 0.35, 0, g, false);
+      cyl(0.015, 0.015, 0.9, lam({ color: 0x1a1a1a }), -1.25, 0.6, 0, g, 4);
+      [0xc2412d, 0xf3ecd8, 0x2a4a8a].forEach((col, k) => box(0.02, 0.12, 0.45, lam({ color: col }), -1.25, 0.98 - k * 0.12, 0.23, g, false)); // the Dutch flag
+      const bulbs = []; for (let i = 0; i < 14; i++) for (const s2 of [-1, 1]) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffe0a0 })); const k = i / 13; b.position.set(p.x - 9 + k * 18, 2.9 - Math.sin(k * Math.PI) * 0.5, p.z + s2 * 3.4); root.add(b); bulbs.push(b); }
+      let t = 0; return (dt) => { t += dt; g.position.x = p.x + Math.sin(t * 0.12) * 5; g.position.z = p.z + Math.sin(t * 0.09) * 1.0; g.rotation.y = Math.sin(t * 0.12 + 1.5) * 0.3; g.position.y = 0.12 + Math.sin(t * 1.2) * 0.03; };
     } },
     { k: 'board', at: [1.5, 18.5], wall: 'w', style: 'green', title: 'WELLNESS', lines: ['08:00 adem', '09:00 oat-yoga', '13:00 stilte', '22:00 wapens poetsen'], read: ['WELLNESS', 'The wellness schedule: breathing at eight, oat yoga at nine, silence at one. At ten at night: "polish weapons".'] },
     { k: 'board', at: [34.5, 16.5], wall: 'n', style: 'white', title: 'GASTENLIJST DAK', lines: ['Goeroe Granola', 'DJ Linzensoep', 'Floor (kombucha)', 'GEEN LAMPAS'], read: ['GASTENLIJST', 'Tonight\'s rooftop list. Every Noshgey boss you have met so far, and the Guru himself on top.'] },
@@ -118,9 +129,9 @@ export default eastSide({
     box(19.4, 0.1, 0.2, lam({ color: 0xf3ecdc }), OX + 21.5, 0.06, Z0 + 3.95, root, false); box(19.4, 0.1, 0.2, lam({ color: 0xf3ecdc }), OX + 21.5, 0.06, Z0 + 11.05, root, false);
     const glow = glowSprite(THREE, 0x6ad8d8, 22, 9, 0.18); glow.position.set(OX + 21.5, 0.3, Z0 + 7.5); glow.rotation.x = -Math.PI / 2; root.add(glow);
     const lilo = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.22, 8, 16), lam({ color: 0xe8a33d })); lilo.rotation.x = -Math.PI / 2; lilo.position.set(OX + 18, 0.15, Z0 + 6); root.add(lilo);
-    // umbrellas on the terrace, palms by the pool
+    // umbrellas on the terrace, bay trees by the pool
     for (const [x, z] of [[3, 27], [10, 28], [17, 27], [24, 28]]) { const u = new THREE.Mesh(new THREE.ConeGeometry(1.3, 0.5, 8), lam({ color: [0xf3ecdc, 0xa9c46a][x % 2] })); u.position.set(OX + x + 0.5, 2.3, Z0 + z + 0.5); root.add(u); cyl(0.04, 0.04, 2.2, lam({ color: 0x2a2a2a }), OX + x + 0.5, 1.1, Z0 + z + 0.5, root, 6); }
-    for (const [x, z] of [[1, 1], [42, 1], [1, 14], [42, 14], [10, 7], [32, 7]]) for (let k = 0; k < 6; k++) { const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 1.5), lam({ color: 0x4a7a3a, side: THREE.DoubleSide })); leaf.position.set(OX + x + 0.5, 2.2, Z0 + z + 0.5); leaf.rotation.set(-1.0, k * 1.05, 0); root.add(leaf); }
+    for (const [x, z] of [[1, 1], [42, 1], [1, 14], [42, 14], [10, 7], [32, 7]]) { cyl(0.05, 0.06, 1.2, lam({ color: 0x5a3a24 }), OX + x + 0.5, 1.5, Z0 + z + 0.5, root, 6); const crown = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), lam({ color: [0x3a6a2a, 0x4a7a34][x % 2] })); crown.position.set(OX + x + 0.5, 2.3, Z0 + z + 0.5); root.add(crown); } // clipped bay trees in tubs, like every Amsterdam roof terrace
     // the party guests: civilians lounging by the pool. They flee into the café and out of the front door at the first shot.
     const exitV = new THREE.Vector3(OX + 6.5, 0, Z0 + 27.5);
     const guests = GUESTS.map(([x, z], i) => { const p = makePerson({ shirt: [0xf3ecdc, 0xe8a33d, 0xa9c46a, 0xc2412d][i % 4], front: ['#f3ecdc', '#e8a33d', '#a9c46a', '#c2412d'][i % 4], pants: [0xf3ecdc, 0x3a5a7a][i % 2], belly: (i % 3) * 0.2, skin: [0xe4ab88, 0xc88a64, 0x9a6a4a, 0xf0c4a2][i % 4] }); p.position.set(OX + x + 0.5, 0, Z0 + z + 0.5); p.rotation.y = i; root.add(p); return { p, home: [x, z], route: null, gone: false }; });
