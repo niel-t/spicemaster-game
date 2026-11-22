@@ -2299,6 +2299,7 @@ function doHit() {
     const d = p.position.clone().sub(player.position); d.y = 0; const L = d.length();
     if (L < 1.6 && d.normalize().dot(f) > 0.25) { any = true; hitStreetPerson(p, f); }
   }
+  if (activists && activists.melee(f)) any = true; // the protesters' picket scatters (js/activists.js)
   if (any) { /* screen thump */ camPos.y += 0.25; }
 }
 function updateMelee(dt) {
