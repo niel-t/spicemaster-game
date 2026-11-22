@@ -253,19 +253,40 @@ export function initMission(ctx) {
     const p = new THREE.Mesh(new THREE.CircleGeometry(0.17, 14), portM); p.position.set(len / 2, 1.5, 0.04); g.add(p);
     const p2 = p.clone(); p2.rotation.y = Math.PI; p2.position.z = -0.04; g.add(p2);
     if (sign) { const s = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.28), lam({ map: signTex([{ t: sign, size: 40 }], '#1a1a1a', '#ffd23a', 256, 64) })); s.position.set(len / 2, 1.9, 0.045); g.add(s); }
-    doors.push({ g, hx, hz, base, len, th: 0, w: 0, pusher: '' });
+    const lim = [swingLimit(hx, hz, base, len, 1), swingLimit(hx, hz, base, len, -1)];
+    doors.push({ g, hx, hz, base, len, th: 0, w: 0, pusher: '', lim });
+  }
+  // How far a door may swing each way. Up to 90° it always swings (as before); past that it folds on towards the wall it hangs in,
+  // until the leaf would hit a wall, glass or furniture, and lies flat against the wall face at 180°. A door wide open across a
+  // corridor or a counter lane then gets pushed flat instead of pinning you behind it. Returns radians (positive), for side s = +1 / -1.
+  function swingLimit(hx, hz, base, len, s) { return sweep(hx, hz, base, len, s, Math.PI / 2, Math.PI - 0.06); }
+  // past 90° the pivot slides out of the wall's middle to its face on the opening side, so a folded leaf lies on the face, not in it
+  function hingeAt(hx, hz, base, th) { const e = 0.5 * Math.max(0, -Math.cos(th)); if (!e) return [hx, hz];
+    const n = base + Math.sign(th) * Math.PI / 2; return [hx + Math.cos(n) * e, hz - Math.sin(n) * e]; }
+  // swings the leaf from angle a0 towards a1 (side s) and returns the last angle it reaches before touching a blocking cell;
+  // the door's own wall line is skipped (the leaf folds onto its face)
+  function sweep(hx, hz, base, len, s, a0, a1) {
+    const own = Math.abs(Math.sin(base)) > 0.5 ? 'x' : 'z', ox = Math.floor(hx - OX), oz = Math.floor(hz - Z0);
+    const blocked = (wx, wz) => { const x = Math.floor(wx - OX), z = Math.floor(wz - Z0);
+      if (x < 0 || z < 0 || x >= W || z >= H) return true; if (own === 'x' ? x === ox : z === oz) return false; return isBlock(G[z][x]); };
+    let a = a0;
+    for (let t = a0 + 0.035; t <= a1; t += 0.035) { const A = base + s * t, cx = Math.cos(A), cz = -Math.sin(A), [px, pz] = hingeAt(hx, hz, base, s * t);
+      for (let r = 0.2; r <= len - 0.02; r += 0.1) if (blocked(px + cx * r, pz + cz * r)) return a;
+      a = t; }
+    return a;
   }
   function buildDoors(def) {
     const seen = new Set(), signs = def.doorSigns || {};
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (G[z][x] !== 'D' || seen.has(x + ',' + z)) continue;
       if (x + 1 < W && G[z][x + 1] === 'D') { let x1 = x; while (G[z][x1 + 1] === 'D') { x1++; } for (let k = x; k <= x1; k++) seen.add(k + ',' + z); addDoor(OX + x, Z0 + z + 0.5, 0, x1 - x + 1, signs[x + ',' + z] || ''); }
       else { let z1 = z; while (z1 + 1 < H && G[z1 + 1][x] === 'D') z1++; for (let k = z; k <= z1; k++) seen.add(x + ',' + k); addDoor(OX + x + 0.5, Z0 + z, -Math.PI / 2, z1 - z + 1, signs[x + ',' + z] || ''); } } }
-  const doorEnd = (d) => { const a = d.base + d.th; return [d.hx + Math.cos(a) * d.len, d.hz - Math.sin(a) * d.len]; };
+  const doorHinge = (d) => hingeAt(d.hx, d.hz, d.base, d.th);
+  const doorEnd = (d) => { const a = d.base + d.th, [hx, hz] = doorHinge(d); return [hx + Math.cos(a) * d.len, hz - Math.sin(a) * d.len]; };
   function segDist(px, pz, ax, az, bx, bz) { const sx = bx - ax, sz = bz - az; let t = ((px - ax) * sx + (pz - az) * sz) / (sx * sx + sz * sz); t = Math.max(0, Math.min(1, t)); const cx = ax + sx * t, cz = az + sz * t; return [Math.hypot(px - cx, pz - cz), cx, cz]; }
   function segInt(ax, az, bx, bz, cx, cz, dx, dz) { const d = (bx - ax) * (dz - cz) - (bz - az) * (dx - cx); if (Math.abs(d) < 1e-9) return false; const u = ((cx - ax) * (dz - cz) - (cz - az) * (dx - cx)) / d, v = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / d; return u >= 0 && u <= 1 && v >= 0 && v <= 1; }
   function collideDoors(p, r, vx, vz, isP) {
     for (const d of doors) {
-      const e = doorEnd(d), [dist, cx, cz] = segDist(p.x, p.z, d.hx, d.hz, e[0], e[1]);
+      const e = doorEnd(d), [hx, hz] = doorHinge(d), [dist, cx, cz] = segDist(p.x, p.z, hx, hz, e[0], e[1]);
       if (dist >= r) continue;
       const nx = (p.x - cx) / (dist || 1), nz = (p.z - cz) / (dist || 1);
       p.x = cx + nx * r; p.z = cz + nz * r;
@@ -277,13 +298,13 @@ export function initMission(ctx) {
   function updateDoors(dt) {
     for (const d of doors) {
       d.th += d.w * dt; d.w *= Math.exp(-dt * 3.5);
-      if (d.th > 1.57) { d.th = 1.57; d.w = -d.w * 0.25; } if (d.th < -1.57) { d.th = -1.57; d.w = -d.w * 0.25; }
+      if (d.th > d.lim[0]) { d.th = d.lim[0]; d.w = -d.w * 0.25; } if (d.th < -d.lim[1]) { d.th = -d.lim[1]; d.w = -d.w * 0.25; }
       if (Math.abs(d.w) < 0.4) d.th *= Math.exp(-dt * 0.8); // swing doors drift shut
-      d.g.rotation.y = d.base + d.th;
+      d.g.rotation.y = d.base + d.th; const [gx, gz] = doorHinge(d); d.g.position.x = gx; d.g.position.z = gz;
       if (Math.abs(d.w) > 3 && d.pusher === 'p') {
-        const e2 = doorEnd(d);
+        const e2 = doorEnd(d), [hx, hz] = doorHinge(d);
         for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0) continue;
-          if (segDist(e.position.x, e.position.z, d.hx, d.hz, e2[0], e2[1])[0] < 0.44) { const a = d.base + d.th, s = Math.sign(d.w); knockdown(e, [-Math.sin(a) * s, -Math.cos(a) * s]); sfx('door'); popup(e.position, 'DOOR SLAM!', '#ffd36b'); shake(0.25); d.w *= 0.4; } }
+          if (segDist(e.position.x, e.position.z, hx, hz, e2[0], e2[1])[0] < 0.44) { const a = d.base + d.th, s = Math.sign(d.w); knockdown(e, [-Math.sin(a) * s, -Math.cos(a) * s]); sfx('door'); popup(e.position, 'DOOR SLAM!', '#ffd36b'); shake(0.25); d.w *= 0.4; } }
       }
     }
   }
@@ -1443,7 +1464,7 @@ export function initMission(ctx) {
     for (const p of parts) root.remove(p.m); parts.length = 0;
     for (const g of gibs) root.remove(g.m); gibs.length = 0;
     for (const d of decals) root.remove(d); decals.length = 0; pools.length = 0;
-    for (const d of doors) { d.th = 0; d.w = 0; d.g.rotation.y = d.base; }
+    for (const d of doors) { d.th = 0; d.w = 0; d.g.rotation.y = d.base; d.g.position.x = d.hx; d.g.position.z = d.hz; }
     for (const p of pops) p.el.remove(); pops.length = 0;
     state.loot = R.lootAtStart; lootCrates.forEach((l, i) => { const t = REMIX ? !REMIX.loot.has(i) : (state.lootTaken[LV.id] || []).includes(i); l.taken = t; l.c.visible = l.glow.visible = !t; });
     Object.assign(state.ammo, R.ammoAtStart); Object.assign(state.pool, R.poolAtStart);
@@ -2516,6 +2537,8 @@ export function initMission(ctx) {
       const horiz = (x > 0 && G[z][x - 1] === 'D') || (x < W - 1 && G[z][x + 1] === 'D');
       for (const [ax, az] of horiz ? [[x, z - 1], [x, z + 1]] : [[x - 1, z], [x + 1, z]]) if (!walkable(ax, az)) issues.push(`door ${x},${z} blocked at ${ax},${az}`);
     }
+    for (const d of doors) for (const sd of [1, -1]) { const a = sweep(d.hx, d.hz, d.base, d.len, sd, 0, Math.PI / 2 - 0.05);
+      if (a < Math.PI / 2 - 0.1) issues.push(`door ${Math.floor(d.hx - OX)},${Math.floor(d.hz - Z0)} swings into furniture at ${Math.round(a * 57.3)}°`); }
     const start = L(LV.validateFrom[0], LV.validateFrom[1]);
     for (const e of enemies) { const [x, z] = e.userData.foe.spawn; if (isBlock(G[Math.floor(z)][Math.floor(x)])) issues.push(`spawn ${x},${z} inside furniture`); else if (!path(start, L(x, z))) issues.push(`spawn ${x},${z} unreachable`); }
     for (const [x, z] of LV.loot) if (!path(start, L(x, z))) issues.push(`loot ${x},${z} unreachable`);

@@ -27,7 +27,7 @@ export default {
     putR(9, 3, 10, 3, 'D');    // kitchen ↔ back corridor
     putR(14, 1, 14, 2, 'D');   // back corridor ↔ garage
     putR(2, 10, 3, 10, 'D');   // staff room ↔ shop
-    putR(10, 10, 11, 10, 'D'); // kitchen ↔ shop (behind the counter)
+    putR(12, 10, 13, 10, 'D'); // kitchen ↔ shop (at the end of the counter, so it swings clear of it)
     putR(7, 16, 8, 16, 'D');   // the glass front door
     carve(23, 10, 23, 13);     // the garage roller shutter, rolled up
     carve(0, 17, 0, 22);       // the quay runs on west (the Oofmobiel comes from there)
@@ -42,12 +42,14 @@ export default {
     putR(1, 7, 1, 9, 'F'); put(4, 7, 'T');
     // kitchen: fryers under the hood, the tall fridge, steel prep tables
     putR(11, 4, 13, 4, 'Y'); putR(7, 4, 7, 5, 'F'); putR(9, 6, 11, 6, 'w');
-    // shop: the counter with the döner and the heated display, bistro tables by the window
-    putR(5, 12, 12, 12, 'K'); put(2, 14, 't'); put(4, 14, 't'); putR(11, 14, 12, 14, 't');
+    // shop: the counter with the döner and the heated display, bistro tables by the window. The counter stops short of the kitchen
+    // door so the door can fold back flat over the lane behind it.
+    putR(5, 12, 9, 12, 'K'); put(2, 14, 't'); put(4, 14, 't'); putR(11, 14, 12, 14, 't');
     // garage: stacked boxes, the dumpster, pallets, red barrels
-    putR(16, 2, 17, 3, 'C'); putR(20, 2, 21, 2, 'C'); putR(16, 8, 17, 9, 'C'); putR(21, 5, 22, 6, 'U'); putR(18, 11, 19, 12, 'q'); putR(16, 13, 17, 13, 'q'); put(22, 1, 'X'); put(15, 14, 'X');
-    // quay: parked bikes, street lamps, a crate stack, a barrel; the Oofmobiel's spot ('A')
-    putR(10, 18, 12, 18, 'k'); put(3, 17, 'l'); put(14, 17, 'l'); put(27, 10, 'l'); put(27, 3, 'l'); putR(17, 19, 18, 19, 'C'); put(28, 15, 'X');
+    putR(16, 4, 17, 5, 'C'); putR(20, 2, 21, 2, 'C'); putR(16, 8, 17, 9, 'C'); putR(21, 5, 22, 6, 'U'); putR(18, 11, 19, 12, 'q'); putR(16, 13, 17, 13, 'q'); put(22, 1, 'X'); put(15, 14, 'X');
+    // quay: bikes parked against the shop window, street lamps, a crate stack out by the canal corner, a barrel; the Oofmobiel's spot ('A').
+    // The walk from the van to the front door (row 18-19) stays clear.
+    putR(10, 17, 12, 17, 'k'); put(3, 17, 'l'); put(14, 17, 'l'); put(27, 10, 'l'); put(27, 3, 'l'); putR(27, 21, 28, 21, 'C'); put(28, 15, 'X');
     putR(18, 20, 24, 22, 'A');
   },
   furn: {
@@ -134,11 +136,11 @@ export default {
     // inside the shop: döner, heated display, menu boards, clock
     const doner = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.9, 14), lam({ color: 0x9a5a2a })); doner.position.set(OX + 6, 1.55, Z0 + 12.5); root.add(doner);
     cyl(0.03, 0.03, 1.2, lam({ color: 0xc8ccd0 }), OX + 6, 1.6, Z0 + 12.5, root, 6);
-    const disp = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.45, 0.7), new THREE.MeshPhongMaterial({ color: 0xffe8a0, transparent: true, opacity: 0.35, shininess: 100 })); disp.position.set(OX + 9.5, 1.3, Z0 + 12.5); root.add(disp);
-    for (let k = 0; k < 8; k++) { const s = cyl(0.06, 0.06, 0.24, lam({ color: [0xb8742a, 0x8a4a1a, 0xd8a050][k % 3] }), OX + 8.4 + k * 0.3, 1.15, Z0 + 12.5 + (k % 2 ? 0.12 : -0.12), root, 8); s.rotation.z = Math.PI / 2; }
+    const disp = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.45, 0.7), new THREE.MeshPhongMaterial({ color: 0xffe8a0, transparent: true, opacity: 0.35, shininess: 100 })); disp.position.set(OX + 8.6, 1.3, Z0 + 12.5); root.add(disp);
+    for (let k = 0; k < 8; k++) { const s = cyl(0.06, 0.06, 0.24, lam({ color: [0xb8742a, 0x8a4a1a, 0xd8a050][k % 3] }), OX + 7.6 + k * 0.27, 1.15, Z0 + 12.5 + (k % 2 ? 0.12 : -0.12), root, 8); s.rotation.z = Math.PI / 2; }
     [['KROKET W 2', '#ffd27a'], ['FRIKANDEL W 2', '#ffffff'], ['DÖNER W 6', '#ffd27a']].forEach(([t, c], i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.6), new THREE.MeshBasicMaterial({ map: signTex([{ t, size: 44 }], '#1a1010', c, 384, 96) })); m.position.set(OX + 5.6 + i * 2.5, 1.9, Z0 + 11.03); root.add(m); });
     const clock = new THREE.Mesh(new THREE.CircleGeometry(0.28, 20), new THREE.MeshBasicMaterial({ map: canvasTex(64, 64, (g) => { g.fillStyle = '#f2efe6'; g.beginPath(); g.arc(32, 32, 30, 0, 7); g.fill(); g.strokeStyle = '#1a1a1a'; g.lineWidth = 4; g.stroke(); g.beginPath(); g.moveTo(32, 32); g.lineTo(32, 12); g.moveTo(32, 32); g.lineTo(46, 38); g.stroke(); }) }));
-    clock.position.set(OX + 2.5, 1.95, Z0 + 11.03); root.add(clock);
+    clock.position.set(OX + 1.5, 1.95, Z0 + 11.03); root.add(clock);
     // kitchen: extraction hood over the fryers, mop bucket
     box(3, 0.4, 0.55, lam({ color: 0x9aa4a8 }), OX + 12.5, 2.05, Z0 + 4.3, root, false);
     cyl(0.18, 0.15, 0.3, lam({ color: 0xffd23a }), OX + 7.5, 0.15, Z0 + 9.6, root, 10); cyl(0.02, 0.02, 1.2, lam({ color: 0x8a6a3a }), OX + 7.6, 0.7, Z0 + 9.5, root, 6);
