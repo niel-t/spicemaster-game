@@ -4,6 +4,7 @@
 // "Skip tutorial" drops the lot. Scripts follow the game: Chapter 0 (Dad, the junk, Kaasplaats, table, Naknik, the Russian)
 // and then Shooki's tour of the spice trade (js/tutorial.js steps). state.guide = { done: { script: true }, off }.
 
+import { cardBottom, touchWords } from './mobile.js';
 export function createGuide(d) {
   const { state, beep } = d;
   const G = () => (state.guide && typeof state.guide === 'object' ? state.guide : (state.guide = { done: {}, off: false }));
@@ -75,7 +76,7 @@ export function createGuide(d) {
   function skip() { const g = G(); g.off = true; confirm = false; card.classList.remove('ask'); cur = null; steps = []; hide(); if (d.onSkip) d.onSkip(); if (d.save) d.save(); }
 
   const hide = () => { visible = false; if (card) { card.style.display = 'none'; ring.style.display = 'none'; arrow.style.display = 'none'; } };
-  const txt = (v) => (typeof v === 'function' ? v() : v);
+  const txt = (v) => touchWords(typeof v === 'function' ? v() : v); // touch screens name the touch buttons (js/mobile.js)
   function frame(now) {
     requestAnimationFrame(frame);
     if (G().off) { if (visible) hide(); return; }
@@ -123,7 +124,7 @@ export function createGuide(d) {
   // the card goes next to what it talks about, never on top of it
   function place(r) {
     const cw = card.offsetWidth, ch = card.offsetHeight, W = innerWidth, H = innerHeight, m = 14;
-    let x = 16, y = H - ch - 44;
+    let x = 16, y = H - ch - cardBottom(); // clear of the thumb controls on touch screens (js/mobile.js)
     if (r) {
       const opts = [[r.right + m, r.top], [r.left - cw - m, r.top], [r.left, r.bottom + m], [r.left, r.top - ch - m]];
       const fit = opts.find(([a, b]) => a >= 8 && b >= 8 && a + cw <= W - 8 && b + ch <= H - 8)

@@ -3,6 +3,7 @@
 // full-screen pass adds the bloom, a little extra saturation and a vignette, and applies the renderer's tone mapping.
 // Modes: 'enhanced' (default), 'retro' (low resolution, 15-bit colour with ordered dithering), 'simple' (plain render, cheapest).
 import * as THREE from '../vendor/three.module.min.js';
+import { defaultGfx, msaaSamples } from './mobile.js';
 
 const KEY = 'spiceMasterEddy.gfx';
 export const GFX_MODES = ['enhanced', 'retro', 'simple'];
@@ -31,12 +32,12 @@ void main(){
   if (uRetro > 0.5) { gl_FragColor.rgb = floor(gl_FragColor.rgb * 31.0 + bayer(gl_FragCoord.xy / 2.0)) / 31.0; }
 }`;
 
-function load() { try { const m = localStorage.getItem(KEY); return GFX_MODES.includes(m) ? m : 'enhanced'; } catch (e) { return 'enhanced'; } }
+function load() { try { const m = localStorage.getItem(KEY); return GFX_MODES.includes(m) ? m : defaultGfx(); } catch (e) { return defaultGfx(); } } // phones start light (js/mobile.js)
 
 export function createPost(renderer) {
   let mode = load();
   const opts = { type: THREE.HalfFloatType, depthBuffer: false };
-  const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+  const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: msaaSamples() });
   const bA = new THREE.WebGLRenderTarget(1, 1, opts), bB = new THREE.WebGLRenderTarget(1, 1, opts);
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), qs = new THREE.Scene();
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2)); quad.frustumCulled = false; qs.add(quad);
@@ -51,7 +52,7 @@ export function createPost(renderer) {
     w = size.x; h = size.y; m0 = mode;
     const retro = mode === 'retro', k = retro ? 1 / 3 : 1;
     rt.setSize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
-    rt.samples = retro ? 0 : 4;
+    rt.samples = retro ? 0 : msaaSamples();
     rt.texture.minFilter = rt.texture.magFilter = retro ? THREE.NearestFilter : THREE.LinearFilter; rt.texture.needsUpdate = true;
     const bw = Math.max(8, w >> 2), bh = Math.max(8, h >> 2); bA.setSize(bw, bh); bB.setSize(bw, bh);
     finalM.uniforms.uRetro.value = retro ? 1 : 0;
@@ -60,6 +61,7 @@ export function createPost(renderer) {
   return {
     get mode() { return mode; },
     set mode(m) { if (!GFX_MODES.includes(m)) return; mode = m; try { localStorage.setItem(KEY, m); } catch (e) { /* settings are optional */ } },
+    setAuto(m) { if (GFX_MODES.includes(m)) mode = m; }, // the auto graphics (js/mobile.js): not saved, so the player's own pick still wins later
     cycle() { this.mode = GFX_MODES[(GFX_MODES.indexOf(mode) + 1) % GFX_MODES.length]; return mode; },
     render(scene, camera) {
       if (mode === 'simple') { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }

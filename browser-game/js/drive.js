@@ -28,6 +28,7 @@ const ROOF_ADS = [['LAMPAS SPICE', '99% ZOUT · 1% SPICE'], ['FRIKANDEL XXL', 'N
 
 import { makeOofmobiel, makeCar as makeStreetCar, setLivery } from './vehicles.js';
 import { signFace } from './livery.js';
+import { fitFov, shadowSize } from './mobile.js';
 
 export function initDrive(ctx) {
   const { THREE, renderer, canvasTex, signTex, beep, isPaused } = ctx;
@@ -35,7 +36,7 @@ export function initDrive(ctx) {
   const scene = D.scene, camera = D.camera;
   scene.background = new THREE.Color(0x26303e);
   camera.up.set(0, 0, -1); // north up
-  addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+  addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); fitFov(camera, 42); }); fitFov(camera, 42);
 
   // ---------------------------------------------------------------- materials
   const lam = (o) => new THREE.MeshLambertMaterial(o);
@@ -90,7 +91,7 @@ export function initDrive(ctx) {
   }
   const hemi = new THREE.HemisphereLight(0xffe8d0, 0x4a4060, 1.5); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffd8a8, 2.4);
-  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  sun.castShadow = true; sun.shadow.mapSize.set(shadowSize(), shadowSize());
   Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 140 });
   sun.shadow.bias = -0.0006; scene.add(sun, sun.target);
 

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#2a1a0e">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="assets/icon-192.png"><link rel="icon" type="image/png" href="assets/icon-192.png">
 <title>Spice Master Eddy: Kipkruidenkwartier</title>
 <style>
   /* ---------- fonts (OFL, vendored in assets/fonts so the game works offline) ---------- */
@@ -380,13 +382,38 @@
   #touchUI .tp { pointer-events: auto; touch-action: none; min-width: 48px; height: 40px; padding: 0 10px; border-radius: 20px; display: grid; place-items: center; font: 900 11px "Rubik", Arial; color: #fff; background: rgba(10,12,18,.7); border: 2px solid rgba(232,163,61,.8); }
   body.touch #help { display: none; }
   body.touch #prompt { bottom: calc(150px + env(safe-area-inset-bottom)); }
+  /* grenades, spare plates (missions): shown only when there's something to use; js/input.js lays the mission row out */
+  #touchUI #tbG, #touchUI #tbQ, #touchUI #tbH { display: none; }
+  #touchUI.mission.nades #tbG, #touchUI.mission.plate #tbH { display: grid; }
+  #touchUI.mission.nades.ntypes #tbQ { display: grid; width: 44px; height: 44px; font-size: 18px; }
+  #touchUI #tbG { background: rgba(90,120,60,.5); font-size: 9px; line-height: 1.1; text-align: center; align-content: center; gap: 1px; } #touchUI #tbG small { font: 700 8px "Rubik", Arial; opacity: .9; max-width: 60px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #touchUI #tbH { background: rgba(200,160,30,.45); font-size: 10px; }
+  /* the phone button: under the money on touch screens, gone on missions and in the van */
+  @media (orientation: portrait) { body.touch #prompt { bottom: calc(212px + env(safe-area-inset-bottom)); } } /* upright: above ACTIE, not on it */
+  body.touch #shmbtn { top: calc(84px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); padding: 9px 12px; }
+  body.in-mission #shmbtn, body.driving #shmbtn { display: none !important; }
+  /* Shooki's guide card and tips on touch screens: thumbs pass through the card (only its buttons take taps) */
+  body.touch #shookitip, body.touch #guide { pointer-events: none; } body.touch #shookitip button, body.touch #guide button, body.touch #guide a { pointer-events: auto; }
+  body.touch #shookitip .st-ok small, body.touch #guide .g-next small { display: none; }
+  @media (max-height: 500px) {
+    body #shookitip, body #guide { width: min(400px, 52vw); padding: 8px 10px; gap: 8px; font-size: 12.5px; line-height: 1.32; }
+    body #shookitip .st-av img { width: 40px; height: 40px; } body #guide canvas { width: 44px !important; height: 44px !important; }
+    body #shookitip .st-title { font-size: 14px; margin: 1px 0 2px; } body #guide .g-btns, body #shookitip .st-btns { margin-top: 5px; }
+    body #guide button, body #shookitip .st-ok { padding: 4px 10px; font-size: 12.5px; }
+  }
+  @media (max-width: 480px) {
+    body #shookitip, body #guide { font-size: 13px; line-height: 1.34; padding: 9px 11px; gap: 9px; }
+    body #shookitip .st-av img { width: 44px; height: 44px; } body #guide canvas { width: 48px !important; height: 48px !important; }
+    #area { max-width: calc(100vw - 190px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box; }
+    #money { font-size: 19px !important; }
+  }
   /* ---------- touch: bigger targets everywhere ---------- */
   body.touch .b95, body.touch .item button, body.touch #shopclose, body.touch #pcclose { min-height: 44px; min-width: 44px; }
   body.touch .win .tb button { width: 44px; height: 36px; }
   body.touch #pc .icon { padding: 6px 0; }
   body.touch #title [data-t] { padding: 12px 18px !important; }
   body.touch #dialogue .next { font-size: 13px; }
-  .win .body, .shopbox { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+  .win .body { touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; } .shopbox { touch-action: pan-y; -webkit-overflow-scrolling: touch; } /* wide tables (Kruidenbeurs) scroll sideways on a phone */
   .shopbox { max-height: 90vh; overflow: auto; box-sizing: border-box; }
   .shophead { position: sticky; top: -16px; z-index: 1; background: rgba(30,20,12,.98); padding: 6px 0; }
   /* ---------- small screens (phones, small tablets) ---------- */

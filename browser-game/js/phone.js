@@ -212,6 +212,7 @@ export function initPhone(d) {
     + '#shmokia .sm-soft{display:flex;justify-content:space-between;margin:10px 4px 6px}#shmokia .sm-soft button{width:72px;height:22px;border-radius:11px}'
     + '#shmokia .sm-nav{display:flex;justify-content:center;gap:4px;margin-bottom:8px}#shmokia .sm-nav button{width:56px;height:20px;border-radius:10px}'
     + '#shmokia .sm-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 12px;padding:0 6px}#shmokia .sm-keys button{height:20px;border-radius:12px 12px 10px 10px/14px 14px 8px 8px;font-size:17px}'
+    + 'body.touch #shmokia .sm-soft button{height:32px;width:84px;border-radius:16px}body.touch #shmokia .sm-nav button{height:30px;width:64px;border-radius:15px}body.touch #shmokia .sm-keys button{height:30px}body.touch #shmokia .sm-it{padding:3px}'
     + '#shmbtn{position:fixed;right:18px;top:50%;display:none;z-index:29;padding:8px 10px;border-radius:10px;border:2px solid #e8a33d;background:rgba(30,20,12,.9);color:#f2c14e;font:900 12px Rubik,Arial,sans-serif;letter-spacing:1px}body.touch #shmbtn.on{display:block}';
   document.head.appendChild(scss); document.body.appendChild(shm);
   const tbtn = document.createElement('button'); tbtn.id = 'shmbtn'; tbtn.textContent = 'SHMOKIA'; document.body.appendChild(tbtn);
@@ -310,7 +311,10 @@ export function initPhone(d) {
   }
   const move = (k) => { sel = (sel + k + cur.items.length) % cur.items.length; render(); };
   function back() { beep(900, 0.03, 'square', 0.03); if (stack.length > 1) { stack.pop(); sel = 0; msg = ''; render(); } else close(); }
-  function open() { if (isOpen || ringing || busy() || !usable()) return; isOpen = true; if (d.tip) d.tip('shmokia'); stack = ['contacts']; sel = 0; msg = ''; render(); shm.style.display = 'block'; beep(1200, 0.05, 'square', 0.03); }
+  function open() { if (isOpen || ringing || busy() || !usable()) return; isOpen = true; if (d.tip) d.tip('shmokia'); stack = ['contacts']; sel = 0; msg = ''; render(); shm.style.display = 'block'; fitShm(); beep(1200, 0.05, 'square', 0.03); }
+  // a phone on its side (or a small screen) can't fit the whole Shmokia: shrink it to fit, anchored bottom right
+  function fitShm() { if (shm.style.display === 'none') return; shm.style.transform = ''; const r = shm.getBoundingClientRect(), k = Math.min(1, (innerHeight - 36) / r.height, (innerWidth - 36) / r.width); shm.style.transformOrigin = '100% 100%'; shm.style.transform = k < 1 ? `scale(${k.toFixed(3)})` : ''; }
+  addEventListener('resize', fitShm);
   function close() { if (!isOpen) return; isOpen = false; shm.style.display = 'none'; }
   shm.addEventListener('click', (ev) => {
     ev.stopPropagation();

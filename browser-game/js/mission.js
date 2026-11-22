@@ -909,6 +909,7 @@ export function initMission(ctx) {
     #nvReload .t{position:absolute;left:50%;top:-17px;transform:translateX(-50%);font:8px 'Press Start 2P',monospace;color:#fff;text-shadow:1px 1px 0 #000;white-space:nowrap}
     @media (max-width:820px),(max-height:500px){#nvHud{left:12px;bottom:10px}#nvHud .hp{font-size:16px}#nvHud .w{font-size:8px;margin-top:5px}#nvScore{font-size:13px;right:12px;top:58px}#nvScore .c{font-size:10px}#nvScore .l{font-size:7px}#nvBanner .b2{font-size:18px;padding:0 12px}#nvInv .box{padding:12px}#nvInv .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
     body.touch #nvHud{bottom:auto;top:calc(96px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left))}
+    @media (orientation:portrait){body.touch #nvThreat{left:auto;right:calc(12px + env(safe-area-inset-right));transform:none;top:calc(112px + env(safe-area-inset-top))}}
     #nvInv .box{touch-action:pan-y;-webkit-overflow-scrolling:touch}
     #nvInv button{min-height:36px}
     #nvInv .foot{font:18px 'VT323',monospace;color:#9a86b6;margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}`;
@@ -959,14 +960,14 @@ export function initMission(ctx) {
     gear.guns.forEach((g, i) => { if (g) add(g.id, WD[g.id].name, `Loaded ${g.ammo}/${WD[g.id].mag}. Comes along on every mission.`, `Slot ${i + 2}`, 1, M.active && P.held === g); });
     if (gear.arm) add(gear.arm, ARMOUR[gear.arm].name, `${gear.plates}/${ARMOUR[gear.arm].plates} plate${ARMOUR[gear.arm].plates > 1 ? 's' : ''} left. Each one stops a bullet. The Russian repairs it.`, 'Worn', 1);
     for (const m in MODS) if (hasMod(m)) add('mod', MODS[m].name, MODS[m].info, 'Attachment', 1);
-    if (state.spares) add('plate', 'Spare ceramic plates', 'Hold H on a mission to slot one into the plate carrier.', 'Pocket', state.spares);
-    for (const k in NADES) if (state.nades[k]) add(k, NADES[k].name, NADES[k].info + ' G throws, Q picks the type.', 'Belt', state.nades[k]);
+    if (state.spares) add('plate', 'Spare ceramic plates', `${inputMode() === 'touch' ? 'Tap' : 'Hold'} ${glyph('H')} on a mission to slot one into the plate carrier.`, 'Pocket', state.spares);
+    for (const k in NADES) if (state.nades[k]) add(k, NADES[k].name, NADES[k].info + ` ${glyph('G')} throws, ${glyph('Q')} picks the type.`, 'Belt', state.nades[k]);
     for (const k in GEAR_X) if (state.gear[k]) add(k, GEAR_X[k].name, GEAR_X[k].info, 'Gear', 1);
     for (const c in CAL) if (state.pool[c]) add(c === '12ga' ? 'shells' : 'ammo', CAL[c].name + ' rounds', `In your pocket (${state.pool[c]}/${capOf(c)}). R reloads from here.`, 'Pocket', state.pool[c]);
     if (state.stash.length) add('stash', 'De Kluis', state.stash.map((s) => gearName(s.id)).join(', ') + '. Store and swap gear at the kluis in the warehouse.', `Home · ${state.stash.length}/${STASH_CAP}`, 1);
     if (state.loot) add('loot', 'Lampas spice crate', 'Stolen from the Lampas warehouse. Sell it on Kaasplaats (PC) for W 150 each.', 'Loot', state.loot);
     if (state.metSchmatzel) add('shoarma', 'Shoarma broodje', 'Schmatzel\'s, on the house. Your father\'s favourite.', 'From Schmatzel', 1);
-    invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Nabil owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: melee. Slots 2 + 3: guns, on missions only. What you carry out of a mission stays with you.</span><span>[I] / [Esc] close</span></div></div>`;
+    invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Nabil owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: melee. Slots 2 + 3: guns, on missions only. What you carry out of a mission stays with you.</span><span data-close style="cursor:pointer">${inputMode() === 'touch' ? '✕ tap here or outside to close' : '[I] / [Esc] close'}</span></div></div>`;
     invEl.style.display = 'flex'; invOpen = true; invMode = 'inv';
   }
   function closeInv() { invEl.style.display = 'none'; invOpen = false; }
@@ -1952,7 +1953,7 @@ export function initMission(ctx) {
       if (['Digit2', 'Numpad2', 'Digit3', 'Numpad3'].includes(e.code) && state.kit.includes('maboota')) { stop(); selectSlot(2); }
       return;
     }
-    if (ARR) { stop(); if (['KeyE', 'Space', 'Enter', 'Escape', 'Backspace'].includes(e.code) && ARR.t > 0.4) endArrive(); return; }
+    if (ARR) { stop(); if (['KeyE', 'Space', 'Enter', 'Escape', 'Backspace'].includes(e.code) && performance.now() - ARR.t0 > 450) endArrive(); return; }
     if (e.code === 'Backspace') { stop(); if (!ownsLevel(LV.id)) resetFloor(); return; }
     if (P.dead) { stop(); return; }
     if (e.code === 'KeyR') { stop(); if (!e.repeat) reloadInput(); return; }
@@ -1969,11 +1970,12 @@ export function initMission(ctx) {
     else if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { if (grab()) stop(); }
   }, true);
   addEventListener('pointerdown', (e) => {
-    if (invOpen) { if (e.target === invEl) closeInv(); e.stopImmediatePropagation(); return; }
+    if (invOpen) { if (e.target === invEl || (e.target.closest && e.target.closest('[data-close]'))) closeInv(); e.stopImmediatePropagation(); return; }
+    if (ARR && M.active && e.pointerType === 'touch' && !state.inDialogue && !state.inPC && performance.now() - ARR.t0 > 450 && !(e.target.closest && e.target.closest('button, .tb, .tp, #shookitip, #guide'))) { endArrive(); return; } // TIK · OVERSLAAN: a tap anywhere, the thumb zones too
     if (!M.active || state.inDialogue || state.inPC || e.target !== ctx.canvas) return;
     e.stopImmediatePropagation();
-    if (e.pointerType === 'touch') { if (ARR && ARR.t > 0.4) endArrive(); return; }
-    if (ARR) { if (ARR.t > 0.4) endArrive(); return; }
+    if (e.pointerType === 'touch') { if (ARR && performance.now() - ARR.t0 > 450) endArrive(); return; }
+    if (ARR) { if (performance.now() - ARR.t0 > 450) endArrive(); return; }
     if (R.results) { grab(); return; }
     if (e.button === 2) { grab(); return; } held.mouse = true; gunAudio.warm(); attack();
   }, true);
@@ -2408,7 +2410,7 @@ export function initMission(ctx) {
     hudEl.style.opacity = scoreEl.style.opacity = on ? 0 : 1; $('objective').style.opacity = on ? 0 : 1; mapEl.style.opacity = on ? 0 : 0.9; if (!on) setTimeout(hud, 0);
   }
   function startArrive(then) {
-    ARR = { ph: 'drive', t: 0, x0: OX + LV.van.from, then };
+    ARR = { ph: 'drive', t: 0, t0: performance.now(), x0: OX + LV.van.from, then }; // skipping goes by wall time (t restarts every phase)
     van.position.set(ARR.x0, 0, van.position.z); player.visible = false; letterbox(true); M.snap = true;
     beep(70, 2.3, 'sawtooth', 0.04); beep(46, 2.3, 'square', 0.03); setTimeout(() => { if (ARR && ARR.ph === 'drive') beep(1900, 0.3, 'triangle', 0.015); }, 2050);
   }
@@ -2487,7 +2489,7 @@ export function initMission(ctx) {
     invEl.innerHTML = `<div class="box"><h2>DE KLUIS</h2><div class="sub">Eddy's stash at the warehouse · ${state.stash.length}/${STASH_CAP} · Pockets: ${Object.keys(CAL).filter((c) => state.pool[c]).map((c) => CAL[c].name + ' ' + state.pool[c]).join(' · ') || 'empty'}${stashMsg ? ` · <span style="color:#ffd36b">${stashMsg}</span>` : ''}</div>
       <div class="sub" style="color:#a9c46a;margin:8px 0 6px">WHAT YOU CARRY</div><div class="grid">${kit.join('')}</div>
       <div class="sub" style="color:#a9c46a;margin:14px 0 6px">IN DE KLUIS</div><div class="grid">${st.join('')}</div>
-      <div class="foot"><span>Take a gun with a full kit and it swaps with slot 2. Everything you carry goes on the next mission.</span><span>[Esc] / [I] close</span></div></div>`;
+      <div class="foot"><span>Take a gun with a full kit and it swaps with slot 2. Everything you carry goes on the next mission.</span><span data-close style="cursor:pointer">${inputMode() === 'touch' ? '✕ tap here or outside to close' : '[Esc] / [I] close'}</span></div></div>`;
     invEl.style.display = 'flex'; invOpen = true; invMode = 'stash';
   }
   function stashAct(k) {
@@ -2521,6 +2523,10 @@ export function initMission(ctx) {
   }
   Object.defineProperty(M, 'defend', { get: () => (DEF ? { ...DEF, wave: DS.wave, nextT: DS.nextT, pending: DS.pending.length, lost: DS.lost, naks: DS.naks.length, over: DS.over } : null), enumerable: true });
   Object.defineProperty(M, 'heist', { get: () => (HEIST ? { ...HEIST, ...HS } : null), enumerable: true });
+  Object.defineProperty(M, 'touchKit', { get: () => { // what the touch buttons offer right now (js/input.js)
+    if (!M.active) return null; const have = NADE_ORDER.filter((k) => state.nades[k] > 0);
+    return { nades: have.reduce((n, k) => n + state.nades[k], 0), nade: have.length ? NADES[nadeSel()].name : '', types: have.length, plate: P.armourT === 'carrier' && state.spares > 0 && P.armor < ARMOUR.carrier.plates && !(P.plateT > 0) };
+  }, enumerable: true });
   Object.defineProperty(M, 'nvOK', { get: () => !!(M.active && ((HEIST && HEIST.nv) || state.gear.nvg)), enumerable: true });
   Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,

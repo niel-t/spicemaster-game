@@ -6,6 +6,7 @@
 // Controller: left stick move · right stick aim (missions) · RT attack · A interact / grab / confirm · B back
 //             X or LT reload · Y switch weapon · LB / L3 sprint · RB map · D-pad menus (or weapon slots) · Start pause · Back restart
 // Touch:      left thumb move · right thumb aim (missions; push past the ring to fire) · ACTIE · SLAAN · RELOAD · WISSEL
+//             GRANAAT (hold, let go to throw) · ▸ grenade type · PLAAT (spare plate) · NACHTZICHT
 //             SPRINT (toggle) · KAART · INV · OPNIEUW · II (pause)
 
 export const virt = { mx: 0, mz: 0, aim: null }; // analog movement (-1..1, screen relative) and aim angle (rotation.y) or null
@@ -21,7 +22,7 @@ function setMode(m) { if (m === mode) return; mode = m; releaseAll(); document.b
 // ------------------------------------------------------------------ button glyphs per device
 const GLYPH = {
   pad: { E: 'A', F: 'RT', R: 'X', Tab: 'Y', Esc: 'B', Backspace: 'BACK', M: 'RB', I: 'START', Shift: 'LB', Enter: 'A', N: 'Y', J: 'A', '1': '◀', '2': '▲', '3': '▶', skip: 'A' },
-  touch: { E: 'ACTIE', F: 'SLAAN', R: 'RELOAD', Tab: 'WISSEL', Esc: '✕', Backspace: 'OPNIEUW', M: 'KAART', I: 'INV', Shift: 'SPRINT', Enter: 'TIK', N: 'TIK', J: 'TIK', skip: 'TIK' },
+  touch: { G: 'GRANAAT', Q: '▸', H: 'PLAAT', B: 'TIK', T: 'SHMOKIA', V: 'NACHTZICHT', E: 'ACTIE', F: 'SLAAN', R: 'RELOAD', Tab: 'WISSEL', Esc: '✕', Backspace: 'OPNIEUW', M: 'KAART', I: 'INV', Shift: 'SPRINT', Enter: 'TIK', N: 'TIK', J: 'TIK', skip: 'TIK' },
   mouse: { Esc: 'ESC', Enter: 'ENTER', skip: 'E / SPACE / CLICK' },
 };
 export function glyph(k) { return (GLYPH[mode] && GLYPH[mode][k]) || GLYPH.mouse[k] || k; }
@@ -97,16 +98,23 @@ function beepNav() { if (ctx && ctx.beep) ctx.beep(700, 0.03, 'square', 0.02); }
 
 // ------------------------------------------------------------------ pause menu (Start / P / II)
 const pauseEl = document.createElement('div'); pauseEl.id = 'smePause';
+// full screen (phones lose a lot to the browser bars); iPhone Safari has no page full screen, so the button just isn't there
+const fsOK = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function toggleFs() {
+  const d = document, el = d.documentElement;
+  try { if (isFs()) (d.exitFullscreen || d.webkitExitFullscreen).call(d); else { const p = (el.requestFullscreen || el.webkitRequestFullscreen).call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } } catch (e) { /* not allowed here */ }
+}
 function pauseHTML(help) {
   const m = ctx && ctx.getMission(), inM = m && m.active, canRestart = inM && (m.canRestart ? m.canRestart() : !ctx.state.spekbuurt);
   const b = (k, t, dis) => `<button data-p="${k}" ${dis ? 'disabled' : ''}>${t}</button>`;
   return `<div class="pbox"><div class="ph">PAUZE</div>${help ? `<div class="pcontrols">${controlsTable()}</div>${b('back', 'TERUG')}` :
-    `${b('resume', 'VERDER')}${b('inv', 'INVENTARIS')}${b('map', 'KAART', inM)}${b('music', 'MUZIEK AAN / UIT')}${ctx && ctx.gfx ? b('gfx', 'GRAPHICS: ' + GFX_LABEL[ctx.gfx.mode]) : ''}${ctx && ctx.fonts ? b('fonts', 'LETTERTYPE: ' + (ctx.fonts.mode === 'aero' ? 'AERO' : 'KLASSIEK')) : ''}${inM ? b('restart', 'MISSIE OPNIEUW', !canRestart) : ''}${b('help', 'BESTURING')}`}</div>`;
+    `${b('resume', 'VERDER')}${b('inv', 'INVENTARIS')}${b('map', 'KAART', inM)}${b('music', 'MUZIEK AAN / UIT')}${ctx && ctx.gfx ? b('gfx', 'GRAPHICS: ' + GFX_LABEL[ctx.gfx.mode]) : ''}${ctx && ctx.fonts ? b('fonts', 'LETTERTYPE: ' + (ctx.fonts.mode === 'aero' ? 'AERO' : 'KLASSIEK')) : ''}${inM ? b('restart', 'MISSIE OPNIEUW', !canRestart) : ''}${b('help', 'BESTURING')}${fsOK() ? b('fs', isFs() ? 'VOLLEDIG SCHERM UIT' : 'VOLLEDIG SCHERM') : ''}`}</div>`;
 }
 export function controlsTable() {
   const rows = [['Move', 'WASD', 'Left stick', 'Left thumb'], ['Aim (missions)', 'Mouse', 'Right stick', 'Right thumb'], ['Attack / execute', 'Click / F', 'RT', 'SLAAN / push right thumb'],
     ['Interact / grab / throw', 'E', 'A', 'ACTIE'], ['Reload', 'R', 'X / LT', 'RELOAD'], ['Switch weapon', 'Wheel / Tab / 1-3', 'Y', 'WISSEL'], ['Sprint', 'Shift', 'LB / L3', 'SPRINT'],
-    ['Map', 'M', 'RB', 'KAART'], ['Inventory', 'I', '—', 'INV'], ['Back / close', 'Esc', 'B', '✕'], ['Restart mission', 'Backspace', 'Back', 'OPNIEUW'], ['Pause', 'P', 'Start', 'II']];
+    ['Map', 'M', 'RB', 'KAART'], ['Inventory', 'I', '—', 'INV'], ['Back / close', 'Esc', 'B', '✕'], ['Grenade (hold, let go)', 'G · Q type', '—', 'GRANAAT · ▸'], ['Spare plate', 'H', '—', 'PLAAT'], ['Phone', 'T', '—', 'SHMOKIA'], ['Restart mission', 'Backspace', 'Back', 'OPNIEUW'], ['Pause', 'P', 'Start', 'II']];
   return `<table><tr><th></th><th>Keyboard</th><th>Controller</th><th>Touch</th></tr>${rows.map((r) => `<tr>${r.map((c, i) => (i ? `<td>${c}</td>` : `<th>${c}</th>`)).join('')}</tr>`).join('')}</table>`;
 }
 function canPause() { return ctx && ctx.state.step !== 'title' && !ctx.state.inDialogue && !overlay(); }
@@ -123,6 +131,7 @@ pauseEl.addEventListener('click', (e) => {
   if (k === 'back') { pauseEl.innerHTML = pauseHTML(false); return; }
   if (k === 'gfx') { ctx.gfx.cycle(); pauseEl.innerHTML = pauseHTML(false); return; }
   if (k === 'fonts') { ctx.fonts.cycle(); pauseEl.innerHTML = pauseHTML(false); return; }
+  if (k === 'fs') { toggleFs(); setTimeout(() => { if (paused) pauseEl.innerHTML = pauseHTML(false); }, 350); return; }
   setPaused(false);
   if (k === 'inv') press('KeyI'); else if (k === 'map') press('KeyM'); else if (k === 'music') press('KeyN'); else if (k === 'restart') press('Backspace');
 });
@@ -216,6 +225,9 @@ ui.innerHTML = `
   <div class="tb" id="tbR" data-k="KeyR">RELOAD</div>
   <div class="tb" id="tbW" data-k="Tab">WISSEL</div>
   <div class="tb" id="tbN" data-k="KeyV">NACHT<br>ZICHT</div>
+  <div class="tb" id="tbG" data-k="nade">GRANAAT<small></small></div>
+  <div class="tb" id="tbQ" data-k="KeyQ">&#9656;</div>
+  <div class="tb" id="tbH" data-k="KeyH">PLAAT</div>
   <div class="tpills"><div class="tp" data-k="pause">II</div><div class="tp" data-k="KeyM">KAART</div><div class="tp" data-k="KeyI">INV</div><div class="tp" id="tpRestart" data-k="Backspace">OPNIEUW</div><div class="tp" id="tbS" data-k="sprint">SPRINT</div></div>`;
 function makeStick(zone, onMove, onEnd) {
   const base = zone.querySelector('.tbase'), knob = zone.querySelector('.tknob'), R = 56;
@@ -249,13 +261,28 @@ function setupTouch() {
   ui.addEventListener('pointerdown', (e) => {
     const b = e.target.closest('[data-k]'); if (!b) return; e.preventDefault(); e.stopPropagation();
     const k = b.dataset.k; b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 140);
-    if (k === 'pause') setPaused(true);
+    if (k === 'nade') { hold('KeyG', true); const id = e.pointerId, up = (ev) => { if (ev.pointerId !== id) return; hold('KeyG', false); removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true); }; addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true); } // held like G: let go to throw where you aim
+    else if (k === 'pause') setPaused(true);
     else if (k === 'sprint') { sprintOn = !sprintOn; hold('ShiftLeft', sprintOn); updateTouchButtons(); }
     else press(k);
   });
   ui.addEventListener('contextmenu', (e) => e.preventDefault());
   ui.addEventListener('touchstart', (e) => { if (e.target.closest('[data-k], .tzone')) e.preventDefault(); }, { passive: false }); // no emulated click after a button tap
   updateTouchButtons = () => { $('tbS').classList.toggle('active', sprintOn); };
+  // two fingers on the street: pinch to zoom (the same steps as the mouse wheel)
+  const fingers = new Map(); let pd = 0;
+  const spread = () => { const [a, b] = [...fingers.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
+  const pinchOK = () => mode === 'touch' && ui.style.display === 'block' && ui.classList.contains('street');
+  addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') return; fingers.set(e.pointerId, [e.clientX, e.clientY]); if (fingers.size === 2) pd = spread(); }, true);
+  addEventListener('pointermove', (e) => {
+    if (!fingers.has(e.pointerId)) return; fingers.set(e.pointerId, [e.clientX, e.clientY]);
+    if (fingers.size !== 2 || !pinchOK() || !pd) return;
+    const d = spread(); if (Math.abs(d / pd - 1) < 0.12) return;
+    dispatchEvent(new WheelEvent('wheel', { deltaY: d > pd ? -100 : 100 })); pd = d;
+    for (const st of sticks) if (st.id !== null) st.reset(); // a pinch, not a walk
+  }, true);
+  const lift = (e) => { fingers.delete(e.pointerId); if (fingers.size < 2) pd = 0; };
+  addEventListener('pointerup', lift, true); addEventListener('pointercancel', lift, true);
 }
 addEventListener('touchstart', () => { lastTouch = performance.now(); setMode('touch'); }, { passive: true, capture: true });
 for (const ev of ['touchmove', 'touchend', 'touchcancel']) addEventListener(ev, () => { lastTouch = performance.now(); }, { passive: true, capture: true });
@@ -274,15 +301,51 @@ if (window.visualViewport) visualViewport.addEventListener('resize', refit);
 
 function updateTouchUI(dt) {
   const m = ctx.getMission(), st = ctx.state;
+  document.body.classList.toggle('in-mission', !!(m && m.active)); // the street-only touch buttons (SHMOKIA) step aside
   const on = mode === 'touch' && st.step !== 'title' && !overlay() && !st.inDialogue && !paused;
   ui.style.display = on ? 'block' : 'none';
   if (!on) { if (mode === 'touch' && (fireHeld || virt.mx || virt.mz || sprintOn)) releaseAll(); return; } // only the touch sticks are released here
   const inM = !!(m && m.active);
   ui.classList.toggle('mission', inM); ui.classList.toggle('street', !inM);
+  const tk = inM && m.touchKit; // grenades and spare plates: their buttons only show when there's something to use
+  ui.classList.toggle('nades', !!(tk && tk.nades)); ui.classList.toggle('ntypes', !!(tk && tk.types > 1)); ui.classList.toggle('plate', !!(tk && tk.plate));
+  if (tk && tk.nades) { const sm = $('tbG').querySelector('small'), t = `${tk.nade} ×${tk.nades}`; if (sm.textContent !== t) sm.textContent = t; }
   ui.classList.toggle('armed', st.kit.includes('maboota'));
   ui.classList.toggle('nvok', inM && !!m.nvOK); // a Nachtklus with night-vision goggles: a NACHTZICHT button
+  layoutMission(inM);
+  stackLeft(inM);
   $('tpRestart').style.display = inM && (m.canRestart ? m.canRestart() : !st.spekbuurt) ? '' : 'none';
   if (fireHeld && inM) { if ((fireT -= dt) <= 0) { press('KeyF'); fireT = 0.12; } } else fireT = 0;
+}
+
+// touch screens on a mission: the objective, the health / weapon panel and the parking box share the top-left corner,
+// so they stack under each other (the objective can be one line or four)
+let stackT = 0, stacked = false;
+function stackLeft(inM) {
+  const els = ['nvHud', 'nvPark'].map($).filter(Boolean);
+  if (!inM || mode !== 'touch') { if (stacked) { for (const el of els) el.style.top = ''; stacked = false; } return; }
+  if ((stackT = (stackT + 1) % 6)) return; stacked = true; // ten times a second is plenty
+  const ob = $('objective'); let y = ob && shown(ob) && ob.style.opacity !== '0' ? ob.getBoundingClientRect().bottom + 8 : 40;
+  for (const el of els) { if (!shown(el)) continue; const t = Math.round(y) + 'px'; if (el.style.top !== t) el.style.top = t; y += el.offsetHeight + 8; }
+}
+// mission buttons: one row from the right edge, just above the thumb zones, wrapping upward only when the row would
+// cross into the left half (the night-vision, grenade and plate buttons come and go, so CSS alone can't place them)
+let lastLay = '';
+function layoutMission(inM) {
+  const ids = ['tbE', 'tbR', 'tbW', 'tbN', 'tbG', 'tbQ', 'tbH'];
+  const els = ids.map($).filter((el) => inM && getComputedStyle(el).display !== 'none');
+  const key = inM ? els.map((el) => el.id).join() + innerWidth + 'x' + innerHeight : '';
+  if (key === lastLay) return; lastLay = key;
+  for (const id of ids) { const el = $(id); el.style.right = el.style.bottom = ''; }
+  if (!inM) return;
+  const W = innerWidth, H = innerHeight, gap = 8, maxW = W * (W > H ? 0.6 : 0.96);
+  let x = 14, y = H * 0.58 + 8, rowH = 0;
+  for (const el of els) {
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (x + w > maxW && x > 14) { x = 14; y += rowH + gap; rowH = 0; }
+    el.style.right = `calc(${x}px + env(safe-area-inset-right))`; el.style.bottom = `calc(${Math.round(y)}px + env(safe-area-inset-bottom))`;
+    x += w + gap; rowH = Math.max(rowH, h);
+  }
 }
 
 // ------------------------------------------------------------------ boot

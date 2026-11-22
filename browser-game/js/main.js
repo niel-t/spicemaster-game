@@ -37,6 +37,7 @@ import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's d
 import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
 import { createBalloons } from './balloons.js';
 import { createPortraits } from './portrait.js'; // Freddy Sr. and Eddy Jr. photos that talk and blink // Frutiger Aero speech balloons, kept on screen
+import { fitFov, createAutoQuality, shadowSize } from './mobile.js'; // phones and tablets: auto graphics, upright camera
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
@@ -60,16 +61,18 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 let aeroWorld = null; // js/aeroworld.js, made once the street is built (see the bottom of this file)
 let fiets = null; // js/bikes.js: Eddy's omafiets, made at the bottom of this file
-const post = createPost(renderer); // Neon Vice-style screen pass: bloom, grade, vignette; GRAPHICS in the pause menu (js/post.js)
+const post = createPost(renderer);
+const autoQ = createAutoQuality(renderer, post); // caps the pixel ratio on touch devices, lowers it when the frame rate sags (js/mobile.js) // Neon Vice-style screen pass: bloom, grade, vignette; GRAPHICS in the pause menu (js/post.js)
 
 const scene = new THREE.Scene();
 installCharacters(scene); // Neon Vice-style skinned characters pose themselves right before each render
 scene.background = new THREE.Color(0xf0b4b8);
 scene.fog = new THREE.Fog(0xf0b4b8, 70, 140);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.5, 300);
+fitFov(camera, 38);
 const balloons = createBalloons();
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); fitFov(camera, 38);
   renderer.setSize(innerWidth, innerHeight, false);
 });
 
@@ -86,7 +89,7 @@ const hemi = new THREE.HemisphereLight(0xffe0f0, 0x6a5a80, 1.25); scene.add(hemi
 const sun = new THREE.DirectionalLight(0xffd8a8, 2.9);
 sun.position.set(-18, 30, 14);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(shadowSize(), shadowSize());
 Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 90 });
 sun.shadow.bias = -0.0008;
 scene.add(sun, sun.target);
@@ -2740,6 +2743,7 @@ const occl = new THREE.Raycaster();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let incomeT = 0, lastStep = state.step, titleSkip = 0;
 function tick() {
+  autoQ.tick(performance.now(), isPaused() || state.step === 'title');
   if (isPaused()) { clock.getDelta(); if (oofDrive.active) post.render(oofDrive.scene, oofDrive.camera); else post.render(scene, camera); balloons.sync(oofDrive.active ? oofDrive.scene : scene, oofDrive.active ? oofDrive.camera : camera); requestAnimationFrame(tick); return; }
   if (oofDrive.active) { oofDrive.update(Math.min(clock.getDelta(), 0.05)); post.render(oofDrive.scene, oofDrive.camera); balloons.sync(oofDrive.scene, oofDrive.camera); requestAnimationFrame(tick); return; }
   if (state.step !== lastStep) { lastStep = state.step; writeSave(); }

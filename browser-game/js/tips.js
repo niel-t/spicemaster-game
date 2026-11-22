@@ -3,6 +3,7 @@
 // phone, Nachtklussen and the siege. A message card in the corner, never blocking: OK (or H) closes it, it fades by
 // itself after a while, and "no more tips" turns them off. Each tip shows once (state.tips.told), saved with the game.
 
+import { cardBottom, touchWords, isTouchUI } from './mobile.js';
 export const TIPS = {
   start: ['Welcome home, cuz', "Bro! Cousin Shooki here. I text you when something's new. <b>WASD</b> walk, <b>Shift</b> run, <b>E</b> talk or use, <b>mouse wheel</b> zoom. Your dad is waiting inside. Go."],
   'step:list': ["Dad's junk", 'Walk up to every old machine and press <b>E</b> to put it up for sale. Six things. The counter is top left.'],
@@ -45,6 +46,14 @@ export const TIPS = {
 };
 const STEP_KEYS = ['start', 'step:list', 'step:sell', 'step:hire', 'step:russian', 'step:free'];
 
+// the same tips with the touch buttons (touchWords handles the simple key names; these say it differently)
+const TOUCH_TIPS = {
+  mission: "Your <b>right thumb</b> aims, push it past the ring to shoot (or tap <b>SLAAN</b>). <b>WISSEL</b> weapons, <b>RELOAD</b>, <b>ACTIE</b> grab and throw, <b>GRANAAT</b> held down and let go. Three hits and you're down: <b>OPNIEUW</b> tries again. Clear the floor and the joint is yours.",
+  heist: 'Stay out of the light and the sight cones. Walking is quiet, <b>SPRINT</b> is loud, shots are very loud. <b>NACHTZICHT</b> for night vision if you have it. Full bag? Back to the van.',
+  drive: '<b>GAS</b> drives, <b>ACHTERUIT</b> brakes and backs up, slide your thumb on the bar to steer, <b>TOETER</b> honks. Follow the arrow and park in the ring. Lampas cars ram you: the bar top left is the van.',
+  phone: "Your phone is ringing, bro. <b>Tap the phone</b> to answer. Hakan wants kipkraud: say yes and I bring it tomorrow, if there's Kip Shoarma in stock.",
+  shmokia: 'Your phone. Call people, trade a bit. The <b>SHMOKIA</b> button opens it, <b>Terug</b> closes it.',
+};
 export function createTips(d) {
   const { state, beep } = d;
   const T = () => (state.tips && typeof state.tips === 'object' ? state.tips : (state.tips = { told: {}, off: false }));
@@ -73,8 +82,8 @@ export function createTips(d) {
     const k = queue.shift(), t = TIPS[k]; if (!t || stale(k)) return next(); // a Chapter 0 step the player already left
     if (!el) build();
     cur = k; life = 9 + t[1].replace(/<[^>]+>/g, '').length / 14; // reading time
-    el.querySelector('.st-title').textContent = t[0]; el.querySelector('.st-text').innerHTML = t[1];
-    el.style.display = 'flex'; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+    el.querySelector('.st-title').textContent = t[0]; el.querySelector('.st-text').innerHTML = touchWords((isTouchUI() && TOUCH_TIPS[k]) || t[1]);
+    el.style.bottom = cardBottom() + 'px'; el.style.display = 'flex'; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
     if (beep) { beep(1180, 0.05, 'square', 0.03); setTimeout(() => beep(1480, 0.06, 'square', 0.03), 90); }
   }
   const stale = (k) => k.startsWith('step:') && state.step !== k.slice(5);

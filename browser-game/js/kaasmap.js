@@ -121,7 +121,7 @@ export function createKaasMap() {
     <div class="km-list">${groups}</div>
   </div>
   <div class="km-main">
-    <div class="km-tools"><button class="b95 km-b" data-z="in" title="Zoom in">+</button><button class="b95 km-b" data-z="out" title="Zoom out">−</button><button class="b95" data-z="fit">Whole city</button><button class="b95" data-z="home">You are here</button><span class="km-tip">Drag to move · scroll to zoom</span></div>
+    <div class="km-tools"><button class="b95 km-b" data-z="in" title="Zoom in">+</button><button class="b95 km-b" data-z="out" title="Zoom out">−</button><button class="b95" data-z="fit">Whole city</button><button class="b95" data-z="home">You are here</button><span class="km-tip">${document.body.classList.contains('touch') ? 'Drag to move · pinch to zoom' : 'Drag to move · scroll to zoom'}</span></div>
     <div class="km-view" tabindex="0">${s}<div class="km-loading">Drawing Kaasland…</div></div>
     <div class="km-status"><span class="km-st km-hover">${own}/${nTerr + 1} territories yours</span><span class="km-st km-scale"><i></i><span></span></span></div>
   </div>
