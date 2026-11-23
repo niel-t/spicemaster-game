@@ -37,6 +37,8 @@ export const TIPS = {
   phone: ['Phone', 'Your phone is ringing, bro. Press <b>T</b> to answer. Hakan wants kipkraud: say yes and I bring it tomorrow, if there\'s Kip Shoarma in stock.'],
   razim: ['Razim', 'That\'s Razim, bro. He wants shoarma. He always wants shoarma. His texts are under <b>Razim</b> in the Shmokia (<b>T</b>). Reply or don\'t, he texts again anyway.'],
   razimVisit: ['Razim, in person', 'Bro, he just shows up. Buy him a broodje and he goes home happy. Say you\'re working and he follows you around all day. I\'m only telling you.'],
+  maboota: ['Put it away, bro', 'Somebody saw your stick and called the cops. On the street the <b>Maboota</b> stays holstered (<b>1</b>). Take it out on a mission, not in front of tourists. Hit somebody out here and they call for sure.'],
+  wijkagent: ['Wijkagent', "That's Bakker, the wijkagent. First two times it's just a chat, bro. After that it's fines, and if you lie they search the warehouse and take spice. And the gangs hear about it."],
   shmokia: ['Shmokia', 'Your phone. Call people, trade a bit. <b>T</b> opens and closes it.'],
   haggle: ['Haggling', 'They want a deal. Offer, counter, walk away. Push too hard and they leave. Be too soft and you lose money.'],
   crew: ['Your Naknikim', 'Each Naknik has a name, a mood and three stats: <b>Mengen</b> (fewer mistakes), <b>Tempo</b> (kilos a day) and <b>Werkethiek</b> (how long before he naps). Send one on an <b>errand</b> (they skip mixing that day) or give a <b>day off</b> when they are tired. Watch them work the line: vaten from the pallets into the mixer, blend into blue bags. <b>Lift a vat</b> or <b>fill a bag</b> yourself and the batch of tonight grows.'],

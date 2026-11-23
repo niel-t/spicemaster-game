@@ -230,7 +230,7 @@ export function createEconomy(deps) {
     if (fresh && deps.onPlan) deps.onPlan(); if (deps.save) deps.save(); return true;
   }
   function endDay(why) { return advance(why || 'asleep'); }
-  const DID = { loods: 'warehouse work', rit: 'delivery run', levering: 'Klusbord delivery' };
+  const DID = { loods: 'warehouse work', rit: 'delivery run', levering: 'Klusbord delivery', politie: 'police search' };
   function planLine() { // one line for the HUD
     const t = today();
     if (t.plan === 'raid') return `<b>Day ${t.day}</b> · Raid day: the raid takes the whole day`;

@@ -1563,7 +1563,7 @@ export function initMission(ctx) {
       setBounds(null);
       R.lootAtStart = state.loot || 0;
       commitKit(); // guns, rounds and the vest you walk out with come home with you
-      holster(); syncHeld(); maboota.visible = true; equip(true);
+      holster(); syncHeld(); equip(false); // back on the street: Eddy puts the Maboota away (js/maboota.js)
       const u = player.userData; u.body.rotation.set(0, 0, 0); u.body.position.y = 0; cleanBlood(player);
       player.position.set(5.3, 0, -5.8); player.rotation.y = Math.PI;
       setArea('KAASLAND · KIPKRUIDENKWARTIER'); hideScreen(); for (const p of pops) p.el.remove(); pops.length = 0;
