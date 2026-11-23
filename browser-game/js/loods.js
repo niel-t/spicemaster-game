@@ -21,7 +21,7 @@ const LEVELS = [0.12, 1.5, 2.9]; // beam heights (pallet bottom)
 
 export const UPGRADES = [
   { id: 'rek', name: 'Palletstelling', what: `One bay of pallet racking: blue uprights, orange beams, 6 pallet places. ${RACK_KG} kg of vaten and bags.`, days: 1, rank: 0, repeat: true },
-  { id: 'menger1', name: 'Mengmachine', what: 'The oak mengkuip makes way for a big electric drum mixer: the Naknikim tip their vaten in and it does the stirring. 15 kg per Naknik a market day instead of 10.', cost: 1500, days: 2, rank: 1, need: ['junk'] },
+  { id: 'menger1', name: 'Mengmachine', what: 'The little kuipmenger makes way for a big electric drum mixer: the Naknikim tip their vaten in and it does the stirring. 15 kg per Naknik a market day instead of 10.', cost: 1500, days: 2, rank: 1, need: ['junk'] },
   { id: 'inpak', name: 'Inpakmachine', what: 'An automatic bagging line instead of the packing table: it fills, seals and labels the blue bags and rolls them out on a belt. Nobody stands scooping any more: +5 kg per Naknik a market day.', cost: 3000, days: 2, rank: 1, need: ['menger1'] },
   { id: 'roldeur', name: 'Stalen roldeur + camera', what: 'A steel roller door and a camera over the entrance. A raid on the warehouse steals half as much.', cost: 1800, days: 1, rank: 1, need: ['junk'] },
   { id: 'kavel', name: 'Bouwkavel', what: 'The empty plot behind the shed, TE KOOP for years. Buy it and the warehouse can grow onto it: De Hal first, De Overkapping later.', cost: 2500, days: 1, rank: 1, need: ['junk'] },

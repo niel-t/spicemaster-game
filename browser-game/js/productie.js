@@ -1,7 +1,7 @@
 // De productielijn (Tristan 2026-11-23): what the Naknikim do all day, made visible, and Eddy can lend a hand.
 //   OPSLAG     pallets along the shed's east wall (and on the floor of De Hal): fibre vaten of raw spice, 4 x 5 kg a pallet.
 //              One pallet place = PLACE_KG (economy.js); the stock cap IS the number of places.
-//   DE MENGER  the mengkuip, then a big drum mixer, a ribbon blender and De Reuzenmenger (Loods upgrades): vaten get tipped in.
+//   DE MENGER  a bakery floor mixer (kuipmenger), then a big drum mixer, a ribbon blender and De Reuzenmenger (Loods upgrades): vaten get tipped in.
 //   INPAKKEN   a packing table (later the Inpakmachine): the blend goes into blue 2.5 kg bags with a label naming the spice.
 //   Bags go back onto a pallet place as finished stock.
 // The economy still does the real mixing overnight (economy.js mix()); this is the same batch, shown through the day:
@@ -17,7 +17,7 @@ const VAT_KG = 5, BAG_KG = 2.5, HELP_KG = 5, HELP_MAX = 10, PEP_MAX = 5;
 const ING_COL = { paprika: 0xc2412d, komijn: 0x8a5a2a, knoflook: 0xe8e0c8, koriander: 0x9aa04a, kurkuma: 0xe2a21a, kaneel: 0xa0562a, kardemom: 0x7a9a4a, saffraan: 0xe86a1a, raselhanout: 0xb0622a, sumak: 0x8a2a3a, zaatar: 0x6a7a3a, harissa: 0xd0301a };
 const BLEND_COL = { kip: '#e8a01a', lams: '#9a6a2a', kebab: '#c2412d', slager: '#7a9a4a', speciaal: '#e86a1a', woestijn: '#b0622a', gouden: '#f2c21a' };
 const TIER = [ // footprint half sizes, pour height, name
-  { rx: 0.82, rz: 0.82, ty: 0.85, name: 'De mengkuip' }, { rx: 1.05, rz: 1.0, ty: 1.15, name: 'De Mengmachine' },
+  { rx: 0.75, rz: 1.05, ty: 1.1, name: 'De kuipmenger' }, { rx: 1.05, rz: 1.0, ty: 1.15, name: 'De Mengmachine' },
   { rx: 1.3, rz: 0.8, ty: 1.2, name: 'De industriële menger' }, { rx: 1.25, rz: 1.25, ty: 1.2, name: 'De Reuzenmenger' },
 ];
 
@@ -174,14 +174,22 @@ export function createProductie(deps) {
   const spiceTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, '#e8862a'); gr.addColorStop(1, '#b0481a'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); g.strokeStyle = 'rgba(255,214,140,.5)'; g.lineWidth = 5; for (let a = 0; a < 3; a++) { g.beginPath(); for (let k = 0; k < 60; k++) { const r = k * 1.05, t = k * 0.12 + a * 2.1; g.lineTo(64 + Math.cos(t) * r, 64 + Math.sin(t) * r); } g.stroke(); } });
   const spiceMat = new THREE.MeshLambertMaterial({ map: spiceTex });
   const spin = [], gauges = [];
-  { // tier 0, de mengkuip: an oak tub with iron hoops and a paddle, stirred by hand
-    const g = mixers[0], wood = lam({ color: 0x9a6a3a, side: THREE.DoubleSide });
-    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.68, 0.9, 22, 1, true), wood); st.position.y = 0.5; st.castShadow = true; g.add(st);
-    cyl(0.68, 0.68, 0.05, mt(0x7a5028), 0, 0.07, 0, g, 22);
-    for (const [y, r] of [[0.22, 0.705], [0.5, 0.745], [0.86, 0.795]]) { const h = new THREE.Mesh(new THREE.TorusGeometry(r, 0.022, 6, 28), dark); h.rotation.x = Math.PI / 2; h.position.y = y; g.add(h); }
-    for (let k = 0; k < 22; k++) { const a = k / 22 * Math.PI * 2; const l = box(0.012, 0.88, 0.012, mt(0x6a4420), Math.cos(a) * 0.745, 0.5, Math.sin(a) * 0.745, g, false); l.rotation.y = -a; }
-    const s = new THREE.Mesh(new THREE.CircleGeometry(0.74, 24), spiceMat); s.rotation.x = -Math.PI / 2; s.position.y = 0.3; g.add(s); spin.push({ o: s, ax: 'z', v: 0.5 }); g.userData.surf = s;
-    const pd = new THREE.Group(); pd.position.set(0.2, 0.3, 0.1); pd.rotation.set(0.3, 0, -0.42); g.add(pd); cyl(0.028, 0.028, 1.5, mt(0x8a6438), 0, 0.75, 0, pd, 6); box(0.18, 0.26, 0.03, mt(0x8a6438), 0, 0.06, 0, pd, false);
+  { // tier 0, de kuipmenger: a second-hand bakery floor mixer. Enamel base and column, a head that hangs over a stainless bowl, a turning mixing arm
+    const g = mixers[0]; g.scale.setScalar(1.25); const en = new THREE.MeshPhongMaterial({ color: 0xf2e6c4, shininess: 60 }), saf = mt(0xf2b21a);
+    box(1.0, 0.24, 1.5, en, 0, 0.12, 0, g); box(1.04, 0.05, 1.54, dark, 0, 0.025, 0, g, false);
+    box(0.62, 1.45, 0.46, en, 0, 0.96, -0.5, g); box(0.66, 0.06, 0.5, saf, 0, 0.5, -0.5, g, false); // the column
+    box(0.56, 0.36, 1.05, en, 0, 1.66, -0.12, g); box(0.6, 0.06, 1.09, saf, 0, 1.86, -0.12, g, false); cyl(0.2, 0.2, 0.5, dark, 0, 1.66, -0.78, g, 12).rotation.x = Math.PI / 2; // the head and its motor
+    const bw = new THREE.Group(); bw.position.set(0, 0.05, 0.22); g.add(bw);
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.46, 0.66, 24, 1, true), new THREE.MeshPhongMaterial({ color: 0xc8ced4, shininess: 90, specular: 0x888888, side: THREE.DoubleSide })); bowl.position.y = 0.56; bowl.castShadow = true; bw.add(bowl);
+    cyl(0.46, 0.46, 0.04, steel, 0, 0.23, 0, bw, 24); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.585, 0.022, 6, 30), steel); rim.rotation.x = Math.PI / 2; rim.position.y = 0.89; bw.add(rim);
+    const s = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), spiceMat); s.rotation.x = -Math.PI / 2; s.position.y = 0.3; bw.add(s); spin.push({ o: s, ax: 'z', v: 0.8 }); g.userData.surf = s;
+    // the mixing arm: a shaft down from the head with a paddle frame, turning in the bowl
+    const arm = new THREE.Group(); arm.position.set(0, 0, 0.22); g.add(arm); spin.push({ o: arm, ax: 'y', v: 3.2 });
+    cyl(0.035, 0.035, 0.75, steel, 0, 1.12, 0, arm, 8); box(0.7, 0.04, 0.04, steel, 0, 0.78, 0, arm, false); for (const x of [-0.33, 0.33]) box(0.04, 0.42, 0.06, steel, x, 0.58, 0, arm, false); box(0.5, 0.04, 0.04, steel, 0, 0.4, 0, arm, false);
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; box(0.014, 0.3, 0.014, dark, Math.cos(a) * 0.6, 1.1, 0.22 + Math.sin(a) * 0.6, g, false); } // the safety cage
+    const cage = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.014, 5, 30), dark); cage.rotation.x = Math.PI / 2; cage.position.set(0, 1.25, 0.22); g.add(cage);
+    box(0.3, 0.4, 0.04, mt(0x2a2a2e), 0.5, 1.2, -0.3, g, false).rotation.y = Math.PI / 2; box(0.03, 0.08, 0.08, mt(0x40ff60, { emissive: 0x20a030 }), 0.53, 1.3, -0.36, g, false); box(0.03, 0.08, 0.08, mt(0xc2412d), 0.53, 1.3, -0.24, g, false); cyl(0.05, 0.05, 0.04, mt(0xc2412d), 0.54, 1.12, -0.3, g, 10).rotation.z = Math.PI / 2;
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.16), lam({ map: deps.signTex([{ t: 'KUIPMENGER 80', size: 40 }], '#1a2f6a', '#f6f0e0', 320, 100) })); sg.position.set(0, 1.66, 0.42); g.add(sg);
   }
   { // tier 1, de Mengmachine: a big tilted saffron drum on a steel frame, open to the south
     const g = mixers[1];
