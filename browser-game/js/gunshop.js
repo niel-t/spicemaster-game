@@ -169,7 +169,7 @@ export function createGunShop({ mission, state, $, addMoney, beep, save, kitText
     if (!mission.canBuy(t)) { sfx('no'); say('Your hands are full and your kluis is full. Sell something. Or carry less.'); return; }
     if (!pay(price(t), el)) return;
     const where = mission.receive(t); if (!state.kit.includes(t)) state.kit.push(t);
-    done(where === 'kluis' ? 'Your hands are full, so my boy drives her to your warehouse. She waits in the kluis.' : WD[t].excl ? RU_EXCL : pick(RU_BUY));
+    done(where === 'kluis' ? 'Your hands are full, so my boy drives her to your place. She waits in the kluis.' : WD[t].excl ? RU_EXCL : pick(RU_BUY));
   }
   function extra(k, c, el) {
     const ar = mission.armour();

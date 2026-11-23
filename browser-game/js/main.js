@@ -2970,7 +2970,7 @@ work = createNaknikWork({ carry: prod.carry, lineBusy: () => prod.lineBusy(), pa
     }
     return out;
   } });
-woning = createWoning({ endDay: () => endDay(), hokDoor: (open) => { hokDoorSolid.off = open; hokDoor.leaf.visible = !open; hokDoor.pl.material.map = open ? hokDoor.plOpen : hokDoor.plShut; hokDoor.pl.material.needsUpdate = true; },
+woning = createWoning({ placeKluis: (x, z) => mission.placeKluis(x, z), endDay: () => endDay(), hokDoor: (open) => { hokDoorSolid.off = open; hokDoor.leaf.visible = !open; hokDoor.pl.material.map = open ? hokDoor.plOpen : hokDoor.plShut; hokDoor.pl.material.needsUpdate = true; },
   vanStand: () => ({ x: oof.position.x, z: oof.position.z + 1.9 }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, openPC: (tab) => openPC(tab), doors: HOME_DOORS,
   snapCam: () => { const inH = woning && woning.inside(), k = inH ? [woning.camHeight(), woning.camHeight() * 0.43] : [12.5, 6], f = inH ? woning.camFocus(player.position) : player.position.clone(); camPos.copy(f).add(new THREE.Vector3(0, k[0] * zoom, k[1] * zoom)); camLook.copy(f).setY(0.8); }, inWarehouse: () => isInside(player.position), blocked: () => mission.active,

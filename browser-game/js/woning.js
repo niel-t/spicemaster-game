@@ -557,7 +557,10 @@ export function createWoning(deps) {
   }
 
   // ================================================================== per frame
+  // De Kluis stands in the room Eddy lives in: Het Hok at first, his house after the move (Tristan 2026-11-23)
+  const KLUIS = [[2.62, 1.85], [4.12, 2.75], [5.62, 3.7]]; let kluisIn = -1;
   function update(dt) {
+    if (deps.placeKluis && kluisIn !== ensure().home) { kluisIn = ensure().home; const r = rooms[kluisIn], k = KLUIS[kluisIn]; deps.placeKluis(r.ox + k[0], r.oz + k[1]); }
     if (inHome === 0 && !inHok(player.position)) { inHome = -1; show(-1); } // walked out of Het Hok (or a mission took Eddy away)
     else if (inHome > 0 && !inRoom(player.position, rooms[inHome])) { inHome = -1; show(-1); } // a mission or drive took Eddy away
     if (inHome < 0 && !hokStorage() && inHok(player.position) && !deps.blocked()) { inHome = 0; show(0); }

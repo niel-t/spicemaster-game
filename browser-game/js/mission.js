@@ -995,7 +995,7 @@ export function initMission(ctx) {
     for (const k in NADES) if (state.nades[k]) add(k, NADES[k].name, NADES[k].info + ` ${glyph('G')} throws, ${glyph('Q')} picks the type.`, 'Belt', state.nades[k]);
     for (const k in GEAR_X) if (state.gear[k]) add(k, GEAR_X[k].name, GEAR_X[k].info, 'Gear', 1);
     for (const c in CAL) if (state.pool[c]) add(c === '12ga' ? 'shells' : 'ammo', CAL[c].name + ' rounds', `In your pocket (${state.pool[c]}/${capOf(c)}). R reloads from here.`, 'Pocket', state.pool[c]);
-    if (state.stash.length) add('stash', 'De Kluis', state.stash.map((s) => gearName(s.id)).join(', ') + '. Store and swap gear at the kluis in the warehouse.', `Home · ${state.stash.length}/${STASH_CAP}`, 1);
+    if (state.stash.length) add('stash', 'De Kluis', state.stash.map((s) => gearName(s.id)).join(', ') + '. Store and swap gear at the kluis in your room.', `Home · ${state.stash.length}/${STASH_CAP}`, 1);
     if (state.loot) add('loot', 'Lampas spice crate', 'Stolen from the Lampas warehouse. Sell it on Kaasplaats (PC) for W 150 each.', 'Loot', state.loot);
     if (state.metSchmatzel) add('shoarma', 'Shoarma broodje', 'Schmatzel\'s, on the house. Your father\'s favourite.', 'From Schmatzel', 1);
     invEl.innerHTML = `<div class="box"><h2>INVENTORY</h2><div class="sub">Eddy de Kruidenmeester Jr. · Wilders W ${(state.money || 0).toLocaleString('nl-NL')}${state.loan && state.loan.out ? ` · Nabil owes you W ${(state.loan.amount * 2).toLocaleString('nl-NL')}` : ''}</div><div class="grid">${row.join('') || '<div class="ds">Nothing yet. Talk to people. Visit The Russian.</div>'}</div><div class="foot"><span>Slot 1: melee. Slots 2 + 3: guns, on missions only. What you carry out of a mission stays with you.</span><span data-close style="cursor:pointer">${inputMode() === 'touch' ? '✕ tap here or outside to close' : '[I] / [Esc] close'}</span></div></div>`;
@@ -2512,14 +2512,15 @@ export function initMission(ctx) {
   }
 
   // ================================================================== DE KLUIS (stash at the warehouse: store and swap gear between missions)
-  const kluis = new THREE.Group(); kluis.position.set(-10.55, 0, -11.9); kluis.rotation.y = Math.PI; scene.add(kluis); // on the west wall: the east wall is the pallet storage (js/productie.js)
+  const kluis = new THREE.Group(); kluis.position.set(6.77, 0, -16.65); scene.add(kluis); // in Eddy's room: Het Hok at first, then the house he lives in (js/woning.js places it through M.placeKluis)
   { const g = lam({ color: 0x4a6a3a }), d = lam({ color: 0x2a3a22 });
     box(0.6, 2.0, 1.2, g, 0, 1.0, 0, kluis); box(0.03, 1.8, 0.03, d, -0.31, 1.0, 0, kluis);
     for (const z of [-0.3, 0.3]) { box(0.03, 0.12, 0.08, lam({ color: 0xc8c8c8 }), -0.32, 1.05, z * 0.25, kluis); for (let k = 0; k < 4; k++) box(0.02, 0.03, 0.3, d, -0.31, 1.65 - k * 0.07, z, kluis); }
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.24), lam({ map: signTex([{ t: 'KLUIS', size: 72 }], '#ffd36b', '#2a1a12', 256, 64) }));
     sign.rotation.y = -Math.PI / 2; sign.position.set(-0.32, 2.15, 0); kluis.add(sign); }
-  solid(-10.9, -10.2, -12.55, -11.25);
-  addInteract({ obj: kluis, pos: () => new THREE.Vector3(-9.7, 0, -11.9), r: 1.7, enabled: () => !M.active && state.step !== 'talk', label: () => `Kluis · store / swap gear (${state.stash.length}/${STASH_CAP})`, act: () => openStash() });
+  const kluisSol = solid(6.42, 7.12, -17.3, -16.0), kluisAt = new THREE.Vector3(5.9, 0, -16.65);
+  M.placeKluis = (x, z) => { kluis.position.set(x, 0, z); Object.assign(kluisSol, { minx: x - 0.35, maxx: x + 0.35, minz: z - 0.65, maxz: z + 0.65 }); kluisAt.set(x - 0.85, 0, z); };
+  addInteract({ obj: kluis, pos: () => kluisAt, r: 1.5, enabled: () => !M.active && state.step !== 'talk', label: () => `Kluis · store / swap gear (${state.stash.length}/${STASH_CAP})`, act: () => openStash() });
   let stashMsg = '';
   function openStash(msg) {
     stashMsg = msg || ''; const L = state.loadout;
@@ -2534,7 +2535,7 @@ export function initMission(ctx) {
     ];
     const st = state.stash.map((it, i) => row(it.id, gearName(it.id), desc(it), 'take:' + i, 'PAKKEN'));
     for (let i = st.length; i < STASH_CAP; i++) st.push(`<div class="it" style="opacity:.35"><div class="ic"></div><div><div class="nm">—</div><div class="ds">Empty shelf.</div></div></div>`);
-    invEl.innerHTML = `<div class="box"><h2>DE KLUIS</h2><div class="sub">Eddy's stash at the warehouse · ${state.stash.length}/${STASH_CAP} · Pockets: ${Object.keys(CAL).filter((c) => state.pool[c]).map((c) => CAL[c].name + ' ' + state.pool[c]).join(' · ') || 'empty'}${stashMsg ? ` · <span style="color:#ffd36b">${stashMsg}</span>` : ''}</div>
+    invEl.innerHTML = `<div class="box"><h2>DE KLUIS</h2><div class="sub">Eddy's stash in his room · ${state.stash.length}/${STASH_CAP} · Pockets: ${Object.keys(CAL).filter((c) => state.pool[c]).map((c) => CAL[c].name + ' ' + state.pool[c]).join(' · ') || 'empty'}${stashMsg ? ` · <span style="color:#ffd36b">${stashMsg}</span>` : ''}</div>
       <div class="sub" style="color:#a9c46a;margin:8px 0 6px">WHAT YOU CARRY</div><div class="grid">${kit.join('')}</div>
       <div class="sub" style="color:#a9c46a;margin:14px 0 6px">IN DE KLUIS</div><div class="grid">${st.join('')}</div>
       <div class="foot"><span>Take a gun with a full kit and it swaps with slot 2. Everything you carry goes on the next mission.</span><span data-close style="cursor:pointer">${inputMode() === 'touch' ? '✕ tap here or outside to close' : '[Esc] / [I] close'}</span></div></div>`;
