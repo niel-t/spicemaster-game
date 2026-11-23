@@ -73,10 +73,10 @@ export function createProductie(deps) {
     lidMat[id] = [mt(col), lam({ map: top }), mt(col)];
     return (vatMat[id] = lam({ map: t }));
   }
-  const vatGeo = () => geo('vat', () => new THREE.CylinderGeometry(0.235, 0.225, 0.6, 14)), lidGeo = () => geo('lid', () => new THREE.CylinderGeometry(0.245, 0.245, 0.045, 14));
+  const vatGeo = () => geo('vat', () => new THREE.CylinderGeometry(0.275, 0.265, 0.82, 16)), lidGeo = () => geo('lid', () => new THREE.CylinderGeometry(0.287, 0.287, 0.05, 16)); // big fibre drums: four fill a pallet
   function makeVat(id = 'paprika') {
-    const g = new THREE.Group(), b = new THREE.Mesh(vatGeo(), vatSkin(id)); b.position.y = 0.3; b.castShadow = true; g.add(b);
-    const l = new THREE.Mesh(lidGeo(), lidMat[id]); l.position.y = 0.62; g.add(l);
+    const g = new THREE.Group(), b = new THREE.Mesh(vatGeo(), vatSkin(id)); b.position.y = 0.41; b.castShadow = true; g.add(b);
+    const l = new THREE.Mesh(lidGeo(), lidMat[id]); l.position.y = 0.845; g.add(l);
     g.userData.set = (i) => { b.material = vatSkin(i); l.material = lidMat[i]; };
     return g;
   }
@@ -97,7 +97,7 @@ export function createProductie(deps) {
     const s = lam({ map: side }), t = lam({ map: top });
     return (bagMat[id] = [s, s, t, s, s, s]);
   }
-  const bagGeo = () => geo('bag', () => new THREE.BoxGeometry(0.5, 0.13, 0.38));
+  const bagGeo = () => geo('bag', () => new THREE.BoxGeometry(0.55, 0.18, 0.43));
   function makeBag(id = 'kip') { const m = new THREE.Mesh(bagGeo(), bagSkin(id)); m.castShadow = true; m.userData.set = (i) => { m.material = bagSkin(i); }; return m; }
   function makeBucket() {
     const g = new THREE.Group(); const b = new THREE.Mesh(geo('emm', () => new THREE.CylinderGeometry(0.15, 0.12, 0.24, 12)), mt(0xf2ead8)); g.add(b);
@@ -105,14 +105,42 @@ export function createProductie(deps) {
   }
   // what the Naknikim carry (js/naknikwork.js): sized for a Naknik, repainted when he picks it up
   const carry = {
-    vat: () => { const v = makeVat('paprika'); v.scale.setScalar(0.72); v.children.forEach((c) => { c.position.y -= 0.3; }); v.userData.paint = () => v.userData.set(carryVat); return v; },
+    vat: () => { const v = makeVat('paprika'); v.scale.setScalar(0.6); v.children.forEach((c) => { c.position.y -= 0.41; }); v.userData.paint = () => v.userData.set(carryVat); return v; },
     emmer: () => makeBucket(),
-    zak: () => { const b = makeBag('kip'); b.scale.setScalar(0.8); b.userData.paint = () => b.userData.set(econ.ensure().order); return b; },
+    zak: () => { const b = makeBag('kip'); b.scale.setScalar(0.72); b.userData.paint = () => b.userData.set(econ.ensure().order); return b; },
+    // hauling in De Hal: a steekwagen with a vat on its toe plate, and a hand pallet truck with a wrapped pallet (they roll on the floor)
+    kar: () => {
+      const g = new THREE.Group(), or = mt(0xe8742a), tilt = new THREE.Group(); tilt.rotation.x = -0.38; tilt.position.set(0, 0.11, 0.1); g.add(tilt);
+      for (const x of [-0.17, 0.17]) { box(0.035, 1.05, 0.035, or, x, 0.5, 0, tilt, false); const w = cyl(0.11, 0.11, 0.05, mt(0x1a1a1a), x * 1.35, 0.11, 0.1, g, 10); w.rotation.z = Math.PI / 2; }
+      for (const y of [0.25, 0.6, 0.95]) box(0.34, 0.03, 0.03, or, 0, y, 0, tilt, false); box(0.42, 0.03, 0.03, mt(0x1a1a1a), 0, 1.03, -0.02, tilt, false);
+      box(0.4, 0.02, 0.26, or, 0, 0.01, 0.13, tilt, false);
+      const v = makeVat('paprika'); v.scale.setScalar(0.6); v.position.set(0, 0.03, 0.2); tilt.add(v);
+      g.userData.floor = 0.34; g.userData.paint = () => v.userData.set(carryVat); return g;
+    },
+    jack: () => {
+      const g = new THREE.Group(), or = mt(0xe8742a);
+      for (const x of [-0.19, 0.19]) { box(0.15, 0.06, 1.05, or, x, 0.07, 0.62, g, false); const w = cyl(0.045, 0.045, 0.1, mt(0x1a1a1a), x, 0.045, 1.05, g, 8); w.rotation.z = Math.PI / 2; }
+      box(0.46, 0.3, 0.2, or, 0, 0.2, 0.06, g, false); const w = cyl(0.09, 0.09, 0.16, mt(0x1a1a1a), 0, 0.09, 0.02, g, 10); w.rotation.z = Math.PI / 2;
+      const t = box(0.04, 0.8, 0.04, mt(0x1a1a1a), 0, 0.62, -0.1, g, false); t.rotation.x = -0.45; box(0.3, 0.04, 0.04, mt(0x1a1a1a), 0, 0.98, -0.27, g, false);
+      const pal = new THREE.Group(); pal.position.set(0, 0.1, 0.62); pal.rotation.y = Math.PI / 2; pal.scale.setScalar(0.74); g.add(pal);
+      const d = new THREE.Mesh(geo('deck', () => new THREE.BoxGeometry(1.2, 0.045, 1.0)), deckMat); d.position.y = 0.125; pal.add(d); box(1.12, 0.1, 0.92, mt(0x8a6438), 0, 0.05, 0, pal, false);
+      const vs = [0, 1, 2, 3].map((k) => { const v = makeVat('paprika'); v.position.set(k % 2 ? 0.29 : -0.29, 0.15, k < 2 ? -0.25 : 0.25); pal.add(v); return v; });
+      const wr = new THREE.Mesh(geo('wrapV', () => new THREE.BoxGeometry(1.17, 0.62, 1.07)), wrapMat); wr.position.y = 0.5; pal.add(wr);
+      g.userData.floor = 0.3; g.userData.paint = () => { const ids = haulIds.length ? haulIds : ['paprika']; vs.forEach((v, k) => v.userData.set(ids[k % ids.length])); }; return g;
+    },
   };
+  let haulIds = [];
   let carryVat = 'paprika';
 
   // ================================================================== pallet places
-  const places = []; // {g, vats[4], bags[8], spot, level, shed}
+  const deckMat = lam({ map: canvasTex(128, 128, (g, w, h) => { // pallet deck: seven boards with gaps, grain and a few nail heads
+    g.fillStyle = '#3a2a16'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 7; i++) { const y = i * (h / 7) + 1.5, bh = h / 7 - 3, v = 150 + ((i * 37) % 40); g.fillStyle = `rgb(${v + 46},${v + 6},${v - 52})`; g.fillRect(0, y, w, bh);
+      g.globalAlpha = 0.18; g.strokeStyle = '#6a4420'; for (let k = 0; k < 5; k++) { g.beginPath(); g.moveTo(0, y + 2 + k * 3); g.bezierCurveTo(40, y + k * 3 + ((i + k) % 3), 90, y + 4 + k * 3 - ((i * k) % 3), w, y + 2 + k * 3); g.stroke(); } g.globalAlpha = 1;
+      g.fillStyle = '#4a3a2a'; for (const x of [8, 64, 120]) g.fillRect(x - 1, y + bh / 2 - 1, 2, 2); }
+  }) });
+  const wrapMat = new THREE.MeshPhongMaterial({ color: 0xe8f2f6, transparent: true, opacity: 0.3, shininess: 140, specular: 0xffffff, depthWrite: false });
+  const places = []; // {g, vats[4], bags[8], wrapV, wrapB, spot, level, shed}
   const outline = canvasTex(64, 64, (g) => { g.clearRect(0, 0, 64, 64); g.strokeStyle = '#f2b21a'; g.lineWidth = 5; g.strokeRect(3, 3, 58, 58); });
   const marks = new THREE.Group(); scene.add(marks); const hallMarks = new THREE.Group(); scene.add(hallMarks); const tentMarks = new THREE.Group(); scene.add(tentMarks);
   function addSpot(sp, zone) {
@@ -122,13 +150,16 @@ export function createProductie(deps) {
     sp.sol = solid(sp.x - (sp.ry ? 0.5 : 0.6), sp.x + (sp.ry ? 0.5 : 0.6), sp.z - (sp.ry ? 0.6 : 0.5), sp.z + (sp.ry ? 0.6 : 0.5)); sp.sol.off = true;
     for (let lv = 0; lv < sp.levels; lv++) {
       const g = new THREE.Group(); g.position.set(sp.x, 0, sp.z); g.rotation.y = sp.ry; g.visible = false; scene.add(g);
-      const deck = new THREE.Mesh(geo('deck', () => new THREE.BoxGeometry(1.2, 0.045, 1.0)), mt(0xc49a62)); deck.position.y = 0.125; g.add(deck);
-      const feet = new THREE.Mesh(geo('feet', () => new THREE.BoxGeometry(1.12, 0.1, 0.92)), mt(0x8a6438)); feet.position.y = 0.05; g.add(feet);
+      const deck = new THREE.Mesh(geo('deck', () => new THREE.BoxGeometry(1.2, 0.045, 1.0)), deckMat); deck.position.y = 0.125; deck.castShadow = true; g.add(deck);
+      for (const z of [-0.44, 0, 0.44]) { const st = new THREE.Mesh(geo('stringer', () => new THREE.BoxGeometry(1.2, 0.085, 0.1)), mt(0x9a7444)); st.position.set(0, 0.06, z); g.add(st); }
+      const base = new THREE.Mesh(geo('pbase', () => new THREE.BoxGeometry(1.2, 0.02, 1.0)), mt(0x8a6438)); base.position.y = 0.012; g.add(base);
+      const wrapV = new THREE.Mesh(geo('wrapV', () => new THREE.BoxGeometry(1.17, 0.62, 1.07)), wrapMat); wrapV.position.y = 0.5; wrapV.visible = false; g.add(wrapV); // stretch film round a full pallet
+      const wrapB = new THREE.Mesh(geo('wrapB', () => new THREE.BoxGeometry(1.16, 0.4, 0.98)), wrapMat); wrapB.position.y = 0.35; wrapB.visible = false; wrapB.rotation.y = -sp.ry; g.add(wrapB);
       const vats = [], bags = [];
-      for (let k = 0; k < 4; k++) { const v = makeVat('paprika'); v.position.set(k % 2 ? 0.28 : -0.28, 0.15, k < 2 ? -0.24 : 0.24); v.rotation.y = -sp.ry + (k - 1.5) * 0.12 + LID_TURN; g.add(v); vats.push(v); }
-      for (let k = 0; k < 8; k++) { const b = makeBag('kip'); if (sp.ry) b.position.set(k % 2 ? 0.27 : -0.27, 0.215 + (k >> 2) * 0.135, (k >> 1) % 2 ? 0.255 : -0.255); else b.position.set(k % 2 ? 0.29 : -0.29, 0.215 + (k >> 2) * 0.135, (k >> 1) % 2 ? 0.24 : -0.24);
+      for (let k = 0; k < 4; k++) { const v = makeVat('paprika'); v.position.set(k % 2 ? 0.29 : -0.29, 0.15, k < 2 ? -0.25 : 0.25); v.rotation.y = -sp.ry + (k - 1.5) * 0.12 + LID_TURN; g.add(v); vats.push(v); }
+      for (let k = 0; k < 8; k++) { const b = makeBag('kip'); const u = k % 2 ? 0.285 : -0.285, w2 = (k >> 1) % 2 ? 0.225 : -0.225, y = 0.24 + (k >> 2) * 0.182; if (sp.ry) b.position.set(w2 * 1.02, y, u * 0.96); else b.position.set(u, y, w2);
         b.rotation.y = -sp.ry + ((k * 7) % 5 - 2) * 0.03; /* the label reads from the door side */ g.add(b); bags.push(b); }
-      places.push({ g, vats, bags, spot: sp, level: lv, shed, zone, load: null });
+      places.push({ g, vats, bags, wrapV, wrapB, spot: sp, level: lv, shed, zone, load: null });
     }
   }
   SHED_SPOTS.forEach((s) => addSpot(s, 'shed')); HALL_SPOTS.forEach((s) => addSpot(s, 'hall')); FEED_SPOTS.forEach((s) => addSpot(s, 'feed')); addSpot(OUT_SPOT, 'out'); UIT_SPOTS.forEach((s) => addSpot(s, 'uit')); TENT_SPOTS.forEach((s) => addSpot(s, 'tent'));
@@ -137,7 +168,7 @@ export function createProductie(deps) {
   const shedPlaces = zone('shed'), hallPlaces = zone('hall');
   // floor stencils in De Hal
   for (const [t, x, z, w] of [['AANVOER', HX - 3.95, HZ + 0.25, 2.4], ['UIT', HX + 3.0, HZ - 1.85, 1.0], ['UITGAAND', HX + 9.25, HZ - 2.9, 2.6]]) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.34), new THREE.MeshBasicMaterial({ map: deps.signTex([{ t, size: 60 }], 'rgba(0,0,0,0)', '#f2b21a', 64 * Math.round(w * 4), 96), transparent: true, depthWrite: false }));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.34), new THREE.MeshBasicMaterial({ map: canvasTex(64 * Math.round(w * 4), 96, (g, cw, ch) => { g.clearRect(0, 0, cw, ch); g.fillStyle = '#f2b21a'; g.font = '900 64px Arial'; g.textAlign = 'center'; g.fillText(t, cw / 2, 72, cw - 12); }), transparent: true, depthWrite: false }));
     m.rotation.x = -Math.PI / 2; if (t === 'UITGAAND') m.rotation.z = Math.PI / 2; m.position.set(x, 0.032, z); hallMarks.add(m);
   }
   // a little OPSLAG sign on a post at the north end of the row
@@ -181,7 +212,8 @@ export function createProductie(deps) {
     for (const pl of places) {
       const l = pl.load; pl.g.visible = !!l && (pl.shed || (pl.zone === 'tent' ? tent : hall)); if (!l) continue;
       const under = pl.level ? places.find((x) => x.spot === pl.spot && x.level === 0).load : null;
-      pl.g.position.y = under ? (under.vats ? 0.82 : 0.2 + Math.ceil(under.bags.length / 4) * 0.135) : 0;
+      pl.g.position.y = under ? (under.vats ? 1.06 : 0.16 + Math.ceil(under.bags.length / 4) * 0.182) : 0;
+      pl.wrapV.visible = !!(l.vats && l.vats.length === 4) && pl.zone !== 'feed'; pl.wrapB.visible = !!(l.bags && l.bags.length === 8) && pl.zone !== 'out';
       pl.vats.forEach((v, k) => { v.visible = !!(l.vats && l.vats[k]); if (v.visible) v.userData.set(l.vats[k]); });
       pl.bags.forEach((bg, k) => { bg.visible = !!(l.bags && l.bags[k]); if (bg.visible) bg.userData.set(l.bags[k]); });
     }
@@ -296,6 +328,33 @@ export function createProductie(deps) {
   const packSol = solid(PX - 0.5, PX + 0.5, PZ - 0.85, PZ + 0.85); packSol.off = true;
   const machSol = solid(PX - 0.55, PX + 0.5, PZ - 1.15, PZ + 1.0); machSol.off = true;
 
+  // ================================================================== dressing: spice dust on the floor, hazard lines, big bags, empty pallets
+  const dustTex = canvasTex(256, 256, (g) => { g.clearRect(0, 0, 256, 256); let r = 7; const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+    for (let i = 0; i < 260; i++) { const a = rnd() * 6.283, d = Math.pow(rnd(), 0.7) * 118, x = 128 + Math.cos(a) * d, y = 128 + Math.sin(a) * d, rad = 6 + rnd() * 22, k = 1 - d / 125; const gr = g.createRadialGradient(x, y, 0, x, y, rad); const c = [[226, 110, 30], [194, 65, 45], [226, 162, 26], [138, 90, 42]][i % 4]; gr.addColorStop(0, `rgba(${c},${0.2 * k})`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+    g.fillStyle = 'rgba(120,70,30,.28)'; for (let i = 0; i < 26; i++) { const a = rnd() * 6.283, d = 30 + rnd() * 80; g.save(); g.translate(128 + Math.cos(a) * d, 128 + Math.sin(a) * d); g.rotate(rnd() * 6.3); g.beginPath(); g.ellipse(0, 0, 3.2, 6.5, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(0, -9, 2.6, 2.6, 0, 0, 7); g.fill(); g.restore(); } // bootprints
+  });
+  const dustMat = new THREE.MeshBasicMaterial({ map: dustTex, transparent: true, depthWrite: false });
+  const hazTex = canvasTex(256, 256, (g) => { g.clearRect(0, 0, 256, 256); g.save(); g.beginPath(); g.rect(0, 0, 256, 256); g.rect(14, 14, 228, 228); g.clip('evenodd'); for (let i = -256; i < 512; i += 28) { g.fillStyle = '#f2b21a'; g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 14, 0); g.lineTo(i + 270, 256); g.lineTo(i + 256, 256); g.fill(); g.fillStyle = '#1a1a1a'; g.beginPath(); g.moveTo(i + 14, 0); g.lineTo(i + 28, 0); g.lineTo(i + 284, 256); g.lineTo(i + 270, 256); g.fill(); } g.restore(); });
+  const flat = (w, d, m, y) => { const q = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); q.rotation.x = -Math.PI / 2; q.position.y = y; q.visible = false; scene.add(q); return q; };
+  const dustMix = flat(5.6, 5.6, dustMat, 0.05), dustPack = flat(3.6, 3.6, dustMat, 0.051), hazard = flat(1, 1, new THREE.MeshBasicMaterial({ map: hazTex, transparent: true, depthWrite: false }), 0.048);
+  const bigTex = (id) => canvasTex(256, 256, (g) => { const col = '#' + (ING_COL[id] ?? 0xb08a4a).toString(16).padStart(6, '0');
+    g.fillStyle = '#ece8dc'; g.fillRect(0, 0, 256, 256); g.globalAlpha = 0.16; g.strokeStyle = '#8a8474'; for (let i = 0; i < 256; i += 5) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 256); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(256, i); g.stroke(); } g.globalAlpha = 1;
+    g.fillStyle = col; g.fillRect(0, 196, 256, 22); g.fillStyle = '#1a2f6a'; g.textAlign = 'center'; g.font = '900 34px Arial'; g.fillText("EDDY'S", 128, 70); g.fillStyle = '#2a1a0e'; g.font = '900 30px Arial'; g.fillText(ingName(id).toUpperCase(), 128, 120); g.font = '700 22px Arial'; g.fillText('BIG BAG · 500 KG', 128, 160); });
+  function bigBag(id, x, z, parent) { // a woven big bag on a pallet: the bulk the Groothandel delivers
+    const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+    const d = new THREE.Mesh(geo('deck', () => new THREE.BoxGeometry(1.2, 0.045, 1.0)), deckMat); d.position.y = 0.125; g.add(d); box(1.12, 0.1, 0.92, mt(0x8a6438), 0, 0.05, 0, g, false);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.05, 0.92), lam({ map: bigTex(id) })); b.position.y = 0.68; b.castShadow = true; g.add(b);
+    cyl(0.4, 0.46, 0.06, mt(ING_COL[id] ?? 0xb08a4a), 0, 1.22, 0, g, 14);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const l = box(0.06, 0.28, 0.02, mt(0x2a5aa8), sx * 0.44, 1.3, sz * 0.4, g, false); l.rotation.z = sx * 0.35; }
+    return g;
+  }
+  function palletStack(n, x, z, parent, ry = 0) { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; parent.add(g); for (let k = 0; k < n; k++) { const d = new THREE.Mesh(geo('deck', () => new THREE.BoxGeometry(1.2, 0.045, 1.0)), deckMat); d.position.set(((k * 7) % 3 - 1) * 0.015, 0.125 + k * 0.145, ((k * 5) % 3 - 1) * 0.015); d.castShadow = true; g.add(d); box(1.14, 0.1, 0.94, mt(0x8a6438), d.position.x, 0.05 + k * 0.145, d.position.z, g, false); } return g; }
+  const hallDress = new THREE.Group(); hallDress.visible = false; scene.add(hallDress);
+  [['paprika', -10.1, 6.2], ['komijn', -8.8, 6.2], ['knoflook', -10.1, 5.0]].forEach(([id, x, z]) => bigBag(id, HX + x, HZ + z, hallDress));
+  palletStack(9, HX + 9.9, HZ + 6.1, hallDress); palletStack(5, HX + 8.5, HZ + 6.2, hallDress, 0.12);
+  const hallDressSol = [solid(HX - 10.75, HX - 8.15, HZ + 4.45, HZ + 6.75), solid(HX + 7.85, HX + 10.55, HZ + 5.55, HZ + 6.75)]; hallDressSol.forEach((x) => { x.off = true; });
+  const shedDress = palletStack(6, -10.25, -7.85, scene); shedDress.visible = false; const shedDressSol = solid(-10.9, -9.6, -8.4, -7.3); shedDressSol.off = true;
+
   // ================================================================== the production board on the back wall
   const boardCv = document.createElement('canvas'); boardCv.width = 640; boardCv.height = 256;
   const boardTex = new THREE.CanvasTexture(boardCv); boardTex.colorSpace = THREE.SRGBColorSpace;
@@ -323,7 +382,7 @@ export function createProductie(deps) {
 
   // ================================================================== Eddy helps
   const held = new THREE.Group(); held.position.set(0, 1.0, 0.44); held.visible = false; player.add(held);
-  const heldVat = makeVat('paprika'); heldVat.children.forEach((c) => { c.position.y -= 0.3; }); held.add(heldVat);
+  const heldVat = makeVat('paprika'); heldVat.scale.setScalar(0.85); heldVat.children.forEach((c) => { c.position.y -= 0.41; }); held.add(heldVat);
   const heldBag = makeBag('kip'); held.add(heldBag);
   let hold = null; // {kind: 'vat'|'zak', id}
   const setHold = (h) => { hold = h; held.visible = !!h; heldVat.visible = !!h && h.kind === 'vat'; heldBag.visible = !!h && h.kind === 'zak'; if (h && h.kind === 'vat') heldVat.userData.set(h.id); if (h && h.kind === 'zak') heldBag.userData.set(h.id); };
@@ -373,7 +432,7 @@ export function createProductie(deps) {
     if (!state.table) return [];
     const p = P(), T = target(), out = [], pa = pourAt(), sa = scoopAt(), t = TIER[tier()], hall = inHall(), area = hall ? 'hall' : 'shed', spots = hall ? FEED_SPOTS : SHED_SPOTS;
     if (p.vat < T - 0.01) for (const sp of vatSpots()) { const s = standAt(sp), top = topOf(sp);
-      out.push({ key: `vat${spots.indexOf(sp)}`, prod: 'vat', carry: 'vat', kind: 'vat', area, far: true, x: s.x, z: s.z, fx: sp.x, fz: sp.z, h: top.level ? 'mid' : 'floor', grab: true,
+      out.push({ key: `vat${spots.indexOf(sp)}`, prod: 'vat', carry: hall ? 'kar' : 'vat', kind: 'vat', area, far: true, x: s.x, z: s.z, fx: sp.x, fz: sp.z, h: top.level ? 'mid' : 'floor', grab: true,
         onGrab: () => { const b = blend(econ.ensure().order), need = b.mix ? Object.keys(b.mix) : []; carryVat = top.load.vats.slice().reverse().find((v) => need.includes(v)) || top.load.vats[top.load.vats.length - 1] || 'paprika'; P().vat += VAT_KG; if (hall) P().feed = Math.max(0, (P().feed || 0) - 1); sig = ''; return ING_COL[carryVat]; } }); }
     out.push({ key: 'menger', prod: 'mixer', kind: 'machine', area, far: true, x: pa.x, z: pa.z, fx: pa.x, fz: pa.z - 1, h: 'pour', pour: true, ty: t.ty, onPour: () => { P().mix += VAT_KG; } });
     if (p.mix >= BAG_KG && p.sc < T - 0.01) out.push({ key: 'schep', prod: 'scoop', carry: 'emmer', kind: 'machine', area, far: true, x: sa.x, z: sa.z, fx: MX, fz: sa.z, h: 'mid', grab: true, onGrab: () => { const q = P(); q.mix = Math.max(0, q.mix - BAG_KG); q.sc += BAG_KG; return 0xd0742a; } });
@@ -383,6 +442,13 @@ export function createProductie(deps) {
     } else out.push({ key: 'inpak', prod: 'pack', kind: 'machine', area, far: true, x: PX - 0.95, z: PZ, fx: PX, fz: PZ, h: 'mid' });
     const os = outSpot(), s = standAt(os), top = topOf(os);
     out.push({ key: 'uit', prod: 'out', kind: 'pile', area, far: true, x: s.x, z: s.z, fx: os.x, fz: os.z, h: top && top.level ? 'mid' : 'floor', onDrop: () => { P().out += BAG_KG; sig = ''; } });
+    if (hall) { // hauling: a wrapped pallet on the hand pallet truck, from the shed or the tent to the hall floor or the racking
+      const srcs = [...SHED_SPOTS, ...TENT_SPOTS].filter((sp) => { const tp = topOf(sp); return tp && tp.g.visible && tp.load.vats && tp.load.vats.length === 4 && tp.level === 0 && places.filter((x) => x.spot === sp && x.load).length === 1; });
+      srcs.slice(0, 6).forEach((sp) => { const st = standAt(sp), sd = sp.zone === 'tent' ? 0.5 : 0; out.push({ key: `haulA${ALL_SPOTS.indexOf(sp)}`, prod: 'haulA', carry: 'jack', kind: 'pallet', area, far: true, x: st.x - (sp.zone === 'tent' ? 0 : 0.5), z: st.z - sd, fx: sp.x, fz: sp.z, h: 'mid', grab: true, onGrab: () => { haulIds = topOf(sp) ? topOf(sp).load.vats.slice() : []; return ING_COL[haulIds[0]]; } }); });
+      const bays = loods.bays || [], n = loods.ensure().racks;
+      for (let i = 1; i < Math.min(n, 7); i++) { const f = bays[i].front; out.push({ key: `haulB${i}`, prod: 'haulB', kind: 'rack', area, far: true, x: f.x, z: f.z + 1.75, fx: f.x, fz: f.z, h: 'mid' }); }
+      HALL_SPOTS.forEach((sp, i) => { const st = standAt(sp); out.push({ key: `haulH${i}`, prod: 'haulB', kind: 'pallet', area, far: true, x: st.x, z: st.z - 0.6, fx: sp.x, fz: sp.z, h: 'mid' }); });
+    }
     return out;
   }
   const lineBusy = () => state.table && P().out < target() - 0.01;
@@ -415,6 +481,8 @@ export function createProductie(deps) {
       mixers.forEach((g, i) => { g.position.set(MX, 0, MZ); setSol(mixSol[i], MX - TIER[i].rx, MX + TIER[i].rx, MZ - TIER[i].rz, MZ + TIER[i].rz); });
       table.position.set(PX, 0, PZ); mach.position.set(PX, 0, PZ); setSol(packSol, PX - 0.5, PX + 0.5, PZ - 0.85, PZ + 0.85); setSol(machSol, PX - 0.55, PX + 0.5, PZ - 1.15, PZ + 1.0); sig = '';
       mixers.forEach((g, i) => { g.visible = on && i === tr; mixSol[i].off = !(on && i === tr); });
+      dustMix.visible = dustPack.visible = hazard.visible = on; dustMix.position.set(MX, 0.05, MZ + 0.5); dustPack.position.set(PX - 0.4, 0.051, PZ); hazard.position.set(MX, 0.048, MZ); hazard.scale.set(TIER[tr].rx * 2 + 0.7, TIER[tr].rz * 2 + 0.7, 1);
+      hallDress.visible = hl; hallDressSol.forEach((x) => { x.off = !hl; }); shedDress.visible = on; shedDressSol.off = !on;
       table.visible = on && !mc; packSol.off = !(on && !mc); mach.visible = on && mc; machSol.off = !(on && mc); board.visible = on;
     }
     if (deps.away()) { if (hold) setHold(null); return; }

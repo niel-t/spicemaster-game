@@ -23,6 +23,7 @@ const POSE = {
   high: { on: 1, lo: 0.66, ax: -2.55, ay: 0.28, el: 0.35, sp: -0.1, cr: 0 },
   pour: { on: 1, lo: 0.66, ax: -2.05, ay: 0.42, el: 1.05, sp: -0.06, cr: 0 },
   stir: { on: 1, lo: 0.66, ax: -1.4, ay: 0.38, el: 0.85, sp: 0.22, cr: 0 }, // hands at shoulder height: the tables come up to a Naknik's chest
+  push: { on: 1, lo: 0.66, ax: -0.95, ay: 0.16, el: 0.35, sp: 0.2, cr: 0 }, // both hands on the handle of a steekwagen or a pallet truck
   pack: { on: 1, lo: 0.66, ax: -1.25, ay: 0.46, el: 1.05, sp: 0.26, cr: 0 }, // scooping blend into a blue bag at the packing table
 };
 const KEYS = ['on', 'lo', 'ax', 'ay', 'el', 'sp', 'cr'];
@@ -216,7 +217,7 @@ export function createNaknikWork(deps) {
     const a = n.userData.arms; a[0].updateWorldMatrix(true, false); a[1].updateWorldMatrix(true, false);
     fist.set(0, -0.68, 0.05).applyMatrix4(a[0].matrixWorld); fist2.set(0, -0.68, 0.05).applyMatrix4(a[1].matrixWorld);
   }
-  const hold = (W, kind) => { for (const [k, m] of Object.entries(W.carry)) m.visible = k === (W.carry[kind] ? kind : 'sack'); if (W.carry[kind] && W.carry[kind].userData.paint) W.carry[kind].userData.paint(); };
+  const hold = (W, kind) => { const kk = W.carry[kind] ? kind : 'sack'; W.floor = W.carry[kk].userData.floor || 0; for (const [k, m] of Object.entries(W.carry)) m.visible = k === kk; if (W.carry[kind] && W.carry[kind].userData.paint) W.carry[kind].userData.paint(); };
   const pace = (n) => (deps.pace ? deps.pace(n) : null) || { speed: 1, rest: 1 }; // Tempo and Werkethiek of this Naknik (js/crew.js)
   function release(W) { for (const k of W.keys) busy.delete(k); W.keys = []; }
   function reserve(W, n, key) { if (!key) return true; if (busy.has(key) && busy.get(key) !== n) return false; busy.set(key, n); W.keys.push(key); return true; }
@@ -248,9 +249,10 @@ export function createNaknikWork(deps) {
     if (Ln.scoop && Ln.pack && Ln.out) lk.push('l-pack', 'l-pack');
     if (Ln.scoop && Ln.hopper) lk.push('l-feed', 'l-feed');
     if (Ln.belt && Ln.out) lk.push('l-belt', 'l-belt', 'l-belt');
+    if (Ln.haulA && Ln.haulB) lk.push('l-haul');
     if (lk.length && (Math.random() < 0.8 || !kinds.length)) {
       const kd = pick(lk), one = (a) => a[Math.floor(Math.random() * a.length)];
-      const steps = kd === 'l-vat' ? [[one(Ln.vat), 'grab'], [Ln.mixer[0], 'pour']] : kd === 'l-pack' ? [[Ln.scoop[0], 'grab'], [Ln.pack[0], 'pack'], [Ln.out[0], 'drop']] : kd === 'l-feed' ? [[Ln.scoop[0], 'grab'], [Ln.hopper[0], 'pour']] : [[Ln.belt[0], 'grab'], [Ln.out[0], 'drop']];
+      const steps = kd === 'l-vat' ? [[one(Ln.vat), 'grab'], [Ln.mixer[0], 'pour']] : kd === 'l-pack' ? [[Ln.scoop[0], 'grab'], [Ln.pack[0], 'pack'], [Ln.out[0], 'drop']] : kd === 'l-feed' ? [[Ln.scoop[0], 'grab'], [Ln.hopper[0], 'pour']] : kd === 'l-haul' ? [[one(Ln.haulA), 'grab'], [one(Ln.haulB), 'drop']] : [[Ln.belt[0], 'grab'], [Ln.out[0], 'drop']];
       if (steps.every(([s]) => reserve(W, n, s.key))) {
         const plan = []; for (const [s, act] of steps) plan.push({ go: s }, { act, s });
         plan.push({ go: { x: home.x, z: home.z, fx: bowl.x, fz: bowl.z, home: true } });
@@ -342,8 +344,8 @@ export function createNaknikWork(deps) {
     W.st += dt;
     const next = () => { W.plan.shift(); W.step = null; W.path = null; };
     if (s.go) {
-      if (W.pose !== 'carry') setPose(W, W.sack.visible ? 'carry' : 'none');
-      if (walk(n, W, dt, (W.sack.visible ? 1.5 : 1.9) * pace(n).speed)) {
+      setPose(W, W.sack.visible ? (W.floor ? 'push' : 'carry') : 'none');
+      if (walk(n, W, dt, (W.sack.visible ? (W.floor ? 1.25 : 1.5) : 1.9) * pace(n).speed)) {
         if (face(n, s.go.fx, s.go.fz, dt, 8) < 0.15 || W.st > 30) { if (s.go.home) { release(W); W.t = rnd(7, 18) * pace(n).rest * (deps.lineBusy && deps.lineBusy() ? 0.2 : 1); } next(); }
         else animate(n, 0, dt);
       }
@@ -364,7 +366,7 @@ export function createNaknikWork(deps) {
     const st = s.s; face(n, st.fx, st.fz, dt, 8); animate(n, 0, dt);
     const h = (s.act === 'grab' ? st.hg : st.hs) || st.h || 'mid';
     if (s.act === 'grab') {
-      setPose(W, W.st < 0.85 ? h : 'carry');
+      setPose(W, W.st < 0.85 ? h : W.floor ? 'push' : 'carry');
       if (W.st > 0.5 && !W.sack.visible) { W.sack.visible = true; W.sackCol = st.col || pick(SPICE); if (st.onGrab) { const c = st.onGrab(W); if (c) W.sackCol = c; } hold(W, st.carry || 'sack'); }
       if (W.st > 1.25) next();
     } else if (s.act === 'store' || s.act === 'drop') {
@@ -377,6 +379,7 @@ export function createNaknikWork(deps) {
       if (W.st >= 3.0 && !W.sack.visible) { W.sack.visible = true; hold(W, 'zak'); if (st.onPack) st.onPack(n); }
       if (W.st > 3.5) next();
     } else if (s.act === 'pour') {
+      if (W.floor) hold(W, 'vat'); // off the steekwagen: he lifts the vat to tip it
       setPose(W, W.st < 2.1 ? 'pour' : 'none');
       W.tilt = W.st > 0.6 && W.st < 2.0 ? Math.min(1, (W.st - 0.6) * 3) : Math.max(0, W.tilt - dt * 4);
       if (W.st > 0.8 && W.st < 1.9 && !W.poured) { W.poured = true; tmp.copy(W.sack.position); n.localToWorld(tmp); pourStream(tmp.setY(tmp.y - 0.08), st.ty || 1.0, W.sackCol, 1.1); if (st.onPour) st.onPour(n); if (deps.onPour) deps.onPour(n, st); }
@@ -398,7 +401,8 @@ export function createNaknikWork(deps) {
     const stirring = (W.pose === 'stir' && !W.plan.length) || (W.pose === 'ketel' && W.circling);
     if (!W.sack.visible && !stirring) { W.paddle.visible = false; return; }
     hands(n);
-    if (W.sack.visible) {
+    if (W.sack.visible && W.floor) { W.sack.position.set(0, 0, W.floor); W.sack.rotation.set(0, 0, 0); W.sack.userData.set = false; } // it rolls on the floor in front of him
+    else if (W.sack.visible) {
       tmp.addVectors(fist, fist2).multiplyScalar(0.5);
       const fw = new THREE.Vector3(Math.sin(n.rotation.y), 0, Math.cos(n.rotation.y));
       tmp.addScaledVector(fw, 0.1); tmp.y -= W.pose === 'high' || W.pose === 'pour' ? -0.06 : 0.05;
