@@ -25,8 +25,8 @@ export const UPGRADES = [
   { id: 'inpak', name: 'Inpakmachine', what: 'An automatic bagging line instead of the packing table: it fills, seals and labels the blue bags and rolls them out on a belt. Nobody stands scooping any more: +5 kg per Naknik a market day.', cost: 3000, days: 2, rank: 1, need: ['menger1'] },
   { id: 'roldeur', name: 'Stalen roldeur + camera', what: 'A steel roller door and a camera over the entrance. A raid on the warehouse steals half as much.', cost: 1800, days: 1, rank: 1, need: ['junk'] },
   { id: 'kavel', name: 'Bouwkavel', what: 'The empty plot behind the shed, TE KOOP for years. Buy it and the warehouse can grow onto it: De Hal first, De Overkapping later.', cost: 2500, days: 1, rank: 1, need: ['junk'] },
-  { id: 'hal', name: 'De Hal', what: 'A steel portal hall on the plot, through a new doorway in the shed\'s back wall: room for 6 racking bays, a dock door and a second mixing table. 5 pallet places on the floor (+100 kg).', cost: 6000, days: 3, rank: 1, need: ['kavel', 'rek', 'menger1'], stage: 2 },
-  { id: 'heftruck', name: 'Heftruck', what: 'A second-hand forklift for the hall. Buy bulk pallet deals (30% under the Kruidenbeurs) and rack them yourself.', cost: 2500, days: 1, rank: 1, need: ['hal'] },
+  { id: 'hal', name: 'De Hal', what: 'A steel portal hall on the plot, through a new doorway in the shed\'s back wall: room for 6 racking bays, a dock door and a second mixing table. The production line moves onto the hall floor: mixer, packing, pallets in and out. 5 pallet places on the floor (+100 kg).', cost: 6000, days: 3, rank: 1, need: ['kavel', 'rek', 'menger1'], stage: 2 },
+  { id: 'heftruck', name: 'Heftruck', what: 'A second-hand forklift for the hall. Buy bulk pallet deals (30% under the Kruidenbeurs) and rack them yourself. A Naknik on it keeps the line going: pallets of vaten from the racking to the mixer, full pallets of bags to the dock.', cost: 2500, days: 1, rank: 1, need: ['hal'] },
   { id: 'tafel2', name: 'Tweede mengtafel', what: 'A second mixing table in the hall: room for 2 more Naknikim at home.', cost: 2500, days: 2, rank: 1, need: ['hal'] },
   { id: 'molen', name: 'Kruidenmolen', what: 'A stone spice mill: the Naknikim grind everything fresh. Blends come out half a star better.', cost: 3500, days: 2, rank: 2, need: ['menger1'] },
   { id: 'menger2', name: 'Industriële menger', what: 'A stainless ribbon blender replaces the drum mixer: 20 kg per Naknik a day, and half the mistakes.', cost: 5000, days: 3, rank: 2, need: ['menger1', 'hal'] },
@@ -326,8 +326,8 @@ export function createLoods(deps) {
   const filled = new Set(); let hint = -1;
   const openSlots = () => bays.slice(0, ensure().racks).flatMap((b, bi) => b.slots.map((s, si) => bi * 6 + si));
   function refreshSlots() {
-    const open = openSlots(), cap = econ.cap(), tot = econ.stockTotal();
-    const want = Math.min(open.length, Math.round(open.length * Math.min(1, tot / Math.max(1, cap)) * 1.15));
+    const open = openSlots(), cap = econ.cap(), tot = econ.stockTotal(), fl = deps.floorKg ? deps.floorKg() : null; // the floor places fill first (js/productie.js), the racking holds the rest
+    const want = fl === null ? Math.min(open.length, Math.round(open.length * Math.min(1, tot / Math.max(1, cap)) * 1.15)) : Math.max(0, Math.min(open.length, Math.ceil((tot - fl) / 20 - 0.001)));
     for (const k of [...filled]) if (!open.includes(k)) filled.delete(k);
     while (filled.size > want) filled.delete(filled.values().next().value); // the oldest pallet goes first
     while (filled.size < want) { const k = hint >= 0 && open.includes(hint) && !filled.has(hint) ? hint : open.find((x) => !filled.has(x)); if (k === undefined) break; filled.add(k); hint = -1; }
@@ -361,7 +361,7 @@ export function createLoods(deps) {
     if (j.id === 'rek') L.racks++; else L.built[j.id] = day();
     if (j.id === 'heftruck') { F.x = HX + 4.5; F.z = HZ + 4.2; F.h = Math.PI / 2; }
     apply(); deps.save();
-    const msg = { inpak: 'The Inpakmachine hums by the door: blue bags roll off the belt, labelled and all.', menger3: 'De Reuzenmenger is in. The Naknikim need the steps to tip their vaten.', rek: `Bay ${L.racks} of the racking is up: 6 pallet places (+${RACK_KG} kg).${L.racks === 1 ? ' Your stock now shows as pallets on it.' : ''}`, hal: 'The back wall is gone: De Hal is yours. Go through the new door at the back of the shed.', heftruck: 'The heftruck is parked in the hall. Pallet deals are open on the Loods tab.', tent: "De Overkapping stands. Eddy's Groothandel: a real trader's warehouse." }[j.id] || u.what;
+    const msg = { inpak: 'The Inpakmachine hums by the door: blue bags roll off the belt, labelled and all.', menger3: 'De Reuzenmenger is in. The Naknikim need the steps to tip their vaten.', rek: `Bay ${L.racks} of the racking is up: 6 pallet places (+${RACK_KG} kg).${L.racks === 1 ? ' Your stock now shows as pallets on it.' : ''}`, hal: 'The back wall is gone: De Hal is yours, and the mixer and the packing stand on its floor now. Go through the new door at the back of the shed.', heftruck: 'The heftruck is parked in the hall. Pallet deals are open on the Loods tab.', tent: "De Overkapping stands. Eddy's Groothandel: a real trader's warehouse." }[j.id] || u.what;
     deps.toast('VERBOUWING KLAAR', `${u.name}: ${msg}`, 5);
   }
   function apply() { // show what's built
@@ -438,13 +438,28 @@ export function createLoods(deps) {
     const bi = freeBay(); if (bi < 0 || econ.space() < p.kg) return false;
     const d = DOCK_SPOTS[p.spot], b = bays[bi], aisle = b.front.z + 2.7, park = LV(4.5, 4.2);
     A.p = p; A.bay = bi; A.who = crewName(); A.phase = 'go';
-    A.path = [{ x: d[0] - 3.2, z: d[1] }, { x: d[0] - 2.05, z: d[1], h: Math.PI / 2, act: 'lift' }, { x: d[0] - 3.4, z: d[1], rev: true },
-      { x: b.front.x, z: aisle }, { x: b.front.x, z: b.front.z + 1.3, h: Math.PI, act: 'rack' }, { x: b.front.x, z: aisle, rev: true }, { x: park.x, z: park.z, h: Math.PI / 2, act: 'park' }];
+    A.path = [{ x: d[0] - 3.2, z: d[1] }, { x: d[0] - 2.05, z: d[1], h: Math.PI / 2, act: 'lift' }, { x: d[0] - 3.4, z: d[1], rev: true }, { x: d[0] - 3.4, z: aisle }, // along the aisle: the production line stands in the middle of the hall
+      { x: b.front.x, z: aisle }, { x: b.front.x, z: b.front.z + 1.3, h: Math.PI, act: 'rack' }, { x: b.front.x, z: aisle, rev: true }, { x: park.x, z: aisle }, { x: park.x, z: park.z, h: Math.PI / 2, act: 'park' }];
     if (driver) driver.visible = true;
     return true;
   }
+  // an errand for the line (js/productie.js): fetch a pallet at `from`, set it down at `to`; both {x, z, h, back: {x, z}}
+  function forkJob(job) {
+    if (!autoOn() || F.drive || A.phase || !fork.visible || (ensure().dock.some(landed) && freeBay() >= 0)) return false;
+    const park = LV(4.5, 4.2), aisle = HZ - 3.05;
+    A.job = job; A.jc = false; A.who = crewName(); A.phase = 'job';
+    A.path = [{ x: park.x, z: aisle }, { x: job.from.back.x, z: job.from.back.z }, { x: job.from.x, z: job.from.z, h: job.from.h, act: 'jl' }, { x: job.from.back.x, z: job.from.back.z, rev: true },
+      { x: job.to.back.x, z: job.to.back.z }, { x: job.to.x, z: job.to.z, h: job.to.h, act: 'jd' }, { x: job.to.back.x, z: job.to.back.z, rev: true }, { x: park.x, z: aisle }, { x: park.x, z: park.z, h: Math.PI / 2, act: 'park' }];
+    if (driver) driver.visible = true;
+    return true;
+  }
+  function rackPick() { // a racked pallet the heftruck can fetch for the mixer
+    const L = ensure(); for (let i = 1; i < L.racks; i++) { const b = bays[i], si = b.slots.findIndex((sl, k) => filled.has(i * 6 + k)); if (si >= 0) return { x: b.front.x, z: b.front.z + 1.3, h: Math.PI, back: { x: b.front.x, z: b.front.z + 2.7 } }; }
+    return null;
+  }
   function autoStop() { // Eddy takes over: the pallet goes back to the dock
     if (!A.phase) return; A.phase = null; A.path = [];
+    if (A.job) { const j = A.job; A.job = null; A.jc = false; carried.visible = false; if (j.onAbort) j.onAbort(); }
     if (F.carry) { F.carry = null; carried.visible = false; showDock(); }
     F.liftTo = 0.12; if (driver) driver.visible = false;
   }
@@ -468,6 +483,8 @@ export function createLoods(deps) {
       if (free < 0 || econ.space() < A.p.kg) { A.phase = 'back'; autoStop(); return; } // no room after all: it goes back to the dock
       rack({ i: A.bay, free }, true);
     }
+    if (w.act === 'jl' && A.job) { A.jc = true; carried.visible = true; carried.userData.load.material = mt(A.job.col || C.paprika); F.liftTo = 0.45; F.busy = 0.7; deps.beep(240, 0.2, 'sawtooth', 0.02); if (A.job.onLift) A.job.onLift(); }
+    if (w.act === 'jd' && A.job) { const j = A.job; A.job = null; A.jc = false; carried.visible = false; F.liftTo = 0.12; F.busy = 0.7; if (j.onDrop) j.onDrop(); }
     if (w.act === 'park') { A.phase = null; if (driver) driver.visible = false; }
   }
   function nightShift() { // racked overnight, so nothing waits at the dock for days
@@ -612,7 +629,7 @@ export function createLoods(deps) {
 
   apply();
   return {
-    workRooms, workStations, hallAt: [HX, HZ],
+    workRooms, workStations, hallAt: [HX, HZ], forkJob, rackPick,
     UPGRADES, ensure, boost, has, stage, naknikCap, html, bind, update, apply, order, finish, buyDeal, rollDeals, enterHall, leaveHall, getOn, getOff, forkAction,
     inside: () => inHall, driving: () => F.drive, fork: F, auto: A, nightShift, spots: () => SPOTS, bays, refreshSlots,
     camFocus: (p) => p.clone(), loaded: () => { F.drive = false; F.carry = null; carried.visible = false; apply(); },

@@ -2947,7 +2947,7 @@ function afterDrive(res) {
 }
 deviceHints();
 npcs = initNpcs({ tutorial, THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave(), debrief: (w) => !!(activists && activists.debrief(w)) });
-loods = createLoods({ tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
+loods = createLoods({ floorKg: () => (prod ? prod.floorKg() : null), tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), shutter,
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || oofDrive.active,
   away: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),

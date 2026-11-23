@@ -9,8 +9,8 @@
 // Eddy tipping a vat himself adds HELP_KG to tonight's batch (at most HELP_MAX a day); stacking bags cheers the crew up.
 import { PLACE_KG, GRADES } from './economy.js';
 
-const MX = -2.4, MZ = -15.5; // the mixer
-const PX = 0.3, PZ = -8.3; // the packing table / Inpakmachine, against the east wall by the roller door
+let MX = -2.4, MZ = -15.5; // the mixer (in the shed; it moves into De Hal once that is built)
+let PX = 0.3, PZ = -8.3; // the packing table / Inpakmachine, against the east wall by the roller door
 const SHED_SPOTS = [-15.0, -13.7, -12.4, -11.1, -9.8].map((z) => ({ x: 0.3, z, ry: Math.PI / 2, levels: 2, sx: -0.95, sz: 0 })); // east wall, stacked two high
 const LID_TURN = Math.PI / 2; // turns the lid label to read from the door side
 const VAT_KG = 5, BAG_KG = 2.5, HELP_KG = 5, HELP_MAX = 10, PEP_MAX = 5;
@@ -33,10 +33,19 @@ export function createProductie(deps) {
   const blend = (id) => econ.BLENDS.find((b) => b.id === id) || econ.BLENDS[0];
   const [HX, HZ] = loods.hallAt;
   const HALL_SPOTS = [0, 1, 2, 3, 4].map((k) => ({ x: HX + 0.9 + k * 1.3, z: HZ + 6.3, ry: 0, levels: 1, sx: 0, sz: -1.0 }));
+  // De Hal's line (Tristan 2026-11-23: scale up in the warehouse): the mixer and the packing stand on the hall floor, the heftruck sets
+  // pallets of vaten on the two AANVOER places by the mixer, full pallets of bags go from the UIT place to the three by the dock
+  const SITE = { shed: { mx: -2.4, mz: -15.5, px: 0.3, pz: -8.3 }, hall: { mx: HX - 1.0, mz: HZ + 0.3, px: HX + 3.0, pz: HZ + 1.2 } };
+  const AISLE = HZ - 3.05; // the heftruck's lane in front of the racking
+  const FEED_SPOTS = [-3.3, -4.6].map((x) => ({ x: HX + x, z: HZ - 0.5, ry: 0, levels: 1, sx: 0, sz: 1.0, stop: { x: HX + x, z: HZ - 2.4, h: 0, back: { x: HX + x, z: AISLE } } }));
+  const OUT_SPOT = { x: HX + 3.0, z: HZ - 1.0, ry: Math.PI / 2, levels: 1, sx: -0.95, sz: 0, stop: { x: HX + 3.0, z: HZ - 2.9, h: 0, back: { x: HX + 3.0, z: AISLE } } };
+  const UIT_SPOTS = [-1.6, -2.9, -4.2].map((z) => ({ x: HX + 10.2, z: HZ + z, ry: Math.PI / 2, levels: 1, sx: -0.95, sz: 0, stop: { x: HX + 8.3, z: HZ + z, h: Math.PI / 2, back: { x: HX + 7.0, z: HZ + z } } }));
+  const TENT_SPOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => ({ x: HX - 30 + k * 1.3, z: HZ + 6.3, ry: 0, levels: 1, sx: 0, sz: -1.0 }));
+  const inHall = () => loods.has('hal');
 
   function P() {
     const p = state.prod && typeof state.prod === 'object' ? state.prod : (state.prod = {});
-    if (p.day !== day()) Object.assign(p, { day: day(), vat: 0, sc: 0, out: 0, mix: Math.min(+p.mix || 0, 5), belt: 0, eddy: 0, pep: 0 });
+    if (p.day !== day()) Object.assign(p, { day: day(), vat: 0, sc: 0, out: 0, ship: 0, mix: Math.min(+p.mix || 0, 5), belt: 0, eddy: 0, pep: 0 });
     return p;
   }
   const helpKg = () => { const p = state.prod; return p && p.day === day() ? Math.min(HELP_MAX, (+p.eddy || 0) * HELP_KG) : 0; };
@@ -105,10 +114,11 @@ export function createProductie(deps) {
   // ================================================================== pallet places
   const places = []; // {g, vats[4], bags[8], spot, level, shed}
   const outline = canvasTex(64, 64, (g) => { g.clearRect(0, 0, 64, 64); g.strokeStyle = '#f2b21a'; g.lineWidth = 5; g.strokeRect(3, 3, 58, 58); });
-  const marks = new THREE.Group(); scene.add(marks); const hallMarks = new THREE.Group(); scene.add(hallMarks);
-  function addSpot(sp, shed) {
+  const marks = new THREE.Group(); scene.add(marks); const hallMarks = new THREE.Group(); scene.add(hallMarks); const tentMarks = new THREE.Group(); scene.add(tentMarks);
+  function addSpot(sp, zone) {
+    const shed = zone === 'shed'; sp.zone = zone;
     const m = new THREE.Mesh(geo('mark', () => new THREE.PlaneGeometry(1.34, 1.14)), geo('markM', () => new THREE.MeshBasicMaterial({ map: outline, transparent: true, depthWrite: false })));
-    m.rotation.x = -Math.PI / 2; m.rotation.z = sp.ry; m.position.set(sp.x, shed ? 0.045 : 0.03, sp.z); (shed ? marks : hallMarks).add(m);
+    m.rotation.x = -Math.PI / 2; m.rotation.z = sp.ry; m.position.set(sp.x, shed ? 0.045 : 0.03, sp.z); (shed ? marks : zone === 'tent' ? tentMarks : hallMarks).add(m);
     sp.sol = solid(sp.x - (sp.ry ? 0.5 : 0.6), sp.x + (sp.ry ? 0.5 : 0.6), sp.z - (sp.ry ? 0.6 : 0.5), sp.z + (sp.ry ? 0.6 : 0.5)); sp.sol.off = true;
     for (let lv = 0; lv < sp.levels; lv++) {
       const g = new THREE.Group(); g.position.set(sp.x, 0, sp.z); g.rotation.y = sp.ry; g.visible = false; scene.add(g);
@@ -118,11 +128,18 @@ export function createProductie(deps) {
       for (let k = 0; k < 4; k++) { const v = makeVat('paprika'); v.position.set(k % 2 ? 0.28 : -0.28, 0.15, k < 2 ? -0.24 : 0.24); v.rotation.y = -sp.ry + (k - 1.5) * 0.12 + LID_TURN; g.add(v); vats.push(v); }
       for (let k = 0; k < 8; k++) { const b = makeBag('kip'); if (sp.ry) b.position.set(k % 2 ? 0.27 : -0.27, 0.215 + (k >> 2) * 0.135, (k >> 1) % 2 ? 0.255 : -0.255); else b.position.set(k % 2 ? 0.29 : -0.29, 0.215 + (k >> 2) * 0.135, (k >> 1) % 2 ? 0.24 : -0.24);
         b.rotation.y = -sp.ry + ((k * 7) % 5 - 2) * 0.03; /* the label reads from the door side */ g.add(b); bags.push(b); }
-      places.push({ g, vats, bags, spot: sp, level: lv, shed, load: null });
+      places.push({ g, vats, bags, spot: sp, level: lv, shed, zone, load: null });
     }
   }
-  SHED_SPOTS.forEach((s) => addSpot(s, true)); HALL_SPOTS.forEach((s) => addSpot(s, false));
-  const shedPlaces = places.filter((p) => p.shed), hallPlaces = places.filter((p) => !p.shed);
+  SHED_SPOTS.forEach((s) => addSpot(s, 'shed')); HALL_SPOTS.forEach((s) => addSpot(s, 'hall')); FEED_SPOTS.forEach((s) => addSpot(s, 'feed')); addSpot(OUT_SPOT, 'out'); UIT_SPOTS.forEach((s) => addSpot(s, 'uit')); TENT_SPOTS.forEach((s) => addSpot(s, 'tent'));
+  const ALL_SPOTS = [...SHED_SPOTS, ...HALL_SPOTS, ...FEED_SPOTS, OUT_SPOT, ...UIT_SPOTS, ...TENT_SPOTS];
+  const zone = (z) => places.filter((p) => p.zone === z);
+  const shedPlaces = zone('shed'), hallPlaces = zone('hall');
+  // floor stencils in De Hal
+  for (const [t, x, z, w] of [['AANVOER', HX - 3.95, HZ + 0.25, 2.4], ['UIT', HX + 3.0, HZ - 1.85, 1.0], ['UITGAAND', HX + 9.25, HZ - 2.9, 2.6]]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.34), new THREE.MeshBasicMaterial({ map: deps.signTex([{ t, size: 60 }], 'rgba(0,0,0,0)', '#f2b21a', 64 * Math.round(w * 4), 96), transparent: true, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; if (t === 'UITGAAND') m.rotation.z = Math.PI / 2; m.position.set(x, 0.032, z); hallMarks.add(m);
+  }
   // a little OPSLAG sign on a post at the north end of the row
   { const s = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.42), lam({ map: deps.signTex([{ t: 'OPSLAG · 10 PALLETS', size: 34 }], '#f2b21a', '#1a1a1a', 512, 144) })); s.position.set(0.82, 2.9, -12.4); s.rotation.y = -Math.PI / 2; marks.add(s); }
 
@@ -136,9 +153,15 @@ export function createProductie(deps) {
     // taken today: one vat of each spice in the blend in turn
     let take = Math.min(vats.length, Math.floor((p.vat + 0.01) / VAT_KG)), turn = 0;
     while (take > 0) { const id = need.length ? need[turn++ % need.length] : null; let i = id ? vats.lastIndexOf(id) : -1; if (i < 0) i = vats.length - 1; vats.splice(i, 1); take--; if (turn > 400) break; }
+    const hall = inHall(), tent = loods.has('tent');
+    // De Hal: the vaten standing ready at the mixer (p.feed) come off the stock, tonight's spices first
+    let feed = []; if (hall) { if (p.feed === undefined) p.feed = 8; p.feed = Math.max(0, Math.min(p.feed, vats.length, 8)); feed = vats.splice(vats.length - p.feed, p.feed); }
+    spare = vats.length;
     const bags = []; for (const bl of econ.BLENDS) { const kg = econ.blendOf(bl.id).kg; for (let k = 0; k < Math.ceil(kg / BAG_KG - 0.01); k++) bags.push(bl.id); }
-    for (let k = 0; k < Math.floor((p.out + 0.01) / BAG_KG); k++) bags.push(b.id);
-    const hall = loods.has('hal'), s = `${vats.join()}|${bags.join()}|${hall}`;
+    const made = Math.floor((p.out + 0.01) / BAG_KG), shipped = hall ? Math.max(0, (p.ship || 0) - transit) * 8 : made;
+    for (let k = 0; k < Math.min(made, shipped); k++) bags.push(b.id);
+    const outBags = hall ? Array.from({ length: Math.max(0, Math.min(8, made - (p.ship || 0) * 8)) }, () => b.id) : [];
+    const s = `${vats.join()}|${bags.join()}|${hall}|${tent}|${feed.join()}|${outBags.length}`;
     if (s === sig) return; sig = s;
     const rawLoads = [], bagLoads = [];
     for (let i = 0; i < vats.length; i += 4) rawLoads.push({ vats: vats.slice(i, i + 4) });
@@ -146,23 +169,31 @@ export function createProductie(deps) {
     for (const pl of places) pl.load = null;
     const rawOrder = shedPlaces.slice(), bagOrder = [8, 9, 6, 7, 4, 5, 2, 3, 0, 1].map((i) => shedPlaces[i]);
     const put = (order, loads, max) => { let n = 0; while (loads.length && n < max) { const pl = order.find((x) => !x.load); if (!pl) break; pl.load = loads.shift(); n++; } };
-    put(bagOrder, bagLoads, 4); put(rawOrder, rawLoads, 99); put(bagOrder, bagLoads, 99); // the door end keeps room for finished bags
-    if (hall) for (const pl of hallPlaces) { const l = rawLoads.shift() || bagLoads.shift(); if (!l) break; pl.load = l; }
+    if (hall) {
+      const fp = zone('feed'); for (let i = 0; i < feed.length; i += 4) fp[i >> 2].load = { vats: feed.slice(i, i + 4) };
+      if (outBags.length) zone('out')[0].load = { bags: outBags };
+      put(zone('uit'), bagLoads, 3); put(rawOrder, rawLoads, 99); put(hallPlaces.slice().reverse(), bagLoads, 2); put(hallPlaces, rawLoads, 99);
+      if (tent) { put(zone('tent'), rawLoads, 99); put(zone('tent').slice().reverse(), bagLoads, 99); }
+      put(hallPlaces.slice().reverse(), bagLoads, 99); put(bagOrder, bagLoads, 99);
+    } else { put(bagOrder, bagLoads, 4); put(rawOrder, rawLoads, 99); put(bagOrder, bagLoads, 99); } // the door end keeps room for finished bags
     // a level-1 load with nothing under it drops to the floor
-    for (const sp of [...SHED_SPOTS, ...HALL_SPOTS]) { const ps = places.filter((x) => x.spot === sp); if (ps[1] && ps[1].load && !ps[0].load) { ps[0].load = ps[1].load; ps[1].load = null; } }
+    for (const sp of SHED_SPOTS) { const ps = places.filter((x) => x.spot === sp); if (ps[1] && ps[1].load && !ps[0].load) { ps[0].load = ps[1].load; ps[1].load = null; } }
     for (const pl of places) {
-      const l = pl.load; pl.g.visible = !!l && (pl.shed || hall); if (!l) continue;
+      const l = pl.load; pl.g.visible = !!l && (pl.shed || (pl.zone === 'tent' ? tent : hall)); if (!l) continue;
       const under = pl.level ? places.find((x) => x.spot === pl.spot && x.level === 0).load : null;
       pl.g.position.y = under ? (under.vats ? 0.82 : 0.2 + Math.ceil(under.bags.length / 4) * 0.135) : 0;
       pl.vats.forEach((v, k) => { v.visible = !!(l.vats && l.vats[k]); if (v.visible) v.userData.set(l.vats[k]); });
       pl.bags.forEach((bg, k) => { bg.visible = !!(l.bags && l.bags[k]); if (bg.visible) bg.userData.set(l.bags[k]); });
     }
-    for (const sp of [...SHED_SPOTS, ...HALL_SPOTS]) sp.sol.off = !places.some((x) => x.spot === sp && x.g.visible);
-    hallMarks.visible = hall;
+    for (const sp of ALL_SPOTS) sp.sol.off = !places.some((x) => x.spot === sp && x.g.visible);
+    hallMarks.visible = hall; tentMarks.visible = tent;
   }
+  let spare = 0, transit = 0; // vaten in stock beyond the ones at the mixer; a bag pallet riding the heftruck
+  const floorKg = () => places.filter((x) => x.g.visible && x.zone !== 'feed' && x.zone !== 'out').length * PLACE_KG; // what stands on floor places (the racking shows the rest)
   const topOf = (sp) => { const ps = places.filter((x) => x.spot === sp && x.load); return ps[ps.length - 1] || null; };
-  const vatSpots = () => SHED_SPOTS.filter((sp) => { const t = topOf(sp); return t && t.load.vats && t.load.vats.length; });
-  function outSpot() { // where the next blue bag goes: a bag pallet with room, else the first empty spot from the door end
+  const vatSpots = () => (inHall() ? FEED_SPOTS : SHED_SPOTS).filter((sp) => { const t = topOf(sp); return t && t.load.vats && t.load.vats.length; });
+  function outSpot() { // where the next blue bag goes: a bag pallet with room, else the first empty spot from the door end (De Hal: the UIT place by the packing)
+    if (inHall()) return OUT_SPOT;
     const withRoom = SHED_SPOTS.slice().reverse().find((sp) => { const t = topOf(sp); return t && t.load.bags && t.load.bags.length < 8; });
     return withRoom || SHED_SPOTS.slice().reverse().find((sp) => !topOf(sp)) || SHED_SPOTS[SHED_SPOTS.length - 1];
   }
@@ -171,6 +202,7 @@ export function createProductie(deps) {
   // ================================================================== the mixers
   const mixers = [0, 1, 2, 3].map(() => { const g = new THREE.Group(); g.position.set(MX, 0, MZ); g.visible = false; scene.add(g); return g; });
   const mixSol = TIER.map((t) => { const s = solid(MX - t.rx, MX + t.rx, MZ - t.rz, MZ + t.rz); s.off = true; return s; });
+  const setSol = (o, x0, x1, z0, z1) => Object.assign(o, { minx: x0, maxx: x1, minz: z0, maxz: z1 });
   const spiceTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, '#e8862a'); gr.addColorStop(1, '#b0481a'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); g.strokeStyle = 'rgba(255,214,140,.5)'; g.lineWidth = 5; for (let a = 0; a < 3; a++) { g.beginPath(); for (let k = 0; k < 60; k++) { const r = k * 1.05, t = k * 0.12 + a * 2.1; g.lineTo(64 + Math.cos(t) * r, 64 + Math.sin(t) * r); } g.stroke(); } });
   const spiceMat = new THREE.MeshLambertMaterial({ map: spiceTex });
   const spin = [], gauges = [];
@@ -231,7 +263,7 @@ export function createProductie(deps) {
     const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.34), lam({ map: deps.signTex([{ t: 'DE REUZENMENGER', size: 40 }], '#1a2f6a', '#f6f0e0', 512, 116) })); sg.position.set(0, 2.55, 1.17); g.add(sg);
   }
   const pourAt = () => { const t = TIER[tier()]; return t === TIER[2] ? { x: MX - 0.5, z: MZ + 1.55 } : t === TIER[3] ? { x: MX - 0.35, z: MZ + 2.35 } : { x: MX, z: MZ + t.rz + 0.5 }; };
-  const scoopAt = () => { const t = TIER[tier()]; return { x: MX - t.rx - 0.5, z: MZ + (tier() === 3 ? 0.7 : 0.15) }; };
+  const scoopAt = () => { const t = TIER[tier()], sd = inHall() ? 1 : -1; return { x: MX + sd * (t.rx + (sd > 0 && tier() === 2 ? 1.0 : 0.5)), z: MZ + (tier() === 3 && sd < 0 ? 0.7 : 0.15) }; };
 
   // ================================================================== packing: the table, then the Inpakmachine
   const table = new THREE.Group(); table.position.set(PX, 0, PZ); table.visible = false; scene.add(table);
@@ -306,7 +338,7 @@ export function createProductie(deps) {
     if (p.eddy * HELP_KG >= HELP_MAX) return deps.toast('GENOEG GESJOUWD', `You tipped ${p.eddy} vaten today (+${comma(HELP_MAX)} kg). The Naknikim do the rest; your back says thanks.`, 3);
     const b = blend(econ.ensure().order), need = b.mix ? Object.keys(b.mix) : [];
     const id = t.load.vats.slice().reverse().find((v) => need.includes(v)) || t.load.vats[t.load.vats.length - 1];
-    p.vat += VAT_KG; setHold({ kind: 'vat', id }); deps.beep(300, 0.08, 'triangle', 0.04); sig = ''; layout();
+    p.vat += VAT_KG; if (inHall()) p.feed = Math.max(0, (p.feed || 0) - 1); setHold({ kind: 'vat', id }); deps.beep(300, 0.08, 'triangle', 0.04); sig = ''; layout();
   }
   function tipVat() {
     const p = P(), f = pourAt(), id = hold.id; setHold(null);
@@ -331,42 +363,64 @@ export function createProductie(deps) {
     label: () => { const t = topOf(nearSpot(vatSpots())); return `Lift a vat · ${[...new Set(t.load.vats)].map(ingName).join(', ')}`; }, act: () => liftVat(nearSpot(vatSpots())) });
   deps.addInteract({ pos: () => (active() ? V(pourAt().x, pourAt().z) : far), r: 1.9, enabled: () => active(),
     label: () => (hold && hold.kind === 'vat' ? `Tip the vat of ${ingName(hold.id)} into ${TIER[tier()].name.toLowerCase()}` : `${TIER[tier()].name} · ${comma(Math.round(P().mix * 10) / 10)} kg of ${blend(econ.ensure().order).name} in it`),
-    act: () => (hold && hold.kind === 'vat' ? tipVat() : deps.toast(TIER[tier()].name.toUpperCase(), 'The Naknikim tip vaten of raw spice in here; the blend goes to the packing table and into blue bags. Lift a vat from the OPSLAG pallets and help: every vat you tip adds to tonight\'s batch.', 4.5)) });
+    act: () => (hold && hold.kind === 'vat' ? tipVat() : deps.toast(TIER[tier()].name.toUpperCase(), 'The Naknikim tip vaten of raw spice in here; the blend goes to the packing table and into blue bags. Lift a vat from the pallets and help: every vat you tip adds to tonight\'s batch.', 4.5)) });
   deps.addInteract({ pos: () => (active() && !hold ? V(PX - 0.95, PZ + (machine() ? -0.7 : 0)) : far), r: 1.5, enabled: () => active() && !hold, label: () => (machine() ? `Take a blue bag off the belt (${P().belt})` : 'Fill a blue bag · scoop, weigh, label'), act: fillBag });
-  deps.addInteract({ pos: () => { if (!active() || !hold) return far; const s = standAt(hold.kind === 'zak' ? outSpot() : (nearSpot(SHED_SPOTS, 99) || SHED_SPOTS[0])); return V(s.x, s.z); }, r: 1.7, enabled: () => active() && !!hold && (hold.kind === 'zak' || Math.hypot(pourAt().x - player.position.x, pourAt().z - player.position.z) > 1.9),
-    label: () => (hold.kind === 'zak' ? 'Stack the bag on the pallet' : 'Put the vat back'), act: () => { if (hold.kind === 'zak') stackBag(); else { P().vat = Math.max(0, P().vat - VAT_KG); setHold(null); sig = ''; layout(); } } });
+  deps.addInteract({ pos: () => { if (!active() || !hold) return far; const s = standAt(hold.kind === 'zak' ? outSpot() : (nearSpot(inHall() ? FEED_SPOTS : SHED_SPOTS, 99) || SHED_SPOTS[0])); return V(s.x, s.z); }, r: 1.7, enabled: () => active() && !!hold && (hold.kind === 'zak' || Math.hypot(pourAt().x - player.position.x, pourAt().z - player.position.z) > 1.9),
+    label: () => (hold.kind === 'zak' ? 'Stack the bag on the pallet' : 'Put the vat back'), act: () => { if (hold.kind === 'zak') stackBag(); else { P().vat = Math.max(0, P().vat - VAT_KG); if (inHall()) P().feed = (P().feed || 0) + 1; setHold(null); sig = ''; layout(); } } });
 
   // ================================================================== what the Naknikim can do here (js/naknikwork.js)
   function stations() {
     if (!state.table) return [];
-    const p = P(), T = target(), out = [], pa = pourAt(), sa = scoopAt(), t = TIER[tier()];
+    const p = P(), T = target(), out = [], pa = pourAt(), sa = scoopAt(), t = TIER[tier()], hall = inHall(), area = hall ? 'hall' : 'shed', spots = hall ? FEED_SPOTS : SHED_SPOTS;
     if (p.vat < T - 0.01) for (const sp of vatSpots()) { const s = standAt(sp), top = topOf(sp);
-      out.push({ key: `vat${SHED_SPOTS.indexOf(sp)}`, prod: 'vat', carry: 'vat', kind: 'vat', area: 'shed', x: s.x, z: s.z, fx: sp.x, fz: sp.z, h: top.level ? 'mid' : 'floor', grab: true,
-        onGrab: () => { const b = blend(econ.ensure().order), need = b.mix ? Object.keys(b.mix) : []; carryVat = top.load.vats.slice().reverse().find((v) => need.includes(v)) || top.load.vats[top.load.vats.length - 1] || 'paprika'; P().vat += VAT_KG; sig = ''; return ING_COL[carryVat]; } }); }
-    out.push({ key: 'menger', prod: 'mixer', kind: 'machine', area: 'shed', x: pa.x, z: pa.z, fx: pa.x, fz: pa.z - 1, h: 'pour', pour: true, ty: t.ty, onPour: () => { P().mix += VAT_KG; } });
-    if (p.mix >= BAG_KG && p.sc < T - 0.01) out.push({ key: 'schep', prod: 'scoop', carry: 'emmer', kind: 'machine', area: 'shed', x: sa.x, z: sa.z, fx: MX, fz: sa.z, h: 'mid', grab: true, onGrab: () => { const q = P(); q.mix = Math.max(0, q.mix - BAG_KG); q.sc += BAG_KG; return 0xd0742a; } });
+      out.push({ key: `vat${spots.indexOf(sp)}`, prod: 'vat', carry: 'vat', kind: 'vat', area, far: true, x: s.x, z: s.z, fx: sp.x, fz: sp.z, h: top.level ? 'mid' : 'floor', grab: true,
+        onGrab: () => { const b = blend(econ.ensure().order), need = b.mix ? Object.keys(b.mix) : []; carryVat = top.load.vats.slice().reverse().find((v) => need.includes(v)) || top.load.vats[top.load.vats.length - 1] || 'paprika'; P().vat += VAT_KG; if (hall) P().feed = Math.max(0, (P().feed || 0) - 1); sig = ''; return ING_COL[carryVat]; } }); }
+    out.push({ key: 'menger', prod: 'mixer', kind: 'machine', area, far: true, x: pa.x, z: pa.z, fx: pa.x, fz: pa.z - 1, h: 'pour', pour: true, ty: t.ty, onPour: () => { P().mix += VAT_KG; } });
+    if (p.mix >= BAG_KG && p.sc < T - 0.01) out.push({ key: 'schep', prod: 'scoop', carry: 'emmer', kind: 'machine', area, far: true, x: sa.x, z: sa.z, fx: MX, fz: sa.z, h: 'mid', grab: true, onGrab: () => { const q = P(); q.mix = Math.max(0, q.mix - BAG_KG); q.sc += BAG_KG; return 0xd0742a; } });
     if (machine()) {
-      out.push({ key: 'trechter', prod: 'hopper', kind: 'machine', area: 'shed', x: PX - 1.05, z: PZ + 0.55, fx: PX, fz: PZ + 0.55, h: 'pour', pour: true, ty: 1.1, onPour: () => { P().belt++; const f = beltBags.find((x) => x.t < 0); if (f) f.t = 0; } });
-      if (p.belt >= 1) out.push({ key: 'band', prod: 'belt', carry: 'zak', kind: 'machine', area: 'shed', x: PX - 0.95, z: PZ - 0.9, fx: PX, fz: PZ - 0.9, h: 'mid', grab: true, onGrab: () => { const q = P(); q.belt = Math.max(0, q.belt - 1); return 0x2a5aa8; } });
-    } else out.push({ key: 'inpak', prod: 'pack', kind: 'machine', area: 'shed', x: PX - 0.95, z: PZ, fx: PX, fz: PZ, h: 'mid' });
+      out.push({ key: 'trechter', prod: 'hopper', kind: 'machine', area, far: true, x: PX - 1.05, z: PZ + 0.55, fx: PX, fz: PZ + 0.55, h: 'pour', pour: true, ty: 1.1, onPour: () => { P().belt++; const f = beltBags.find((x) => x.t < 0); if (f) f.t = 0; } });
+      if (p.belt >= 1) out.push({ key: 'band', prod: 'belt', carry: 'zak', kind: 'machine', area, far: true, x: PX - 0.95, z: PZ - 0.9, fx: PX, fz: PZ - 0.9, h: 'mid', grab: true, onGrab: () => { const q = P(); q.belt = Math.max(0, q.belt - 1); return 0x2a5aa8; } });
+    } else out.push({ key: 'inpak', prod: 'pack', kind: 'machine', area, far: true, x: PX - 0.95, z: PZ, fx: PX, fz: PZ, h: 'mid' });
     const os = outSpot(), s = standAt(os), top = topOf(os);
-    out.push({ key: 'uit', prod: 'out', kind: 'pile', area: 'shed', x: s.x, z: s.z, fx: os.x, fz: os.z, h: top && top.level ? 'mid' : 'floor', onDrop: () => { P().out += BAG_KG; sig = ''; } });
+    out.push({ key: 'uit', prod: 'out', kind: 'pile', area, far: true, x: s.x, z: s.z, fx: os.x, fz: os.z, h: top && top.level ? 'mid' : 'floor', onDrop: () => { P().out += BAG_KG; sig = ''; } });
     return out;
   }
   const lineBusy = () => state.table && P().out < target() - 0.01;
 
   // ================================================================== per frame
-  let slow = 0, shown = -1, wasTable = null, wasMach = null, run = 0;
+  // ---- De Hal: the heftruck keeps the line going (a Naknik drives it, js/loods.js forkJob). No heftruck, or Eddy on it: after a
+  // moment the pallets get there anyway (a Naknik with the hand pallet truck)
+  const jobs = { feed: 0, out: 0, feedWait: 0, outWait: 0, t: 0 };
+  function logistics(dt) {
+    jobs.t -= dt; if (jobs.t > 0) return; jobs.t = 1;
+    const p = P(), T = target(), made = Math.floor((p.out + 0.01) / BAG_KG);
+    if (!jobs.feed && (p.feed || 0) <= 4 && spare > 0 && p.vat < T - 0.01) {
+      const from = loods.rackPick ? loods.rackPick() : null, sp = FEED_SPOTS[(p.feed || 0) > 0 ? 1 : 0], add = () => { const q = P(); q.feed = (q.feed || 0) + Math.min(4, spare); sig = ''; jobs.feed = 0; jobs.feedWait = 0; };
+      const b = blend(econ.ensure().order), need = b.mix ? Object.keys(b.mix) : [];
+      if (from && loods.forkJob({ from, to: sp.stop, col: ING_COL[need[0]] ?? 0xc2412d, onDrop: add, onAbort: () => { jobs.feed = 0; } })) jobs.feed = 1;
+      else if ((jobs.feedWait += 1) > 7) add();
+    }
+    if (!jobs.out && made - (p.ship || 0) * 8 >= 8) {
+      const to = UIT_SPOTS.find((u) => !topOf(u)) || UIT_SPOTS[0], go = () => { const q = P(); q.ship = (q.ship || 0) + 1; sig = ''; };
+      if (loods.forkJob && loods.forkJob({ from: OUT_SPOT.stop, to: to.stop, col: 0x2a5aa8, onLift: () => { go(); transit = 1; }, onDrop: () => { transit = 0; sig = ''; jobs.out = 0; jobs.outWait = 0; }, onAbort: () => { transit = 0; sig = ''; jobs.out = 0; } })) jobs.out = 1;
+      else if ((jobs.outWait += 1) > 7) { go(); jobs.outWait = 0; }
+    }
+  }
+  let slow = 0, shown = -1, wasTable = null, wasMach = null, wasHall = null, run = 0;
   function update(dt) {
-    const on = !!state.table, tr = tier(), mc = machine();
-    if (on !== wasTable || tr !== shown || mc !== wasMach) {
-      wasTable = on; shown = tr; wasMach = mc;
+    const on = !!state.table, tr = tier(), mc = machine(), hl = inHall();
+    if (on !== wasTable || tr !== shown || mc !== wasMach || hl !== wasHall) {
+      wasTable = on; shown = tr; wasMach = mc; wasHall = hl;
+      const S = SITE[hl ? 'hall' : 'shed']; MX = S.mx; MZ = S.mz; PX = S.px; PZ = S.pz; // the line stands in the shed, or on the hall floor
+      mixers.forEach((g, i) => { g.position.set(MX, 0, MZ); setSol(mixSol[i], MX - TIER[i].rx, MX + TIER[i].rx, MZ - TIER[i].rz, MZ + TIER[i].rz); });
+      table.position.set(PX, 0, PZ); mach.position.set(PX, 0, PZ); setSol(packSol, PX - 0.5, PX + 0.5, PZ - 0.85, PZ + 0.85); setSol(machSol, PX - 0.55, PX + 0.5, PZ - 1.15, PZ + 1.0); sig = '';
       mixers.forEach((g, i) => { g.visible = on && i === tr; mixSol[i].off = !(on && i === tr); });
       table.visible = on && !mc; packSol.off = !(on && !mc); mach.visible = on && mc; machSol.off = !(on && mc); board.visible = on;
     }
     if (deps.away()) { if (hold) setHold(null); return; }
     slow -= dt; if (slow <= 0) { slow = 0.4; layout(); if (on) drawBoard(); const o = econ.ensure().order; tableBags.forEach((b) => b.userData.set(o)); beltBags.forEach((x) => x.b.userData.set(o)); }
     if (!on) return;
+    if (hl) logistics(dt);
     const p = P(), busy = (econ.mixers() > 0 && lineBusy()) || p.mix > 0.1;
     run += ((busy ? 1 : 0) - run) * Math.min(1, dt * 2);
     for (const s of spin) s.o.rotation[s.ax] += dt * s.v * run;
@@ -379,5 +433,5 @@ export function createProductie(deps) {
     for (let i = streams.length - 1; i >= 0; i--) { const s = streams[i]; s.t -= dt; s.m.material.opacity = 0.85 * Math.min(1, s.t / 0.3); if (s.t <= 0) { scene.remove(s.m); s.m.material.dispose(); streams.splice(i, 1); } }
     if (hold) held.position.y = 1.0 + Math.sin(performance.now() * 0.008) * 0.012;
   }
-  return { update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
+  return { floorKg, jobs, FEED_SPOTS, OUT_SPOT, UIT_SPOTS, update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
 }

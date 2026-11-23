@@ -224,7 +224,7 @@ export function createNaknikWork(deps) {
   // what this Naknik could do now: { grab: [...], store: [...], pour: [...], ketel: [...] } from the sites near him
   function options(n) {
     const S = deps.stations(n), home = homeOf(n), near = (s) => Math.hypot(s.x - home.x, s.z - home.z);
-    const ok = (s) => near(s) < (s.area === n.userData.workArea ? 30 : 16) && !(busy.has(s.key) && busy.get(s.key) !== n);
+    const ok = (s) => near(s) < (s.far ? 80 : s.area === n.userData.workArea ? 30 : 16) && !(busy.has(s.key) && busy.get(s.key) !== n);
     const by = (f) => S.filter((s) => f(s) && ok(s)).sort((a, b) => near(a) - near(b));
     const line = {}; for (const s of S) if (s.prod && ok(s)) (line[s.prod] || (line[s.prod] = [])).push(s); // the production line: vat, mixer, scoop, pack, hopper, belt, out
     return { grab: by((s) => s.grab && !s.prod), store: by((s) => s.store && !s.prod), drop: by((s) => s.kind === 'pile'), pour: by((s) => s.pour && !s.prod), line, all: S };
@@ -344,7 +344,7 @@ export function createNaknikWork(deps) {
     if (s.go) {
       if (W.pose !== 'carry') setPose(W, W.sack.visible ? 'carry' : 'none');
       if (walk(n, W, dt, (W.sack.visible ? 1.5 : 1.9) * pace(n).speed)) {
-        if (face(n, s.go.fx, s.go.fz, dt, 8) < 0.15 || W.st > 30) { if (s.go.home) { release(W); W.t = rnd(7, 18) * pace(n).rest * (deps.lineBusy && deps.lineBusy() ? 0.35 : 1); } next(); }
+        if (face(n, s.go.fx, s.go.fz, dt, 8) < 0.15 || W.st > 30) { if (s.go.home) { release(W); W.t = rnd(7, 18) * pace(n).rest * (deps.lineBusy && deps.lineBusy() ? 0.2 : 1); } next(); }
         else animate(n, 0, dt);
       }
       return;
