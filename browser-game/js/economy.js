@@ -77,6 +77,7 @@ export const MACHINES = [
 ];
 const MACHINE_CAP = 4; // machines the home warehouse can hold besides the spice
 const CONDITION = ['a bit rusty', 'smells of 1994', 'one knob missing', 'like new (allegedly)', 'from a closed-down Lampas joint', 'Dad sold this one in 1998'];
+export const PLACE_KG = 20; // one pallet place: four 5 kg vaten, or a layer of blue bags
 export const STOCK_CAP = 200; // kg in the home warehouse
 // Extra warehouses in the territories you own (Bible: buy warehouses in the districts you move into). Each adds space,
 // a machine slot and two Naknik places, and steadies control there. A Naknik can stand guard against Lampas raids.
@@ -193,7 +194,7 @@ export function createEconomy(deps) {
     for (const r of e.repairs.filter((x) => x.days <= 0)) e.machines[r.id] = (e.machines[r.id] || 0) + 1;
     e.repairs = e.repairs.filter((x) => x.days > 0);
     for (const g of INGREDIENTS) { e.hist[g.id].push(effMult(g.id)); if (e.hist[g.id].length > HISTORY) e.hist[g.id].shift(); }
-    const mixLine = made ? (made.kg ? `Naknikim mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
+    const mixLine = made ? (made.kg ? `${made.solo ? 'You' : 'Naknikim'} mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}${made.help && !made.solo ? ` (${made.help} kg thanks to your own hands)` : ''}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
     const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
     if (strikes.length && deps.toast) { deps.toast(state.act1 ? 'THEY STRIKE BACK' : 'THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
     const cameLine = came.length ? `The truck dropped ${came.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : '';
@@ -299,9 +300,9 @@ export function createEconomy(deps) {
   // the Naknikim mix today's order: PER_NAKNIK kg each, as far as the stock reaches. Grades are used cheapest
   // or best first (the player's policy); quality = the average stars of what went in. Now and then one messes up.
   function mix() {
-    const e = ensure(), n = mixers(), b = BLENDS.find((x) => x.id === e.order);
-    if (!n || !b || !blendOpen(b)) return null;
-    const B = boost(); let kg = n * perNaknik();
+    const e = ensure(), n = mixers(), b = BLENDS.find((x) => x.id === e.order), help = helpKg();
+    if ((!n && !help) || !b || !blendOpen(b)) return null;
+    const B = boost(); let kg = dayKg();
     for (const [id, w] of Object.entries(b.mix)) kg = Math.min(kg, Math.floor(have(id) * 10 / w));
     if (kg <= 0) return { name: b.name, kg: 0, why: `not enough ${Object.keys(b.mix).filter((id) => have(id) * 10 / b.mix[id] < 1).map((id) => INGREDIENTS.find((g) => g.id === id).name.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' and $1')}.` };
     const order = e.policy === 'best' ? GRADES.slice().reverse() : GRADES;
@@ -316,11 +317,12 @@ export function createEconomy(deps) {
       }
     }
     let out = kg, oops = null;
-    for (let i = 0; i < n; i++) if (Math.random() < 0.12 * (B.care ?? 1)) { out -= 2; oops = pick(MISTAKES); }
+    const hc = homeCrew(); // a good Menger (skill) slips less often: skill 3 is the old 12%
+    for (let i = 0; i < n; i++) if (Math.random() < 0.12 * (B.care ?? 1) * (i < hc.length ? 1.6 - 0.2 * (hc[i].skill || 3) : 1)) { out -= 2; oops = pick(MISTAKES); }
     out = Math.max(0, out);
     const q = Math.min(5, (used ? starKg / used : 1) + (B.q || 0)), cur = blendOf(b.id); // the Kruidenmolen grinds it finer
     e.blends[b.id] = { kg: cur.kg + out, q: cur.kg + out ? (cur.kg * cur.q + out * q) / (cur.kg + out) : q };
-    return { name: b.name, kg: out, q, oops };
+    return { name: b.name, kg: out, q, oops, help: Math.min(help, out), solo: !n };
   }
   // ---- clients
   const ownedClients = () => { const ids = [...(deps.joints ? deps.joints() : []), ...(has('vasteklant') ? ['bram'] : [])]; return CLIENTS.filter((c) => ids.includes(c.id)); };
@@ -707,6 +709,12 @@ export function createEconomy(deps) {
   const cap = () => STOCK_CAP + (boost().cap || 0) + whOpen().reduce((a, w) => a + w.kg, 0);
   const mcap = () => MACHINE_CAP + whOpen().length;
   const mixers = () => Math.max(0, (state.naknik || 0) - (deps.away ? deps.away() : 0)) + whOpen().reduce((a, w) => a + ensure().wh[w.id].naknik - (ensure().wh[w.id].guard ? 1 : 0), 0);
+  // the home crew as people (js/crew.js): Tempo sets each one's kilos, a napper does half. Eddy's own help at the line adds a few kilos.
+  const homeCrew = () => (deps.homeCrew ? deps.homeCrew() : Array.from({ length: Math.max(0, (state.naknik || 0) - (deps.away ? deps.away() : 0)) }, () => ({ tempo: 3, skill: 3 })));
+  const helpKg = () => (deps.helpKg ? deps.helpKg() : 0);
+  const dayKg = () => Math.round(homeCrew().reduce((a, m) => a + perNaknik() * (0.7 + 0.1 * (m.tempo || 3)) * (m.nap ? 0.5 : 1), 0)) + whOpen().reduce((a, w) => a + ensure().wh[w.id].naknik - (ensure().wh[w.id].guard ? 1 : 0), 0) * perNaknik() + helpKg();
+  // storage is counted in pallet places: one place holds PLACE_KG of vaten or bags (Tristan 2026-11-23)
+  const places = () => Math.round(cap() / PLACE_KG), placesUsed = () => Math.ceil(stockTotal() / PLACE_KG - 0.001);
   const guarded = () => whOpen().some((w) => ensure().wh[w.id].guard);
   function buyWarehouse(id, el) {
     const e = ensure(), w = WAREHOUSES.find((x) => x.id === id);
@@ -827,15 +835,15 @@ export function createEconomy(deps) {
   const on = (yes) => (yes ? 'style="font-weight:bold;border-style:inset"' : '');
   function mixHTML() {
     const e = ensure(), n = mixers();
-    let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${n * perNaknik()} kg</b> every night` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
-      Stock: <b>${stockTotal()} / ${cap()} kg</b> (spices + blends)<br>
+    let h = `<div class="well" style="margin-bottom:8px"><b>Mengkamer</b> · Market day <b>${e.day}</b> · ${n ? `<b>${n}</b> Naknik${n > 1 ? 'im' : ''} mix <b>${dayKg()} kg</b> every night${helpKg() ? ` (with your <b>${helpKg()} kg</b> of help today)` : ''}` : helpKg() ? `Your own work today: <b>${helpKg()} kg</b> gets mixed tonight` : '<span style="color:#a00">No Naknikim yet. Hire them at the Uitzendbureau.</span>'}<br>
+      Stock: <b>${placesUsed()} / ${places()} pallet places</b> · ${stockTotal()} / ${cap()} kg (vaten of spice + bags of blend, ${PLACE_KG} kg a pallet)<br>
       <small>Quality = the average stars of the spices that went in. Lampas grade makes ★ blends, Bio makes ★★★★★.</small></div>`;
     if (e.lastMix) h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>Last night:</b> ${e.lastMix.kg ? `${e.lastMix.kg} kg ${e.lastMix.name} ${stars(Math.round(e.lastMix.q))}` : `no ${e.lastMix.name}, ${e.lastMix.why}`}${e.lastMix.oops ? `<br><i>Naknik: "${e.lastMix.oops}"</i>` : ''}</div>`;
     h += `<div style="margin-bottom:6px">Grades: <button class="b95" data-pol="cheap" ${on(e.policy === 'cheap')}>Cheapest first</button> <button class="b95" data-pol="best" ${on(e.policy === 'best')}>Best first</button></div>`;
     h += '<table class="list"><tr><th>Blend</th><th>Per 10 kg</th><th>Can mix now</th><th>Order</th></tr>';
     for (const b of BLENDS) {
       if (!blendOpen(b)) { h += `<tr><td><b>${b.name}</b><br><small>${b.gate ? 'Only the Paravim bring these spices. Settle with Ras al Gara in De Zandwijk first.' : b.mix ? 'Ome Joop by the canal has this page of Dad\'s notebook.' : b.note}</small></td><td>???</td><td>-</td><td><button class="b95" disabled>Locked</button></td></tr>`; continue; }
-      let can = n * perNaknik() || perNaknik(); for (const [id, w] of Object.entries(b.mix)) can = Math.min(can, Math.floor(have(id) * 10 / w));
+      let can = dayKg() || perNaknik(); for (const [id, w] of Object.entries(b.mix)) can = Math.min(can, Math.floor(have(id) * 10 / w));
       h += `<tr><td><b>${b.name}</b><br><small>${b.note}</small></td><td><small>${Object.entries(b.mix).map(([id, w]) => `${w} kg ${INGREDIENTS.find((g) => g.id === id).name}${have(id) * 10 / w < 1 ? ' <b style="color:#a00">!</b>' : ''}`).join('<br>')}</small></td><td>${can} kg</td><td>${e.order === b.id ? '<b>Mixing this</b>' : `<button class="b95" data-order="${b.id}">Mix this</button>`}</td></tr>`;
     }
     h += '</table>';
@@ -855,5 +863,5 @@ export function createEconomy(deps) {
   // Hakan's phone order (js/phone.js): Shooki brings it at the next market day
   function phoneOrder(kg) { const e = ensure(); e.phoneOrder = { kg, day: e.day }; e.phoneDay = e.day; if (deps.save) deps.save(); }
   const phoneQuote = (kg) => Math.round(clientPrice('kip', Math.max(1, blendOf('kip').q || 3), null) * kg * 1.15);
-  return { REST_EVERY, restOK, restNext, rested, gradeLock, qtyLock, ingOpen: (g) => ingOpen(g, state), today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { REST_EVERY, restOK, restNext, rested, gradeLock, qtyLock, ingOpen: (g) => ingOpen(g, state), today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, dayKg, helpKg, places, placesUsed, PLACE_KG, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }

@@ -39,7 +39,7 @@ export const TIPS = {
   razimVisit: ['Razim, in person', 'Bro, he just shows up. Buy him a broodje and he goes home happy. Say you\'re working and he follows you around all day. I\'m only telling you.'],
   shmokia: ['Shmokia', 'Your phone. Call people, trade a bit. <b>T</b> opens and closes it.'],
   haggle: ['Haggling', 'They want a deal. Offer, counter, walk away. Push too hard and they leave. Be too soft and you lose money.'],
-  crew: ['Your Naknikim', 'Each Naknik has a name, skill and mood. Send one on an <b>errand</b> (they skip mixing that day) or give a <b>day off</b> when they\'re tired. Happy Naknikim mess up less.'],
+  crew: ['Your Naknikim', 'Each Naknik has a name, a mood and three stats: <b>Mengen</b> (fewer mistakes), <b>Tempo</b> (kilos a day) and <b>Werkethiek</b> (how long before he naps). Send one on an <b>errand</b> (they skip mixing that day) or give a <b>day off</b> when they are tired. Watch them work the line: vaten from the pallets into the mixer, blend into blue bags. <b>Lift a vat</b> or <b>fill a bag</b> yourself and the batch of tonight grows.'],
   clamp: ['Wheel clamp', 'Parked like a tourist, bro. The parking office wants the fine <i>and</i> your open tickets. Mo cuts it off cheaper, but the tickets stay open.'],
   parking: ['Paid parking', 'Bro, that bay is <b>betaald parkeren</b>. The meter is cheap but it\'s right in front of their window. The app (<b>B</b>) costs a bit more. Skip it and the scan car writes you a ticket. Two open tickets and they clamp the van.'],
   inspector: ['Tax inspector', 'Van der Belasting. Pay, bribe, or offer him garlic sauce. A hidden compartment in the van keeps cash out of his sight.'],

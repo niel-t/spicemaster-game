@@ -29,12 +29,13 @@ export function createCrew(deps) {
       c.push({ name: rnd(free.length ? free : NAMES), skill: 1 + Math.floor(Math.random() * 3), mood: 70, away: null });
     }
     if (c.length > n) c.length = n;
+    for (const m of c) { m.tempo = m.tempo || 3; m.ethic = m.ethic || 3; } // crews from before the selection screen: average workers
     return c;
   }
   const away = () => ensure().filter((x) => x.away).length;
   const napping = (i) => { const m = ensure()[i]; return !!m && !m.away && m.mood < 25; };
   const moodWord = (m) => (m >= 75 ? 'happy' : m >= 50 ? 'fine' : m >= 25 ? 'grumpy' : 'asleep on the sacks');
-  const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+  const stars = (n) => '★'.repeat(Math.min(5, n)) + '☆'.repeat(Math.max(0, 5 - n));
 
   function send(i, kind) {
     const m = ensure()[i]; if (!m || m.away) return;
@@ -65,7 +66,7 @@ export function createCrew(deps) {
           deps.addMoney(w); out.push(`${m.name} sold spice door to door: +W ${w}. ${rnd(STORIES.sell)}`);
         }
         m.mood = Math.min(100, m.mood + 3);
-      } else if (!m.away) m.mood = Math.max(0, m.mood - (3 + Math.floor(Math.random() * 4))); // mixing all day wears them down
+      } else if (!m.away) m.mood = Math.max(0, m.mood - Math.max(1, 6 - (m.ethic || 3) + Math.floor(Math.random() * 3))); // mixing all day wears them down: Werkethiek 5 loses 1-3 a day, 1 loses 5-7
     }
     if (out.length && deps.toast) deps.toast('NAKNIKIM', out.join('<br>'), 5.5);
     if (deps.save) deps.save();
@@ -81,6 +82,9 @@ export function createCrew(deps) {
     const m = ensure()[i]; if (!m) return null;
     return { ...m, stars: stars(m.skill), moodWord: moodWord(m.mood) };
   }
+  // who mixes at home tonight (economy.js): Tempo and Mengen per person, a napper does half
+  const working = () => ensure().filter((m) => !m.away).map((m) => ({ tempo: m.tempo, skill: m.skill, nap: m.mood < 25 }));
+  function add(m) { const c = Array.isArray(state.crew) ? state.crew : (state.crew = []); c.length = Math.min(c.length, Math.max(0, state.naknik || 0)); c.push(m); } // a hired candidate (js/sollicitanten.js), just before his figure spawns
   const errands = () => ERRANDS.filter((e) => !e.need || (deps.can ? deps.can(e.need) : true));
-  return { ensure, away, napping, send, dayOff, info, dayCheck, ERRANDS, errands };
+  return { working, add, ensure, away, napping, send, dayOff, info, dayCheck, ERRANDS, errands };
 }

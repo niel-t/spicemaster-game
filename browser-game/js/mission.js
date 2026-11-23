@@ -2512,14 +2512,14 @@ export function initMission(ctx) {
   }
 
   // ================================================================== DE KLUIS (stash at the warehouse: store and swap gear between missions)
-  const kluis = new THREE.Group(); kluis.position.set(0.55, 0, -12); scene.add(kluis);
+  const kluis = new THREE.Group(); kluis.position.set(-10.55, 0, -11.9); kluis.rotation.y = Math.PI; scene.add(kluis); // on the west wall: the east wall is the pallet storage (js/productie.js)
   { const g = lam({ color: 0x4a6a3a }), d = lam({ color: 0x2a3a22 });
     box(0.6, 2.0, 1.2, g, 0, 1.0, 0, kluis); box(0.03, 1.8, 0.03, d, -0.31, 1.0, 0, kluis);
     for (const z of [-0.3, 0.3]) { box(0.03, 0.12, 0.08, lam({ color: 0xc8c8c8 }), -0.32, 1.05, z * 0.25, kluis); for (let k = 0; k < 4; k++) box(0.02, 0.03, 0.3, d, -0.31, 1.65 - k * 0.07, z, kluis); }
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.24), lam({ map: signTex([{ t: 'KLUIS', size: 72 }], '#ffd36b', '#2a1a12', 256, 64) }));
     sign.rotation.y = -Math.PI / 2; sign.position.set(-0.32, 2.15, 0); kluis.add(sign); }
-  solid(0.2, 0.9, -12.65, -11.35);
-  addInteract({ obj: kluis, pos: () => new THREE.Vector3(-0.3, 0, -12), r: 1.7, enabled: () => !M.active && state.step !== 'talk', label: () => `Kluis · store / swap gear (${state.stash.length}/${STASH_CAP})`, act: () => openStash() });
+  solid(-10.9, -10.2, -12.55, -11.25);
+  addInteract({ obj: kluis, pos: () => new THREE.Vector3(-9.7, 0, -11.9), r: 1.7, enabled: () => !M.active && state.step !== 'talk', label: () => `Kluis · store / swap gear (${state.stash.length}/${STASH_CAP})`, act: () => openStash() });
   let stashMsg = '';
   function openStash(msg) {
     stashMsg = msg || ''; const L = state.loadout;

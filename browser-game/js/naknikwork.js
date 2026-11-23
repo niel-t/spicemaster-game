@@ -23,6 +23,7 @@ const POSE = {
   high: { on: 1, lo: 0.66, ax: -2.55, ay: 0.28, el: 0.35, sp: -0.1, cr: 0 },
   pour: { on: 1, lo: 0.66, ax: -2.05, ay: 0.42, el: 1.05, sp: -0.06, cr: 0 },
   stir: { on: 1, lo: 0.66, ax: -1.4, ay: 0.38, el: 0.85, sp: 0.22, cr: 0 }, // hands at shoulder height: the tables come up to a Naknik's chest
+  pack: { on: 1, lo: 0.66, ax: -1.25, ay: 0.46, el: 1.05, sp: 0.26, cr: 0 }, // scooping blend into a blue bag at the packing table
 };
 const KEYS = ['on', 'lo', 'ax', 'ay', 'el', 'sp', 'cr'];
 
@@ -191,12 +192,14 @@ export function createNaknikWork(deps) {
     const W = u.work = { plan: [], step: null, path: null, t: rnd(2, 9), stir: 0, pp: { ...POSE.none }, pose: 'stir', sack: null, sackCol: pick(SPICE), tilt: 0, paddle: makePaddle(), ph: Math.random() * 6, keys: [] };
     const h = homeOf(n); u.workArea = h.z > -19 ? 'shed' : h.x < -11 ? 'tent' : 'hall';
     W.paddle.visible = false; n.add(W.paddle);
-    W.sack = makeSack(); W.sack.visible = false; n.add(W.sack);
+    W.sack = new THREE.Group(); W.sack.visible = false; n.add(W.sack); W.carry = {};
+    W.carry.sack = makeSack(); W.sack.add(W.carry.sack);
+    for (const [k, f] of Object.entries(deps.carry || {})) { const m = f(); m.visible = false; W.sack.add(m); W.carry[k] = m; } // the production line's vat, bucket and blue bag (js/productie.js)
     if (u.ps2) u.ps2.extra = (R, rot, lower, hinge) => poseArms(W, R, rot, lower, hinge);
     return W;
   }
   function poseArms(W, R, rot, lower, hinge) {
-    const P = W.pp, k = P.on, st = W.pose === 'stir' || W.pose === 'ketel' ? 1 : 0;
+    const P = W.pp, k = P.on, st = W.pose === 'stir' || W.pose === 'ketel' ? 1 : W.pose === 'pack' ? 0.55 : 0;
     if (k > 0.02) for (const s of [-1, 1]) {
       const u = s > 0 ? 'uarmL' : 'uarmR', f = s > 0 ? 'farmL' : 'farmR', h = s > 0 ? 'handL' : 'handR';
       delete R[u]; delete R[f]; delete R[h];
@@ -213,6 +216,8 @@ export function createNaknikWork(deps) {
     const a = n.userData.arms; a[0].updateWorldMatrix(true, false); a[1].updateWorldMatrix(true, false);
     fist.set(0, -0.68, 0.05).applyMatrix4(a[0].matrixWorld); fist2.set(0, -0.68, 0.05).applyMatrix4(a[1].matrixWorld);
   }
+  const hold = (W, kind) => { for (const [k, m] of Object.entries(W.carry)) m.visible = k === (W.carry[kind] ? kind : 'sack'); if (W.carry[kind] && W.carry[kind].userData.paint) W.carry[kind].userData.paint(); };
+  const pace = (n) => (deps.pace ? deps.pace(n) : null) || { speed: 1, rest: 1 }; // Tempo and Werkethiek of this Naknik (js/crew.js)
   function release(W) { for (const k of W.keys) busy.delete(k); W.keys = []; }
   function reserve(W, n, key) { if (!key) return true; if (busy.has(key) && busy.get(key) !== n) return false; busy.set(key, n); W.keys.push(key); return true; }
 
@@ -221,7 +226,8 @@ export function createNaknikWork(deps) {
     const S = deps.stations(n), home = homeOf(n), near = (s) => Math.hypot(s.x - home.x, s.z - home.z);
     const ok = (s) => near(s) < (s.area === n.userData.workArea ? 30 : 16) && !(busy.has(s.key) && busy.get(s.key) !== n);
     const by = (f) => S.filter((s) => f(s) && ok(s)).sort((a, b) => near(a) - near(b));
-    return { grab: by((s) => s.grab), store: by((s) => s.store), drop: by((s) => s.kind === 'pile'), pour: by((s) => s.pour), all: S };
+    const line = {}; for (const s of S) if (s.prod && ok(s)) (line[s.prod] || (line[s.prod] = [])).push(s); // the production line: vat, mixer, scoop, pack, hopper, belt, out
+    return { grab: by((s) => s.grab && !s.prod), store: by((s) => s.store && !s.prod), drop: by((s) => s.kind === 'pile'), pour: by((s) => s.pour && !s.prod), line, all: S };
   }
   const nearPick = (list, k = 3) => (list.length ? list[Math.floor(Math.random() * Math.min(k, list.length))] : null);
   function planErrand(n) {
@@ -236,6 +242,22 @@ export function createNaknikWork(deps) {
     if (o.grab.length && (o.pour.length || kets.length)) kinds.push('feed', 'feed');
     if (o.grab.length) kinds.push('bowl');
     if (kets.length) kinds.push('ketel', 'ketel');
+    // the line comes first while today's batch isn't done: vaten into the mixer, blend into blue bags, bags onto the pallet
+    const Ln = o.line, lk = [];
+    if (Ln.vat && Ln.mixer) lk.push('l-vat', 'l-vat');
+    if (Ln.scoop && Ln.pack && Ln.out) lk.push('l-pack', 'l-pack');
+    if (Ln.scoop && Ln.hopper) lk.push('l-feed', 'l-feed');
+    if (Ln.belt && Ln.out) lk.push('l-belt', 'l-belt', 'l-belt');
+    if (lk.length && (Math.random() < 0.8 || !kinds.length)) {
+      const kd = pick(lk), one = (a) => a[Math.floor(Math.random() * a.length)];
+      const steps = kd === 'l-vat' ? [[one(Ln.vat), 'grab'], [Ln.mixer[0], 'pour']] : kd === 'l-pack' ? [[Ln.scoop[0], 'grab'], [Ln.pack[0], 'pack'], [Ln.out[0], 'drop']] : kd === 'l-feed' ? [[Ln.scoop[0], 'grab'], [Ln.hopper[0], 'pour']] : [[Ln.belt[0], 'grab'], [Ln.out[0], 'drop']];
+      if (steps.every(([s]) => reserve(W, n, s.key))) {
+        const plan = []; for (const [s, act] of steps) plan.push({ go: s }, { act, s });
+        plan.push({ go: { x: home.x, z: home.z, fx: bowl.x, fz: bowl.z, home: true } });
+        W.plan = plan; W.step = null; return true;
+      }
+      release(W);
+    }
     if (!kinds.length) return false;
     const kind = pick(kinds), plan = [];
     if (kind === 'ketel') { const k = pick(kets); k.stirBy = n; W.ketel = k; plan.push({ ketel: k, dur: rnd(9, 15) }); }
@@ -321,8 +343,8 @@ export function createNaknikWork(deps) {
     const next = () => { W.plan.shift(); W.step = null; W.path = null; };
     if (s.go) {
       if (W.pose !== 'carry') setPose(W, W.sack.visible ? 'carry' : 'none');
-      if (walk(n, W, dt, W.sack.visible ? 1.5 : 1.9)) {
-        if (face(n, s.go.fx, s.go.fz, dt, 8) < 0.15 || W.st > 30) { if (s.go.home) { release(W); W.t = rnd(7, 18); } next(); }
+      if (walk(n, W, dt, (W.sack.visible ? 1.5 : 1.9) * pace(n).speed)) {
+        if (face(n, s.go.fx, s.go.fz, dt, 8) < 0.15 || W.st > 30) { if (s.go.home) { release(W); W.t = rnd(7, 18) * pace(n).rest * (deps.lineBusy && deps.lineBusy() ? 0.35 : 1); } next(); }
         else animate(n, 0, dt);
       }
       return;
@@ -343,16 +365,21 @@ export function createNaknikWork(deps) {
     const h = (s.act === 'grab' ? st.hg : st.hs) || st.h || 'mid';
     if (s.act === 'grab') {
       setPose(W, W.st < 0.85 ? h : 'carry');
-      if (W.st > 0.5 && !W.sack.visible) { W.sack.visible = true; W.sackCol = st.col || pick(SPICE); if (st.onGrab) st.onGrab(); }
+      if (W.st > 0.5 && !W.sack.visible) { W.sack.visible = true; W.sackCol = st.col || pick(SPICE); if (st.onGrab) { const c = st.onGrab(W); if (c) W.sackCol = c; } hold(W, st.carry || 'sack'); }
       if (W.st > 1.25) next();
     } else if (s.act === 'store' || s.act === 'drop') {
       setPose(W, W.st < 0.75 ? h : 'none');
-      if (W.st > 0.6 && W.sack.visible) { W.sack.visible = false; if (s.act === 'store' && st.put) placeSack(st.put, n.rotation.y); }
+      if (W.st > 0.6 && W.sack.visible) { W.sack.visible = false; if (s.act === 'store' && st.put) placeSack(st.put, n.rotation.y); if (st.onDrop) st.onDrop(n); }
       if (W.st > 1.1) next();
+    } else if (s.act === 'pack') { // at the packing table: the bucket goes down, he scoops and weighs, and a labelled blue bag comes up
+      setPose(W, W.st < 3.0 ? 'pack' : 'carry');
+      if (W.st > 0.5 && W.st < 3.0) W.sack.visible = false;
+      if (W.st >= 3.0 && !W.sack.visible) { W.sack.visible = true; hold(W, 'zak'); if (st.onPack) st.onPack(n); }
+      if (W.st > 3.5) next();
     } else if (s.act === 'pour') {
       setPose(W, W.st < 2.1 ? 'pour' : 'none');
       W.tilt = W.st > 0.6 && W.st < 2.0 ? Math.min(1, (W.st - 0.6) * 3) : Math.max(0, W.tilt - dt * 4);
-      if (W.st > 0.8 && W.st < 1.9 && !W.poured) { W.poured = true; tmp.copy(W.sack.position); n.localToWorld(tmp); pourStream(tmp.setY(tmp.y - 0.08), st.ty || 1.0, W.sackCol, 1.1); if (deps.onPour) deps.onPour(n, st); }
+      if (W.st > 0.8 && W.st < 1.9 && !W.poured) { W.poured = true; tmp.copy(W.sack.position); n.localToWorld(tmp); pourStream(tmp.setY(tmp.y - 0.08), st.ty || 1.0, W.sackCol, 1.1); if (st.onPour) st.onPour(n); if (deps.onPour) deps.onPour(n, st); }
       if (W.st > 2.0 && W.sack.visible) W.sack.visible = false;
       if (W.st > 2.4) { W.poured = false; W.tilt = 0; next(); }
     } else next();

@@ -31,6 +31,8 @@ import { createTips } from './tips.js'; // Shooki texts a tip the first time eac
 import { createTutorial } from './tutorial.js';
 import { createGuide, lessons, GUIDE_TIPS } from './guide.js'; // Shooki's click-through tutorial cards with highlights // the first fifteen minutes: Shooki's tour of the spice trade
 import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades, racking, the heftruck, the hall and the tent
+import { createSollicitanten, naknikLook, drawFace, feeOf } from './sollicitanten.js'; // the Uitzendbureau: pick your Naknikim one by one
+import { createProductie } from './productie.js'; // the production line: pallets of vaten, the mixer, blue bags
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { createMedia } from './kaasmedia.js'; // Kaasdows Mediaspeler: original live-generated desktop music
 import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
@@ -43,6 +45,7 @@ import { createFreddy } from './freddy.js'; // Freddy Sr. comes home via Schipta
 import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who give Eddy ideas // spice market, stock (gang-wars economy layer)
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
+let prod = null, solli = null; // js/productie.js, js/sollicitanten.js
 let work = null; // js/naknikwork.js, set up after De Loods
 let woning = null; // js/woning.js, set up once the street, the economy and the phone exist
 const music = new Music();
@@ -1228,7 +1231,7 @@ let freddy = null; // js/freddy.js, set up once the phone exists
 let activists = null; // js/activists.js, set up after Freddy
 let npcs = null; // js/npcs.js, set up once the street and the mission engine exist
 let phone = null; // js/phone.js, Hakan's kipkraud calls
-const econ = createEconomy({ boost: () => { const b = loods ? loods.boost() : {}; if (woning && woning.hokStorage()) b.cap = (b.cap || 0) + 80; return b; }, state, addMoney, toast, tip: (k) => tips.show(k), endDay: () => endDay(), onPlan: () => { updateObjective(); }, onDay: () => { if (ui.obj) updateObjective(); }, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
+const econ = createEconomy({ homeCrew: () => crew.working(), helpKg: () => (prod ? prod.helpKg() : 0), boost: () => { const b = loods ? loods.boost() : {}; if (woning && woning.hokStorage()) b.cap = (b.cap || 0) + 80; return b; }, state, addMoney, toast, tip: (k) => tips.show(k), endDay: () => endDay(), onPlan: () => { updateObjective(); }, onDay: () => { if (ui.obj) updateObjective(); }, daily: () => { const d = dailyChallenge(); return d && { date: d.date, name: JOINTS.find(([, id]) => id === d.id)[0], mod: mission.REMIX_MODS[d.remix.mod].name, best: state.daily && state.daily.date === d.date ? state.daily.best : 0 }; }, save: () => writeSave(), siege: true, away: () => (Array.isArray(state.crew) ? state.crew.filter((c) => c && c.away).length : 0), extraJobs: () => (state.ws && state.ws.pc && state.ws.pc.ram ? 1 : 0), joints: () => ['schmatzel', ...JOINTS.filter(([, id]) => owns(id)).map(([, id]) => id)], discount: () => d1Owned() * 0.03 + (state.district1 ? 0.06 : 0) });
 const haggle = createHaggle({ state, day: () => econ.ensure().day, toast, beep, save: () => writeSave() });
 let guide = null; // js/guide.js, set up once the street, the van and the NPCs exist
 const tips = createTips({ state, beep, save: () => writeSave(), held: (k) => !!(guide && guide.on() && guide.script && GUIDE_TIPS.includes(k)), busy: () => !!(guide && guide.showing()), away: () => { try { return !!(state.inDialogue || choiceOpen); } catch (e) { return false; } } }); // a dialogue or choice is up: the tip card waits (choiceOpen is declared further down)
@@ -1314,13 +1317,7 @@ function renderPC() {
     const sl = $('sellLoot'); if (sl) sl.onclick = () => { addMoney(state.loot * LOOT_PRICE, sl); toast('SOLD', `${state.loot} crate(s) of Lampas spice. Kees doesn't ask questions.`, 2); state.loot = 0; writeSave(); renderPC(); };
   } else if (pcTab === 'hire') {
     title.textContent = 'Naknik Uitzendbureau · "They get it done. Mostly."';
-    body.innerHTML = `<div class="well"><b>Naknikim</b>: hard workers, soft heads. They mix, restock and deliver so you don't have to.<br><br>
-      Hire: <b>${fmt(NAKNIK_COST)}</b> one-off · Mixes <b>${econ.perNaknik()} kg</b> of spice blend every market day, from what's on your shelves. Clients pay for the blend.<br>
-      Employed: <b>${state.naknik}</b> / ${nakCap()} ${state.table ? '' : '<br><span style="color:#a00">You need a mixing table first (Buy mixing table).</span>'}</div><br>
-      <button class="b95" id="hireBtn" ${!state.table || state.naknik >= nakCap() ? 'disabled' : `data-need="${NAKNIK_COST}"${state.money < NAKNIK_COST ? ' disabled' : ''}`}>Hire a Naknik (${fmt(NAKNIK_COST)})</button>
-      ${state.naknik >= nakCap() && nakCap() < loods.naknikCap() ? `<p><b>The agency wants a bigger name first.</b> A ${['Hulpje', 'Mengmeester'][rankNow()]} gets ${nakCap()} Naknik${nakCap() > 1 ? 'im' : ''}. ${rankNow() === 0 ? 'At <b>Mengmeester</b> rank you get a second one, at <b>Kruidenhandelaar</b> as many as you have tables.' : 'At <b>Kruidenhandelaar</b> rank, as many as you have tables.'} Reputation comes from clients paying, raids and Klusbord jobs (My Wilders).</p>` : ''}
-      ${state.naknik >= loods.naknikCap() ? `<p>No room for more Naknikim at home. ${loods.has('tent') ? 'Hire more at your warehouses in the territories (My Wilders).' : 'Build more mixing tables on the Loods tab, or buy a warehouse in a territory.'}</p>` : ''}`;
-    $('hireBtn').onclick = hireNaknik;
+    body.innerHTML = solli.html(); solli.bind(body, renderPC); // candidates with a name, a face, stats and a work ethic (js/sollicitanten.js)
   } else if (pcTab === 'shop') {
     title.textContent = 'Van Kruidenburg Wholesale · Mixing tables';
     body.innerHTML = `<div class="well"><b>Mixing table "Basis"</b><br>Steel table, mixing bowl, three sacks of starter spices (paprika, curry, cumin). Fine for beginners.<br><br>Price: <b>${fmt(TABLE_COST)}</b></div><br>
@@ -1367,7 +1364,7 @@ function renderPC() {
     title.textContent = 'Kaasdows Mediaspeler'; body.innerHTML = media.html(); media.bind(body);
   } else if (pcTab === 'bank') {
     title.textContent = 'My Wilders · Kaasbank';
-    body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Mixing: <b>${(state.naknik || 0) * econ.perNaknik()} kg</b> a market day<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Freddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
+    body.innerHTML = `<div class="well">Balance: <b data-bal>${fmt(state.money)}</b><br>Mixing: <b>${econ.dayKg()} kg</b> a market day<br>Naknikim employed: <b>${state.naknik}</b><br>Market day: <b>${econ.ensure().day}</b> · Spice in stock: <b>${econ.stockTotal()} kg</b><br>Territories: <b>${1 + JOINTS.filter(([, id]) => owns(id)).length}</b> (Kipkruidenkwartier${JOINTS.filter(([, id]) => owns(id)).map(([n]) => ', ' + n).join('')})<br><br><i>"Whoever holds the spice, holds Kaasland." · Freddy Sr.</i></div>${econ.rankHTML()}${state.table ? econ.propertyHTML() : ''}`;
     econ.propertyBind(body, renderPC);
   }
 }
@@ -1567,16 +1564,19 @@ function buyTable() {
   updateObjective(); renderPC(); writeSave();
 }
 const naknikim = [];
-function hireNaknik() {
-  if (!state.table || state.money < NAKNIK_COST || state.naknik >= nakCap()) return;
-  addMoney(-NAKNIK_COST, $('hireBtn'));
-  spawnNaknik(true);
-  toast('NAKNIK HIRED', state.naknik > 3 ? `He's at the mixing table in ${state.naknik > 5 ? 'De Overkapping' : 'De Hal'}. Every market day he mixes ${econ.perNaknik()} kg of spice blend.` : `He's heading to the mixing table. Every market day he mixes ${econ.perNaknik()} kg of spice blend.`);
-  updateObjective(); renderPC(); writeSave();
+function hireNaknik() { // test hook and old callers: the cheapest candidate of the day
+  const list = solli.pool(), i = list.map((c, k) => [feeOf(c), k]).filter(([, k]) => !list[k].hired).sort((a, b) => a[0] - b[0])[0];
+  if (i && solli.hire(i[1], $('hireBtn'))) renderPC();
+}
+function onHire(c) { // a candidate from the Uitzendbureau signs: he becomes crew and walks in
+  crew.add(c); spawnNaknik(true);
+  toast(`${c.name.toUpperCase()} HIRED`, state.naknik > 3 ? `He's at the mixing table in ${state.naknik > 5 ? 'De Overkapping' : 'De Hal'}: about ${solli.kgOf(c)} kg of blend a market day.` : `He's on his way to the mixing table: about ${solli.kgOf(c)} kg of blend a market day. Watch him work the line, or lend a hand.`);
+  updateObjective(); writeSave();
 }
 function spawnNaknik(walk) {
   state.naknik++; state.income = state.naknik * NAKNIK_INCOME;
-  const n = makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true });
+  const me = Array.isArray(state.crew) ? state.crew[state.naknik - 1] : null, lk = me && me.look; // his own face and build (js/sollicitanten.js); crews from older saves wear look C
+  const n = makePerson({ ps2: lk ? naknikLook(lk) : LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: (lk && lk.scale) || 0.68, rolled: true });
   n.position.set((WH.doorX0 + WH.doorX1) / 2, 0, -6.2);
   const spots = [[-4.6, -11.3], [-3.1, -12.6], [-6.1, -12.6]];
   const extra = state.naknik > 3 ? loods.spots()[state.naknik - 4] : null; // the hall and tent tables (js/loods.js)
@@ -1592,7 +1592,7 @@ function talkNaknik(n) { tips.show('crew'); // name, skill and mood; send them o
   const i = naknikim.indexOf(n), m = crew.info(i);
   if (!m) return dialogue([['Naknik', NAK_LINES[Math.floor(Math.random() * NAK_LINES.length)]]]);
   if (crew.napping(i)) return choice(m.name, `<i>(snoring on a sack of paprika)</i> Mood: <b>${m.moodWord}</b> (${m.mood}). Skill ${m.stars}. A day off would help.`, ['Give a day off', 'Let them sleep'], (k) => { if (k === 0) crew.dayOff(i); });
-  choice(m.name, `"${NAK_LINES[Math.floor(Math.random() * NAK_LINES.length)]}" <br><small>Skill ${m.stars} · mood <b>${m.moodWord}</b> (${m.mood}) · an errand takes one market day, and they don't mix meanwhile.</small>`, ['Back to work', 'Send on an errand', 'Give a day off'], (k) => {
+  choice(m.name, `"${NAK_LINES[Math.floor(Math.random() * NAK_LINES.length)]}" <br><small>Mengen <b>${m.skill}</b> · Tempo <b>${m.tempo}</b> · Werkethiek <b>${m.ethic}</b> (of 5) · mood <b>${m.moodWord}</b> (${m.mood})${m.quirk ? ` · <i>${m.quirk}</i>` : ''}<br>An errand takes one market day, and they don't mix meanwhile.</small>`, ['Back to work', 'Send on an errand', 'Give a day off'], (k) => {
     if (k === 2) crew.dayOff(i);
     if (k === 1) setTimeout(() => choice(m.name, 'Where to, boss?', [...crew.errands().map((e) => e.name), 'Never mind'], (e) => { const list = crew.errands(); if (e >= 0 && e < list.length) crew.send(i, list[e].id); }), 50);
   }, 0); // Escape: back to work
@@ -1748,7 +1748,7 @@ function updateObjective() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Freddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists'];
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
 function readSave() { // the home district was renamed from De Natte Worst (2026-11): old saves carry the old name in news and turf text
   try { let raw = localStorage.getItem(SAVE_KEY); if (!raw) return null; raw = raw.replace(/(De |de )?Natte Worst/g, 'Kipkruidenkwartier'); const d = JSON.parse(raw); return d && typeof d === 'object' && d.state && typeof d.state === 'object' ? d : null; }
@@ -2840,7 +2840,8 @@ function tick() {
   tips.update(dt);
   if (woning && !mOn) woning.update(dt);
   if (loods && !mOn) loods.update(dt);
-  ui.income.textContent = state.naknik ? `${state.naknik} Naknik${state.naknik > 1 ? 'im' : ''} · mixing ${state.naknik * econ.perNaknik()} kg a market day` : ''; // (the old W 30 / 6 sec timer is gone)
+  if (prod && !mOn) prod.update(dt);
+  ui.income.textContent = state.naknik || econ.helpKg() ? `${state.naknik ? `${state.naknik} Naknik${state.naknik === 1 ? '' : 'im'}` : 'Your own hands'} · mixing ${econ.dayKg()} kg a market day` : ''; // (the old W 30 / 6 sec timer is gone)
   // money counter
   if (state.shown !== state.money) { const d = state.money - state.shown; state.shown += Math.sign(d) * Math.max(1, Math.ceil(Math.abs(d) * dt * 4)); if (Math.sign(state.money - state.shown) !== Math.sign(d)) state.shown = state.money; }
   ui.money.textContent = 'W ' + String(Math.max(0, state.shown)).padStart(7, '0');
@@ -2951,12 +2952,16 @@ loods = createLoods({ tip: (k) => tips.show(k), makeDriver: () => makePerson({ p
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || oofDrive.active,
   away: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),
   hideShelf: (on) => { for (const m of backShelf.meshes) m.visible = !on; backShelf.sol.off = on; backPlug.visible = !on; backPlugSolid.off = on; } });
+// the production line in the shed: pallets of vaten, the mixer, the packing table (js/productie.js)
+prod = createProductie({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, econ, loods, toast, beep, glyph, save: () => writeSave(),
+  away: () => mission.active || oofDrive.active || state.step === 'title', pep: (k) => { for (const m of crew.ensure()) if (!m.away) m.mood = Math.min(100, m.mood + k); } });
+solli = createSollicitanten({ state, day: () => econ.ensure().day, rank: rankNow, cap: nakCap, homeCap: () => loods.naknikCap(), canHire: () => !!state.table, perNaknik: () => econ.perNaknik(), addMoney, onHire, fmt: (n) => 'W ' + Math.round(n).toLocaleString('nl-NL'), save: () => writeSave() });
 // the Naknikim at work around the shed, the hall and the tent (js/naknikwork.js)
-work = createNaknikWork({ scene, solids, solid, animate, list: () => naknikim, frozen: (n) => (state.inDialogue || state.inPC) && n.position.distanceTo(player.position) < 2.6,
+work = createNaknikWork({ carry: prod.carry, lineBusy: () => prod.lineBusy(), pace: (n) => { const m = crew.info(naknikim.indexOf(n)); return m ? { speed: 0.79 + 0.07 * m.tempo, rest: 1.6 - 0.2 * m.ethic } : null; }, scene, solids, solid, animate, list: () => naknikim, frozen: (n) => (state.inDialogue || state.inPC) && n.position.distanceTo(player.position) < 2.6,
   rooms: () => [{ x0: WH.x0, x1: WH.x1, z0: WH.z0, z1: WH.z1 }, ...loods.workRooms()],
   ketels: [{ x: -9.3, z: -9.5, area: 'shed', on: () => state.table && state.sold.has('doner') }, { x: -1.4, z: -23.3, area: 'hall', on: () => loods.has('hal') }],
   stations: () => {
-    const out = loods.workStations(), shelfY = 1.16, shelfZ = WH.z0 + 1.35;
+    const out = [...loods.workStations(), ...prod.stations()], shelfY = 1.16, shelfZ = WH.z0 + 1.35;
     if (state.table) out.push({ key: 'pileshed', kind: 'pile', area: 'shed', x: -8.45, z: -12.9, fx: -7.5, fz: -12.9, h: 'floor', grab: true });
     for (const [k, sx] of [[0, WH.x0 + 6.4], [1, WH.x0 + 10.3]]) {
       if (k === 0 && loods.has('hal')) continue; // that shelf made way for the door into De Hal
@@ -3011,7 +3016,7 @@ activists = createActivists({ scene, lam, box, passerBy, personBubble, animate, 
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+window.__sme = { get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
 fiets = createFiets({ THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
   busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });

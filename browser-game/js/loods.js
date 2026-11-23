@@ -20,19 +20,21 @@ const STAGE_BAYS = [1, 7, 13]; // bays open in the shed / with the hall / with t
 const LEVELS = [0.12, 1.5, 2.9]; // beam heights (pallet bottom)
 
 export const UPGRADES = [
-  { id: 'rek', name: 'Palletstelling', what: `One bay of pallet racking: blue uprights, orange beams, 6 pallet places. +${RACK_KG} kg stock space.`, days: 1, rank: 0, repeat: true },
-  { id: 'menger1', name: 'Mengmachine', what: 'An electric drum mixer next to the table. Every Naknik mixes 15 kg a market day instead of 10.', cost: 1500, days: 2, rank: 1, need: ['junk'] },
+  { id: 'rek', name: 'Palletstelling', what: `One bay of pallet racking: blue uprights, orange beams, 6 pallet places. ${RACK_KG} kg of vaten and bags.`, days: 1, rank: 0, repeat: true },
+  { id: 'menger1', name: 'Mengmachine', what: 'The oak mengkuip makes way for a big electric drum mixer: the Naknikim tip their vaten in and it does the stirring. 15 kg per Naknik a market day instead of 10.', cost: 1500, days: 2, rank: 1, need: ['junk'] },
+  { id: 'inpak', name: 'Inpakmachine', what: 'An automatic bagging line instead of the packing table: it fills, seals and labels the blue bags and rolls them out on a belt. Nobody stands scooping any more: +5 kg per Naknik a market day.', cost: 3000, days: 2, rank: 1, need: ['menger1'] },
   { id: 'roldeur', name: 'Stalen roldeur + camera', what: 'A steel roller door and a camera over the entrance. A raid on the warehouse steals half as much.', cost: 1800, days: 1, rank: 1, need: ['junk'] },
   { id: 'kavel', name: 'Bouwkavel', what: 'The empty plot behind the shed, TE KOOP for years. Buy it and the warehouse can grow onto it: De Hal first, De Overkapping later.', cost: 2500, days: 1, rank: 1, need: ['junk'] },
-  { id: 'hal', name: 'De Hal', what: 'A steel portal hall on the plot, through a new doorway in the shed\'s back wall: room for 6 racking bays, a dock door and a second mixing table. +100 kg floor space.', cost: 6000, days: 3, rank: 1, need: ['kavel', 'rek', 'menger1'], stage: 2 },
+  { id: 'hal', name: 'De Hal', what: 'A steel portal hall on the plot, through a new doorway in the shed\'s back wall: room for 6 racking bays, a dock door and a second mixing table. 5 pallet places on the floor (+100 kg).', cost: 6000, days: 3, rank: 1, need: ['kavel', 'rek', 'menger1'], stage: 2 },
   { id: 'heftruck', name: 'Heftruck', what: 'A second-hand forklift for the hall. Buy bulk pallet deals (30% under the Kruidenbeurs) and rack them yourself.', cost: 2500, days: 1, rank: 1, need: ['hal'] },
   { id: 'tafel2', name: 'Tweede mengtafel', what: 'A second mixing table in the hall: room for 2 more Naknikim at home.', cost: 2500, days: 2, rank: 1, need: ['hal'] },
   { id: 'molen', name: 'Kruidenmolen', what: 'A stone spice mill: the Naknikim grind everything fresh. Blends come out half a star better.', cost: 3500, days: 2, rank: 2, need: ['menger1'] },
   { id: 'menger2', name: 'Industriële menger', what: 'A stainless ribbon blender replaces the drum mixer: 20 kg per Naknik a day, and half the mistakes.', cost: 5000, days: 3, rank: 2, need: ['menger1', 'hal'] },
+  { id: 'menger3', name: 'De Reuzenmenger', what: 'A two-thousand-litre paddle mixer with a loading platform, second-hand from a stroopwafel factory. 30 kg per Naknik a day.', cost: 9000, days: 3, rank: 3, need: ['menger2'] },
   { id: 'dock', name: 'Laadperron', what: 'A proper loading dock with a leveller and dock lights: the Groothandel buys 40 kg more a day, and three pallet deals a day instead of two.', cost: 4000, days: 2, rank: 2, need: ['heftruck'] },
-  { id: 'tent', name: 'De Overkapping', what: 'A huge tent hall on the west side of the hall: 6 more racking bays, a third mixing table (2 more Naknikim), +200 kg floor space. Eddy\'s is a real groothandel now.', cost: 15000, days: 4, rank: 3, need: ['hal', 'dock'], stage: 3 },
+  { id: 'tent', name: 'De Overkapping', what: 'A huge tent hall on the west side of the hall: 6 more racking bays, a third mixing table (2 more Naknikim), 10 more pallet places on the floor (+200 kg). Eddy\'s is a real groothandel now.', cost: 15000, days: 4, rank: 3, need: ['hal', 'dock'], stage: 3 },
 ];
-const NEED_TEXT = { kavel: 'buy the Bouwkavel first', junk: "sell all of Dad's junk first", rek: 'needs a Palletstelling', menger1: 'needs the Mengmachine', hal: 'needs De Hal', heftruck: 'needs the Heftruck', dock: 'needs the Laadperron' };
+const NEED_TEXT = { kavel: 'buy the Bouwkavel first', junk: "sell all of Dad's junk first", rek: 'needs a Palletstelling', menger1: 'needs the Mengmachine', menger2: 'needs the Industriële menger', hal: 'needs De Hal', heftruck: 'needs the Heftruck', dock: 'needs the Laadperron' };
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
 
 // deps: THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank(), addMoney, toast, beep, save,
@@ -55,7 +57,7 @@ export function createLoods(deps) {
   const rackCost = () => 600 + 350 * ensure().racks;
   const naknikCap = () => 3 + (has('tafel2') ? 2 : 0) + (has('tent') ? 2 : 0);
   function boost() {
-    return { cap: (has('hal') ? 100 : 0) + (has('tent') ? 200 : 0) + ensure().racks * RACK_KG, mix: has('menger2') ? 2 : has('menger1') ? 1.5 : 1, care: has('menger2') ? 0.5 : 1, q: has('molen') ? 0.5 : 0, sell: has('dock') ? 40 : 0, keep: has('roldeur') ? 0.5 : 1 };
+    return { cap: (has('hal') ? 100 : 0) + (has('tent') ? 200 : 0) + ensure().racks * RACK_KG, mix: (has('menger3') ? 3 : has('menger2') ? 2 : has('menger1') ? 1.5 : 1) + (has('inpak') ? 0.5 : 0), care: has('menger2') ? 0.5 : 1, q: has('molen') ? 0.5 : 0, sell: has('dock') ? 40 : 0, keep: has('roldeur') ? 0.5 : 1 };
   }
 
   // ================================================================== shared props
@@ -268,7 +270,7 @@ export function createLoods(deps) {
   function siteSpot(id) {
     const L = ensure();
     if (id === 'rek') { const b = BAYS[L.racks]; return b ? [b[0], b[1], Math.abs(Math.sin(b[2])) > 0.5 ? 1.4 : 3.0, Math.abs(Math.sin(b[2])) > 0.5 ? 3.0 : 1.4] : null; }
-    return { menger1: [-3.2, -14.7, 2.2, 1.4], menger2: [-3.2, -14.7, 2.2, 1.4], molen: [-6.3, -14.9, 1.6, 1.4], roldeur: [-4.75, -7.9, 4.2, 0.9], hal: [HX - 2, HZ + 1, 12, 8], kavel: [DX - 2.6, PLOT.z1 - 3.2, 4, 1.4], heftruck: [HX + 4.5, HZ + 4.2, 3, 2], tafel2: [HX - 6.5, HZ + 3.6, 3.2, 2], dock: [HX + 9.6, HZ + 1.8, 2.4, 5.4], tent: [HX + HALL.x0 + 1, HZ, 2, 10] }[id] || null;
+    return { menger1: [-2.4, -15.5, 3.0, 3.0], menger2: [-2.4, -15.5, 3.0, 3.0], menger3: [-2.4, -15.5, 3.2, 3.2], inpak: [0.2, -8.6, 1.6, 2.6], molen: [-6.3, -14.9, 1.6, 1.4], roldeur: [-4.75, -7.9, 4.2, 0.9], hal: [HX - 2, HZ + 1, 12, 8], kavel: [DX - 2.6, PLOT.z1 - 3.2, 4, 1.4], heftruck: [HX + 4.5, HZ + 4.2, 3, 2], tafel2: [HX - 6.5, HZ + 3.6, 3.2, 2], dock: [HX + 9.6, HZ + 1.8, 2.4, 5.4], tent: [HX + HALL.x0 + 1, HZ, 2, 10] }[id] || null;
   }
   function showSite() {
     const j = ensure().job, s = j && siteSpot(j.id); site.visible = !!s; if (!s) return;
@@ -359,14 +361,14 @@ export function createLoods(deps) {
     if (j.id === 'rek') L.racks++; else L.built[j.id] = day();
     if (j.id === 'heftruck') { F.x = HX + 4.5; F.z = HZ + 4.2; F.h = Math.PI / 2; }
     apply(); deps.save();
-    const msg = { rek: `Bay ${L.racks} of the racking is up: +${RACK_KG} kg.${L.racks === 1 ? ' Your stock now shows as pallets on it.' : ''}`, hal: 'The back wall is gone: De Hal is yours. Go through the new door at the back of the shed.', heftruck: 'The heftruck is parked in the hall. Pallet deals are open on the Loods tab.', tent: "De Overkapping stands. Eddy's Groothandel: a real trader's warehouse." }[j.id] || u.what;
+    const msg = { inpak: 'The Inpakmachine hums by the door: blue bags roll off the belt, labelled and all.', menger3: 'De Reuzenmenger is in. The Naknikim need the steps to tip their vaten.', rek: `Bay ${L.racks} of the racking is up: 6 pallet places (+${RACK_KG} kg).${L.racks === 1 ? ' Your stock now shows as pallets on it.' : ''}`, hal: 'The back wall is gone: De Hal is yours. Go through the new door at the back of the shed.', heftruck: 'The heftruck is parked in the hall. Pallet deals are open on the Loods tab.', tent: "De Overkapping stands. Eddy's Groothandel: a real trader's warehouse." }[j.id] || u.what;
     deps.toast('VERBOUWING KLAAR', `${u.name}: ${msg}`, 5);
   }
   function apply() { // show what's built
     const L = ensure();
     bays.forEach((b, i) => { b.g.visible = i < L.racks; b.sol.off = i >= L.racks; });
-    mixer1.visible = has('menger1') && !has('menger2'); mixer2.visible = has('menger2'); mill.visible = has('molen');
-    shedSol.menger.off = !has('menger1'); shedSol.mill.off = !has('molen');
+    mixer1.visible = mixer2.visible = false; mill.visible = has('molen'); // the mixers are drawn by the production line now (js/productie.js)
+    shedSol.menger.off = true; shedSol.mill.off = !has('molen');
     cam.visible = has('roldeur'); if (deps.shutter && has('roldeur')) deps.shutter.material.color.setHex(0x6a7078);
     if (deps.hideShelf) deps.hideShelf(has('hal'));
     hallDoor.visible = corr.visible = hall.visible = has('hal'); corr.userData.sol.forEach((x) => { x.off = !has('hal'); }); hallSol.forEach((x) => { x.off = !has('hal'); });
@@ -511,7 +513,7 @@ export function createLoods(deps) {
   function html() {
     const L = ensure(), B = boost(), j = L.job;
     let h = `<div class="well" style="margin-bottom:8px"><b>De Loods</b> · ${STAGE_NAME[stage()]} · Balance <b data-bal>${fmt(state.money)}</b><br>
-      Stock space <b>${econ.stockTotal()} / ${econ.cap()} kg</b> (racking ${L.racks} bay${L.racks === 1 ? '' : 's'}, +${B.cap} kg) · Each Naknik mixes <b>${econ.perNaknik()} kg</b> · Naknik places at home <b>${naknikCap()}</b>${B.q ? ' · blends <b>+½★</b>' : ''}<br>
+      Pallet places <b>${econ.placesUsed()} / ${econ.places()}</b> (${econ.stockTotal()} / ${econ.cap()} kg · floor ${10 + (has('hal') ? 5 : 0) + (has('tent') ? 10 : 0)}, racking ${L.racks} bay${L.racks === 1 ? '' : 's'} × 6) · Each Naknik mixes <b>${econ.perNaknik()} kg</b> · Naknik places at home <b>${naknikCap()}</b>${B.q ? ' · blends <b>+½★</b>' : ''}<br>
       <small>Bouwbedrijf Gerrit &amp; Zonen builds one thing at a time. Building takes market days: they work while you raid, deliver or sleep.</small></div>`;
     if (j) { const u = UPGRADES.find((x) => x.id === j.id), left = Math.max(0, j.done - day()); h += `<div class="well" style="margin-bottom:8px;background:#ffffe0"><b>Under construction:</b> ${u.name}${u.repeat ? ` (bay ${L.racks + 1})` : ''} · ready in <b>${left}</b> market day${left === 1 ? '' : 's'}<br><small>Gerrit: "${['Nog effe, baas.', 'We are waiting for the concrete. And for coffee.', 'My nephew is on it. Mostly.', 'Two more days. Three. Dutch days.'][j.start % 4]}"</small></div>`; }
     h += '<table class="list"><tr><th>Upgrade</th><th>What it does</th><th>Cost</th><th>Build</th><th></th></tr>';
@@ -610,7 +612,7 @@ export function createLoods(deps) {
 
   apply();
   return {
-    workRooms, workStations,
+    workRooms, workStations, hallAt: [HX, HZ],
     UPGRADES, ensure, boost, has, stage, naknikCap, html, bind, update, apply, order, finish, buyDeal, rollDeals, enterHall, leaveHall, getOn, getOff, forkAction,
     inside: () => inHall, driving: () => F.drive, fork: F, auto: A, nightShift, spots: () => SPOTS, bays, refreshSlots,
     camFocus: (p) => p.clone(), loaded: () => { F.drive = false; F.carry = null; carried.visible = false; apply(); },

@@ -194,7 +194,7 @@ export function lessons(c) {
       { pc: true, at: () => c.icon('mixing table'), wait: () => state.table || c.tab('shop'), doing: 'Open it', say: 'First a <b>mixing table</b>. No table, no spice. Click <b>Buy mixing table</b> on the desktop.' },
       { pc: true, at: '#tableBtn', wait: () => state.table, doing: 'Buy the table', say: 'Steel table, bowls, sacks. W 600. Buy it.' },
       { pc: true, at: () => c.icon('Naknik'), wait: () => state.naknik > 0 || c.tab('hire'), doing: 'Open it', say: 'Now somebody to mix. Open the <b>Naknik Uitzendbureau</b>.' },
-      { pc: true, at: '#hireBtn', wait: () => state.naknik > 0, doing: 'Hire one', say: 'Hire one. A <b>Naknik</b> mixes 10 kg of blend every night from the spice on your shelves. Not smart, but he mixes. More Naknikim come when you have a bigger name.' },
+      { pc: true, at: '#hireBtn', wait: () => state.naknik > 0, doing: 'Hire one', say: 'Pick one, bro. Every <b>Naknik</b> who climbed the stairs today has his own face, <b>Mengen</b>, <b>Tempo</b> and <b>Werkethiek</b>. He tips vaten into the mengkuip and fills blue bags: about 10 kg of blend a night. You can lend a hand yourself. More Naknikim come when you have a bigger name.' },
       { at: '#pcoff', wait: () => !state.inPC, doing: 'Log off', say: 'That\'s the PC for now. Log off with the red button bottom right, or press <b>Esc</b>.' },
       { world: c.pos.dad, wait: () => state.step === 'russian', doing: 'Talk to Dad', say: 'Your dad wants a last word before he goes. Talk to him.' },
     ],
