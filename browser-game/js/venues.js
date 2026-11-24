@@ -1,0 +1,258 @@
+// The two ends of the longer street (2026-11-24):
+//  - West: CLUB BELEGEN, Eddy Jr.'s favourite strip club. A reception room with the bouncer, Creplach (a rabbi, strict, deadpan),
+//    who wants W 200 a night to let you through. Inside: a bar, a centre stage with three dancers (Brie, Feta and Edam), and on
+//    a front seat Jossi, Eddy's friend, always there and always angling for the next lapdance. A lapdance is a fade-out and a
+//    text card: no nudity, stage outfits only.
+//  - East: TRYSHTAHN AUTO. A big empty plot off the street, then a round glass showroom with three cars on turntables: the boxy
+//    Kaasland Kombi, the sporty Stuttgart 911-ish Zuidwester, and a golden Rolls-ish Koninklijke. Tryshtahn stands up front and always
+//    asks Eddy double: the first time you come in, a local buys a Kombi for W 5,000 and you get quoted W 10,000 ("immigrant price").
+//    Buying cars comes later.
+// state.club = { paidDay, visits, dances }, state.dealer = { seen } are saved with the game.
+import { hex01 } from './characters.js';
+
+const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+
+// looks (js/characters.js fields)
+const LOOK = {
+  creplach: { tex: 512, skin: hex01(0xe8c0a0), hair: hex01(0x1a1410), hs: 'normal', beard: hex01(0x2a2018), fluff: 1, glasses: 1, hat: 'fedora', hatC: hex01(0x111114), calm: 1, body: 'big', B: { nowatch: true },
+    shirt: hex01(0x111114), jacket: hex01(0x111114), pants: hex01(0x111114), shoes: hex01(0x0a0a0a), tee: 1,
+    shirtPaint: { shirt: [0x11, 0x11, 0x14], pants: [0x11, 0x11, 0x14], skin: [0xf4, 0xf2, 0xec], belt: [0x0a, 0x0a, 0x0a], vDepth: 1.4, chain: false, sleeves: 'long', buttons: true } },
+  jossi: { tex: 512, skin: hex01(0xf0c4a8), hair: hex01(0x2a1e16), hs: 'normal', stubble: 1, smile: 1, calm: 0.4, body: 'fat', B: { nowatch: true },
+    shirt: hex01(0x1e3a8a), jacket: hex01(0x1e3a8a), pants: hex01(0x2a2c34), shoes: hex01(0x1a1410), tee: 1,
+    shirtPaint: { shirt: [0x1e, 0x3a, 0x8a], pants: [0x2a, 0x2c, 0x34], skin: [0xf0, 0xc4, 0xa8], belt: [0x1a, 0x14, 0x10], vDepth: 1.38, chain: false, sleeves: 'long', buttons: true } },
+  tryshtahn: { tex: 512, skin: hex01(0xc8906a), hair: hex01(0x1a1410), hs: 'buzz', stubble: 1, stache: 1, smile: 1, calm: 1, hat: 'wrap', hatC: hex01(0x1c2a5a), body: 'big', watch: 1, B: { nowatch: false },
+    shirt: hex01(0x14161c), jacket: hex01(0x14161c), pants: hex01(0x14161c), shoes: hex01(0x0e0c0a), tee: 1,
+    shirtPaint: { shirt: [0x14, 0x16, 0x1c], pants: [0x14, 0x16, 0x1c], skin: [0xf6, 0xf6, 0xf2], belt: [0x0e, 0x0c, 0x0a], vDepth: 1.42, chain: false, sleeves: 'long', buttons: true } },
+  dancer: (skin, hair, outfit, hs) => ({ tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, B: { nowatch: true },
+    shirt: hex01(outfit), jacket: hex01(outfit), pants: hex01(outfit), shoes: hex01(0x111111), tee: 1, skirt: hex01(outfit),
+    shirtPaint: { shirt: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], pants: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], skin: [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], neck: 'crew', sleeves: 'rolled', buttons: false } }),
+};
+const DANCERS = [
+  { name: 'Brie', skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
+  { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
+  { name: 'Edam', skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
+];
+const DANCE = 50, ENTRY = 200;
+
+export function createVenues(deps) {
+  const { THREE, scene, box, cyl, lam, signTex, solid, addInteract, player, state, dialogue, choice, toast, beep, addMoney } = deps;
+  const day = () => deps.day();
+  const far = new THREE.Vector3(0, -99, 0);
+  const V3 = (x, z) => new THREE.Vector3(x, 0, z);
+  const C = () => { if (!state.club || typeof state.club !== 'object') state.club = {}; const c = state.club; c.visits = c.visits | 0; c.dances = c.dances | 0; return c; };
+  const D = () => { if (!state.dealer || typeof state.dealer !== 'object') state.dealer = {}; return state.dealer; };
+  const neon = (c) => new THREE.MeshBasicMaterial({ color: c });
+
+  // ================================================================== CLUB BELEGEN
+  const K = { x0: -66, x1: -50, z0: -21, z1: -6.5, h: 4.6, door: -58, part: -11 }; // part = the wall between the reception and the club
+  const club = new THREE.Group(), clubHi = new THREE.Group(); scene.add(club); scene.add(clubHi);
+  const inClub = (p) => p.x > K.x0 && p.x < K.x1 && p.z > K.z0 && p.z < K.z1 - 0.05;
+  const inBack = (p) => inClub(p) && p.z < K.part;
+  {
+    const brick = lam({ color: 0x2a1e2a }), black = lam({ color: 0x121014 }), velvet = lam({ color: 0x5a0a2a }), gold = lam({ color: 0xd8a83a, emissive: 0x3a2a00 }), wood = lam({ color: 0x3a2014 });
+    const W = K.x1 - K.x0, Dp = K.z1 - K.z0, cx = (K.x0 + K.x1) / 2, cz = (K.z0 + K.z1) / 2;
+    // floors: a checker in the reception, dark purple carpet in the club
+    box(W, 0.02, K.z1 - K.part, lam({ map: deps.canvasTex(64, 64, (g) => { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#e8e0d0' : '#1a1418'; g.fillRect(x * 32, y * 32, 32, 32); } }) }), cx, 0.015, (K.z1 + K.part) / 2, club, false).material.map; { const m = club.children[club.children.length - 1].material.map; m.wrapS = m.wrapT = THREE.RepeatWrapping; m.repeat.set(W / 1.2, 3.5); m.needsUpdate = true; }
+    box(W, 0.02, K.part - K.z0, lam({ color: 0x2a0e2e }), cx, 0.015, (K.part + K.z0) / 2, club, false);
+    // walls: low parts stay, the upper parts and the roof go when you are inside
+    const wall = (x0, x1, z0, z1) => { const w = Math.max(0.3, x1 - x0), d = Math.max(0.3, z1 - z0); box(w, 1.1, d, brick, (x0 + x1) / 2, 0.55, (z0 + z1) / 2, club); box(w, K.h - 1.1, d, brick, (x0 + x1) / 2, 1.1 + (K.h - 1.1) / 2, (z0 + z1) / 2, clubHi); solid(x0, x1, z0, z1); };
+    wall(K.x0 - 0.3, K.x0, K.z0, K.z1); wall(K.x1, K.x1 + 0.3, K.z0, K.z1); wall(K.x0 - 0.3, K.x1 + 0.3, K.z0 - 0.3, K.z0);
+    // the facade: black, with a door in the middle and a pink neon sign
+    const front = (x0, x1) => { box(x1 - x0, K.h, 0.3, black, (x0 + x1) / 2, K.h / 2, K.z1, clubHi); box(x1 - x0, 1.1, 0.3, black, (x0 + x1) / 2, 0.55, K.z1, club); solid(x0, x1, K.z1 - 0.15, K.z1 + 0.15); };
+    front(K.x0 - 0.3, K.door - 1.0); front(K.door + 1.0, K.x1 + 0.3);
+    box(2.0, K.h - 2.5, 0.3, black, K.door, 2.5 + (K.h - 2.5) / 2, K.z1, clubHi);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.3), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'CLUB BELEGEN', size: 92 }, { t: 'GENTLEMEN · LEDEN · KAAS', size: 30 }], '#120a14', '#ff5ac8', 768, 160) }));
+    sign.position.set(K.door, 3.55, K.z1 + 0.17); club.add(sign);
+    box(7.7, 0.05, 0.05, neon(0xff3ab8), K.door, 2.86, K.z1 + 0.2, club, false); box(7.7, 0.05, 0.05, neon(0xff3ab8), K.door, 4.24, K.z1 + 0.2, club, false);
+    // red carpet, brass posts and a velvet rope on the pavement
+    box(1.8, 0.02, 3.2, lam({ color: 0xa01828 }), K.door, 0.03, K.z1 + 1.7, club, false);
+    for (const x of [K.door - 1.3, K.door + 1.3]) for (const z of [K.z1 + 0.7, K.z1 + 2.7]) cyl(0.05, 0.07, 0.95, gold, x, 0.48, z, club);
+    for (const x of [K.door - 1.3, K.door + 1.3]) { const r = box(0.04, 0.04, 2.0, velvet, x, 0.82, K.z1 + 1.7, club, false); r.rotation.x = 0.05; }
+    // the partition between the reception and the club, with the inner door Creplach guards (and a rope until you have paid)
+    const part = (x0, x1) => { box(x1 - x0, 2.8, 0.2, lam({ color: 0x3a1a3a }), (x0 + x1) / 2, 1.4, K.part, club); solid(x0, x1, K.part - 0.12, K.part + 0.12); };
+    part(K.x0, K.door - 1.0); part(K.door + 1.0, K.x1);
+    box(2.0, 0.6, 0.2, lam({ color: 0x3a1a3a }), K.door, 2.5, K.part, club);
+    const ms = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'MEMBERS ONLY', size: 60 }], '#120a14', '#ff5ac8', 384, 96) })); ms.position.set(K.door, 2.5, K.part + 0.11); club.add(ms);
+    K.rope = new THREE.Group(); club.add(K.rope);
+    for (const x of [K.door - 0.9, K.door + 0.9]) cyl(0.05, 0.07, 0.95, gold, x, 0.48, K.part + 0.35, K.rope);
+    box(1.8, 0.05, 0.05, velvet, K.door, 0.82, K.part + 0.35, K.rope, false);
+    K.gate = solid(K.door - 1.0, K.door + 1.0, K.part - 0.12, K.part + 0.5);
+    // reception: a desk, a coat rack, a framed sign
+    box(1.8, 1.0, 0.7, wood, K.x0 + 2.2, 0.5, K.z1 - 2.2, club); box(1.9, 0.06, 0.8, gold, K.x0 + 2.2, 1.02, K.z1 - 2.2, club, false); solid(K.x0 + 1.3, K.x0 + 3.1, K.z1 - 2.55, K.z1 - 1.85);
+    cyl(0.04, 0.04, 1.8, gold, K.x1 - 1.0, 0.9, K.z1 - 1.0, club); for (let k = 0; k < 3; k++) box(0.42, 0.6, 0.2, lam({ color: [0x3a3a3a, 0x8a2a2a, 0x2a3a6a][k] }), K.x1 - 1.0 + (k - 1) * 0.2, 1.4, K.z1 - 1.0 + (k - 1) * 0.15, club, false);
+    const price = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'ENTREE', size: 50 }, { t: fmt(ENTRY), size: 64 }], '#1a1014', '#f2c14e', 256, 128) })); price.position.set(K.door - 2.6, 1.7, K.part + 0.11); club.add(price);
+    // the bar along the west wall: counter, brass rail, shelves of bottles, stools
+    box(1.0, 1.1, 7.0, wood, K.x0 + 1.6, 0.55, -16.0, club); box(1.15, 0.06, 7.1, lam({ color: 0x1a0a10 }), K.x0 + 1.6, 1.12, -16.0, club, false); solid(K.x0 + 1.1, K.x0 + 2.1, -19.5, -12.5);
+    box(0.3, 1.6, 7.0, black, K.x0 + 0.2, 1.8, -16.0, club, false);
+    for (let k = 0; k < 18; k++) cyl(0.05, 0.05, 0.3, lam({ color: [0x2a7a3a, 0xc8a040, 0x8a2a1a, 0xe8e8f0][k % 4], emissive: 0x101010 }), K.x0 + 0.25, 1.35 + (k % 2) * 0.6, -19.2 + (k >> 1) * 0.78, club);
+    box(0.1, 0.4, 7.0, neon(0x8a3aff), K.x0 + 0.36, 2.75, -16.0, club, false);
+    for (let k = 0; k < 4; k++) { cyl(0.22, 0.22, 0.06, velvet, K.x0 + 2.6, 0.72, -18.6 + k * 1.8, club); cyl(0.04, 0.04, 0.7, gold, K.x0 + 2.6, 0.36, -18.6 + k * 1.8, club); }
+    const bs = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.5), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'BAR', size: 80 }], '#120a14', '#8a3aff', 256, 72) })); bs.rotation.y = Math.PI / 2; bs.position.set(K.x0 + 0.4, 3.3, -16.0); club.add(bs);
+    // the stage: a round platform with a pink edge glow and three brass poles; front seats on an arc in front of it
+    K.stage = { x: -55.2, z: -16.6, r: 2.4 };
+    cyl(K.stage.r, K.stage.r, 0.5, lam({ color: 0x1a1018 }), K.stage.x, 0.25, K.stage.z, club, 32);
+    const edge = new THREE.Mesh(new THREE.TorusGeometry(K.stage.r, 0.04, 6, 48), neon(0xff3ab8)); edge.rotation.x = Math.PI / 2; edge.position.set(K.stage.x, 0.5, K.stage.z); club.add(edge);
+    solid(K.stage.x - K.stage.r * 0.8, K.stage.x + K.stage.r * 0.8, K.stage.z - K.stage.r * 0.8, K.stage.z + K.stage.r * 0.8);
+    K.poles = [-0.9, 0, 0.9].map((a, i) => { const ang = Math.PI + a, x = K.stage.x + Math.sin(ang) * 1.4, z = K.stage.z + Math.cos(ang) * 1.4 + (i === 1 ? 0 : 0); cyl(0.04, 0.04, K.h - 0.5, gold, x, 0.5 + (K.h - 0.5) / 2, z, club); return { x, z }; });
+    K.seats = [-1.0, -0.5, 0, 0.5, 1.0].map((a) => { const r = 3.7, x = K.stage.x + Math.sin(a) * r, z = K.stage.z + Math.cos(a) * r, ry = a + Math.PI;
+      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; club.add(g);
+      box(0.8, 0.45, 0.75, velvet, 0, 0.22, 0, g); box(0.8, 0.7, 0.18, velvet, 0, 0.75, -0.3, g); for (const sx of [-0.36, 0.36]) box(0.14, 0.3, 0.72, velvet, sx, 0.55, 0, g);
+      solid(x - 0.4, x + 0.4, z - 0.4, z + 0.4); return { x, z, ry }; });
+    // lights: pink and violet over the stage (on while you are inside)
+    K.lights = [[0xff3ab8, K.stage.x - 1.5, K.stage.z], [0x8a3aff, K.stage.x + 1.5, K.stage.z], [0xffc070, K.door, (K.z1 + K.part) / 2]].map(([c, x, z]) => { const l = new THREE.PointLight(c, 0, 9, 1.4); l.position.set(x, 3.6, z); club.add(l); return l; });
+    // the roof (hidden inside)
+    box(W + 0.6, 0.25, Dp + 0.6, lam({ color: 0x1a1a1e }), cx, K.h + 0.12, cz, clubHi, false);
+  }
+  // the people
+  const creplach = deps.makePerson(LOOK.creplach); creplach.position.set(K.door + 1.45, 0, K.part + 0.75); creplach.rotation.y = 0; scene.add(creplach);
+  const jossi = deps.makePerson(LOOK.jossi, 0.92); const js = K.seats[2]; jossi.position.set(js.x, 0, js.z); jossi.rotation.y = js.ry + Math.PI; scene.add(jossi); deps.sit(jossi, 0.5);
+  const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
+  const extras = [0, 4].map((k, i) => { const s = K.seats[k], p = deps.passerBy(700 + i * 13); p.position.set(s.x, 0, s.z); p.rotation.y = s.ry + Math.PI; scene.add(p); deps.sit(p, 0.5); return p; });
+
+  const paid = () => C().paidDay === day();
+  const CREP_HI = ['Shoes clean? Shirt tucked in? Hm. Close enough.', 'Hands where I can see them. The girls dance. You sit.', 'No photos. No touching. No singing along.', 'You again. Go on. Behave.'];
+  addInteract({
+    pos: () => (inClub(player.position) || player.position.distanceTo(V3(K.door, K.part)) < 3 ? creplach.position : far), r: 1.9,
+    enabled: () => inClub(player.position) || player.position.distanceTo(V3(K.door, K.part)) < 3,
+    label: () => (paid() ? 'Talk to Creplach' : `Talk to Creplach · entry ${fmt(ENTRY)}`),
+    act: () => {
+      if (paid()) { dialogue([['Creplach', pick(CREP_HI)]]); return; }
+      const first = !C().visits;
+      choice('Creplach', first ? 'Club Belegen. Members only. Tonight\'s membership is ' + fmt(ENTRY) + '. I check the shoes, I check the attitude, I check the wallet.' : `Eddy Jr. ${fmt(ENTRY)} for tonight, same as always.`, [`Pay ${fmt(ENTRY)}`, 'Not tonight'], (i) => {
+        if (i !== 0) { dialogue([['Creplach', 'Then you stand outside. Like a lamppost. A very sad lamppost.']]); return; }
+        if (state.money < ENTRY) { dialogue([['Creplach', `${fmt(ENTRY)}, Eddy. Not a cent less. Come back when your pockets agree with you.`]]); beep(160, 0.2, 'square', 0.04); return; }
+        addMoney(-ENTRY); const c = C(); c.paidDay = day(); c.visits++; if (deps.save) deps.save(); beep(660, 0.08, 'triangle', 0.04);
+        dialogue([['Creplach', first ? 'Welcome to Club Belegen. The bar is left, the stage is straight ahead, the rules are on my face.' : 'In you go. Behave.'], ...(first ? [['Eddy Jr.', '(Jossi is already here. Of course Jossi is already here.)']] : [])]);
+      });
+    },
+  });
+  // Jossi: always on a front seat, always happy to see Eddy, always distracted by the next lapdance
+  const JOSSI = [
+    [['Jossi', 'EDDY! My brother! Sit, sit, sit! ...Wait. Is that Feta? FETA! Over here! I have tips!'], ['Eddy Jr.', 'Hi Jossi.'], ['Jossi', 'Hi, hi. Love you. One second. FETA!']],
+    [['Jossi', 'Eddy Jr.! How\'s the spice business? Big? Huge? ...Hold on, Brie just looked at me. She LOOKED at me, Eddy.'], ['Eddy Jr.', 'She looks at everyone, Jossi.'], ['Jossi', 'Not like that. Not like THAT.']],
+    [['Jossi', 'You know what, Eddy? You\'re my best friend. My best, best friend. Do you have fifty Wilders? Edam is free.'], ['Eddy Jr.', 'No.'], ['Jossi', 'Okay. Still my best friend. Mostly.']],
+    [['Jossi', 'I\'ve been here since four. I live here now. Creplach brings me soup.'], ['Eddy Jr.', 'Creplach brings you soup?'], ['Jossi', 'Kreplach soup. From Creplach. It\'s a whole thing. SHHH, Edam is starting!']],
+  ];
+  addInteract({ pos: () => (inBack(player.position) ? jossi.position : far), r: 1.6, enabled: () => inBack(player.position), label: () => 'Talk to Jossi', act: () => { dialogue(JOSSI[(C().jossiK = ((C().jossiK | 0) + 1)) % JOSSI.length]); } });
+  // lapdances: a fade to black and a text card
+  let card = null;
+  function lapdance(d) {
+    if (state.money < DANCE) { dialogue([[d.name, 'Sweetie. ' + fmt(DANCE) + '. Come back when you\'re liquid.']]); return; }
+    addMoney(-DANCE); C().dances++; if (deps.save) deps.save();
+    if (!card) { card = document.createElement('div'); card.style.cssText = 'position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;background:#000;opacity:0;transition:opacity .6s;cursor:pointer'; document.body.appendChild(card); }
+    card.innerHTML = `<div style="max-width:560px;text-align:center;color:#ffd6f0;font:20px/1.5 Rubik,Arial;padding:20px"><div style="font:900 34px Bungee,'Arial Black';color:#ff5ac8;text-shadow:0 0 14px #ff3ab8;margin-bottom:12px">${d.name.toUpperCase()}</div>${d.card}<div style="margin-top:18px;font-size:12px;color:#a07a9a">click to continue</div></div>`;
+    card.style.display = 'flex'; requestAnimationFrame(() => { card.style.opacity = 1; }); state.inDialogue = true;
+    [392, 494, 587, 494].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'sine', 0.03), 300 + i * 260));
+    card.onclick = () => { card.style.opacity = 0; setTimeout(() => { card.style.display = 'none'; state.inDialogue = false; dialogue([['Jossi', pick([`EDDY! You got ${d.name}?! I've been asking for ${d.name} for an HOUR!`, `${d.name}?! Eddy, that's MY ${d.name}! ...Was it nice? Don't tell me. Tell me.`, 'Next one\'s mine. NEXT ONE IS MINE.'])]]); }, 600); };
+  }
+  dancers.forEach((p) => addInteract({ pos: () => (inBack(player.position) ? p.position : far), r: 2.4, enabled: () => inBack(player.position) && !(card && card.style.display === 'flex'), label: () => `Lapdance from ${p.userData.dancer.name} · ${fmt(DANCE)}`, act: () => lapdance(p.userData.dancer) }));
+  addInteract({ pos: () => (inBack(player.position) ? V3(K.x0 + 2.6, -16.0) : far), r: 1.8, enabled: () => inBack(player.position), label: () => 'A jenever at the bar · W 10', act: () => { if (state.money < 10) return; addMoney(-10); dialogue([['Eddy Jr.', pick(['(Jenever. It burns. It burns in a good way.)', '(The bartender doesn\'t talk. The bartender pours.)', '(Jossi waves from the front row with both hands. Eddy waves back with one.)'])]]); } });
+
+  // ================================================================== TRYSHTAHN AUTO
+  const S = { x0: 52, x1: 80, z0: -36, z1: -6.5, cx: 66, cz: -25.2, r: 9.6, h: 4.6 };
+  const lot = new THREE.Group(), showHi = new THREE.Group(); scene.add(lot); scene.add(showHi);
+  const inShow = (p) => Math.hypot(p.x - S.cx, p.z - S.cz) < S.r - 0.2;
+  const onLot = (p) => p.x > S.x0 && p.x < S.x1 && p.z > S.z0 && p.z < S.z1;
+  const cars = [];
+  {
+    // the plot: fresh asphalt, white lines, flags, a pylon sign at the street
+    box(S.x1 - S.x0, 0.02, S.z1 - S.z0, lam({ color: 0x3a3c40 }), (S.x0 + S.x1) / 2, 0.012, (S.z0 + S.z1) / 2, lot, false);
+    for (let x = S.x0 + 1.5; x < S.x1 - 1; x += 3) box(0.1, 0.01, 4.5, lam({ color: 0xe8e8e8 }), x, 0.025, S.z1 - 3, lot, false);
+    for (const [x0, x1, z0, z1] of [[S.x0 - 0.2, S.x0, S.z0, S.z1 - 0.8], [S.x1, S.x1 + 0.2, S.z0, S.z1 - 0.8], [S.x0, S.x1, S.z0 - 0.2, S.z0]]) solid(x0, x1, z0, z1); // a low fence round the plot
+    for (const [x0, x1, z] of [[S.x0, S.x1, S.z0]]) box(x1 - x0, 0.9, 0.08, lam({ color: 0x8a8e94 }), (x0 + x1) / 2, 0.45, z, lot, false);
+    for (const x of [S.x0, S.x1]) box(0.08, 0.9, S.z1 - S.z0 - 0.8, lam({ color: 0x8a8e94 }), x, 0.45, (S.z0 + S.z1 - 0.8) / 2, lot, false);
+    // bunting
+    const flagCols = [0xe83a3a, 0xf2c14e, 0x3a8ae8, 0x3ac85a];
+    for (const [x0, x1, z] of [[S.x0 + 0.5, S.x1 - 0.5, S.z1 - 0.6]]) { for (const x of [x0, x1]) cyl(0.06, 0.06, 4.2, lam({ color: 0xc8ccd0 }), x, 2.1, z, lot); for (let k = 0, n = 34; k < n; k++) { const t = k / (n - 1), x = x0 + (x1 - x0) * t, y = 4.0 - Math.sin(t * Math.PI) * 0.9; const f = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.36, 3), lam({ color: flagCols[k % 4] })); f.position.set(x, y - 0.2, z); f.rotation.x = Math.PI; lot.add(f); } }
+    cyl(0.18, 0.22, 6.5, lam({ color: 0x2a2c30 }), S.x0 + 1.8, 3.25, S.z1 - 1.6, lot); solid(S.x0 + 1.55, S.x0 + 2.05, S.z1 - 1.85, S.z1 - 1.35);
+    const pyl = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.2), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'TRYSHTAHN', size: 74 }, { t: 'AUTO', size: 74 }, { t: 'EERLIJKE PRIJZEN*', size: 30 }], '#101a3a', '#f2c14e', 512, 320) }));
+    pyl.position.set(S.x0 + 1.8, 5.6, S.z1 - 1.4); lot.add(pyl); const pb = pyl.clone(); pb.rotation.y = Math.PI; pb.position.z -= 0.02; lot.add(pb);
+    // the round glass showroom: white floor disc, glass ring with a door gap facing the street, steel rings and mullions, a flat roof
+    cyl(S.r, S.r, 0.12, lam({ color: 0xf2f2f4 }), S.cx, 0.06, S.cz, lot, 48);
+    const gap = 0.17; // radians each side of due south (+z)
+    const glass = new THREE.Mesh(new THREE.CylinderGeometry(S.r, S.r, S.h, 48, 1, true, gap, Math.PI * 2 - gap * 2), new THREE.MeshPhongMaterial({ color: 0x9ad0f0, transparent: true, opacity: 0.22, side: THREE.DoubleSide, shininess: 90, depthWrite: false }));
+    glass.position.set(S.cx, S.h / 2 + 0.12, S.cz); showHi.add(glass);
+    const steel = lam({ color: 0xc8ccd2 });
+    for (const y of [0.15, S.h + 0.1]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(S.r, 0.07, 6, 64, Math.PI * 2 - gap * 2), steel); ring.rotation.x = -Math.PI / 2; ring.rotation.z = Math.PI / 2 + gap; ring.position.set(S.cx, y, S.cz); (y < 1 ? lot : showHi).add(ring); }
+    for (let k = 0; k < 24; k++) { const a = gap + (Math.PI * 2 - gap * 2) * (k / 23); const m = box(0.1, S.h, 0.1, steel, S.cx + Math.sin(a) * S.r, S.h / 2 + 0.12, S.cz + Math.cos(a) * S.r, k === 0 || k === 23 ? lot : showHi, false); }
+    for (let a = gap + 0.06; a < Math.PI * 2 - gap - 0.03; a += 0.12) { const x = S.cx + Math.sin(a) * S.r, z = S.cz + Math.cos(a) * S.r; solid(x - 0.5, x + 0.5, z - 0.5, z + 0.5); }
+    const roof = cyl(S.r + 0.4, S.r + 0.4, 0.3, lam({ color: 0xe8eaee }), S.cx, S.h + 0.3, S.cz, showHi, 48);
+    const ss = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.7), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'TRYSHTAHN AUTO', size: 64 }], '#101a3a', '#f2c14e', 512, 80) }));
+    ss.position.set(S.cx, S.h + 0.75, S.cz + S.r + 0.05); showHi.add(ss);
+    box(2.6, 0.02, 1.6, lam({ color: 0x2a2a2e }), S.cx, 0.13, S.cz + S.r + 0.9, lot, false); // doormat
+    // three cars on turntables
+    const prof = {
+      kombi: { n: 'Kaasland Kombi', W: 1.75, r: 0.1, wr: 0.31, body: [[-2.4, 0.3], [2.35, 0.3], [2.4, 0.85], [1.2, 0.95], [0.7, 1.48], [-2.3, 1.5], [-2.4, 0.95]], glass: [[1.15, 0.97], [0.68, 1.42], [-2.22, 1.44], [-2.3, 1.0]] },
+      zuid: { n: 'Zuidwester 911', W: 1.8, r: 0.32, wr: 0.32, body: [[-2.15, 0.3], [2.15, 0.3], [2.2, 0.6], [1.4, 0.76], [0.35, 1.24], [-0.55, 1.27], [-1.55, 0.98], [-2.2, 0.72]], glass: [[0.3, 1.18], [-0.5, 1.2], [-1.25, 0.98], [0.95, 0.85]] },
+      rolls: { n: 'Koninklijke Phantom', W: 2.0, r: 0.08, wr: 0.36, body: [[-2.8, 0.34], [2.8, 0.34], [2.85, 1.05], [1.5, 1.14], [0.85, 1.72], [-2.25, 1.74], [-2.8, 1.18]], glass: [[0.8, 1.64], [-2.15, 1.66], [-2.2, 1.18], [1.35, 1.16]] },
+    };
+    const MODELS = [
+      { id: 'kombi', name: 'Kaasland Kombi', paint: 0xd8cca8, others: 5000, prof: prof.kombi, ang: -0.62, say: 'The Kombi. Boxy, honest, indestructible. Like me.' },
+      { id: 'zuid', name: 'Zuidwester 911', paint: 0xc81e1e, others: 24000, prof: prof.zuid, ang: 0, say: 'The Zuidwester. German engineering, Kaasland paperwork. Zero to frikandel in four seconds.' },
+      { id: 'rolls', name: 'Koninklijke Phantom (gold)', paint: 0xd8b040, others: 250000, prof: prof.rolls, ang: 0.62, gold: true, say: 'The Phantom. Solid gold paint. The King of Kaasland has one. Well. Had one. Now I have it.' },
+    ];
+    for (const M of MODELS) {
+      const i = MODELS.indexOf(M), x = S.cx + (i - 1) * 5.8, z = S.cz - 2.6 + (i === 1 ? -0.8 : 0); // a row across the back, the Zuidwester a step back in the middle
+      cyl(2.75, 2.75, 0.16, lam({ color: 0x1a1c22 }), x, 0.2, z, lot, 40);
+      const spin = new THREE.Group(); spin.position.set(x, 0.28, z); lot.add(spin);
+      const c = deps.makeCar({ profile: M.prof, paint: M.paint }); c.rotation.y = -Math.PI / 2; spin.add(c);
+      if (M.gold && c.userData.paint) { c.userData.paint.emissive = new THREE.Color(0x4a3400); c.userData.paint.color.setHex(0xe8c048); }
+      solid(x - 1.9, x + 1.9, z - 1.9, z + 1.9);
+      cars.push({ ...M, x, z, spin });
+    }
+    S.lights = [new THREE.PointLight(0xffffff, 0, 16, 1.2)]; S.lights[0].position.set(S.cx, S.h - 0.4, S.cz); lot.add(S.lights[0]);
+  }
+  const tryshtahn = deps.makePerson(LOOK.tryshtahn, 1.08); tryshtahn.position.set(S.cx, 0.12, S.cz + 5.6); tryshtahn.rotation.y = 0; scene.add(tryshtahn);
+  const buyer = deps.passerBy(733); buyer.position.set(S.cx - 1.3, 0.12, S.cz + 4.8); buyer.rotation.y = Math.PI * 0.85; scene.add(buyer); buyer.visible = !D().seen;
+  const myPrice = (M) => M.others * 2;
+  function firstVisit() {
+    const kombi = cars[0];
+    dialogue([
+      ['Tryshtahn', 'My friend! Kaasland Kombi, full tank, new mats, five thousand Wilders. Special price. Today only.'],
+      ['Customer', 'Deal! Five thousand. Here you go.'],
+      ['Tryshtahn', 'Pleasure doing business! Drive safe, my brother, may your parking always be free!'],
+      ['Eddy Jr.', 'Hi. I\'ll take one of those Kombis too.'],
+      ['Tryshtahn', 'Ah! Welcome, welcome! The Kombi, for you... ten thousand Wilders.'],
+      ['Eddy Jr.', 'He just paid five thousand. I heard it. I was standing right here.'],
+      ['Tryshtahn', 'Yes, but he is from here. You are an immigrant to Kaasland. Immigrant price. Very standard. Everybody knows.'],
+      ['Eddy Jr.', 'I was BORN on this street! My dad\'s shop is two hundred metres that way!'],
+      ['Tryshtahn', 'Exactly what an immigrant would say. Ten thousand. And I am being generous, because I like your face.'],
+    ], () => { D().seen = 1; buyer.visible = false; if (deps.save) deps.save(); toast('TRYSHTAHN AUTO', 'The customer drove off in his W 5,000 Kombi. Your price: W 10,000. Buying cars comes later.', 5); });
+    void kombi;
+  }
+  addInteract({
+    pos: () => (inShow(player.position) || player.position.distanceTo(tryshtahn.position) < 2.5 ? tryshtahn.position : far), r: 2.0,
+    enabled: () => inShow(player.position) || player.position.distanceTo(tryshtahn.position) < 2.5,
+    label: () => (D().seen ? 'Talk to Tryshtahn' : 'Listen in'),
+    act: () => {
+      if (!D().seen) { firstVisit(); return; }
+      dialogue([
+        ['Tryshtahn', pick(['Eddy! My favourite immigrant! What can I overcharge you for today?', 'Welcome back! Prices went up since this morning. For you. Only for you.', 'My brother! You look like a man with a car-shaped hole in his heart. And a wallet-shaped hole I can make.'])],
+        ['Tryshtahn', `Today: the Kombi ${fmt(myPrice(cars[0]))}, the Zuidwester ${fmt(myPrice(cars[1]))}, the golden Phantom ${fmt(myPrice(cars[2]))}. Locals pay half. You are not a local.`],
+        ['Tryshtahn', 'Financing department is closed for now. Come back soon, I will have paperwork. Lots of paperwork.'],
+      ]);
+    },
+  });
+  cars.forEach((M) => addInteract({ pos: () => (inShow(player.position) ? V3(M.x, M.z) : far), r: 2.8, enabled: () => inShow(player.position), label: () => `${M.name} · ${fmt(myPrice(M))} (locals: ${fmt(M.others)})`, act: () => { dialogue([['Tryshtahn', M.say], ['Tryshtahn', `For you: ${fmt(myPrice(M))}. Not for sale yet, though. Paperwork.`]]); } }));
+
+  // ================================================================== per frame
+  let wasClub = false, wasShow = false, t = 0;
+  function update(dt) {
+    t += dt;
+    const p = player.position, ic = inClub(p), is = inShow(p);
+    if (ic !== wasClub) { wasClub = ic; clubHi.visible = !ic; for (const l of K.lights) l.intensity = ic ? 2.2 : 0; if (ic && !C().visits) toast('CLUB BELEGEN', 'Reception first. The bouncer is Creplach. Talk to him to get in.', 3.5); }
+    if (is !== wasShow) { wasShow = is; showHi.visible = !is; S.lights[0].intensity = is ? 1.4 : 0; }
+    // the rope opens for the night once you've paid
+    const open = paid(); K.gate.off = open; K.rope.visible = !open;
+    if (!open && inBack(p)) { p.z = K.part + 0.6; } // no sneaking in round Creplach
+    // dancers sway round their poles; Jossi leans forward and back
+    for (const d of dancers) { const u = d.userData.dancer, a = t * 0.8 + u.ph; d.position.set(u.pole.x + Math.sin(a) * 0.38, 0.5 + Math.abs(Math.sin(t * 2.2 + u.ph)) * 0.05, u.pole.z + Math.cos(a) * 0.38); d.rotation.y = a + Math.PI / 2 + Math.sin(t * 3 + u.ph) * 0.3; if (deps.animate) deps.animate(d, dt); }
+    jossi.rotation.x = Math.sin(t * 1.3) * 0.06;
+    if (deps.animate) { deps.animate(creplach, dt); deps.animate(tryshtahn, dt); if (buyer.visible) deps.animate(buyer, dt); }
+    for (const c of cars) c.spin.rotation.y += dt * 0.25;
+    if (onLot(p) && !D().seen && !D().hinted) { D().hinted = 1; toast('TRYSHTAHN AUTO', 'Somebody is buying a car inside. Walk in and listen.', 3); }
+  }
+  const inside = () => inClub(player.position) || inShow(player.position);
+  return { update, inside, inClub, inShow, club: K, show: S, cars, creplach, jossi, tryshtahn, dancers };
+}

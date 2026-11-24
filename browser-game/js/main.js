@@ -22,7 +22,8 @@ import { createEconomy, rankOf } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
 import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
 import { createKaasMap } from './kaasmap.js'; // the Map of Kaasland: aerial view + place list (PC + Oofmobiel)
-import { createJohan } from './johan.js'; // Johan, the childhood friend with The Letter: a Miata on the road, a forklift in the hall
+import { createJohan } from './johan.js';
+import { createVenues } from './venues.js'; // the street's two new ends: Club Belegen (west) and Tryshtahn Auto (east) // Johan, the childhood friend with The Letter: a Miata on the road, a forklift in the hall
 import { createMabootaLaw } from './maboota.js'; // the Maboota in public: witnesses, Wijkagent Bakker at the door
 import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wheel clamps, the tax inspector
 import { createHaggle, createSpiceStall } from './haggle.js'; // haggling with Tristan's cast (Werkplaats clients, Fenna, Oma Zahra)
@@ -48,6 +49,7 @@ import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who gi
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
 let johan = null; // js/johan.js, set up after De Loods
+let venues = null; // js/venues.js: Club Belegen and Tryshtahn Auto
 let prod = null, solli = null; // js/productie.js, js/sollicitanten.js
 let work = null; // js/naknikwork.js, set up after De Loods
 let woning = null; // js/woning.js, set up once the street, the economy and the phone exist
@@ -194,7 +196,7 @@ function collide(p, r) {
       }
     }
   }
-  const B = BOUNDS.cur || { x0: -33, x1: 33, z0: -37.2, z1: 10.6 + RC }; // z0: the hall and tent on the plot behind the shed
+  const B = BOUNDS.cur || { x0: WALK.x0, x1: WALK.x1, z0: -37.2, z1: 10.6 + RC }; // z0: the hall and tent on the plot behind the shed
   p.x = Math.max(B.x0, Math.min(B.x1, p.x));
   p.z = Math.max(B.z0, Math.min(B.z1, p.z));
 }
@@ -203,47 +205,50 @@ function collide(p, r) {
 // Cross-section (north → south), road centre RC: facades z=-7 | pavement 3.4 m | kerb | parking | 2 lanes | parking |
 // kerb | red two-way fietspad | pavement + trees | quay | canal (CZ)
 const RC = 1.6;
+// the street runs east-west from -SX to SX (was ±70; made longer 2026-11-24 for Club Belegen in the west and Tryshtahn's showroom in the east)
+const SX = 100, SXK = SX / 70; // half length, and how much longer the tiled textures repeat
+const WALK = { x0: -70, x1: 84 }; // how far Eddy can walk along it
 const ROAD = { pN: RC - 5.0, lane: 3.0, pS: RC + 5.0, bike0: RC + 5.2, bike1: RC + 7.6, walk1: RC + 10.9 };
 const CZ = 15 + RC;
 const groundMat = macro(lam({ map: tex('paving.jpg', 40, 20), color: 0xd8d2c4 }), 0.18, 0.08);
 for (const [z0, z1] of [[-70, CZ - 3.75], [CZ + 3.75, 70]]) {
-  const g = new THREE.Mesh(new THREE.PlaneGeometry(140, z1 - z0), groundMat);
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, z1 - z0), groundMat);
   g.rotation.x = -Math.PI / 2; g.position.z = (z0 + z1) / 2; g.receiveShadow = true; scene.add(g);
 }
 function strip(z0, z1, m, y = 0.02) {
-  const p = new THREE.Mesh(new THREE.PlaneGeometry(140, z1 - z0), m);
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, z1 - z0), m);
   p.rotation.x = -Math.PI / 2; p.position.set(0, y, (z0 + z1) / 2); p.receiveShadow = true; scene.add(p); return p;
 }
-strip(RC - ROAD.lane, RC + ROAD.lane, surface(asphaltTex('grey'), 22, 1.6, { color: 0xc4c2c0, rough: 0.88, nscale: 0.6, macroAmt: 0.12 })); // aggregate, tar-sealed cracks, patches (js/richtex.js)
+strip(RC - ROAD.lane, RC + ROAD.lane, surface(asphaltTex('grey'), 22 * SXK, 1.6, { color: 0xc4c2c0, rough: 0.88, nscale: 0.6, macroAmt: 0.12 })); // aggregate, tar-sealed cracks, patches (js/richtex.js)
 // parking bays: grey klinkers in herringbone (like the Drive street photos) with white bay lines
-const bayMat = surface(klinker('grey'), 70, 1, { rough: 0.9, nscale: 1.1, macroAmt: 0.16 });
+const bayMat = surface(klinker('grey'), 70 * SXK, 1, { rough: 0.9, nscale: 1.1, macroAmt: 0.16 });
 strip(ROAD.pN, RC - ROAD.lane, bayMat, 0.022); strip(RC + ROAD.lane, ROAD.pS, bayMat, 0.022);
-for (let x = -66; x < 66; x += 5.6) for (const z of [RC - 4, RC + 4]) box(0.1, 0.01, 1.9, mat.white, x, 0.032, z, scene, false);
-for (const z of [RC - ROAD.lane, RC + ROAD.lane]) box(140, 0.01, 0.1, mat.white, 0, 0.032, z, scene, false);
+for (let x = -SX + 4; x < SX - 4; x += 5.6) for (const z of [RC - 4, RC + 4]) box(0.1, 0.01, 1.9, mat.white, x, 0.032, z, scene, false);
+for (const z of [RC - ROAD.lane, RC + ROAD.lane]) box(SX * 2, 0.01, 0.1, mat.white, 0, 0.032, z, scene, false);
 // centre line (dashed, Dutch style) — skipped at the zebra
-for (let x = -66; x < 66; x += 4) if (Math.abs(x + 18) > 3) box(2, 0.01, 0.14, mat.white, x, 0.035, RC, scene, false);
+for (let x = -SX + 4; x < SX - 4; x += 4) if (Math.abs(x + 18) > 3) box(2, 0.01, 0.14, mat.white, x, 0.035, RC, scene, false);
 // zebra crossing spans the lanes and the bays
 for (let i = 0; i < 10; i++) box(3.2, 0.012, 0.5, mat.white, -18, 0.036, RC - 4.3 + i * 0.96, scene, false);
 // kerbs
-const kerbMat = surface(hardsteen(), 70, 0.25, { color: 0xd8d4cc, rough: 0.8, nscale: 0.6 }); // bluestone kerbs
-for (const z of [RC - 5.1, RC + 5.1]) box(140, 0.16, 0.18, kerbMat, 0, 0.08, z, scene, false);
+const kerbMat = surface(hardsteen(), 70 * SXK, 0.25, { color: 0xd8d4cc, rough: 0.8, nscale: 0.6 }); // bluestone kerbs
+for (const z of [RC - 5.1, RC + 5.1]) box(SX * 2, 0.16, 0.18, kerbMat, 0, 0.08, z, scene, false);
 // pavements
-for (const [z0, z1] of [[-7, RC - 5.2], [ROAD.bike1, ROAD.walk1]]) strip(z0, z1, macro(pbr('tiles_stone.jpg', 46, (z1 - z0) / 3, 0xc9c4ba, 0.85, 0.6), 0.15, 0.1), 0.012);
+for (const [z0, z1] of [[-7, RC - 5.2], [ROAD.bike1, ROAD.walk1]]) strip(z0, z1, macro(pbr('tiles_stone.jpg', 46 * SXK, (z1 - z0) / 3, 0xc9c4ba, 0.85, 0.6), 0.15, 0.1), 0.012);
 // fietspad: red asphalt with a dashed white centre line and bike symbols
-strip(ROAD.bike0, ROAD.bike1, surface(asphaltTex('red'), 28, 0.6, { color: 0xe0b0a4, rough: 0.85, nscale: 0.5, macroAmt: 0.1 }), 0.016);
-for (let x = -66; x < 66; x += 3) box(1.2, 0.01, 0.1, mat.white, x, 0.03, (ROAD.bike0 + ROAD.bike1) / 2, scene, false);
+strip(ROAD.bike0, ROAD.bike1, surface(asphaltTex('red'), 28 * SXK, 0.6, { color: 0xe0b0a4, rough: 0.85, nscale: 0.5, macroAmt: 0.1 }), 0.016);
+for (let x = -SX + 4; x < SX - 4; x += 3) box(1.2, 0.01, 0.1, mat.white, x, 0.03, (ROAD.bike0 + ROAD.bike1) / 2, scene, false);
 const bikeSym = canvasTex(128, 128, (g) => { g.strokeStyle = '#fff'; g.lineWidth = 7; for (const x of [34, 94]) { g.beginPath(); g.arc(x, 82, 22, 0, 7); g.stroke(); } g.beginPath(); g.moveTo(34, 82); g.lineTo(58, 50); g.lineTo(94, 50); g.lineTo(94, 82); g.moveTo(58, 50); g.lineTo(70, 82); g.lineTo(94, 50); g.moveTo(52, 40); g.lineTo(66, 40); g.moveTo(94, 50); g.lineTo(88, 34); g.stroke(); });
-for (let x = -60; x < 60; x += 20) for (const [z, r] of [[RC + 5.8, 0], [RC + 7.0, Math.PI]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), lam({ map: bikeSym, transparent: true })); p.rotation.set(-Math.PI / 2, 0, r - Math.PI / 2); p.position.set(x, 0.034, z); scene.add(p); }
-box(140, 0.08, 0.12, kerbMat, 0, 0.04, ROAD.bike1, scene, false);
+for (let x = -SX + 10; x < SX - 10; x += 20) for (const [z, r] of [[RC + 5.8, 0], [RC + 7.0, Math.PI]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), lam({ map: bikeSym, transparent: true })); p.rotation.set(-Math.PI / 2, 0, r - Math.PI / 2); p.position.set(x, 0.034, z); scene.add(p); }
+box(SX * 2, 0.08, 0.12, kerbMat, 0, 0.04, ROAD.bike1, scene, false);
 
 // canal along the south side of the street (Amsterdam-style)
 const waterRip = rippleNormal(); // slow ripples so the Klassiek canal catches the light (js/richtex.js)
-const water = new THREE.Mesh(new THREE.PlaneGeometry(140, 7.5), new THREE.MeshPhongMaterial({ color: 0x2e5a5c, shininess: 80, specular: 0x88aaaa, normalMap: waterRip, normalScale: new THREE.Vector2(0.45, 0.45) }));
+const water = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 7.5), new THREE.MeshPhongMaterial({ color: 0x2e5a5c, shininess: 80, specular: 0x88aaaa, normalMap: waterRip, normalScale: new THREE.Vector2(0.45, 0.45) }));
 water.rotation.x = -Math.PI / 2; water.position.set(0, -1.1, CZ); scene.add(water);
-const quayMat = macro(pbr('brick_red.jpg', 60, 1, 0x9a7a6a, 0.9, 1.0), 0.2, 0.15);
-const q1 = new THREE.Mesh(new THREE.PlaneGeometry(140, 1.2), quayMat); q1.position.set(0, -0.55, CZ - 3.74); scene.add(q1);
-const q2 = new THREE.Mesh(new THREE.PlaneGeometry(140, 1.2), quayMat); q2.position.set(0, -0.55, CZ + 3.74); q2.rotation.y = Math.PI; scene.add(q2);
-box(140, 0.14, 0.4, surface(hardsteen(), 80, 0.5, { color: 0xc8c4bc, rough: 0.8 }), 0, 0.07, CZ - 3.9, scene, false); // bluestone quay coping
+const quayMat = macro(pbr('brick_red.jpg', 60 * SXK, 1, 0x9a7a6a, 0.9, 1.0), 0.2, 0.15);
+const q1 = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 1.2), quayMat); q1.position.set(0, -0.55, CZ - 3.74); scene.add(q1);
+const q2 = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 1.2), quayMat); q2.position.set(0, -0.55, CZ + 3.74); q2.rotation.y = Math.PI; scene.add(q2);
+box(SX * 2, 0.14, 0.4, surface(hardsteen(), 80 * SXK, 0.5, { color: 0xc8c4bc, rough: 0.8 }), 0, 0.07, CZ - 3.9, scene, false); // bluestone quay coping
 // bridge over the canal
 box(5, 0.4, 7.8, lam({ map: tex('paving.jpg', 2, 3) }), 14, -0.15, CZ);
 { const K = kit(); // bridge: bluestone kerbs, a dark green iron railing with posts, a top rail and a mid rail, brick arch faces
@@ -490,7 +495,9 @@ function spanWidths(len, k0) {
   return ws;
 }
 // fill the far west, past the play area (so no empty plots), then the Hotel Kaasland stack
-{ let x = -64; spanWidths(30, 0).forEach((w, i) => { house(x + w / 2, -11, w, 9, 9 + (i % 4), 0, i + 20); x += w; }); }
+// the far west: houses, then Club Belegen (js/venues.js builds it in the gap CLUB.x0..x1), then houses up to the hotel stack
+const CLUB = { x0: -66, x1: -50 }, DEALER = { x0: 52, x1: 80 };
+{ let x = -SX, k = 20; for (const [a, b] of [[-SX, CLUB.x0], [CLUB.x1, -34]]) { x = a; spanWidths(b - a, k).forEach((w) => { house(x + w / 2, -11, w, 9, 9 + (k % 4), 0, k); solid(x, x + w, -15.5, -6.5); x += w; k++; }); } }
 stackTower(-34, -26.5, -11);
 const WH_X0_GAP = -11.2;
 // Shoarma Schmatzel: loyal to Freddy Sr., right next to the Hotel Kaasland stack
@@ -503,17 +510,18 @@ const BAYS = { lines: [1.45, 5.35, 9.25], oof: 3.4, kangoo: 7.3 }; // bay lines 
 const HOME_DOORS = [{ x: 0.86, z: -16.6, stand: { x: 0.25, z: -16.6 }, face: -Math.PI / 2 }]; // Het Hok: a door in the warehouse's east wall; [1] the house next to Eddy's parking, [2] the one past the pawnshop (set below)
 const PS = { x0: 20, x1: 28, z0: -15.5, z1: -6.5, h: 4.8, doorX0: 23.2, doorX1: 24.6 };
 nx = LOT.x1;
-for (const [a, b] of [[LOT.x1, PS.x0], [PS.x1, 64]]) for (const w of spanWidths(b - a, hi)) {
+for (const [a, b] of [[LOT.x1, PS.x0], [PS.x1, DEALER.x0], [DEALER.x1, SX]]) for (const w of spanWidths(b - a, hi)) { // the dealership plot (js/venues.js) breaks the row
   if (nx < a) nx = a;
   house(nx + w / 2, -11, w, 9, 9 + (hi % 4) * 1.1, 0, hi, hi === 7 ? 'BITTERBAL & ZO' : null, hi === 9 ? { gable: 'point', color: 0x23a07a, clock: true, neon: null } : {}); solid(nx, nx + w, -15.5, -6.5);
   if (hi === 4 || hi === 6) HOME_DOORS[hi === 4 ? 1 : 2] = { x: nx + w / 2 + w * 0.28, z: -6.5, facade: true, stand: { x: nx + w / 2 + w * 0.28, z: -5.8 }, face: 0 }; // Eddy's woning (js/woning.js): the street door
   nx += w; hi++;
 }
 // back row behind the street (only the roofs show) so nothing looks empty from the camera
-for (let x = -64, i = 0; x < 64; i++) { const w = 5 + (i % 3); if (x + w < -34 || x > 12) house(x + w / 2, -25.5, w, 9, 10 + (i % 4) * 1.2, 0, i + 7, null, { simple: true }); x += w; } // behind the shed: the bouwkavel (js/loods.js)
+for (let x = -SX, i = 0; x < SX; i++) { const w = 5 + (i % 3); if ((x + w < -34 || x > 12) && (x + w < DEALER.x0 - 2 || x > DEALER.x1 + 2) && (x + w < CLUB.x0 || x > CLUB.x1)) house(x + w / 2, -25.5, w, 9, 10 + (i % 4) * 1.2, 0, i + 7, null, { simple: true }); x += w; } // behind the shed: the bouwkavel (js/loods.js)
 for (let x = -34, i = 0; x < 12; i++) { const w = 5 + (i % 3); house(x + w / 2, -42, w, 9, 10 + (i % 4) * 1.2, 0, i + 3, null, { simple: true }); x += w; } // and the row behind the plot
 // backdrop houses across the canal
 for (let x = -60, i = 0; x < 60; i++) { const w = 5 + (i % 3); house(x + w / 2, CZ + 8.5, w, 8, 9 + (i % 4), Math.PI, i + 2, i === 13 ? 'SHOARMA HABIBI' : null); x += w; }
+for (const [a, b, k0] of [[-SX, -60, 40], [60, SX, 50]]) { let x = a; spanWidths(b - a, k0).forEach((w, i) => { house(x + w / 2, CZ + 8.5, w, 8, 9 + ((k0 + i) % 4), Math.PI, k0 + i, null); x += w; }); } // and on along the longer street
 
 // ------------------------------------------------------------------ the warehouse
 const WH = { x0: -11, x1: 1, z0: -19, z1: -7, h: 5.2, doorX0: -7, doorX1: -2.5 };
@@ -610,24 +618,24 @@ function lamp(x, z) { // Amsterdam-style mast: stepped foot, collar rings, a cur
   K.box(0.4, 0.08, 0.5, c, x, 4.98, z + dir * 0.95); K.cyl(0.05, 0.12, 0.16, c, x, 4.88, z + dir * 0.95, 8);
   box(0.34, 0.1, 0.4, lampHeadMat, x, 4.86, z + dir * 0.95, scene, false); LAMPS.push([x, z]);
 }
-for (let x = -30; x <= 30; x += 12) { lamp(x === 6 ? 10.6 : x, RC - 5.3); lamp(x + 6, ROAD.bike1 + 0.2); }
+for (let x = -66; x <= 78; x += 12) { if (x > DEALER.x0 && x < DEALER.x1) { lamp(x + 6, ROAD.bike1 + 0.2); continue; } lamp(x === 6 ? 10.6 : x, RC - 5.3); lamp(x + 6, ROAD.bike1 + 0.2); }
 function bollard(x, z, K = streetKit) { // Amsterdammertje: dark paprika cast iron, three white-cross rings, a domed top
   const c = 0x5a1a14; K.cyl(0.085, 0.11, 0.86, c, x, 0.43, z, 10); K.cyl(0.1, 0.1, 0.05, 0x6a2418, x, 0.62, z, 10); K.cyl(0.095, 0.095, 0.04, 0x6a2418, x, 0.72, z, 10);
   K.geo(new THREE.SphereGeometry(0.088, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), c, x, 0.86, z);
   for (let k = 0; k < 3; k++) K.box(0.025, 0.07, 0.025, 0xf2efe6, x + 0.09 * Math.cos(k * 2.1), 0.55 - k * 0.1, z + 0.09 * Math.sin(k * 2.1));
 }
-for (let x = -32; x <= 32; x += 2.6) if (Math.abs(x - 14) > 3) bollard(x, ROAD.walk1 + 0.05);
+for (let x = -70; x <= 84; x += 2.6) if (Math.abs(x - 14) > 3) bollard(x, ROAD.walk1 + 0.05);
 // north pavement: a row of Amsterdammertjes along the kerb (not at Eddy's driveway, the zebra or a lamp), green bins in the row
-if (!RICH_LOW) for (let x = -62.4; x <= 62; x += 2.4) {
-  if ((x > -0.6 && x < 10.8) || Math.abs(x + 18) < 2.6 || LAMPS.some(([lx, lz]) => lz < 0 && Math.abs(lx - x) < 0.9)) continue;
+if (!RICH_LOW) for (let x = -SX + 2.4; x <= SX - 2.4; x += 2.4) {
+  if ((x > -0.6 && x < 10.8) || (x > DEALER.x0 + 3 && x < DEALER.x1 - 3) || Math.abs(x - (CLUB.x0 + CLUB.x1) / 2) < 2.4 || Math.abs(x + 18) < 2.6 || LAMPS.some(([lx, lz]) => lz < 0 && Math.abs(lx - x) < 0.9)) continue;
   if (Math.round(x / 2.4) % 9 === 4) { // Dutch litter bin: a green drum on a post, a grey lid with a slot
     clutterKit.cyl(0.05, 0.05, 1.0, 0x2a2c2e, x, 0.5, RC - 5.45, 8); clutterKit.cyl(0.24, 0.22, 0.62, 0x2f6a3a, x, 0.72, RC - 5.45, 12); clutterKit.cyl(0.25, 0.25, 0.06, 0x5a5e62, x, 1.05, RC - 5.45, 12); clutterKit.box(0.2, 0.03, 0.04, 0x1a1a1a, x, 1.085, RC - 5.33);
   } else bollard(x, RC - 5.42, clutterKit);
 }
 // flat street decals: drain gullies by both kerbs, manholes on the lanes, oil under the parked cars (batched per texture)
-for (let x = -63, k = 0; x < 63; x += 11, k++) for (const z of [RC - 4.9, RC + 4.9]) decals.push(['gully', x + (k % 2) * 3, z, 0.95, 0]);
+for (let x = -SX + 4, k = 0; x < SX - 4; x += 11, k++) for (const z of [RC - 4.9, RC + 4.9]) decals.push(['gully', x + (k % 2) * 3, z, 0.95, 0]);
 for (const [x, z] of [[-44, RC - 1.5], [-26, RC + 1.4], [-4, RC - 1.5], [24, RC + 1.4], [41, RC - 1.5], [58, RC + 1.5]]) decals.push(['manhole', x, z, 0.9, x]);
-{ const r = rng(5); for (let x = -64; x < 64; x += 5.6) for (const z of [RC - 4, RC + 4]) if (r() < 0.45) decals.push(['oil', x + 2.8 + (r() - 0.5), z + (r() - 0.5) * 0.4, 1.3 + r() * 0.9, r() * 6]); }
+{ const r = rng(5); for (let x = -SX + 4; x < SX - 4; x += 5.6) for (const z of [RC - 4, RC + 4]) if (r() < 0.45) decals.push(['oil', x + 2.8 + (r() - 0.5), z + (r() - 0.5) * 0.4, 1.3 + r() * 0.9, r() * 6]); }
 function flushDecals() { // one merged quad mesh per decal texture
   const by = {}; for (const d of decals) (by[d[0]] = by[d[0]] || []).push(d); decals.length = 0;
   for (const [kind, list] of Object.entries(by)) {
@@ -660,7 +668,8 @@ const CAR_COLS = [0xb8b2a2, 0x6a1e22, 0x2a4a6a, 0xcfcfc8, 0x2d2d2d, 0x8a8f3a, 0x
 // parked cars in the bays (none in front of the warehouse, the lot, or on the zebra)
 {
   let k = 0;
-  for (let x = -63.2; x < 63; x += 5.6) for (const z of [RC - 4, RC + 4]) {
+  for (let x = -SX + 4.8; x < SX - 4; x += 5.6) for (const z of [RC - 4, RC + 4]) {
+    if (z < RC && ((x > DEALER.x0 && x < DEALER.x1) || Math.abs(x - (CLUB.x0 + CLUB.x1) / 2) < 4)) continue; // keep the club door and the showroom drive clear
     k++;
     if (Math.abs(x + 18) < 4) continue;
     if (z < RC && x > -13 && x < 11) continue;
@@ -1203,7 +1212,7 @@ function beep(freq, dur, type = 'square', vol = 0.05) {
 }
 
 // dialogue
-const faces = { 'Johan': './assets/face_johan.jpg', 'Freddy Sr.': './assets/face_sr.jpg', 'Freddy Sr. (telefoon)': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg', 'Shooki': './assets/face_shooki.jpg', 'Shooki (telefoon)': './assets/face_shooki.jpg', 'Razim (telefoon)': './assets/face_razim.jpg', 'Razim': './assets/face_razim.jpg', 'Henk Cijfer': './assets/face_henk.jpg', 'Henk Cijfer (telefoon)': './assets/face_henk.jpg', 'Van der Belasting': './assets/face_belasting.jpg' };
+const faces = { 'Johan': './assets/face_johan.jpg', 'Tryshtahn': './assets/face_tryshtahn.jpg', 'Jossi': './assets/face_jossi.jpg', 'Freddy Sr.': './assets/face_sr.jpg', 'Freddy Sr. (telefoon)': './assets/face_sr.jpg', 'Eddy Jr.': './assets/face_jr.jpg', 'The Russian': './assets/face_ru.jpg', 'Naknik': null, 'Nabil': './assets/face_nabil.jpg', 'Schmatzel': null, 'Hakan (telefoon)': './assets/face_hakan.jpg', 'Shooki': './assets/face_shooki.jpg', 'Shooki (telefoon)': './assets/face_shooki.jpg', 'Razim (telefoon)': './assets/face_razim.jpg', 'Razim': './assets/face_razim.jpg', 'Henk Cijfer': './assets/face_henk.jpg', 'Henk Cijfer (telefoon)': './assets/face_henk.jpg', 'Van der Belasting': './assets/face_belasting.jpg' };
 let dlgQueue = [], dlgDone = null;
 const portraits = createPortraits($('dlgface'));
 function dialogue(lines, done) { if (freddy) lines = freddy.chime(lines); dlgQueue = lines.slice(); // Pa adds his word when he is there (js/freddy.js)
@@ -2010,7 +2019,7 @@ for (let i = 0; i < 16; i++) {
   const side = i % 2 ? 'S' : 'N', dir = (i >> 1) % 2 ? 1 : -1;
   const police = i === 4 || i === 13, arch = police ? null : folk.SLOTS[i], A_ = arch && folk.ARCH[arch];
   const p = passerBy(i + 1, { police, look: A_ ? A_.look : undefined, female: arch === 'buggy' || arch === 'pram' ? i % 3 !== 2 : undefined });
-  p.position.set(-30 + ((i * 37) % 60), 0, LANES[side][dir > 0 ? 0 : 1]);
+  p.position.set(-60 + ((i * 37) % 130), 0, LANES[side][dir > 0 ? 0 : 1]);
   const u = { side, dir, v: police ? 1.0 : A_ ? A_.v * (0.92 + ((i * 7) % 5) * 0.04) : 1.1 + ((i * 7) % 5) * 0.12, wait: 0, blocked: 0, police, comp: null };
   if (A_) u.comp = folk.dress(p, arch, i, {
     kid: (seed) => passerBy(seed, { kid: true }),
@@ -2438,7 +2447,7 @@ function updateInspector(dt) {
 // ================================================================== THE MABOOTA IN PUBLIC (js/maboota.js)
 // Out on the street people notice a drawn truncheon and call it in; Wijkagent Bakker comes by the next morning.
 const law = createMabootaLaw({ state, walkers, player, personBubble, toast, beep, econ, tips, dialogue, choice, addMoney, equip, scene, animate,
-  isPublic: () => state.step !== 'title' && !(mission && mission.active) && !(oofDrive && oofDrive.active) && !(woning && woning.inside()) && !isInside(player.position),
+  isPublic: () => state.step !== 'title' && !(mission && mission.active) && !(oofDrive && oofDrive.active) && !(woning && woning.inside()) && !isInside(player.position) && !(venues && venues.inside()),
   atHome: () => !!(woning && woning.inside()),
   busy: () => choiceOpen || !!inspector || !!(mission && mission.active) || !!(oofDrive && oofDrive.active) || !!(phone && phone.isOpen) || isPaused(),
   touch: () => document.body.classList.contains('touch'),
@@ -2692,7 +2701,7 @@ function updateStreet(dt) {
     const want = free < 2.5 ? 0 : free < 9 ? u.vmax * (free - 2.5) / 6.5 : u.vmax;
     u.v += Math.max(-12 * dt, Math.min(4 * dt, want - u.v));
     c.position.x += u.v * u.dir * dt;
-    if (c.position.x * u.dir > 68) c.position.x = -68 * u.dir;
+    if (c.position.x * u.dir > SX - 2) c.position.x = -(SX - 2) * u.dir;
     const bu = u.bubble.userData; if (bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; }
     const sd = u.solid; sd.off = knock.t > 0; sd.minx = c.position.x - u.half; sd.maxx = c.position.x + u.half; sd.minz = c.position.z - 0.95; sd.maxz = c.position.z + 0.95;
   }
@@ -2706,7 +2715,7 @@ function updateStreet(dt) {
     if (byPlayer && u.v < 0.6) { u.shoutT -= dt; if (u.shoutT <= 0) { bell(); say(u.bubble, BIKE_SHOUTS[Math.floor(Math.random() * BIKE_SHOUTS.length)], '#2fb8a8'); u.shoutT = 3; } }
     if (u.v > 2 && Math.abs(P.z - b.position.z) < 0.6 && Math.abs(P.x - b.position.x) < u.len + 0.3 && P.y < 0.3) bump(u.dir * 4, Math.sign(P.z - b.position.z || 1) * 3, 4, 'Run over by a ' + ['bike', 'vierfiets', 'tricycle', 'tall bike', 'bakfiets full of Gouda', 'mini bike', 'penny-farthing', 'double-decker bike', 'extra-tall bike', 'four-man tower bike', 'opafiets', 'transportfiets'][u.kind] + '.');
     b.position.x += u.v * u.dir * dt;
-    if (b.position.x * u.dir > 66) b.position.x = -66 * u.dir;
+    if (b.position.x * u.dir > SX - 4) b.position.x = -(SX - 4) * u.dir;
     for (const w of b.children) if (w.userData.r) w.rotation.z -= u.v * dt / w.userData.r; else if (w.userData.crank) w.rotation.z -= u.v * dt * 1.6;
     u.phase += u.v * dt * 1.6;
     u.riders.forEach((r, k) => { const ru = r.userData, ph = u.phase + k * 0.7; const base = ru.squat ? -1.55 : -0.9, amp = ru.squat ? 0.25 : 0.5; ru.legs[0].rotation.x = base + Math.sin(ph * (ru.squat ? 2 : 1)) * amp; ru.legs[1].rotation.x = base - Math.sin(ph * (ru.squat ? 2 : 1)) * amp; });
@@ -2723,7 +2732,7 @@ function updateStreet(dt) {
     }
     if (u.flee) { // running off the map; comes back later as an ordinary passer-by
       w.position.x += u.dir * 4.6 * dt; w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2; animate(w, 4.6, dt);
-      if (Math.abs(w.position.x) > 48) { u.flee = false; w.position.x = -Math.sign(w.position.x) * 44; u.wait = 20 + Math.random() * 30; }
+      if (Math.abs(w.position.x) > SX - 8) { u.flee = false; w.position.x = -Math.sign(w.position.x) * (SX - 12); u.wait = 20 + Math.random() * 30; }
       if (cp) { cp.obj.position.x += (w.position.x + u.dir * cp.ahead - cp.obj.position.x) * Math.min(1, dt * 6); cp.obj.rotation.y = cp.type === 'kid' ? w.rotation.y : (u.dir > 0 ? 0 : Math.PI); if (cp.type === 'kid') animate(cp.obj, 4.6, dt); if (cp.type === 'dog' && cp.line) { const a = cp.line.geometry.attributes.position, hand = w.userData.arms[0].localToWorld(new THREE.Vector3(0, -0.66, 0.03)); a.setXYZ(0, hand.x, hand.y, hand.z); a.setXYZ(1, cp.obj.position.x, 0.45 * cp.obj.scale.x, cp.obj.position.z); a.needsUpdate = true; } }
       continue;
     }
@@ -2740,7 +2749,7 @@ function updateStreet(dt) {
         u.blocked = 0; moving = true;
         w.position.x += u.v * u.dir * dt; w.position.z += (lane - w.position.z) * Math.min(1, dt * 2);
         w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-        if (w.position.x * u.dir > 31) { u.dir *= -1; u.wait = 0.5 + Math.random(); }
+        if (w.position.x * u.dir > (u.dir > 0 ? WALK.x1 - 6 : -WALK.x0 - 6)) { u.dir *= -1; u.wait = 0.5 + Math.random(); }
       }
     }
     if (u.inPlace > 0) { u.inPlace -= dt; w.userData.inPlace = u.inPlace > 0; animate(w, u.v, dt); } // the jogger keeps jogging on the spot
@@ -2856,6 +2865,7 @@ function tick() {
   if (woning && !mOn) woning.update(dt);
   if (loods && !mOn) loods.update(dt);
   if (johan && !mOn) johan.update(dt);
+  if (venues && !mOn) venues.update(dt);
   if (prod && !mOn) prod.update(dt);
   ui.income.textContent = state.naknik || econ.helpKg() ? `${state.naknik ? `${state.naknik} Naknik${state.naknik === 1 ? '' : 'im'}` : 'Your own hands'} · mixing ${econ.dayKg()} kg a market day` : ''; // (the old W 30 / 6 sec timer is gone)
   // money counter
@@ -2973,6 +2983,8 @@ johan = createJohan({ THREE, scene, state, dialogue, toast, beep, save: () => wr
   day: () => econ.ensure().day, bubble: (p, t) => personBubble(p, t), animate: (p, dt) => animate(p, 0, dt),
   makeJohan: () => makePerson({ ps2: LOOKS.johan, headKind: 'johan', shirt: 0x1e2a4a, front: 'johan', pants: 0x1a1e2a, shoes: 0x6a3a1c, belly: 0, skin: 0xe8bc9c }) });
 { const st = oofDrive.start; oofDrive.start = (o) => st({ ...o, johan: johan.driveCue() }); } // Johan may cut the Oofmobiel off, early game
+venues = createVenues({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, dialogue, choice, toast, beep, addMoney, save: () => writeSave(),
+  day: () => econ.ensure().day, makePerson: (look, scale) => makePerson({ ps2: look, scale }), sit, animate: (p, dt) => animate(p, 0, dt), passerBy: (seed) => passerBy(seed), makeCar: (o) => makeCar(THREE, canvasTex, o) });
 // the production line in the shed: pallets of vaten, the mixer, the packing table (js/productie.js)
 prod = createProductie({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, econ, loods, toast, beep, glyph, save: () => writeSave(),
   away: () => mission.active || oofDrive.active || state.step === 'title', pep: (k) => { for (const m of crew.ensure()) if (!m.away) m.mood = Math.min(100, m.mood + k); } });
@@ -3037,7 +3049,7 @@ activists = createActivists({ scene, lam, box, passerBy, personBubble, animate, 
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+window.__sme = { get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
 fiets = createFiets({ THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
   busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });
