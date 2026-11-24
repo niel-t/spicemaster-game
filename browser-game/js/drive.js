@@ -28,6 +28,7 @@ const ROOF_ADS = [['LAMPAS SPICE', '99% ZOUT · 1% SPICE'], ['FRIKANDEL XXL', 'N
 
 import { makeOofmobiel, makeCar as makeStreetCar, setLivery } from './vehicles.js';
 import { signFace } from './livery.js';
+import { makeMiata } from './johan.js';
 import { fitFov, shadowSize } from './mobile.js';
 
 export function initDrive(ctx) {
@@ -883,6 +884,39 @@ export function initDrive(ctx) {
 
   // ---------------------------------------------------------------- flow
   let opts = null, resActions = [];
+  // ---------------------------------------------------------------- Johan (js/johan.js): his red Miata overtakes on a straight road, cuts in and brakes
+  let miata = null, miataG = null;
+  function johanStart() {
+    const sp = van.vx * Math.sin(van.h) + van.vz * Math.cos(van.h);
+    if (sp < 8 || run.over || van.freeze > 0) return;
+    const sx = Math.sin(van.h), cz = Math.cos(van.h); let axis = null, road = 0;
+    if (Math.abs(sx) > 0.94) { const j = GZ.reduce((b, z) => (Math.abs(z - van.z) < Math.abs(b - van.z) ? z : b), GZ[0]); if (Math.abs(van.z - j) < RH - 0.5) { axis = 'x'; road = j; } }
+    else if (Math.abs(cz) > 0.94) { const i = GX.reduce((b, x) => (Math.abs(x - van.x) < Math.abs(b - van.x) ? x : b), GX[0]); if (Math.abs(van.x - i) < RH - 0.5) { axis = 'z'; road = i; } }
+    if (!axis) return;
+    const dir = axis === 'x' ? Math.sign(sx) : Math.sign(cz), lat0 = axis === 'x' ? van.z : van.x, pass = 2 * road - lat0 + (lat0 === road ? 2.6 : 0); // the other lane: he overtakes
+    const along0 = (axis === 'x' ? van.x : van.z) - dir * 14;
+    if (!miataG) { miataG = makeMiata(THREE, { driver: true }); miataG.scale.setScalar(1.05); scene.add(miataG); }
+    miataG.visible = true;
+    miata = { g: miataG, axis, dir, road, along: along0, lat: pass, latTo: lat0, sp: sp + 11, phase: 'pass', t: 0 };
+    say('VROEEEM!', ...xyOf(miata), '#ffd36b'); beep(140, 0.5, 'sawtooth', 0.05);
+  }
+  const xyOf = (m) => (m.axis === 'x' ? [m.along, m.lat] : [m.lat, m.along]);
+  function updateMiata(dt) {
+    const m = miata; if (!m) return; m.t += dt;
+    const vAlong = m.axis === 'x' ? van.x : van.z, ahead = (m.along - vAlong) * m.dir;
+    if (m.phase === 'pass') { if (ahead > 7) { m.phase = 'cut'; m.t = 0; beep(700, 0.1, 'square', 0.03); } }
+    else if (m.phase === 'cut') { m.lat += (m.latTo - m.lat) * Math.min(1, dt * 4); if (m.t > 0.5) { m.phase = 'brake'; m.t = 0; say('EDDY! STOP!', ...xyOf(m)); } }
+    else if (m.phase === 'brake') {
+      m.lat += (m.latTo - m.lat) * Math.min(1, dt * 4); m.sp = Math.max(0, m.sp - 18 * dt);
+      van.freeze = Math.max(van.freeze, 0.3); van.vx *= Math.exp(-dt * 2.6); van.vz *= Math.exp(-dt * 2.6); // Eddy stands on the brake
+      const vsp = Math.hypot(van.vx, van.vz), want = vAlong + m.dir * 6.5; // he stays just in front of the van, braking with it
+      m.sp = Math.max(0, vsp + (6.5 - ahead) * 2.5); m.along += m.dir * m.sp * dt;
+      if (vsp < 0.8) { m.phase = 'talk'; m.sp = 0; van.vx = van.vz = 0; m.along = want; const cue = opts.johan; opts.johan = null; if (cue && cue.onMeet) cue.onMeet(() => { m.phase = 'go'; m.t = 0; say('CIAO, BRO!', ...xyOf(m), '#ffd36b'); beep(140, 0.6, 'sawtooth', 0.05); }); else { m.phase = 'go'; m.t = 0; } }
+    } else if (m.phase === 'talk') { van.freeze = Math.max(van.freeze, 0.3); van.vx = van.vz = 0; }
+    else if (m.phase === 'go') { m.sp = Math.min(34, m.sp + 16 * dt); if (m.t > 4) { m.g.visible = false; miata = null; return; } }
+    if (m.phase !== 'brake') m.along += m.dir * m.sp * dt;
+    const [x, z] = xyOf(m); m.g.position.set(x, 0, z); m.g.rotation.y = m.axis === 'x' ? (m.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (m.dir > 0 ? 0 : Math.PI);
+  }
   const ev = (type, data) => { if (opts && opts.onEvent) try { opts.onEvent(type, data); } catch (e) { console.error(e); } }; // a passenger (Freddy Sr., js/freddy.js) comments on the drive
   function resBtn(k) { const f = resActions[k]; if (f) f(); }
   function showRes(title, sub, rows, buttons) {
@@ -900,6 +934,7 @@ export function initDrive(ctx) {
     Object.assign(van, { x: START.x, z: START.z, h: START.h, vx: 0, vz: 0, hp: 100, freeze: 1.2, honkT: 0, safeT: 0 });
     van.safe = { x: START.x, z: START.z, h: START.h };
     run = { t: 0, bumped: 0, smart: 0, wrecked: 0, dents: 0, honks: 0, plunges: 0, ambush: 0, over: false };
+    if (miata) miata.g.visible = false; miata = null; // js/johan.js: Johan's Miata, set up again per drive
     for (const l of lampas) { scene.remove(l.g); for (const s of l.smoke) scene.remove(s.m); } lampas.length = 0;
     if (!cars.length) for (let k = 0; k < 34; k++) { const c = { g: makeCar(CAR_COLS[k % CAR_COLS.length]) }; scene.add(c.g); cars.push(c); }
     for (const c of cars) respawnCar(c);
@@ -998,6 +1033,8 @@ export function initDrive(ctx) {
       for (const [dx, dz] of [[-30, -46], [26, -52], [0, -80]]) spawnLampas(Math.max(GX[0], Math.min(GX[5], Math.round((van.x + dx) / 44) * 44)) + 2.2, Math.max(GZ[9] + 2, van.z + dz));
     }
     if (!run.over && van.z < GZ[7] && run.ambush === 1) { run.ambush = 2; spawnLampas(GX[5] + 2.2, GZ[9] + 2); spawnLampas(GX[3] - 2.2, GZ[9] + 2); }
+    if (opts.johan && !miata && run.t > 5 && van.z > CANAL.z1 + 8) johanStart(); // Johan only shows up on the home side of the canal
+    updateMiata(dt);
     for (const c of cars) updateCar(c, dt);
     updateAirport(dt);
     for (const l of lampas) updateLampas(l, dt);
@@ -1012,7 +1049,7 @@ export function initDrive(ctx) {
     // route + guide arrow: the arrow points along the streets (the next turn), not through the houses
     route.t -= dt; if (route.t <= 0 && !run.over) { route.t = 0.25; routeCalc(); }
     drawRoute(dT > 10 && !run.over);
-    arrow.visible = dT > 24 && !run.over;
+    arrow.visible = dT > 24 && !run.over && !(miata && miata.phase !== 'pass' && miata.phase !== 'go'); // Johan's Miata in front: no arrow over it
     const [ax, az] = routeAt(Math.min(route.len, 16)), ah = Math.atan2(ax - van.x, az - van.z);
     arrow.position.set(van.x + Math.sin(ah) * 7.5, 3.2, van.z + Math.cos(ah) * 7.5); arrow.rotation.y = ah + Math.PI;
     // camera: straight down, higher when fast, leads where you're going
@@ -1037,5 +1074,6 @@ export function initDrive(ctx) {
 
   Object.assign(D, { start, stop, update, honk, reset, van, cars, peds, lampas, TARGET });
   Object.defineProperty(D, 'run', { get: () => run });
+  Object.defineProperty(D, 'miata', { get: () => miata });
   return D;
 }

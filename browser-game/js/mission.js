@@ -979,7 +979,7 @@ export function initMission(ctx) {
   });
 
   // ================================================================== INVENTORY (I)
-  const ICON = { cz: '🔫', mp5sd: '🔫', dualuzi: '🔫', awp: '🎯', autosg: '💥', jackhammer: '💥', plate: '🛡️', flash: '💥', smoke: '💨', he: '💣', nvg: '🥽', maboota: '🏏', makarov: '🔫', silenced: '🔫', revolver: '🔫', dual: '🔫', golddeagle: '🔫', smg: '🔫', m16: '🔫', goldak: '🔫', shotgun: '💥', pump: '💥', bat: '⚾', knife: '🔪', tknife: '🔪', machete: '🔪', katana: '🗡️', vest: '🦺', carrier: '🦺', ammo: '📦', shells: '🧨', loot: '🌶️', stash: '🗄️', money: '💶', shoarma: '🥙', mod: '🔧' };
+  const ICON = { letter: '✉️', cz: '🔫', mp5sd: '🔫', dualuzi: '🔫', awp: '🎯', autosg: '💥', jackhammer: '💥', plate: '🛡️', flash: '💥', smoke: '💨', he: '💣', nvg: '🥽', maboota: '🏏', makarov: '🔫', silenced: '🔫', revolver: '🔫', dual: '🔫', golddeagle: '🔫', smg: '🔫', m16: '🔫', goldak: '🔫', shotgun: '💥', pump: '💥', bat: '⚾', knife: '🔪', tknife: '🔪', machete: '🔪', katana: '🗡️', vest: '🦺', carrier: '🦺', ammo: '📦', shells: '🧨', loot: '🌶️', stash: '🗄️', money: '💶', shoarma: '🥙', mod: '🔧' };
   const INFO = { maboota: ['Maboota', 'A Russian police truncheon. Knocks people down; hit them again on the floor to finish them.', 'A gift from The Russian'] };
   let invOpen = false, invMode = 'inv';
   function openInv() {
@@ -994,6 +994,7 @@ export function initMission(ctx) {
     if (state.spares) add('plate', 'Spare ceramic plates', `${inputMode() === 'touch' ? 'Tap' : 'Hold'} ${glyph('H')} on a mission to slot one into the plate carrier.`, 'Pocket', state.spares);
     for (const k in NADES) if (state.nades[k]) add(k, NADES[k].name, NADES[k].info + ` ${glyph('G')} throws, ${glyph('Q')} picks the type.`, 'Belt', state.nades[k]);
     for (const k in GEAR_X) if (state.gear[k]) add(k, GEAR_X[k].name, GEAR_X[k].info, 'Gear', 1);
+    if (state.johan && state.johan.met) add('letter', 'Johan\'s letter', state.johan.flipped ? 'Seven bullet points about everything wrong with you. Point 3, "You have no forklift", is crossed out in red. Johan\'s Miata knows why.' : 'Seven bullet points about everything wrong with you, from your oldest friend. Point 3: "You have no forklift. A real businessman has a forklift."', 'Glovebox', 1);
     for (const c in CAL) if (state.pool[c]) add(c === '12ga' ? 'shells' : 'ammo', CAL[c].name + ' rounds', `In your pocket (${state.pool[c]}/${capOf(c)}). R reloads from here.`, 'Pocket', state.pool[c]);
     if (state.stash.length) add('stash', 'De Kluis', state.stash.map((s) => gearName(s.id)).join(', ') + '. Store and swap gear at the kluis in your room.', `Home · ${state.stash.length}/${STASH_CAP}`, 1);
     if (state.loot) add('loot', 'Lampas spice crate', 'Stolen from the Lampas warehouse. Sell it on Kaasplaats (PC) for W 150 each.', 'Loot', state.loot);
