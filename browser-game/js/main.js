@@ -23,7 +23,7 @@ import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, too
 import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
 import { createKaasMap } from './kaasmap.js'; // the Map of Kaasland: aerial view + place list (PC + Oofmobiel)
 import { createJohan } from './johan.js';
-import { createVenues } from './venues.js'; // the street's two new ends: Club Belegen (west) and Tryshtahn Auto (east) // Johan, the childhood friend with The Letter: a Miata on the road, a forklift in the hall
+import { createVenues } from './venues.js'; // the street's two new ends: Club Monique (west) and Tryshtahn Auto (east) // Johan, the childhood friend with The Letter: a Miata on the road, a forklift in the hall
 import { createMabootaLaw } from './maboota.js'; // the Maboota in public: witnesses, Wijkagent Bakker at the door
 import { createGarage } from './garage.js'; // Garage Mo: van tiers, add-ons, wheel clamps, the tax inspector
 import { createHaggle, createSpiceStall } from './haggle.js'; // haggling with Tristan's cast (Werkplaats clients, Fenna, Oma Zahra)
@@ -49,7 +49,7 @@ import { initNpcs } from './npcs.js'; // the people of Kipkruidenkwartier who gi
 let mission = null; // Mission 1: Spekbuurt (js/mission.js)
 let loods = null; // js/loods.js, set up after the economy
 let johan = null; // js/johan.js, set up after De Loods
-let venues = null; // js/venues.js: Club Belegen and Tryshtahn Auto
+let venues = null; // js/venues.js: Club Monique and Tryshtahn Auto
 let prod = null, solli = null; // js/productie.js, js/sollicitanten.js
 let work = null; // js/naknikwork.js, set up after De Loods
 let woning = null; // js/woning.js, set up once the street, the economy and the phone exist
@@ -205,7 +205,7 @@ function collide(p, r) {
 // Cross-section (north → south), road centre RC: facades z=-7 | pavement 3.4 m | kerb | parking | 2 lanes | parking |
 // kerb | red two-way fietspad | pavement + trees | quay | canal (CZ)
 const RC = 1.6;
-// the street runs east-west from -SX to SX (was ±70; made longer 2026-11-24 for Club Belegen in the west and Tryshtahn's showroom in the east)
+// the street runs east-west from -SX to SX (was ±70; made longer 2026-11-24 for Club Monique in the west and Tryshtahn's showroom in the east)
 const SX = 100, SXK = SX / 70; // half length, and how much longer the tiled textures repeat
 const WALK = { x0: -70, x1: 84 }; // how far Eddy can walk along it
 const ROAD = { pN: RC - 5.0, lane: 3.0, pS: RC + 5.0, bike0: RC + 5.2, bike1: RC + 7.6, walk1: RC + 10.9 };
@@ -495,7 +495,7 @@ function spanWidths(len, k0) {
   return ws;
 }
 // fill the far west, past the play area (so no empty plots), then the Hotel Kaasland stack
-// the far west: houses, then Club Belegen (js/venues.js builds it in the gap CLUB.x0..x1), then houses up to the hotel stack
+// the far west: houses, then Club Monique (js/venues.js builds it in the gap CLUB.x0..x1), then houses up to the hotel stack
 const CLUB = { x0: -66, x1: -50 }, DEALER = { x0: 52, x1: 80 };
 { let x = -SX, k = 20; for (const [a, b] of [[-SX, CLUB.x0], [CLUB.x1, -34]]) { x = a; spanWidths(b - a, k).forEach((w) => { house(x + w / 2, -11, w, 9, 9 + (k % 4), 0, k); solid(x, x + w, -15.5, -6.5); x += w; k++; }); } }
 stackTower(-34, -26.5, -11);

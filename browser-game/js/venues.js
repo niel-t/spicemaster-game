@@ -1,5 +1,5 @@
 // The two ends of the longer street (2026-11-24):
-//  - West: CLUB BELEGEN, Eddy Jr.'s favourite strip club. A reception room with the bouncer, Creplach (a rabbi, strict, deadpan),
+//  - West: CLUB MONIQUE, Eddy Jr.'s favourite strip club. A reception room with the bouncer, Creplach (a rabbi, strict, deadpan),
 //    who wants W 200 a night to let you through. Inside: a bar, a centre stage with three dancers (Brie, Feta and Edam), and on
 //    a front seat Jossi, Eddy's friend, always there and always angling for the next lapdance. A lapdance is a fade-out and a
 //    text card: no nudity, stage outfits only.
@@ -28,6 +28,9 @@ const LOOK = {
     shirt: hex01(outfit), jacket: hex01(outfit), pants: hex01(outfit), shoes: hex01(0x111111), tee: 1, skirt: hex01(outfit),
     shirtPaint: { shirt: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], pants: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], skin: [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], neck: 'crew', sleeves: 'rolled', buttons: false } }),
 };
+LOOK.statue = { tex: 512, fem: 1, skin: hex01(0xf2f0ea), hair: hex01(0xe8e4dc), hs: 'long', calm: 1, body: 'slim', B: { nowatch: true },
+  shirt: hex01(0xf4f2ee), jacket: hex01(0xf4f2ee), pants: hex01(0xf4f2ee), shoes: hex01(0xf2f0ea), tee: 1, skirt: hex01(0xf4f2ee),
+  shirtPaint: { shirt: [0xf4, 0xf2, 0xee], pants: [0xf4, 0xf2, 0xee], skin: [0xf2, 0xf0, 0xea], neck: 'crew', sleeves: 'long', buttons: false } }; // a marble figure in a draped robe
 const DANCERS = [
   { name: 'Brie', skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
   { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
@@ -44,7 +47,7 @@ export function createVenues(deps) {
   const D = () => { if (!state.dealer || typeof state.dealer !== 'object') state.dealer = {}; return state.dealer; };
   const neon = (c) => new THREE.MeshBasicMaterial({ color: c });
 
-  // ================================================================== CLUB BELEGEN
+  // ================================================================== CLUB MONIQUE
   const K = { x0: -66, x1: -50, z0: -21, z1: -6.5, h: 4.6, door: -58, part: -11 }; // part = the wall between the reception and the club
   const club = new THREE.Group(), clubHi = new THREE.Group(); scene.add(club); scene.add(clubHi);
   const inClub = (p) => p.x > K.x0 && p.x < K.x1 && p.z > K.z0 && p.z < K.z1 - 0.05;
@@ -54,21 +57,52 @@ export function createVenues(deps) {
     const W = K.x1 - K.x0, Dp = K.z1 - K.z0, cx = (K.x0 + K.x1) / 2, cz = (K.z0 + K.z1) / 2;
     // floors: a checker in the reception, dark purple carpet in the club
     box(W, 0.02, K.z1 - K.part, lam({ map: deps.canvasTex(64, 64, (g) => { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#e8e0d0' : '#1a1418'; g.fillRect(x * 32, y * 32, 32, 32); } }) }), cx, 0.015, (K.z1 + K.part) / 2, club, false).material.map; { const m = club.children[club.children.length - 1].material.map; m.wrapS = m.wrapT = THREE.RepeatWrapping; m.repeat.set(W / 1.2, 3.5); m.needsUpdate = true; }
-    box(W, 0.02, K.part - K.z0, lam({ color: 0x2a0e2e }), cx, 0.015, (K.part + K.z0) / 2, club, false);
-    // walls: low parts stay, the upper parts and the roof go when you are inside
-    const wall = (x0, x1, z0, z1) => { const w = Math.max(0.3, x1 - x0), d = Math.max(0.3, z1 - z0); box(w, 1.1, d, brick, (x0 + x1) / 2, 0.55, (z0 + z1) / 2, club); box(w, K.h - 1.1, d, brick, (x0 + x1) / 2, 1.1 + (K.h - 1.1) / 2, (z0 + z1) / 2, clubHi); solid(x0, x1, z0, z1); };
+    box(W, 0.02, K.part - K.z0, new THREE.MeshPhongMaterial({ color: 0x15111c, shininess: 70, specular: 0x404050 }), cx, 0.015, (K.part + K.z0) / 2, club, false); // glossy dark dance floor
+    // Club Monique, after the photo: white plaster walls, a red pantile roof, an arched door with a dark wrought-iron door
+    // folded open, white flags with the red heart and M, a white classical statue, an urn on a column, white lanterns, red brick paving.
+    // Walls: the low parts stay, the upper parts and the roof go when you are inside.
+    const plaster = lam({ color: 0xf2efe8 }), trim = lam({ color: 0xffffff }), iron = lam({ color: 0x2a1c14 });
+    const wall = (x0, x1, z0, z1) => { const w = Math.max(0.3, x1 - x0), d = Math.max(0.3, z1 - z0); box(w, 1.1, d, plaster, (x0 + x1) / 2, 0.55, (z0 + z1) / 2, club); box(w, K.h - 1.1, d, plaster, (x0 + x1) / 2, 1.1 + (K.h - 1.1) / 2, (z0 + z1) / 2, clubHi); solid(x0, x1, z0, z1); };
     wall(K.x0 - 0.3, K.x0, K.z0, K.z1); wall(K.x1, K.x1 + 0.3, K.z0, K.z1); wall(K.x0 - 0.3, K.x1 + 0.3, K.z0 - 0.3, K.z0);
-    // the facade: black, with a door in the middle and a pink neon sign
-    const front = (x0, x1) => { box(x1 - x0, K.h, 0.3, black, (x0 + x1) / 2, K.h / 2, K.z1, clubHi); box(x1 - x0, 1.1, 0.3, black, (x0 + x1) / 2, 0.55, K.z1, club); solid(x0, x1, K.z1 - 0.15, K.z1 + 0.15); };
+    const front = (x0, x1) => { box(x1 - x0, K.h, 0.3, plaster, (x0 + x1) / 2, K.h / 2, K.z1, clubHi); box(x1 - x0, 1.1, 0.3, plaster, (x0 + x1) / 2, 0.55, K.z1, club); solid(x0, x1, K.z1 - 0.15, K.z1 + 0.15); };
     front(K.x0 - 0.3, K.door - 1.0); front(K.door + 1.0, K.x1 + 0.3);
-    box(2.0, K.h - 2.5, 0.3, black, K.door, 2.5 + (K.h - 2.5) / 2, K.z1, clubHi);
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.3), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'CLUB BELEGEN', size: 92 }, { t: 'GENTLEMEN · LEDEN · KAAS', size: 30 }], '#120a14', '#ff5ac8', 768, 160) }));
-    sign.position.set(K.door, 3.55, K.z1 + 0.17); club.add(sign);
-    box(7.7, 0.05, 0.05, neon(0xff3ab8), K.door, 2.86, K.z1 + 0.2, club, false); box(7.7, 0.05, 0.05, neon(0xff3ab8), K.door, 4.24, K.z1 + 0.2, club, false);
-    // red carpet, brass posts and a velvet rope on the pavement
-    box(1.8, 0.02, 3.2, lam({ color: 0xa01828 }), K.door, 0.03, K.z1 + 1.7, club, false);
-    for (const x of [K.door - 1.3, K.door + 1.3]) for (const z of [K.z1 + 0.7, K.z1 + 2.7]) cyl(0.05, 0.07, 0.95, gold, x, 0.48, z, club);
-    for (const x of [K.door - 1.3, K.door + 1.3]) { const r = box(0.04, 0.04, 2.0, velvet, x, 0.82, K.z1 + 1.7, club, false); r.rotation.x = 0.05; }
+    box(2.0, K.h - 3.1, 0.3, plaster, K.door, 3.1 + (K.h - 3.1) / 2, K.z1, clubHi);
+    // the arch: a white moulding round the top of the door opening, glazed side lights in white frames
+    { const arch = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.13, 8, 20, Math.PI), trim); arch.position.set(K.door, 2.1, K.z1 + 0.17); club.add(arch);
+      const fill = new THREE.Mesh(new THREE.CircleGeometry(0.98, 20, 0, Math.PI), plaster); fill.position.set(K.door, 2.1, K.z1 + 0.16); clubHi.add(fill);
+      for (const sx of [-1, 1]) { box(0.12, 2.1, 0.2, trim, K.door + sx * 1.06, 1.05, K.z1 + 0.15, club, false);
+        const lite = box(0.7, 2.0, 0.04, lam({ color: 0x9ab4c8, transparent: true, opacity: 0.55 }), K.door + sx * 1.55, 1.05, K.z1 + 0.17, club, false);
+        for (let k = 0; k < 4; k++) box(0.72, 0.04, 0.05, trim, K.door + sx * 1.55, 0.3 + k * 0.5, K.z1 + 0.19, club, false); box(0.04, 2.0, 0.05, trim, K.door + sx * 1.55, 1.05, K.z1 + 0.19, club, false); }
+      // the wrought-iron door, both leaves folded open against the inside of the facade
+      const ornate = deps.canvasTex(128, 256, (g) => { g.fillStyle = '#2a1c14'; g.fillRect(0, 0, 128, 256); g.strokeStyle = '#6a4a30'; g.lineWidth = 6; for (let k = 0; k < 4; k++) { g.beginPath(); g.arc(64, 40 + k * 58, 22, 0, 7); g.stroke(); g.beginPath(); g.arc(64, 40 + k * 58, 9, 0, 7); g.stroke(); } g.strokeRect(6, 6, 116, 244); });
+      for (const sx of [-1, 1]) { const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.05, 0.95), lam({ map: ornate })); leaf.position.set(K.door + sx * 0.97, 1.03, K.z1 - 0.62); club.add(leaf); } }
+    // a plaque over the arch: CLUB MONIQUE with the red heart
+    { const heart = (g, x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x, y + r * 0.9); g.bezierCurveTo(x - r * 1.6, y - r * 0.2, x - r * 0.7, y - r * 1.3, x, y - r * 0.45); g.bezierCurveTo(x + r * 0.7, y - r * 1.3, x + r * 1.6, y - r * 0.2, x, y + r * 0.9); g.fill(); };
+      K.heart = heart;
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.0), new THREE.MeshBasicMaterial({ map: deps.canvasTex(512, 122, (g) => { g.fillStyle = '#fbfaf6'; g.fillRect(0, 0, 512, 122); g.strokeStyle = '#c8b890'; g.lineWidth = 4; g.strokeRect(6, 6, 500, 110); heart(g, 70, 64, 30, '#d8202a'); g.fillStyle = '#fff'; g.font = '900 34px Georgia, serif'; g.textAlign = 'center'; g.fillText('M', 70, 74); g.fillStyle = '#b81822'; g.font = 'italic 700 58px Georgia, serif'; g.textAlign = 'left'; g.fillText('Club Monique', 118, 82); }) }));
+      pl.position.set(K.door, 3.65, K.z1 + 0.17); club.add(pl);
+      // two white flags on poles, angled out from the wall over the door
+      const flagT = deps.canvasTex(128, 256, (g) => { g.fillStyle = '#fbfaf6'; g.fillRect(0, 0, 128, 256); g.fillStyle = '#b81822'; g.font = '700 22px Georgia, serif'; g.textAlign = 'center'; g.fillText('CLUB', 64, 46); heart(g, 64, 118, 40, '#d8202a'); g.fillStyle = '#fff'; g.font = '900 40px Georgia, serif'; g.fillText('M', 64, 130); g.fillStyle = '#b81822'; g.font = '700 22px Georgia, serif'; g.fillText('MONIQUE', 64, 206); });
+      for (const sx of [-1, 1]) { const fg = new THREE.Group(); fg.position.set(K.door + sx * 2.2, 3.3, K.z1 + 0.2); fg.rotation.z = -sx * 0.45; fg.rotation.x = 0.35; club.add(fg);
+        cyl(0.03, 0.03, 2.4, lam({ color: 0xd8d8d8 }), 0, 1.2, 0, fg); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 1.5), lam({ map: flagT, side: THREE.DoubleSide })); f.position.set(sx * 0.4, 1.55, 0.02); fg.add(f); } }
+    // hanging baskets beside the door
+    for (const sx of [-1, 1]) { const x = K.door + sx * 2.05; cyl(0.01, 0.01, 0.5, iron, x, 2.75, K.z1 + 0.45, club); const pot = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.3, 10), lam({ color: 0x6a6a6a })); pot.rotation.x = Math.PI; pot.position.set(x, 2.35, K.z1 + 0.45); club.add(pot);
+      for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), lam({ color: [0x6a8a3a, 0x8aa04a, 0x5a7a2a][k % 3] })); b.position.set(x + Math.cos(k * 1.3) * 0.18, 2.56, K.z1 + 0.45 + Math.sin(k * 1.3) * 0.18); club.add(b); } }
+    // red brick paving in front, white lanterns, an urn on a column (right) and a classical statue on a plinth (left)
+    box(7.4, 0.02, 3.4, lam({ map: deps.canvasTex(64, 64, (g) => { g.fillStyle = '#9a4a3a'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#7a3a2a'; for (let y = 0; y < 64; y += 8) { g.fillRect(0, y, 64, 1); for (let x = (y / 8) % 2 ? 0 : 8; x < 64; x += 16) g.fillRect(x, y, 1, 8); } }) }), K.door, 0.022, K.z1 + 1.8, club, false).material.map.repeat.set(4, 2);
+    { const m = club.children[club.children.length - 1].material.map; m.wrapS = m.wrapT = THREE.RepeatWrapping; m.needsUpdate = true; }
+    const marble = lam({ color: 0xf4f2ee });
+    for (const sx of [-1, 1]) { const g = new THREE.Group(); g.position.set(K.door + sx * 3.3, 0, K.z1 + 0.55); club.add(g);
+      box(0.42, 0.06, 0.42, trim, 0, 0.03, 0, g); box(0.34, 0.6, 0.34, lam({ color: 0xffffff, transparent: true, opacity: 0.5 }), 0, 0.36, 0, g, false); box(0.12, 0.25, 0.12, lam({ color: 0xffd890, emissive: 0xc08a30 }), 0, 0.34, 0, g, false);
+      for (const k of [0.06, 0.66]) box(0.4, 0.05, 0.4, trim, 0, k, 0, g, false); const cap = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.22, 4), trim); cap.position.y = 0.8; cap.rotation.y = Math.PI / 4; g.add(cap); }
+    { const g = new THREE.Group(); g.position.set(K.door + 2.6, 0, K.z1 + 1.1); club.add(g); // the urn on its column
+      box(0.5, 0.1, 0.5, marble, 0, 0.05, 0, g); cyl(0.17, 0.2, 0.85, marble, 0, 0.52, 0, g, 14); box(0.46, 0.08, 0.46, marble, 0, 0.98, 0, g);
+      cyl(0.36, 0.16, 0.34, marble, 0, 1.2, 0, g, 16); cyl(0.4, 0.36, 0.06, marble, 0, 1.39, 0, g, 16);
+      for (let k = 0; k < 6; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), lam({ color: [0x8aa04a, 0x6a8a3a][k % 2] })); b.position.set(Math.cos(k) * 0.16, 1.52 + (k % 2) * 0.12, Math.sin(k) * 0.16); g.add(b); }
+      solid(K.door + 2.35, K.door + 2.85, K.z1 + 0.85, K.z1 + 1.35); }
+    { const g = new THREE.Group(); g.position.set(K.door - 2.6, 0, K.z1 + 1.1); club.add(g); // the statue: a white marble figure in a draped robe
+      box(0.6, 0.35, 0.6, marble, 0, 0.17, 0, g); solid(K.door - 2.9, K.door - 2.3, K.z1 + 0.8, K.z1 + 1.4);
+      const fig = deps.makePerson(LOOK.statue, 0.92); fig.position.y = 0.35; fig.rotation.y = 0.25; g.add(fig); K.statue = fig; }
     // the partition between the reception and the club, with the inner door Creplach guards (and a rope until you have paid)
     const part = (x0, x1) => { box(x1 - x0, 2.8, 0.2, lam({ color: 0x3a1a3a }), (x0 + x1) / 2, 1.4, K.part, club); solid(x0, x1, K.part - 0.12, K.part + 0.12); };
     part(K.x0, K.door - 1.0); part(K.door + 1.0, K.x1);
@@ -91,7 +125,8 @@ export function createVenues(deps) {
     const bs = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.5), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'BAR', size: 80 }], '#120a14', '#8a3aff', 256, 72) })); bs.rotation.y = Math.PI / 2; bs.position.set(K.x0 + 0.4, 3.3, -16.0); club.add(bs);
     // the stage: a round platform with a pink edge glow and three brass poles; front seats on an arc in front of it
     K.stage = { x: -55.2, z: -16.6, r: 2.4 };
-    cyl(K.stage.r, K.stage.r, 0.5, lam({ color: 0x1a1018 }), K.stage.x, 0.25, K.stage.z, club, 32);
+    { const plate = deps.canvasTex(64, 64, (g) => { g.fillStyle = '#b8bcc4'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#e8ecf2'; for (let y = 0; y < 64; y += 16) for (let x = 0; x < 64; x += 16) { g.save(); g.translate(x + 8 + ((y / 16) % 2) * 8, y + 8); g.rotate(((x + y) / 16) % 2 ? 0.7 : -0.7); g.fillRect(-6, -1.5, 12, 3); g.restore(); } }); plate.wrapS = plate.wrapT = THREE.RepeatWrapping; plate.repeat.set(8, 1);
+      cyl(K.stage.r, K.stage.r, 0.5, new THREE.MeshPhongMaterial({ map: plate, shininess: 90, specular: 0x888888 }), K.stage.x, 0.25, K.stage.z, club, 32); } // silver diamond-plate stage
     const edge = new THREE.Mesh(new THREE.TorusGeometry(K.stage.r, 0.04, 6, 48), neon(0xff3ab8)); edge.rotation.x = Math.PI / 2; edge.position.set(K.stage.x, 0.5, K.stage.z); club.add(edge);
     solid(K.stage.x - K.stage.r * 0.8, K.stage.x + K.stage.r * 0.8, K.stage.z - K.stage.r * 0.8, K.stage.z + K.stage.r * 0.8);
     K.poles = [-0.9, 0, 0.9].map((a, i) => { const ang = Math.PI + a, x = K.stage.x + Math.sin(ang) * 1.4, z = K.stage.z + Math.cos(ang) * 1.4 + (i === 1 ? 0 : 0); cyl(0.04, 0.04, K.h - 0.5, gold, x, 0.5 + (K.h - 0.5) / 2, z, club); return { x, z }; });
@@ -101,8 +136,34 @@ export function createVenues(deps) {
       solid(x - 0.4, x + 0.4, z - 0.4, z + 0.4); return { x, z, ry }; });
     // lights: pink and violet over the stage (on while you are inside)
     K.lights = [[0xff3ab8, K.stage.x - 1.5, K.stage.z], [0x8a3aff, K.stage.x + 1.5, K.stage.z], [0xffc070, K.door, (K.z1 + K.part) / 2]].map(([c, x, z]) => { const l = new THREE.PointLight(c, 0, 9, 1.4); l.position.set(x, 3.6, z); club.add(l); return l; });
-    // the roof (hidden inside)
-    box(W + 0.6, 0.25, Dp + 0.6, lam({ color: 0x1a1a1e }), cx, K.h + 0.12, cz, clubHi, false);
+    // DISCO: a mirror ball over the stage, coloured spots that sweep the floor, fairy lights along the walls and strands round the stage,
+    // a silver truss tower, two potted bamboo, glass drinks fridges with bottles on top
+    { const facets = deps.canvasTex(64, 32, (g) => { for (let y = 0; y < 32; y += 4) for (let x = 0; x < 64; x += 4) { const v = 120 + Math.floor(Math.random() * 135); g.fillStyle = `rgb(${v},${v},${v + 10})`; g.fillRect(x, y, 4, 4); } });
+      K.ball = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), new THREE.MeshPhongMaterial({ map: facets, shininess: 120, specular: 0xffffff, emissive: 0x202028 })); K.ball.position.set(K.stage.x, 3.9, K.stage.z); club.add(K.ball);
+      cyl(0.01, 0.01, K.h - 4.3, lam({ color: 0x888888 }), K.stage.x, 4.3 + (K.h - 4.3) / 2 - 0.1, K.stage.z, club);
+      const dotGeo = new THREE.CircleGeometry(0.2, 10), cols = [0xff2a4a, 0x2aff6a, 0x3a6aff, 0xb03aff, 0x2ad8ff];
+      K.dots = []; for (let k = 0; k < 90; k++) { const m = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: cols[k % cols.length], transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.scale.setScalar(0.45 + Math.random() * 0.5); club.add(m); K.dots.push({ m, r: 0.8 + Math.sqrt(Math.random()) * 7.5, a: Math.random() * Math.PI * 2, sp: 0.25 + (k % 3) * 0.08 }); }
+      const fairy = new THREE.MeshBasicMaterial({ color: 0xffd890 }), fGeo = new THREE.SphereGeometry(0.035, 5, 4);
+      const string = (x0, z0, x1, z1, y0, y1, n) => { for (let k = 0; k <= n; k++) { const t = k / n, b = new THREE.Mesh(fGeo, fairy); b.position.set(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t); club.add(b); } };
+      string(K.x0 + 0.2, K.z0 + 0.2, K.x1 - 0.2, K.z0 + 0.2, 3.0, 3.0, 64); string(K.x1 - 0.2, K.z0 + 0.2, K.x1 - 0.2, K.part - 0.2, 3.0, 3.0, 40); string(K.x0 + 0.2, K.z0 + 0.2, K.x0 + 0.2, K.part - 0.2, 3.2, 3.2, 40);
+      for (const a of [0.6, 1.6, 2.6, 3.6, 4.6, 5.6]) { const x = K.stage.x + Math.sin(a) * 3.0, z = K.stage.z + Math.cos(a) * 3.0; if (z > K.stage.z + 2.4) continue; string(x, z, x, z, 0.6, 3.4, 18); }
+      // the truss tower by the stage
+      const ts = lam({ color: 0xc8ccd2 }), tx = K.stage.x + 3.2, tz = K.stage.z - 2.2;
+      for (const [dx, dz] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) cyl(0.025, 0.025, 3.6, ts, tx + dx, 1.8, tz + dz, club, 6);
+      for (let y = 0.3; y < 3.6; y += 0.4) for (const [dx, dz, w, d] of [[0, -0.2, 0.4, 0.03], [0, 0.2, 0.4, 0.03], [-0.2, 0, 0.03, 0.4], [0.2, 0, 0.03, 0.4]]) box(w, 0.03, d, ts, tx + dx, y, tz + dz, club, false);
+      solid(tx - 0.25, tx + 0.25, tz - 0.25, tz + 0.25);
+      // bamboo in black pots
+      for (const [x, z] of [[K.x1 - 0.8, K.z0 + 0.8], [K.x1 - 0.8, K.part - 0.9]]) { cyl(0.3, 0.24, 0.5, lam({ color: 0x1a1a1a }), x, 0.25, z, club); for (let k = 0; k < 5; k++) { cyl(0.025, 0.025, 2.6, lam({ color: 0x6a8a3a }), x + Math.cos(k * 1.3) * 0.12, 1.5, z + Math.sin(k * 1.3) * 0.12, club, 5); const l = new THREE.Mesh(new THREE.SphereGeometry(0.38, 7, 6), lam({ color: [0x3a6a2a, 0x4a7a32][k % 2] })); l.scale.y = 1.6; l.position.set(x + Math.cos(k * 1.3) * 0.25, 2.2 + k * 0.18, z + Math.sin(k * 1.3) * 0.25); club.add(l); } solid(x - 0.35, x + 0.35, z - 0.35, z + 0.35); }
+      // glass drinks fridges along the east wall, bottles on top, a red glow inside
+      for (let k = 0; k < 3; k++) { const z = -19.4 + k * 1.3, x = K.x1 - 0.55; box(0.7, 1.9, 1.0, lam({ color: 0xc8ccd2 }), x, 0.95, z, club); box(0.04, 1.6, 0.85, lam({ color: 0xff6a8a, emissive: 0x801030, transparent: true, opacity: 0.6 }), x - 0.37, 1.05, z, club, false);
+        for (let b = 0; b < 3; b++) cyl(0.05, 0.06, 0.34, lam({ color: 0x1a2a1a }), x, 2.07, z - 0.3 + b * 0.3, club, 8); }
+      solid(K.x1 - 0.95, K.x1, -20.0, -15.9);
+    }
+    // the roof (hidden inside): red pantiles, a gable along the street
+    { const tiles = deps.canvasTex(64, 64, (g) => { g.fillStyle = '#b8502e'; g.fillRect(0, 0, 64, 64); for (let y = 0; y < 64; y += 8) { g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, y + 6, 64, 2); for (let x = 0; x < 64; x += 8) { g.fillStyle = 'rgba(255,200,160,.18)'; g.fillRect(x + 1, y, 3, 6); } } }); tiles.wrapS = tiles.wrapT = THREE.RepeatWrapping; tiles.repeat.set(W / 1.2, 5);
+      const half = Dp / 2 + 0.5, rise = 2.4, slope = Math.hypot(half, rise), ang = Math.atan2(rise, half), tm = lam({ map: tiles });
+      for (const sz of [-1, 1]) { const r = box(W + 0.8, 0.18, slope, tm, cx, K.h + rise / 2, cz + sz * half / 2, clubHi, false); r.rotation.x = sz * ang; }
+      for (const sx of [-1, 1]) { const tri = new THREE.Shape(); tri.moveTo(-half, 0); tri.lineTo(half, 0); tri.lineTo(0, rise); const gm = new THREE.Mesh(new THREE.ShapeGeometry(tri), lam({ color: 0xf2efe8, side: THREE.DoubleSide })); gm.rotation.y = Math.PI / 2; gm.position.set(sx > 0 ? K.x1 + 0.3 : K.x0 - 0.3, K.h, cz); clubHi.add(gm); } }
   }
   // the people
   const creplach = deps.makePerson(LOOK.creplach); creplach.position.set(K.door + 1.45, 0, K.part + 0.75); creplach.rotation.y = 0; scene.add(creplach);
@@ -119,11 +180,11 @@ export function createVenues(deps) {
     act: () => {
       if (paid()) { dialogue([['Creplach', pick(CREP_HI)]]); return; }
       const first = !C().visits;
-      choice('Creplach', first ? 'Club Belegen. Members only. Tonight\'s membership is ' + fmt(ENTRY) + '. I check the shoes, I check the attitude, I check the wallet.' : `Eddy Jr. ${fmt(ENTRY)} for tonight, same as always.`, [`Pay ${fmt(ENTRY)}`, 'Not tonight'], (i) => {
+      choice('Creplach', first ? 'Club Monique. Members only. Tonight\'s membership is ' + fmt(ENTRY) + '. I check the shoes, I check the attitude, I check the wallet.' : `Eddy Jr. ${fmt(ENTRY)} for tonight, same as always.`, [`Pay ${fmt(ENTRY)}`, 'Not tonight'], (i) => {
         if (i !== 0) { dialogue([['Creplach', 'Then you stand outside. Like a lamppost. A very sad lamppost.']]); return; }
         if (state.money < ENTRY) { dialogue([['Creplach', `${fmt(ENTRY)}, Eddy. Not a cent less. Come back when your pockets agree with you.`]]); beep(160, 0.2, 'square', 0.04); return; }
         addMoney(-ENTRY); const c = C(); c.paidDay = day(); c.visits++; if (deps.save) deps.save(); beep(660, 0.08, 'triangle', 0.04);
-        dialogue([['Creplach', first ? 'Welcome to Club Belegen. The bar is left, the stage is straight ahead, the rules are on my face.' : 'In you go. Behave.'], ...(first ? [['Eddy Jr.', '(Jossi is already here. Of course Jossi is already here.)']] : [])]);
+        dialogue([['Creplach', first ? 'Welcome to Club Monique. The bar is left, the stage is straight ahead, the rules are on my face.' : 'In you go. Behave.'], ...(first ? [['Eddy Jr.', '(Jossi is already here. Of course Jossi is already here.)']] : [])]);
       });
     },
   });
@@ -241,7 +302,7 @@ export function createVenues(deps) {
   function update(dt) {
     t += dt;
     const p = player.position, ic = inClub(p), is = inShow(p);
-    if (ic !== wasClub) { wasClub = ic; clubHi.visible = !ic; for (const l of K.lights) l.intensity = ic ? 2.2 : 0; if (ic && !C().visits) toast('CLUB BELEGEN', 'Reception first. The bouncer is Creplach. Talk to him to get in.', 3.5); }
+    if (ic !== wasClub) { wasClub = ic; clubHi.visible = !ic; for (const l of K.lights) l.intensity = ic ? 2.2 : 0; if (ic && !C().visits) toast('CLUB MONIQUE', 'Reception first. The bouncer is Creplach. Talk to him to get in.', 3.5); }
     if (is !== wasShow) { wasShow = is; showHi.visible = !is; S.lights[0].intensity = is ? 1.4 : 0; }
     // the rope opens for the night once you've paid
     const open = paid(); K.gate.off = open; K.rope.visible = !open;
@@ -249,6 +310,11 @@ export function createVenues(deps) {
     // dancers sway round their poles; Jossi leans forward and back
     for (const d of dancers) { const u = d.userData.dancer, a = t * 0.8 + u.ph; d.position.set(u.pole.x + Math.sin(a) * 0.38, 0.5 + Math.abs(Math.sin(t * 2.2 + u.ph)) * 0.05, u.pole.z + Math.cos(a) * 0.38); d.rotation.y = a + Math.PI / 2 + Math.sin(t * 3 + u.ph) * 0.3; if (deps.animate) deps.animate(d, dt); }
     jossi.rotation.x = Math.sin(t * 1.3) * 0.06;
+    if (ic) { // the disco: the mirror ball turns, the spots sweep the floor, the lights cycle through colours
+      K.ball.rotation.y += dt * 0.9;
+      for (const d of K.dots) { const a = d.a + t * d.sp, x = K.stage.x + Math.sin(a) * d.r, z = K.stage.z + Math.cos(a) * d.r * 0.9; const ok = x > K.x0 + 0.2 && x < K.x1 - 0.2 && z > K.z0 + 0.2 && z < K.part - 0.2; d.m.visible = ok; if (ok) d.m.position.set(x, 0.035, z); }
+      K.lights[0].color.setHSL((t * 0.08) % 1, 1, 0.55); K.lights[1].color.setHSL((t * 0.08 + 0.5) % 1, 1, 0.55);
+    }
     if (deps.animate) { deps.animate(creplach, dt); deps.animate(tryshtahn, dt); if (buyer.visible) deps.animate(buyer, dt); }
     for (const c of cars) c.spin.rotation.y += dt * 0.25;
     if (onLot(p) && !D().seen && !D().hinted) { D().hinted = 1; toast('TRYSHTAHN AUTO', 'Somebody is buying a car inside. Walk in and listen.', 3); }
