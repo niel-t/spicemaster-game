@@ -526,6 +526,13 @@ export const LOOKS = {
     shirtPaint: { shirt: [0xa9, 0xc4, 0x6a], pants: [0x6a, 0x4a, 0x2a], skin: [0xd8, 0xa0, 0x7a], tuck: true, neck: 'crew', sleeves: 'rolled', buttons: false,
       badge: (x, fx, ty) => { x.fillStyle = '#6a4a2a'; x.fillRect(fx(-0.13), 0, 10, ty(1.0)); x.fillRect(fx(0.11), 0, 10, ty(1.0)); x.fillRect(fx(-0.13), ty(1.0), fx(0.13) - fx(-0.13), ty(0.6) - ty(1.0)); naknikBadge(x, fx, ty); } },
   },
+  // Johan: Eddy's childhood friend with The Letter (js/johan.js), after his photo: dark swept-back hair, stubble, navy blazer
+  // over an open white shirt, dark trousers, brown loafers, a gold watch
+  johan: {
+    tex: 512, skin: hex01(0xe8bc9c), hair: hex01(0x3a2a1e), hs: 'slick', stubble: 1, smile: 1, calm: 0.6, body: 'slim', watch: 1,
+    shirt: hex01(0x1e2a4a), jacket: hex01(0x1e2a4a), pants: hex01(0x1a1e2a), shoes: hex01(0x6a3a1c), tee: 1,
+    shirtPaint: { shirt: [0x1e, 0x2a, 0x4a], pants: [0x1a, 0x1e, 0x2a], skin: [0xf2, 0xf0, 0xea], belt: [0x6a, 0x3a, 0x1c], vDepth: 1.36, chain: false, sleeves: 'long', buttons: true },
+  },
   eddyJr: {
     tex: 512,
     skin: hex01(0xe4ab88), hair: hex01(0x1d1510), hs: 'curly', glasses: 1, stubble: 1, calm: 1, smile: 1, body: 'fat', neckDrop: 0.03, B: { nowatch: true },

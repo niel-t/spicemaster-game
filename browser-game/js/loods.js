@@ -415,6 +415,7 @@ export function createLoods(deps) {
   }
   function forkAction() {
     if (!F.carry) {
+      const x = deps.forkExtra && deps.forkExtra(tip(), F); if (x) return x; // js/johan.js: something else the forks can lift (Johan's Miata)
       const p = nearestDock(tip(), 1.25);
       if (p) return { label: `Lift the pallet · ${p.kg} kg ${p.name}`, act: () => { F.carry = p; carried.visible = true; carried.userData.load.material = mt(ING_COL[p.id] || C.paprika); F.liftTo = 0.45; showDock(); deps.beep(240, 0.25, 'sawtooth', 0.03); } };
       return { label: 'Get off the heftruck', act: getOff };
