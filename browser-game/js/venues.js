@@ -91,6 +91,10 @@ export function createVenues(deps) {
     // red brick paving in front, white lanterns, an urn on a column (right) and a classical statue on a plinth (left)
     box(7.4, 0.02, 3.4, lam({ map: deps.canvasTex(64, 64, (g) => { g.fillStyle = '#9a4a3a'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#7a3a2a'; for (let y = 0; y < 64; y += 8) { g.fillRect(0, y, 64, 1); for (let x = (y / 8) % 2 ? 0 : 8; x < 64; x += 16) g.fillRect(x, y, 1, 8); } }) }), K.door, 0.022, K.z1 + 1.8, club, false).material.map.repeat.set(4, 2);
     { const m = club.children[club.children.length - 1].material.map; m.wrapS = m.wrapT = THREE.RepeatWrapping; m.needsUpdate = true; }
+    // the red carpet, brass posts and a velvet rope, back by request (on top of the brick paving)
+    box(1.8, 0.02, 3.2, lam({ color: 0xa01828 }), K.door, 0.035, K.z1 + 1.7, club, false);
+    for (const x of [K.door - 1.3, K.door + 1.3]) for (const z of [K.z1 + 0.7, K.z1 + 2.7]) cyl(0.05, 0.07, 0.95, gold, x, 0.48, z, club);
+    for (const x of [K.door - 1.3, K.door + 1.3]) { const r = box(0.04, 0.04, 2.0, velvet, x, 0.82, K.z1 + 1.7, club, false); r.rotation.x = 0.05; }
     const marble = lam({ color: 0xf4f2ee });
     for (const sx of [-1, 1]) { const g = new THREE.Group(); g.position.set(K.door + sx * 3.3, 0, K.z1 + 0.55); club.add(g);
       box(0.42, 0.06, 0.42, trim, 0, 0.03, 0, g); box(0.34, 0.6, 0.34, lam({ color: 0xffffff, transparent: true, opacity: 0.5 }), 0, 0.36, 0, g, false); box(0.12, 0.25, 0.12, lam({ color: 0xffd890, emissive: 0xc08a30 }), 0, 0.34, 0, g, false);

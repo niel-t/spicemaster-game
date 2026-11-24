@@ -2866,6 +2866,8 @@ function tick() {
   if (loods && !mOn) loods.update(dt);
   if (johan && !mOn) johan.update(dt);
   if (venues && !mOn) venues.update(dt);
+  { const P_ = player.position; // the song restyles inside some buildings (js/music.js setStyle), and goes back to the street version outside
+    music.setStyle(mOn || oofDrive.active ? null : venues && venues.inClub(P_) ? 'disco' : venues && venues.inShow(P_) ? 'bollywood' : isInShop(P_) ? 'russian' : isInJoint(P_) ? 'arabic' : null); }
   if (prod && !mOn) prod.update(dt);
   ui.income.textContent = state.naknik || econ.helpKg() ? `${state.naknik ? `${state.naknik} Naknik${state.naknik === 1 ? '' : 'im'}` : 'Your own hands'} · mixing ${econ.dayKg()} kg a market day` : ''; // (the old W 30 / 6 sec timer is gone)
   // money counter
