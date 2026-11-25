@@ -129,9 +129,8 @@ const EVENTS = [
   { id: 'pricewar', text: (b) => `The Lampas dump cheap ${b.name} on Kipkruidenkwartier: clients pay 25% less for it today`, pay: 0.75 },
   { id: 'kermis', text: () => 'Kermis in Kipkruidenkwartier! Every client orders 50% more today', vol: 1.5 },
   { id: 'feest', text: () => "Nabil throws a party at Schmatzel's: Schmatzel orders double today", vol: 2, only: 'schmatzel' },
-  { id: 'regen', text: () => 'Three days of rain: nobody goes out, clients order 30% less today', vol: 0.7 },
 ];
-const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const capFirst = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // deps: state (the game state), addMoney(n, el), toast(title, text, sec), discount() -> 0..0.3, save()
@@ -170,9 +169,10 @@ export function createEconomy(deps) {
     const made = mix(); // the Naknikim mix overnight with what's on the shelves
     const rep = deliver(); // then the clients get their orders and pay (the day report)
     const strikes = turf(); // the Lampas react to how much of their turf you hold
+    if (strikes.length && deps.onStrikes) deps.onStrikes(strikes);
     e.day++; e.wholesaleLeft = WHOLESALE_KG + (boost().sell || 0); e.lastMix = made; e.report = rep;
     rollDay(); // the new day's job board and event (seeded by the day, so a reload shows the same)
-    const came = arrivals(); e.today = { day: e.day, plan: null, did: {} }; // the morning truck, and a fresh day to plan
+    const late = arrivals(true); const came = late.came; e.today = { day: e.day, plan: null, did: {} }; // the morning truck, and a fresh day to plan
     for (const n of e.news) n.days--;
     e.news = e.news.filter((n) => n.days > 0);
     const T = tomorrow(); e.next = null; // what was rolled for today (Henk and the Fluisteraar saw it coming)
@@ -197,9 +197,10 @@ export function createEconomy(deps) {
     const mixLine = made ? (made.kg ? `${made.solo ? 'You' : 'Naknikim'} mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}${made.help && !made.solo ? ` (${made.help} kg thanks to your own hands)` : ''}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
     const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
     if (strikes.length && deps.toast) { deps.toast(state.act1 ? 'THEY STRIKE BACK' : 'THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
-    const cameLine = came.length ? `The truck dropped ${came.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : '';
+    const lateLine = late.held.length ? `${deps.weatherName ? deps.weatherName() : 'Bad weather'}: the truck is stuck on the A-Kaas, ${late.held.reduce((a, o) => a + o.kg, 0)} kg comes tomorrow. ` : '';
+    const cameLine = lateLine + (came.length ? `The truck dropped ${came.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : '');
     if (deps.onDay) deps.onDay(e.day);
-    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, mixLine + payLine + cameLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine || cameLine ? 5 : 3);
+    if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, (deps.dayLine ? deps.dayLine() : '') + mixLine + payLine + cameLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine || cameLine ? 5 : 3);
     return e.day;
   }
   // called every frame: a finished mission bumps state.raids, which ends the day
@@ -252,11 +253,13 @@ export function createEconomy(deps) {
     if (deps.tip) deps.tip('order');
     return d;
   }
-  function arrivals() {
-    const e = ensure(), came = e.inbound.filter((o) => o.day <= e.day);
+  function arrivals(report) {
+    const e = ensure(), held = [];
+    if (deps.truckLate && deps.truckLate(e.day)) for (const o of e.inbound) if (o.day === e.day) { o.day++; held.push(o); } // storm or snow: the truck waits a day
+    const came = e.inbound.filter((o) => o.day <= e.day);
     for (const o of came) e.stock[key(o.id, o.grade)] = +(stockOf(o.id, o.grade) + o.kg).toFixed(2);
     e.inbound = e.inbound.filter((o) => o.day > e.day);
-    return came;
+    return report ? { came, held } : came;
   }
   const expressCost = (cost, express) => Math.round(cost * (express ? 1 + EXPRESS : 1));
   function inboundHTML() {
@@ -271,7 +274,7 @@ export function createEconomy(deps) {
     let news = null;
     if (Math.random() < 0.45) {
       const g = pick(INGREDIENTS.filter((x) => ingOpen(x, state))), up = Math.random() < 0.55, size = 0.25 + Math.random() * 0.2;
-      news = { id: g.id, f: up ? 1 + size : 1 - size, days: 2 + Math.floor(Math.random() * 2), text: cap((up ? pick(NEWS_UP) : pick(NEWS_DOWN))(g.name.toLowerCase())) };
+      news = { id: g.id, f: up ? 1 + size : 1 - size, days: 2 + Math.floor(Math.random() * 2), text: capFirst((up ? pick(NEWS_UP) : pick(NEWS_DOWN))(g.name.toLowerCase())) };
     }
     return (e.next = { drift, news });
   }
@@ -284,7 +287,7 @@ export function createEconomy(deps) {
     if (deps.save) deps.save(); return true;
   }
   const rumour = () => { const n = tomorrow().news; return n ? `${n.text}. ${INGREDIENTS.find((g) => g.id === n.id).name} goes ${n.f > 1 ? 'up' : 'down'} ${Math.round(Math.abs(n.f - 1) * 100)}% tomorrow` : 'Nothing. Tomorrow is a quiet day on the market'; };
-  const effMult = (id) => { const e = ensure(), n = e.news.find((x) => x.id === id); return e.mult[id] * (n ? n.f : 1); };
+  const effMult = (id) => { const e = ensure(), n = e.news.find((x) => x.id === id); return e.mult[id] * (n ? n.f : 1) * (deps.priceBias ? deps.priceBias(id, e.day) : 1); }; // season, holidays, storms (js/kaasweer.js)
   function price(id, gradeId) {
     const g = INGREDIENTS.find((x) => x.id === id), gr = GRADES.find((x) => x.id === gradeId);
     const disc = clamp(deps.discount ? deps.discount() : 0, 0, 0.3);
@@ -508,7 +511,7 @@ export function createEconomy(deps) {
   const machineVol = (cid) => 1 + (ensure().installed[cid] || []).reduce((a, id) => a + MACHINES.find((m) => m.id === id).vol, 0);
   const blendFor = (c) => (c.alt && !blendOpen(BLENDS.find((b) => b.id === c.blend)) ? c.alt : c.blend);
   const blendOpen = (b) => !!b.mix && (!b.page || has(b.page === 1 ? 'recept1' : 'recept2')) && (!b.gate || !!state[b.gate]);
-  const orderKg = (c) => { const ev = ensure().event; return Math.round(c.kg * machineVol(c.id) * (ev && ev.vol && (!ev.only || ev.only === c.id) ? ev.vol : 1)); };
+  const orderKg = (c) => { const ev = ensure().event; return Math.round(c.kg * machineVol(c.id) * (ev && ev.vol && (!ev.only || ev.only === c.id) ? ev.vol : 1) * (deps.demand ? deps.demand(ensure().day) : 1)); }; // weekday, weather, holidays (js/kaasweer.js)
   // ---- machine trade
   const machineCount = () => Object.values(ensure().machines).reduce((a, b) => a + b, 0);
   function rollOffers(r) { // two used machines on Kaasplaats per day
@@ -595,6 +598,7 @@ export function createEconomy(deps) {
   }
   function raidDone(raid) {
     const e = ensure();
+    if (deps.onRaid) deps.onRaid(raid);
     addRep(raid.grade === 'S' ? 250 : 100);
     if (raid.remix) { const rf = NOSH_JOINTS.includes(raid.id) ? 'noshgey' : ABD_JOINTS.includes(raid.id) ? 'abdavissies' : PARA_JOINTS.includes(raid.id) ? 'paravim' : 'lampas'; e.heat[rf] = clamp((e.heat[rf] || 0) + (rf === 'lampas' ? 5 : -15), 0, 100); } // a show of force cools a rival
     if (e.bombed && e.bombed[raid.id]) { delete e.bombed[raid.id]; if (deps.toast) deps.toast('REVIEWS FIXED', `After tonight, ${CLIENTS.find((c) => c.id === raid.id)?.name || 'the joint'} trends for the right reasons again: full pay.`, 3.5); }

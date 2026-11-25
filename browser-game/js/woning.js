@@ -463,6 +463,15 @@ export function createWoning(deps) {
   // inside: the door, the bed, the wardrobe, the catalogue, the radio
   const here = (key) => () => { const r = rooms[inHome], sl = S[key][inHome]; return new THREE.Vector3(r.ox + sl[0], 0, r.oz + sl[1]); };
   addInteract({ pos: () => (inHome >= 0 ? new THREE.Vector3(rooms[inHome].door.x, 0, rooms[inHome].door.z + 0.3) : new THREE.Vector3(0, -99, 0)), r: 1.0, enabled: () => inHome > 0, label: () => 'Go outside · back to the Oofmobiel', act: leaveHome });
+  // De Kaaskoerier on the doormat every morning (js/kaasweer.js); Het Hok has no letterbox, the PC has the paper there
+  const papers = rooms.map((r, i) => {
+    if (!i) return null; const lx = r.door.x - r.ox, lz = r.door.z - r.oz - 0.75;
+    box(1.1, 0.025, 0.65, lam({ color: 0x5a3e22 }), lx, 0.012, lz, r.g, false);
+    const p = box(0.42, 0.035, 0.3, lam({ color: 0xf2ecdc }), lx + 0.1, 0.04, lz - 0.02, r.g, false); p.rotation.y = 0.35;
+    box(0.3, 0.004, 0.06, lam({ color: 0x222222 }), 0, 0.019, -0.09, p, false); return p;
+  });
+  addInteract({ pos: () => (inHome > 0 ? new THREE.Vector3(rooms[inHome].door.x, 0, rooms[inHome].door.z - 0.8) : new THREE.Vector3(0, -99, 0)), r: 0.9, enabled: () => inHome > 0 && !!deps.paper && deps.paper.ok(),
+    label: () => `De Kaaskoerier · on the mat${deps.paper.unread() ? ' (new)' : ''}`, act: () => deps.paper.open() });
   addInteract({ pos: () => (inHome >= 0 ? here('bed')() : new THREE.Vector3(0, -99, 0)), r: 1.7, enabled: () => inHome >= 0, label: () => (deps.endDay && deps.state.step === 'free' ? `Sleep · end day ${econ.ensure().day}` : ensure().mornDay !== econ.ensure().day ? 'Sleep (somebody may knock in the morning)' : 'Take a nap'), act: sleep });
   addInteract({ pos: () => (inHome >= 0 ? here('ward')() : new THREE.Vector3(0, -99, 0)), r: 1.4, enabled: () => inHome >= 0, label: () => `Wardrobe · ${OUTFITS[ensure().outfit].name}`, act: wardrobe });
   addInteract({ pos: () => (inHome >= 0 ? here('cat')() : new THREE.Vector3(0, -99, 0)), r: 1.3, enabled: () => inHome >= 0, label: () => 'Catalogue & phone · order furniture', act: () => deps.openPC('woning') });
@@ -560,6 +569,7 @@ export function createWoning(deps) {
   // De Kluis stands in the room Eddy lives in: Het Hok at first, his house after the move (Tristan 2026-11-23)
   const KLUIS = [[2.62, 1.85], [4.12, 2.75], [5.62, 3.7]]; let kluisIn = -1;
   function update(dt) {
+    if (inHome > 0 && papers[inHome]) papers[inHome].visible = !!deps.paper && deps.paper.ok() && deps.paper.unread(); // read papers go in the recycling
     if (deps.placeKluis && kluisIn !== ensure().home) { kluisIn = ensure().home; const r = rooms[kluisIn], k = KLUIS[kluisIn]; deps.placeKluis(r.ox + k[0], r.oz + k[1]); }
     if (inHome === 0 && !inHok(player.position)) { inHome = -1; show(-1); } // walked out of Het Hok (or a mission took Eddy away)
     else if (inHome > 0 && !inRoom(player.position, rooms[inHome])) { inHome = -1; show(-1); } // a mission or drive took Eddy away

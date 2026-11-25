@@ -1006,7 +1006,7 @@ export function initDrive(ctx) {
       thr = Math.max(-1, Math.min(1, thr)); st = Math.max(-1, Math.min(1, st));
     }
     van.freeze -= dt;
-    const grip = keys.ShiftLeft || keys.ShiftRight ? 1.4 : 7;
+    const grip = keys.ShiftLeft || keys.ShiftRight ? 1.4 : 7 * (opts.grip || 1); // rain, frost and snow make the road slippery (js/kaasweer.js)
     const sp = drivePhysics(van, thr, st, dt, (opts.van && opts.van.maxV) || MAXV, grip); // Garage Mo: van tier + chip tuning
     const hit = bodyCollide(van, 1.7);
     if (hit && hit.imp > 6 && !run.over) { if (hit.imp > 14) ev('crash'); damage((hit.imp - 6) * 1.6); shake = Math.max(shake, Math.min(0.7, hit.imp / 25)); beep(70, 0.16, 'sawtooth', 0.06); run.dents++; }
