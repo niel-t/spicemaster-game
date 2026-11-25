@@ -7,6 +7,8 @@
 //   who runs it and whether it is open today (opening days follow the weekday from js/kaasweer.js), then set a route: a beacon in
 //   the street that goes out when Eddy gets there.
 
+import { logoSVG, logoImages } from './buurtlogos.js'; // a round badge for every business
+
 const DAYS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 const ALL = [0, 1, 2, 3, 4, 5, 6];
 export const KINDS = {
@@ -69,16 +71,18 @@ const daysText = (b) => (b.open.length === 7 ? 'every day' : `${DAYS.filter((_, 
 // one advertisement as HTML (map card, the paper) or as a poster canvas (the plakzuilen)
 export function adHTML(b, small) {
   const a = b.ad;
-  return `<div class="bz-ad${small ? ' sm' : ''}" style="background:${a.bg};color:${a.fg};border-color:${a.fg}"><i>${a.head}</i><b>${a.big}</b><span>${a.line}</span><small>${a.foot}</small></div>`;
+  return `<div class="bz-ad${small ? ' sm' : ''}" style="background:${a.bg};color:${a.fg};border-color:${a.fg}"><span class="bz-adl">${logoSVG(b.id, small ? 40 : 58)}</span><div><i>${a.head}</i><b>${a.big}</b><span>${a.line}</span><small>${a.foot}</small></div></div>`;
 }
-function posterDraw(g, x, y, w, h, b) {
+function posterDraw(g, x, y, w, h, b, img) {
   const a = b.ad; g.fillStyle = a.bg; g.fillRect(x, y, w, h); g.fillStyle = a.fg; g.fillRect(x + 6, y + 6, w - 12, 5); g.fillRect(x + 6, y + h - 11, w - 12, 5);
   g.textAlign = 'center'; const fit = (t, px, max, wt = 900) => { let s = px; g.font = `${wt} ${s}px Arial Black, Arial`; while (g.measureText(t).width > max && s > 8) { s -= 2; g.font = `${wt} ${s}px Arial Black, Arial`; } };
-  fit(a.head, 22, w - 20); g.fillText(a.head, x + w / 2, y + 44);
-  fit(a.big, 46, w - 16); g.fillText(a.big, x + w / 2, y + h * 0.48);
-  g.globalAlpha = 0.85; g.fillRect(x + w * 0.25, y + h * 0.56, w * 0.5, 3); g.globalAlpha = 1;
-  fit(a.line, 20, w - 18, 700); g.fillText(a.line, x + w / 2, y + h * 0.7);
-  fit(a.foot, 14, w - 18, 700); g.fillText(a.foot, x + w / 2, y + h - 24);
+  const L = Math.min(w * 0.46, h * 0.3); if (img) g.drawImage(img, x + w / 2 - L / 2, y + 18, L, L); // the badge on top
+  const t0 = img ? y + 18 + L : y + 10, H = y + h - t0;
+  g.fillStyle = a.fg; fit(a.head, 20, w - 20); g.fillText(a.head, x + w / 2, t0 + H * 0.17);
+  fit(a.big, 44, w - 16); g.fillText(a.big, x + w / 2, t0 + H * 0.46);
+  g.globalAlpha = 0.85; g.fillRect(x + w * 0.25, t0 + H * 0.54, w * 0.5, 3); g.globalAlpha = 1;
+  fit(a.line, 19, w - 18, 700); g.fillText(a.line, x + w / 2, t0 + H * 0.72);
+  fit(a.foot, 13, w - 18, 700); g.fillText(a.foot, x + w / 2, y + h - 22);
 }
 
 export function createBuurt(deps) {
@@ -94,8 +98,10 @@ export function createBuurt(deps) {
     const g = new THREE.Group(); g.position.set(c.x, 0, Z); scene.add(g);
     const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 360; const ctx = cv.getContext('2d');
     ctx.fillStyle = '#e8e2d0'; ctx.fillRect(0, 0, 1024, 360);
-    c.ads.forEach((id, i) => posterDraw(ctx, i * 256 + 6, 8, 244, 344, byId[id]));
+    const paint = (im) => { ctx.fillStyle = '#e8e2d0'; ctx.fillRect(0, 0, 1024, 360); c.ads.forEach((id, i) => posterDraw(ctx, i * 256 + 6, 8, 244, 344, byId[id], im && im[id])); };
+    paint(null);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    logoImages().then((im) => { paint(im); tex.needsUpdate = true; });
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 1.62, 32, 1, true), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 })); band.position.y = 1.55; band.castShadow = true; g.add(band);
     const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.56, 0.7, 24), green); foot.position.y = 0.35; g.add(foot);
     for (const y of [0.72, 2.38]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.035, 6, 28), green); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r); }
@@ -137,6 +143,43 @@ export function createBuurt(deps) {
     c.fillStyle = '#e8202a'; c.beginPath(); c.arc(X(BOARD.x), Zy(Z), 8, 0, 7); c.fill(); c.fillStyle = '#111'; c.font = '700 16px Arial'; c.fillText('U bent hier', X(BOARD.x) + 12, Zy(Z) + 6);
   }
 
+  // uithangborden: every business on the warehouse side hangs its badge over the pavement, by the corner of its front
+  {
+    const arm = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5, metalness: 0.6 }), disc = new THREE.CircleGeometry(0.52, 28), rim = new THREE.TorusGeometry(0.52, 0.035, 6, 28);
+    for (const b of BIZ) {
+      if (b.side !== 'n' || b.x0 == null || b.id === 'club' || b.id === 'dealer') continue;
+      const fz = b.id === 'eddy' ? -7 : -6.5, x = b.x1 - 0.85, g = new THREE.Group(); g.position.set(x, 0, fz); scene.add(g);
+      const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.0), arm); a1.position.set(0, 3.72, 0.5); g.add(a1);
+      const a2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), arm); a2.position.set(0, 3.62, 0.9); g.add(a2);
+      const cv = document.createElement('canvas'); cv.width = cv.height = 256; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+      const m = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true })); m.position.set(0, 3.0, 0.9); g.add(m);
+      const r = new THREE.Mesh(rim, arm); r.position.copy(m.position); g.add(r);
+      logoImages().then((im) => { if (im[b.id]) { cv.getContext('2d').drawImage(im[b.id], 0, 0, 256, 256); t.needsUpdate = true; } });
+      b.board = m;
+    }
+  }
+  // lit ad panels on the canal pavement: a different business every day on each side
+  const PANELS = [{ x: -31, k: 0 }, { x: 34, k: 9 }].map((pn) => {
+    const g = new THREE.Group(); g.position.set(pn.x, 0, Z); scene.add(g);
+    const fr = new THREE.MeshStandardMaterial({ color: 0x2a2e34, roughness: 0.45, metalness: 0.6 });
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.16), fr); foot.position.y = 0.25; g.add(foot);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.9, 0.16), fr); frame.position.y = 1.45; frame.castShadow = true; g.add(frame);
+    const faces = [0, 1].map((side) => {
+      const cv = document.createElement('canvas'); cv.width = 256; cv.height = 384; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1.14, 1.74), new THREE.MeshBasicMaterial({ map: t })); m.position.set(0, 1.45, side ? -0.085 : 0.085); m.rotation.y = side ? Math.PI : 0; g.add(m);
+      return { cv, t };
+    });
+    if (deps.solid) deps.solid(pn.x - 0.7, pn.x + 0.7, Z - 0.15, Z + 0.15);
+    return { ...pn, faces, day: -1 };
+  });
+  function panels() { // repaint when the market day changes
+    const d = deps.world ? deps.world().cal().d : 1;
+    for (const pn of PANELS) {
+      if (pn.day === d) continue; pn.day = d;
+      logoImages().then((im) => pn.faces.forEach((f, i) => { const b = BIZ[(d * 3 + pn.k + i * 5) % BIZ.length]; posterDraw(f.cv.getContext('2d'), 0, 0, 256, 384, b, im[b.id]); f.t.needsUpdate = true; }));
+    }
+  }
+
   // ---------------------------------------------------------------- route beacon
   const beacon = new THREE.Group(); beacon.visible = false; scene.add(beacon);
   { const m = new THREE.MeshBasicMaterial({ color: 0xffc83a, transparent: true, opacity: 0.45, depthWrite: false, fog: false });
@@ -151,6 +194,7 @@ export function createBuurt(deps) {
     deps.toast('ROUTE', `${b.name}: follow the yellow light.${b.side === 's' ? ' It is across the canal: the light marks the best view of it.' : ''}`, 2.6);
   }
   function update(dt) {
+    panels();
     if (!route) return;
     const show = !deps.busy() && !deps.indoors(); beacon.visible = show;
     const t = performance.now() / 1000; beacon.userData.arrow.position.y = 2.6 + Math.sin(t * 3) * 0.25; beacon.userData.arrow.rotation.y = t * 1.5;
@@ -176,9 +220,10 @@ export function createBuurt(deps) {
       const op = openToday(b, now);
       s += `<g class="bz-b${sel === b.id ? ' on' : ''}" data-b="${b.id}" opacity="${dim ? 0.25 : 1}"><rect x="${b.x0 + 0.2}" y="${z0}" width="${b.x1 - b.x0 - 0.4}" height="${z1 - z0}" rx="0.6" fill="${k.col}" stroke="#fff" stroke-width="${sel === b.id ? 0.6 : 0.25}"/>`;
       const nm = b.x1 - b.x0 < 9 && b.short ? b.short : b.name, wds = nm.split(' '), narrow = b.x1 - b.x0 < 9 && nm.length > 9, half = Math.ceil(wds.length / 2), lines = narrow ? [wds.slice(0, half).join(' '), wds.slice(half).join(' ')] : [nm];
-      const fs = narrow ? 1.25 : 1.55, ty = (b.side === 'n' ? z0 + 3.2 : z0 + 2.6);
+      const L = Math.min(4.8, b.x1 - b.x0 - 1), fs = narrow ? 1.2 : 1.5, ty = z0 + L + 2.1;
+      s += logoSVG(b.id, 0, `x="${x - L / 2}" y="${z0 + 0.5}" width="${L}" height="${L}"`);
       s += `<text class="bz-l" x="${x}" y="${ty}" text-anchor="middle" font-size="${fs}">${lines.map((l, i) => `<tspan x="${x}" dy="${i ? fs * 1.15 : 0}">${l}</tspan>`).join('')}</text>`;
-      s += `<text x="${x}" y="${z1 - 1.2}" text-anchor="middle" font-size="1.15" class="${op ? 'bz-o' : 'bz-cl'}">${op ? 'open' : 'gesloten'}</text>`;
+      s += `<circle cx="${b.x1 - 1.1}" cy="${z0 + 1.1}" r="0.6" fill="${op ? '#3ad04a' : '#e8302a'}" stroke="#fff" stroke-width="0.22"><title>${op ? 'open today' : 'closed today'}</title></circle>`;
       s += '</g>';
     }
     for (const c of COLS) s += `<circle cx="${c.x}" cy="${Z}" r="0.8" fill="#1f4a32" stroke="#fff" stroke-width="0.2"><title>Plakzuil</title></circle>`;
@@ -192,13 +237,14 @@ export function createBuurt(deps) {
     const b = sel && byId[sel];
     if (!b) return `<div class="bz-card bz-hint"><b>Kipkruidenkwartier</b><p>${BIZ.length} businesses on the block. Click one for its ad, who runs it and whether it is open today, then set a route.</p><p class="bz-dim">Today is ${deps.world ? deps.world().cal().wdName : ''}.</p></div>`;
     const op = openToday(b, wd());
-    return `<div class="bz-card"><div class="bz-kind" style="background:${KINDS[b.kind].col}">${KINDS[b.kind].icon} ${KINDS[b.kind].name}</div><h3>${b.name}</h3>
+    return `<div class="bz-card"><span class="bz-big">${logoSVG(b.id, 86)}</span><div class="bz-kind" style="background:${KINDS[b.kind].col}">${KINDS[b.kind].icon} ${KINDS[b.kind].name}</div><h3>${b.name}</h3>
       <p><b>Run by</b> ${b.owner}<br><b>${op ? '<span class="bz-op">Open today</span>' : '<span class="bz-sh">Closed today</span>'}</b> · ${b.hours}${b.open.length < 7 ? ` (${daysText(b)})` : ''}</p>${adHTML(b)}<p>${b.blurb}</p>
       <button class="b95" data-route="${b.id}">${route && route.id === b.id ? 'Route set ✓' : 'Set route'}</button></div>`;
   }
   function html() {
     return `<div class="bz"><div class="bz-top"><b>Buurtkaart · Kipkruidenkwartier</b><span class="bz-chips">${Object.entries(KINDS).map(([k, v]) => `<button class="bz-chip${filt === k ? ' on' : ''}" data-f="${k}" style="--c:${v.col}">${v.icon} ${v.name}</button>`).join('')}</span></div>
-      <div class="bz-body"><div class="bz-mapw">${svg()}</div>${cardHTML()}</div></div>`;
+      <div class="bz-body"><div class="bz-mapw">${svg()}</div>${cardHTML()}</div>
+      <div class="bz-gal"><b>Logo's van de buurt</b> <span class="bz-dim">green dot: open today · red: closed</span><div>${BIZ.filter((b) => !filt || filt === b.kind).map((b) => `<button class="bz-gi${sel === b.id ? ' on' : ''}" data-b="${b.id}" title="${b.name}">${logoSVG(b.id, 54)}<span>${b.short || b.name}</span><i style="background:${openToday(b, wd()) ? '#3ad04a' : '#e8302a'}"></i></button>`).join('')}</div></div></div>`;
   }
   function bind(root, rerender) {
     root.querySelectorAll('[data-b]').forEach((g) => g.addEventListener('click', () => { sel = g.dataset.b; deps.beep(660, 0.04, 'triangle', 0.03); rerender(); }));
@@ -228,19 +274,21 @@ export function createBuurt(deps) {
 
   if (!document.getElementById('bzcss')) {
     const css = document.createElement('style'); css.id = 'bzcss';
-    css.textContent = `.bz-ad{border:2px solid;border-radius:6px;padding:7px 8px;text-align:center;font-family:'Arial Black',Arial,sans-serif;margin:6px 0;box-shadow:inset 0 0 0 3px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.2)}
+    css.textContent = `.bz-ad{display:flex;align-items:center;justify-content:center;gap:8px;border:2px solid;border-radius:6px;padding:7px 8px;text-align:center;font-family:'Arial Black',Arial,sans-serif;margin:6px 0;box-shadow:inset 0 0 0 3px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.2)}
 .bz-ad i{display:block;font-style:normal;font-size:11px;letter-spacing:1px;opacity:.9}.bz-ad b{display:block;font-size:22px;line-height:1.05;margin:3px 0}.bz-ad span{display:block;font:700 12px Arial,sans-serif}.bz-ad small{display:block;font:700 10px Arial,sans-serif;opacity:.85;margin-top:3px}
-.bz-ad.sm{display:inline-block;width:132px;vertical-align:top;margin:3px;padding:5px}.bz-ad.sm b{font-size:15px}.bz-ads{text-align:center;margin-bottom:4px}
+.bz-adl{display:block;flex:none;line-height:0}.bz-ad.sm .bz-adl{display:none}.bz-ad.sm{display:inline-block;width:132px;vertical-align:top;margin:3px;padding:5px}.bz-ad.sm b{font-size:15px}.bz-ads{text-align:center;margin-bottom:4px}
 .bz{font-family:inherit}.bz-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:6px}.bz-chips{display:flex;flex-wrap:wrap;gap:4px}
 .bz-chip{border:1px solid var(--c);background:linear-gradient(#fff,#e8eef4);border-radius:12px;padding:2px 9px;font-size:12px;cursor:pointer}.bz-chip.on{background:var(--c);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
 .bz-body{display:grid;grid-template-columns:1fr 240px;gap:10px;align-items:start}.bz-mapw{background:linear-gradient(#f8fbff,#e2ecf4);border:1px solid #9ab4cc;border-radius:8px;padding:4px;overflow:auto}
 .bz-map{width:1350px;max-width:none;display:block}.bz-b{cursor:pointer}.bz-b:hover rect{filter:brightness(1.15)}.bz-b.on rect{filter:drop-shadow(0 0 0.8px #fff)}.bz-l{fill:#fff;font-family:Arial;font-weight:700;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:.3px}
 .bz-cl{fill:#ffd8d8;font-family:Arial;font-style:italic;font-weight:700;paint-order:stroke;stroke:rgba(80,0,0,.6);stroke-width:.25px}.bz-o{fill:#eaffea;font-family:Arial;font-weight:700;paint-order:stroke;stroke:rgba(0,60,0,.5);stroke-width:.25px}.bz-me{fill:#fff;font-family:Arial;font-weight:900;paint-order:stroke;stroke:#a00;stroke-width:.35px}.bz-rt{animation:bzp 1s ease-in-out infinite alternate}@keyframes bzp{to{stroke-width:.15}}
 .bz-card{background:linear-gradient(#ffffff,#eef4fa);border:1px solid #9ab4cc;border-radius:8px;padding:8px 10px;font-size:13px}.bz-card h3{margin:4px 0 4px;font-size:16px}.bz-card p{margin:4px 0}.bz-kind{display:inline-block;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700}
+.bz-big{float:right;margin:0 0 4px 6px;line-height:0;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}.bz-gal{margin-top:8px;background:linear-gradient(#fff,#eef4fa);border:1px solid #9ab4cc;border-radius:8px;padding:6px 8px;font-size:13px}.bz-gal>div{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.bz-gi{position:relative;width:74px;border:1px solid transparent;border-radius:8px;background:none;padding:4px 2px;cursor:pointer;font:inherit}.bz-gi:hover{background:rgba(90,160,232,.15);border-color:#9ab4cc}.bz-gi.on{background:rgba(90,160,232,.28);border-color:#3a7bd5}.bz-gi span{display:block;font-size:10.5px;line-height:1.1;margin-top:2px}.bz-gi i{position:absolute;right:8px;top:4px;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.5)}
 .bz-op{color:#1f7a2a}.bz-sh{color:#a02020}.bz-dim{color:#678;font-size:12px}
 #bzov{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(10,20,30,.35)}
 .bz-win{width:min(1040px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;border-radius:10px;background:rgba(236,244,250,.94);border:1px solid rgba(255,255,255,.8);box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 1px 0 #fff}
-.bz-tb{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:linear-gradient(#5aa0e8,#2a6ac0);color:#fff;font-weight:700;border-radius:10px 10px 0 0;text-shadow:0 1px 1px rgba(0,0,0,.4)}
+.bz-tb{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:linear-gradient(#5aa0e8,#2a6ac0);color:#fff;font-weight:700;border-radius:10px 10px 0 0;text-shadow:0 1px 1px rgba(0,0,0,.4)}
 .bz-x{background:linear-gradient(#f08a7a,#c8402a);color:#fff;border:1px solid #fff;border-radius:4px;width:28px;height:22px;font-weight:900;cursor:pointer}.bz-in{padding:10px}
 @media (max-width:760px){.bz-body{grid-template-columns:1fr}}`;
     document.head.appendChild(css);
