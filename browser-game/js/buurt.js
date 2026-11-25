@@ -145,15 +145,14 @@ export function createBuurt(deps) {
 
   // uithangborden: every business on the warehouse side hangs its badge over the pavement, by the corner of its front
   {
-    const arm = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5, metalness: 0.6 }), disc = new THREE.CircleGeometry(0.52, 28), rim = new THREE.TorusGeometry(0.52, 0.035, 6, 28);
+    const arm = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5, metalness: 0.6 }), disc = new THREE.PlaneGeometry(1.2, 1.2); // every sign has its own outline, so the board is the logo itself
     for (const b of BIZ) {
       if (b.side !== 'n' || b.x0 == null || b.id === 'club' || b.id === 'dealer') continue;
       const fz = b.id === 'eddy' ? -7 : -6.5, x = b.x1 - 0.85, g = new THREE.Group(); g.position.set(x, 0, fz); scene.add(g);
       const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.0), arm); a1.position.set(0, 3.72, 0.5); g.add(a1);
       const a2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), arm); a2.position.set(0, 3.62, 0.9); g.add(a2);
       const cv = document.createElement('canvas'); cv.width = cv.height = 256; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      const m = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true })); m.position.set(0, 3.0, 0.9); g.add(m);
-      const r = new THREE.Mesh(rim, arm); r.position.copy(m.position); g.add(r);
+      const m = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true, alphaTest: 0.4 })); m.position.set(0, 2.95, 0.9); g.add(m);
       logoImages().then((im) => { if (im[b.id]) { cv.getContext('2d').drawImage(im[b.id], 0, 0, 256, 256); t.needsUpdate = true; } });
       b.board = m;
     }
