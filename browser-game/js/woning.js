@@ -463,7 +463,7 @@ export function createWoning(deps) {
   // inside: the door, the bed, the wardrobe, the catalogue, the radio
   const here = (key) => () => { const r = rooms[inHome], sl = S[key][inHome]; return new THREE.Vector3(r.ox + sl[0], 0, r.oz + sl[1]); };
   addInteract({ pos: () => (inHome >= 0 ? new THREE.Vector3(rooms[inHome].door.x, 0, rooms[inHome].door.z + 0.3) : new THREE.Vector3(0, -99, 0)), r: 1.0, enabled: () => inHome > 0, label: () => 'Go outside · back to the Oofmobiel', act: leaveHome });
-  // De Kaaskoerier on the doormat every morning (js/kaasweer.js); Het Hok has no letterbox, the PC has the paper there
+  // Krant voor het Kaasvolk on the doormat every morning (js/kaasweer.js); Het Hok has no letterbox, the PC has the paper there
   const papers = rooms.map((r, i) => {
     if (!i) return null; const lx = r.door.x - r.ox, lz = r.door.z - r.oz - 0.75;
     box(1.1, 0.025, 0.65, lam({ color: 0x5a3e22 }), lx, 0.012, lz, r.g, false);
@@ -471,7 +471,7 @@ export function createWoning(deps) {
     box(0.3, 0.004, 0.06, lam({ color: 0x222222 }), 0, 0.019, -0.09, p, false); return p;
   });
   addInteract({ pos: () => (inHome > 0 ? new THREE.Vector3(rooms[inHome].door.x, 0, rooms[inHome].door.z - 0.8) : new THREE.Vector3(0, -99, 0)), r: 0.9, enabled: () => inHome > 0 && !!deps.paper && deps.paper.ok(),
-    label: () => `De Kaaskoerier · on the mat${deps.paper.unread() ? ' (new)' : ''}`, act: () => deps.paper.open() });
+    label: () => `Krant voor het Kaasvolk · on the mat${deps.paper.unread() ? ' (new)' : ''}`, act: () => deps.paper.open() });
   addInteract({ pos: () => (inHome >= 0 ? here('bed')() : new THREE.Vector3(0, -99, 0)), r: 1.7, enabled: () => inHome >= 0, label: () => (deps.endDay && deps.state.step === 'free' ? `Sleep · end day ${econ.ensure().day}` : ensure().mornDay !== econ.ensure().day ? 'Sleep (somebody may knock in the morning)' : 'Take a nap'), act: sleep });
   addInteract({ pos: () => (inHome >= 0 ? here('ward')() : new THREE.Vector3(0, -99, 0)), r: 1.4, enabled: () => inHome >= 0, label: () => `Wardrobe · ${OUTFITS[ensure().outfit].name}`, act: wardrobe });
   addInteract({ pos: () => (inHome >= 0 ? here('cat')() : new THREE.Vector3(0, -99, 0)), r: 1.3, enabled: () => inHome >= 0, label: () => 'Catalogue & phone · order furniture', act: () => deps.openPC('woning') });

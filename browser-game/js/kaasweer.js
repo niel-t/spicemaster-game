@@ -1,4 +1,4 @@
-// Kaasland leeft: the week, the seasons, the weather and De Kaaskoerier, the daily paper.
+// Kaasland leeft: the week, the seasons, the weather and Krant voor het Kaasvolk, the daily paper.
 // Every market day is a weekday (day 1 is a Monday) and every 14 market days the season turns (it starts in autumn).
 // The weather is rolled per day from the save's own seed, leans on the season and likes to stay, so a reload shows the
 // same sky. It changes the street (sky, fog, light, rain or snow, wet tarmac, umbrellas, fewer people out in a storm),
@@ -55,7 +55,7 @@ const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul
 const hashStr = (s) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// ---- De Kaaskoerier copy (generic Kaasland parody, nobody real named)
+// ---- Krant voor het Kaasvolk copy (generic Kaasland parody, nobody real named)
 const FILLER = [
   ['Council installs 400 new bike racks', 'All 400 were full within the hour. "And those are just the abandoned bikes," says a spokesperson.'],
   ['Tourist falls in canal, mostly wants his photo back', 'The man stood on a houseboat roof "because it looked so stable".'],
@@ -289,7 +289,7 @@ export function createKaasweer(deps) {
     const p = paper(); return p ? `Heb je de krant gezien? „${p.head}”` : null;
   }
 
-  // ---------------------------------------------------------------- De Kaaskoerier
+  // ---------------------------------------------------------------- Krant voor het Kaasvolk
   // Built from what happened yesterday (facts, the day report, police, rivals) plus today's weather and the market.
   function paper(d = day()) {
     const r = rng32(hashStr(`krant#${S().seed}#${d}`)), pk = (a) => a[Math.floor(r() * a.length)];
@@ -324,7 +324,7 @@ export function createKaasweer(deps) {
     const bias = Object.entries(SEASON_PRICE[p.c.season.id] || {}).length ? SEASON_LINE[p.c.season.id] : '';
     S().read = p.d;
     return `<div class="kk">
-      <div class="kk-mast"><div class="kk-l">W 1,50</div><h1>De Kaaskoerier</h1><div class="kk-r">Since 1652 · independent · ish</div></div>
+      <div class="kk-mast"><div class="kk-l">W 1,50</div><h1>Krant voor het Kaasvolk</h1><div class="kk-r">Since 1652 · independent · ish</div></div>
       <div class="kk-date">${p.c.wdName} · day ${p.d} · ${p.c.season.name}, week ${p.c.week}${p.c.year > 1 ? ` · year ${p.c.year}` : ''}${p.c.holi ? ` · <b>${p.c.holi.name}</b>` : ''}</div>
       <div class="kk-grid">
         <div class="kk-main"><h2>${p.lead.head}</h2><p>${p.lead.body}</p>
@@ -343,7 +343,7 @@ export function createKaasweer(deps) {
   if (typeof document !== 'undefined' && !document.getElementById('kkcss')) {
     const css = document.createElement('style'); css.id = 'kkcss';
     css.textContent = `.kk{background:#f6f1e4;color:#222;font-family:Georgia,'Times New Roman',serif;padding:10px 14px 14px;border-radius:4px;box-shadow:inset 0 0 40px rgba(160,130,80,.18)}
-.kk-mast{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;border-bottom:3px double #222;padding-bottom:4px}.kk-mast h1{margin:0;font:900 34px/1 Georgia,serif;letter-spacing:.5px;text-align:center;color:#1a1a1a}
+.kk-mast{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;border-bottom:3px double #222;padding-bottom:4px}.kk-mast h1{margin:0;font:900 30px/1 Georgia,serif;letter-spacing:.3px;text-align:center;color:#1a1a1a}
 .kk-l,.kk-r{font-size:10px;color:#555;font-style:italic}.kk-r{text-align:right}.kk-date{font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #222;padding:3px 0;margin-bottom:8px;text-align:center}
 .kk-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}.kk-main h2{font:900 22px/1.1 Georgia,serif;margin:2px 0 6px}.kk-main h3{font:700 15px/1.15 Georgia,serif;margin:10px 0 3px;border-top:1px solid #bbb;padding-top:7px}
 .kk p{margin:0 0 5px;font-size:13px;line-height:1.35}.kk-main>p:first-of-type::first-letter{float:left;font-size:34px;line-height:.9;padding:3px 4px 0 0;font-weight:900}
@@ -351,7 +351,7 @@ export function createKaasweer(deps) {
 .kk-now{display:flex;gap:8px;align-items:center}.kk-now>span{font-size:30px}.kk-fcs{display:flex;gap:6px;margin:6px 0 3px}.kk-fc{flex:1;text-align:center;background:linear-gradient(#fff,#efe6cf);border:1px solid #d8cba8;border-radius:6px;padding:3px 2px;font-size:11px}
 .kk-fc span{display:block;font-size:20px}.kk-fc i{display:block;font-style:normal;font-weight:700}.kk-fc small{display:block;color:#666;font-size:10px}.kk-dim{color:#777;font-size:11px}.kk-baro{font-size:13px}.kk-baro b{font-size:20px}
 .kk ul{margin:4px 0 0 16px;padding:0;font-size:12px}.kk-warn{color:#a02020;font-weight:700}.kk-ads p{font-size:11.5px;border-bottom:1px dotted #c9bfa6;padding-bottom:3px}
-@media (max-width:640px){.kk-grid{grid-template-columns:1fr}.kk-mast h1{font-size:26px}}
+@media (max-width:640px){.kk-grid{grid-template-columns:1fr}.kk-mast h1{font-size:21px}}
 #objective .weer{display:block;margin-bottom:2px}`;
     document.head.appendChild(css);
   }

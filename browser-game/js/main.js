@@ -38,7 +38,7 @@ import { createSollicitanten, naknikLook, drawFace, feeOf } from './sollicitante
 import { createProductie } from './productie.js'; // the production line: pallets of vaten, the mixer, blue bags
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { createMedia } from './kaasmedia.js'; // Kaasdows Mediaspeler: original live-generated desktop music
-import { createKaasweer } from './kaasweer.js'; // the week, the seasons, the weather and De Kaaskoerier
+import { createKaasweer } from './kaasweer.js'; // the week, the seasons, the weather and Krant voor het Kaasvolk
 import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
 import { createActivists } from './activists.js'; // the protesters' picket on the pavement, and what Pa, Shooki and Razim think of it
 import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
@@ -1241,7 +1241,7 @@ const NAK_BY_RANK = [1, 2];
 const nakCap = () => Math.min(loods.naknikCap(), rankNow() < NAK_BY_RANK.length ? NAK_BY_RANK[rankNow()] : Infinity); // balance 2026-11-15: no passive timer, Naknikim earn by mixing
 let pcTab = 'sell', pcMode = 'pc';
 const LOOT_PRICE = 150;
-const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['woning', 'H', 'Woning'], ['loods', '▦', 'De Loods'], ['bank', 'W', 'My Wilders'], ['krant', 'K', 'De Kaaskoerier'], ['media', '♪', 'Mediaspeler']];
+const icons = [['sell', 'K', 'Kaasplaats'], ['hire', 'N', 'Naknik Uitzendbureau'], ['shop', 'M', 'Buy mixing table'], ['beurs', '%', 'Kruidenbeurs'], ['meng', 'B', 'Mengkamer'], ['rapport', 'D', 'Dagrapport'], ['jobs', 'J', 'Klusbord'], ['ideas', 'I', 'Ideeënboek'], ['werk', '⚙', 'Werkplaats'], ['garage', 'G', 'Garage Mo'], ['plan', 'P', 'Plannenbord'], ['map', '⌖', 'Map of Kaasland'], ['woning', 'H', 'Woning'], ['loods', '▦', 'De Loods'], ['bank', 'W', 'My Wilders'], ['krant', 'K', 'Krant voor het Kaasvolk'], ['media', '♪', 'Mediaspeler']];
 // the spice economy (js/economy.js): market days, the Kruidenbeurs and warehouse stock. Owned territories make the home market cheaper.
 let freddy = null; // js/freddy.js, set up once the phone exists
 let activists = null; // js/activists.js, set up after Freddy
@@ -1300,7 +1300,7 @@ function openPC(tab = 'sell', mode = 'pc') { kmap.warm(); // paint the aerial ma
 function closePC() { media.stop(); if (!state.inPC || $('pc').style.display !== 'block') { state.inPC = false; $('pc').style.display = 'none'; return; } kd.logoff(); state.inPC = false; $('pc').style.display = 'none'; afterPC(); }
 // the window's ×: shuts the program and shows the desktop (the Oofmobiel planner has no desktop, so it logs off)
 $('pcclose').onclick = (e) => { e.stopPropagation(); if (pcMode === 'van') closePC(); else kd.closeWindow(); };
-const PC_TITLE = { krant: 'De Kaaskoerier', sell: 'Kaasplaats', hire: 'Naknik Uitzendbureau', shop: 'Mixing table', beurs: 'Kruidenbeurs', meng: 'Mengkamer', rapport: 'Dagrapport', jobs: 'Klusbord', ideas: 'Ideeënboek', werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord', map: 'Map of Kaasland', woning: 'Woning', loods: 'De Loods', bank: 'My Wilders', media: 'Kaasdows Mediaspeler' };
+const PC_TITLE = { krant: 'Krant voor het Kaasvolk', sell: 'Kaasplaats', hire: 'Naknik Uitzendbureau', shop: 'Mixing table', beurs: 'Kruidenbeurs', meng: 'Mengkamer', rapport: 'Dagrapport', jobs: 'Klusbord', ideas: 'Ideeënboek', werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord', map: 'Map of Kaasland', woning: 'Woning', loods: 'De Loods', bank: 'My Wilders', media: 'Kaasdows Mediaspeler' };
 function renderPC() {
   kd.setTab(pcTab);
   kd.render(pcPrograms(), pcTab, pcMode === 'van' ? 'Oofmobiel' : PC_TITLE[pcTab] || 'Kaasdows', pcMode === 'van' ? 'van' : pcTab);
@@ -1359,10 +1359,10 @@ function renderPC() {
     title.textContent = "Ideeënboek · Eddy Jr.'s notebook";
     body.innerHTML = econ.ideasHTML();
   } else if (UNLOCK[pcTab] && !UNLOCK[pcTab].ok()) {
-    title.textContent = { werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord', krant: 'De Kaaskoerier' }[pcTab] + ' · locked';
+    title.textContent = { werk: 'Werkplaats', garage: 'Garage Mo', plan: 'Plannenbord', krant: 'Krant voor het Kaasvolk' }[pcTab] + ' · locked';
     body.innerHTML = `<div class="well"><b>Not yet.</b><br>${UNLOCK[pcTab].why}<br><br><small>Start small: sell Dad's junk, hire Naknikim, take joints, earn your rank. Kaasland opens up as you grow.</small></div>`;
   } else if (pcTab === 'krant') {
-    title.textContent = 'De Kaaskoerier · het dagblad van Kaasland';
+    title.textContent = 'Krant voor het Kaasvolk · het dagblad van Kaasland';
     body.innerHTML = world.paperHTML(); body.scrollTop = 0;
   } else if (pcTab === 'werk') {
     title.textContent = 'Werkplaats · Build, repair, upgrade';
@@ -2039,7 +2039,7 @@ for (let i = 0; i < 16; i++) {
   p.userData.walk = u;
   walkers.push(p);
 }
-// Kaasland leeft (js/kaasweer.js): weekdays, seasons, weather on the street and in the trade, De Kaaskoerier
+// Kaasland leeft (js/kaasweer.js): weekdays, seasons, weather on the street and in the trade, Krant voor het Kaasvolk
 world = createKaasweer({ THREE, state, scene, hemi, sun, walkers, wetMats, econ, day: () => econ.ensure().day, rank: () => rankNow(), active: () => state.step === 'free',
   busy: () => !!(mission.active || oofDrive.active), thunder: () => { beep(42, 1.1, 'sawtooth', 0.035); setTimeout(() => beep(31, 1.4, 'triangle', 0.05), 120); },
   onApply: (w) => { if (state.step === 'free' && !['zon', 'bewolkt'].includes(w.id)) tips.show('weer'); } });
