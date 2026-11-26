@@ -372,7 +372,16 @@ function vanBody(THREE, g, S, T, paint) {
 
 // ---------------------------------------------------------------- the Oofmobiel: Dad's blue T5-style panel van
 // a van collapses to one mesh per material. Kept apart: the printed livery (its texture is swapped on a rebrand)
-function mergeVan(g) { const live = new Set(); g.traverse((o) => { const L = o.userData && o.userData.livery; if (L) for (const m of L.sides) live.add(m); }); mergeStatic(g, (o) => live.has(o) || !!(o.userData && o.userData.cargo)); }
+function mergeVan(g, THREE, canvasTex) {
+  const live = new Set(); g.traverse((o) => { const L = o.userData && o.userData.livery; if (L) for (const m of L.sides) live.add(m); });
+  // the plain plastics, rubber and bright metal share two vertex-coloured materials (the street cars' trim and metal)
+  const CK = carKit(THREE, canvasTex), col = new THREE.Color(), paint = g.userData.paint;
+  g.traverse((me) => { if (!me.isMesh || live.has(me)) return; const m = me.material;
+    if (!m.isMeshStandardMaterial || m.isMeshPhysicalMaterial || m === paint || m.map || m.transparent || m.polygonOffset || m.side !== THREE.FrontSide || m.vertexColors || (m.emissive && m.emissive.getHex() !== 0)) return;
+    const geo = me.geometry = me.geometry.clone(), n = geo.attributes.position.count, arr = new Float32Array(n * 3); col.copy(m.color); for (let i = 0; i < n; i++) { arr[i * 3] = col.r; arr[i * 3 + 1] = col.g; arr[i * 3 + 2] = col.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(arr, 3)); me.material = m.metalness > 0.6 ? CK.metal : CK.trim; });
+  mergeStatic(g, (o) => live.has(o) || !!(o.userData && o.userData.cargo));
+}
 export function makeOofmobiel(THREE, canvasTex) {
   kit(THREE, canvasTex); const V = vanKit(THREE);
   const g = new THREE.Group();
@@ -454,7 +463,7 @@ export function makeOofmobiel(THREE, canvasTex) {
   { const rd = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.42), roofM); rd.rotation.x = -Math.PI / 2; rd.rotation.z = -Math.PI / 2; rd.position.set(0, 1.95 + bs + 0.03, -0.85); T.skin(add(rd)); }
   g.userData.paint = blue; g.userData.livery = { sides, roof: roofM, id: 'zn', toJSON: () => null }; // toJSON: clone() copies userData through JSON
   g.userData.half = 2.55; g.userData.width = S.W;
-  mergeVan(g);
+  mergeVan(g, THREE, canvasTex);
   return g;
 }
 
@@ -531,7 +540,7 @@ export function makeKangoo(THREE, canvasTex, opts = {}) {
   body.rotation.y = Math.PI / 2; // nose +x
   g.userData.paint = white; g.userData.livery = { sides, roof: roofM, id: opts.livery || 'shooki', toJSON: () => null };
   g.userData.half = 2.18; g.userData.width = S.W; g.userData.model = 'Kangoo';
-  mergeVan(g);
+  mergeVan(g, THREE, canvasTex);
   return g;
 }
 // swap the livery on every van inside a group ('zn' before the rebrand, 'eddys' after); Shooki's Kangoo keeps its own
@@ -567,19 +576,23 @@ const CELL = {
   volvo: [0, 96, 256, 80], slats: [256, 96, 256, 80], eend: [0, 176, 256, 96], intake: [256, 176, 256, 64], black: [264, 248, 24, 24],
   ws: [512, 0, 512, 256], rw: [512, 256, 512, 256],
 };
+const AH = 640; // atlas height
+PLATE_TEXTS.forEach((_, i) => { CELL['plate' + i] = [(i % 4) * 256, 512 + (i >> 2) * 56, 256, 56]; }); CELL.glass = [4, 626, 24, 12];
 const BADGES = ['240 GL', 'Kadett', 'Kever', '2CV', '245 DL', 'Countach', 'T3', 'Daf 33'];
 BADGES.forEach((_, i) => { CELL['badge' + i] = [(i % 2) * 256, 288 + (i >> 1) * 56, 256, 56]; });
 function cellUV(geo, cell, flip) {
   const [x, y, w, h] = CELL[cell], uv = geo.attributes.uv, m = 2;
-  for (let i = 0; i < uv.count; i++) { const u = flip ? 1 - uv.getX(i) : uv.getX(i), v = uv.getY(i); uv.setXY(i, (x + m + u * (w - 2 * m)) / 1024, 1 - (y + m + (1 - v) * (h - 2 * m)) / 512); }
+  for (let i = 0; i < uv.count; i++) { const u = flip ? 1 - uv.getX(i) : uv.getX(i), v = uv.getY(i); uv.setXY(i, (x + m + u * (w - 2 * m)) / 1024, 1 - (y + m + (1 - v) * (h - 2 * m)) / AH); }
   return geo;
 }
 function carKit(THREE, canvasTex) {
   if (K.car) return K.car;
   const rr = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
   const chrome = (c, x0, y0, x1, y1) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, '#9aa2ac'); g.addColorStop(0.55, '#e4e8ee'); g.addColorStop(1, '#6a727c'); return g; };
-  const map = canvasTex(1024, 512, (c) => {
-    c.clearRect(0, 0, 1024, 512);
+  const map = canvasTex(1024, AH, (c) => {
+    c.clearRect(0, 0, 1024, AH);
+    c.fillStyle = '#0c1218'; c.fillRect(0, 624, 32, 16); // side glass
+    PLATE_TEXTS.forEach((text, i) => { const [x, y] = CELL['plate' + i]; c.save(); c.translate(x, y); c.fillStyle = '#f4c81c'; c.fillRect(0, 0, 256, 56); c.fillStyle = '#1a3a9a'; c.fillRect(0, 0, 26, 56); c.fillStyle = '#ffd84a'; c.font = '700 13px Arial'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.fillText('KL', 13, 46); c.strokeStyle = '#111'; c.lineWidth = 3; c.strokeRect(1.5, 1.5, 253, 53); c.fillStyle = '#111'; c.font = '900 40px "Arial Black", Arial'; c.fillText(text, 141, 44, 220); c.restore(); });
     const cell = (k, fn) => { const [x, y, w, h] = CELL[k]; c.save(); c.translate(x, y); c.beginPath(); c.rect(0, 0, w, h); c.clip(); fn(w, h); c.restore(); };
     // rectangular headlight: chrome bezel, fluted lens, a bright bulb behind it
     cell('headR', (w, h) => { c.fillStyle = chrome(c, 0, 0, 0, h); rr(c, 0, 0, w, h, 10); c.fill(); const g = c.createRadialGradient(w * 0.5, h * 0.5, 4, w * 0.5, h * 0.5, w * 0.55); g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, '#f2f6fa'); g.addColorStop(1, '#a8b6c4'); c.fillStyle = g; rr(c, 8, 8, w - 16, h - 16, 6); c.fill();
@@ -618,8 +631,9 @@ function carKit(THREE, canvasTex) {
     pane('rw', (w, h) => { seat(w * 0.3, 150, 0.8); seat(w * 0.7, 150, 0.8); c.fillStyle = '#1a1c20'; c.fillRect(0, h - 44, w, 44); c.strokeStyle = 'rgba(190,110,60,.5)'; c.lineWidth = 1.6; for (let y = 34; y < h - 46; y += 15) { c.beginPath(); c.moveTo(22, y); c.lineTo(w - 22, y); c.stroke(); } });
   });
   // what glows: the lamp lenses, a little
-  const src = map.image, glow = canvasTex(1024, 512, (c) => { c.fillStyle = '#000'; c.fillRect(0, 0, 1024, 512); for (const [k, a] of [['headR', 0.75], ['headO', 0.75], ['tail', 0.42], ['tailO', 0.42]]) { const [x, y, w, h] = CELL[k]; c.globalAlpha = a; c.drawImage(src, x, y, w, h, x, y, w, h); } c.globalAlpha = 1; });
-  K.car = { m: new THREE.MeshPhysicalMaterial({ map, emissiveMap: glow, emissive: 0xffffff, emissiveIntensity: 0.7, roughness: 0.16, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.5, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }) };
+  const src = map.image, glow = canvasTex(1024, AH, (c) => { c.fillStyle = '#000'; c.fillRect(0, 0, 1024, AH); for (const [k, a] of [['headR', 0.75], ['headO', 0.75], ['tail', 0.42], ['tailO', 0.42]]) { const [x, y, w, h] = CELL[k]; c.globalAlpha = a; c.drawImage(src, x, y, w, h, x, y, w, h); } c.globalAlpha = 1; });
+  K.car = { trim: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.1 }), metal: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0.95 }),
+    m: new THREE.MeshPhysicalMaterial({ map, emissiveMap: glow, emissive: 0xffffff, emissiveIntensity: 0.7, roughness: 0.16, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.5, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }) };
   return K.car;
 }
 
@@ -745,6 +759,17 @@ export function makeCar(THREE, canvasTex, opts = {}) {
   }
   const blob = new THREE.Mesh(new THREE.PlaneGeometry(L + Lb + 0.6, M.W + 0.5), K.blob); blob.rotation.x = -Math.PI / 2; blob.position.set((L - Lb) / 2, 0.025, 0); g.add(blob);
   g.userData.half = Math.max(L, Lb) + 0.08; g.userData.width = M.W; g.userData.model = M.n; g.userData.paint = pm;
+  { // a street car is five draw calls: paint, trim, bright metal, the printed atlas and its shadow blob. Every plain part is
+    // recoloured per vertex into the shared trim or metal material; side glass and the plates move onto the atlas.
+    const CK = carKit(THREE, canvasTex), col = new THREE.Color(), pi = PLATE_TEXTS.indexOf(pt), plateM = K.plate(pt);
+    const tint = (me, mat) => { const geo = me.geometry = me.geometry.clone(), n = geo.attributes.position.count, a = new Float32Array(n * 3); col.copy(me.material.color); for (let i = 0; i < n; i++) { a[i * 3] = col.r; a[i * 3 + 1] = col.g; a[i * 3 + 2] = col.b; } geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); me.material = mat; };
+    g.traverse((me) => { if (!me.isMesh || me === blob) return; const m = me.material;
+      if (m === pm || m === CK.m || m.transparent || (m.map && m !== plateM)) return;
+      if (m === plateM) { if (pi >= 0) { me.geometry = cellUV(me.geometry.clone(), 'plate' + pi); me.material = CK.m; } return; }
+      if (m === K.glass) { const geo = me.geometry = me.geometry.clone(), uv = geo.attributes.uv, [cx, cy, cw, ch] = CELL.glass; if (uv) { for (let i = 0; i < uv.count; i++) uv.setXY(i, (cx + cw / 2) / 1024, 1 - (cy + ch / 2) / AH); me.material = CK.m; } return; }
+      if (!m.color) return;
+      tint(me, m.metalness > 0.6 ? CK.metal : CK.trim); });
+  }
   pm.userData.mergeKey = pm.uuid; mergeStatic(g); // the paint stays its own material: wrecks blacken it and the drive repaints it
   { const tk = M.tum ?? 0.1, span = Math.max(0.1, top - gLow); // tumblehome: real cars are narrower at the roof than at the doors
     for (const o of g.children) { if (!o.isMesh || o === blob) continue;
