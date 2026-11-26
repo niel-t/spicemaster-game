@@ -159,7 +159,9 @@ export function createKaasweer(deps) {
   // ---------------------------------------------------------------- the street
   const base = { bg: scene.background.clone(), fog: scene.fog.color.clone(), near: scene.fog.near, far: scene.fog.far, hemi: deps.hemi.intensity, sun: deps.sun.intensity, env: scene.environmentIntensity };
   const wet = (deps.wetMats || []).map((m) => ({ m, r: m.roughness, c: m.color.clone() }));
-  let applied = -1, cur = null;
+  let applied = -1, cur = null, tod = null; // tod: { n: night 0..1, dusk 0..1 } from js/klok.js
+  const NIGHT = new THREE.Color(0x0b1430), DUSK = new THREE.Color(0xff9a5a), sunBase = deps.sun.color.clone();
+  function setTime(t) { tod = t; apply(true); }
   function apply(force) {
     const d = day(); if (!force && applied === d) return;
     if (deps.busy()) return; // a mission keeps its own sky; the street catches up afterwards
@@ -170,16 +172,22 @@ export function createKaasweer(deps) {
     scene.fog.near = w.fog[0]; scene.fog.far = w.fog[1];
     deps.hemi.intensity = base.hemi * hemiK(w); deps.sun.intensity = base.sun * Math.pow(w.light, 1.6);
     deps.sun.castShadow = w.light >= 0.6; // no hard shadows under storm clouds
-    if (base.env != null) scene.environmentIntensity = base.env * (0.35 + 0.65 * w.light) * (1 + 0.6 * w.wet); // wet tarmac mirrors the sky
+    const nt = tod ? tod.n : 0, du = tod ? tod.dusk : 0;
+    if (nt > 0 || du > 0) { // evening and night on top of the weather: an orange hour, then dark blue, lamps and windows carry the street
+      scene.background.lerp(DUSK, du * 0.45 * (1 - nt)).lerp(NIGHT, nt * 0.94); scene.fog.color.lerp(DUSK, du * 0.35 * (1 - nt)).lerp(NIGHT, nt * 0.92);
+      deps.hemi.intensity *= 1 - 0.66 * nt; deps.sun.intensity *= (1 - 0.93 * nt) * (1 - 0.25 * du); if (nt > 0.55) deps.sun.castShadow = false;
+    }
+    deps.sun.color.copy(sunBase).lerp(DUSK, Math.min(1, du * 0.7));
+    if (base.env != null) scene.environmentIntensity = base.env * (0.35 + 0.65 * w.light) * (1 + 0.6 * w.wet) * (1 - 0.7 * nt); // wet tarmac mirrors the sky
     for (const x of wet) { x.m.roughness = x.r * (1 - 0.6 * w.wet); x.m.color.copy(x.c).multiplyScalar(1 - 0.38 * w.wet); }
     for (const x of wet) if (x.m.emissive) x.m.emissive.copy(WHITE).multiplyScalar(w.snow ? 0.34 : 0); // a white layer of snow on the street
     splash.visible = !!w.rain;
     rain.visible = !!w.rain; snow.visible = !!w.snow;
     rain.geometry.setDrawRange(0, Math.round(RAIN_N * (w.rain || 0)) * 2);
     rainMat.opacity = 0.4 + 0.3 * (w.rain || 0);
-    crowd(w.out * (c.holi && c.holi.vol > 1.25 ? 1.15 : 1));
+    crowd(w.out * (c.holi && c.holi.vol > 1.25 ? 1.15 : 1) * (1 - 0.6 * nt)); // the street empties at night
     umbrellas(!!w.rain || w.id === 'sneeuw');
-    if (deps.onApply) deps.onApply(w, c);
+    if (deps.onApply) deps.onApply(w, c, tod);
   }
   // rain: short falling streaks in a box that follows the camera's target; snow: drifting points
   const RAIN_N = 1600, BOX = { x: 34, y: 22, z: 22 };
@@ -358,5 +366,5 @@ export function createKaasweer(deps) {
   }
 
   function debugSet(id, d = day()) { const w = weather(d); memo.set(d, { temp: w.temp, id, ...WEATHER[id] }); for (const k of [...memo.keys()]) if (k > d) memo.delete(k); applied = -1; apply(); }
-  return { debugSet, cal, weather, forecast, demand, demandWhy, truckLate, priceBias, grip, note, apply, update, hud, mutter, paper, paperHTML, unread, forecastDays, crowd, get current() { return cur; }, ensure: S };
+  return { setTime, debugSet, cal, weather, forecast, demand, demandWhy, truckLate, priceBias, grip, note, apply, update, hud, mutter, paper, paperHTML, unread, forecastDays, crowd, get current() { return cur; }, ensure: S };
 }

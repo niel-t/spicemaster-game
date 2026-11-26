@@ -48,6 +48,7 @@ html.aero #dstrip{background:linear-gradient(180deg,rgba(120,80,48,.62),rgba(70,
 #dstrip .d1 b{color:#ffd36b}#dstrip .d2{font-weight:400;font-size:12px;color:#f3e6c8}#dstrip .d2 span+span::before{content:" · ";color:#c8a47a}
 @media (max-width:820px),(max-height:500px){#dstrip{font-size:11.5px;max-width:52vw;padding:4px 10px}#dstrip .d2{font-size:10.5px}}
 #money{cursor:pointer;pointer-events:auto}
+body.riding #dstrip{display:none!important}
 #nieuwcard{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:58;width:min(420px,calc(100vw - 28px));display:none;padding:14px 16px;border-radius:18px;color:#07304f;font:400 14px/1.4 "Segoe UI",Tahoma,Rubik,Arial,sans-serif;
   background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(226,244,255,.95) 50%,rgba(204,236,255,.95) 52%,rgba(232,248,255,.97));box-shadow:0 0 0 2px rgba(80,170,230,.6),0 14px 34px rgba(0,40,80,.45);animation:stIn .25s ease-out}
 #nieuwcard .nc-h{display:flex;gap:10px;align-items:center}#nieuwcard .nc-h svg,#nieuwcard .nc-h img{width:44px;height:44px;flex:none}#nieuwcard .nc-k{font-size:11px;font-weight:700;letter-spacing:.06em;color:#0a6ab0;text-transform:uppercase}#nieuwcard .nc-t{font:700 18px "Segoe UI",Tahoma,Arial;color:#07406a}
@@ -74,7 +75,7 @@ html.aero #dstrip{background:linear-gradient(180deg,rgba(120,80,48,.62),rgba(70,
   const day = () => econ.ensure().day;
 
   // ================================================================ Overzicht
-  const TABS = [['vandaag', 'Vandaag'], ['geld', 'Geld'], ['voorraad', 'Voorraad'], ['bills', 'Rekeningen'], ['rep', 'Buurten'], ['heat', 'Bendes'], ['kaart', 'Kaarten']];
+  const TABS = [['vandaag', 'Vandaag'], ['klanten', 'Klanten'], ['geld', 'Geld'], ['voorraad', 'Voorraad'], ['bills', 'Rekeningen'], ['rep', 'Buurten'], ['heat', 'Bendes'], ['stats', 'Cijfers'], ['kaart', 'Kaarten']];
   const ov = document.createElement('div'); ov.id = 'ovz';
   ov.innerHTML = '<div class="ov-w" role="dialog" aria-label="Overzicht"><div class="ov-h"><b>Overzicht</b><small class="ov-k"></small><button class="smeX" title="Close (Esc)" aria-label="Close">✕</button></div><div class="ov-t"></div><div class="ov-b"></div></div>';
   document.body.appendChild(ov);
@@ -114,6 +115,8 @@ html.aero #dstrip{background:linear-gradient(180deg,rgba(120,80,48,.62),rgba(70,
       return h + (econ.inboundHTML() ? `<div style="margin-top:8px">${econ.inboundHTML()}</div>` : '');
     }
     if (t === 'bills') return deps.bills() ? deps.bills().html() : '';
+    if (t === 'klanten') return deps.stam && deps.stam() ? deps.stam().html() : '';
+    if (t === 'stats') return deps.stats && deps.stats() ? deps.stats().html() : '';
     if (t === 'rep') return deps.brep() ? deps.brep().html() : '';
     if (t === 'heat') {
       const H = econ.ensure().heat || {}, names = { lampas: 'Lampas', noshgey: 'Noshgey Kariot', abdavissies: 'Abdavissies', paravim: 'Paravim' }, done = { lampas: 'act1', noshgey: 'act2', abdavissies: 'act3', paravim: 'paravim' };
@@ -125,6 +128,7 @@ html.aero #dstrip{background:linear-gradient(180deg,rgba(120,80,48,.62),rgba(70,
   }
   function bind(t, b) {
     if (t === 'bills' && deps.bills()) deps.bills().bind(b, render);
+    if (t === 'klanten' && deps.stam && deps.stam()) deps.stam().bind(b, render);
     b.querySelectorAll('[data-way]').forEach((x) => x.onclick = () => { if (goTo(x.dataset.way)) close(); });
     b.querySelectorAll('[data-map]').forEach((x) => x.onclick = () => { const m = x.dataset.map; close(); if (m === 'buurt' && deps.buurt()) deps.buurt().open(); else if (m === 'kaasland') deps.openPC('map'); else if (m === 'clear' && deps.buurt()) deps.buurt().clearRoute(); });
   }
@@ -142,7 +146,7 @@ html.aero #dstrip{background:linear-gradient(180deg,rgba(120,80,48,.62),rgba(70,
     const W = deps.world(), on = state.step === 'free' && !deps.blocked() && !state.inPC && W;
     if (!on) { if (ds.style.display !== 'none') ds.style.display = 'none'; return; }
     const c = W.cal(), w = W.weather(), due = deps.dueToday().slice(0, 3);
-    const h = `<div class="d1">${w.icon} <b>${c.wdName}</b> · day ${c.d} · ${w.name} ${w.temp}° · ${c.season.name || c.season.id}${c.holi ? ` · <b>${c.holi.name}</b>` : ''}</div>${due.length ? `<div class="d2">${due.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}`;
+    const h = `<div class="d1">${w.icon} <b>${c.wdName}${deps.time ? ' ' + deps.time() : ''}</b> · day ${c.d} · ${w.name} ${w.temp}° · ${c.season.name || c.season.id}${c.holi ? ` · <b>${c.holi.name}</b>` : ''}</div>${due.length ? `<div class="d2">${due.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}`;
     if (h !== dsKey) { ds.innerHTML = h; dsKey = h; }
     if (ds.style.display !== 'block') ds.style.display = 'block';
     if (innerWidth <= 600 && innerHeight > innerWidth) { // an upright phone: the top edge is full, so it sits under the objective box

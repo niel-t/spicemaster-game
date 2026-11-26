@@ -89,6 +89,7 @@ export function createBuurtFolk(deps) {
   function update(dt) {
     const W = deps.world && deps.world(), d = W ? W.cal().d : 1;
     if (d !== seenDay) { seenDay = d; const wd = W ? W.cal().wd : 0; for (const f of folk) f.p.visible = f.b.open.includes(wd); } // closing day: nobody at the door
+    if (deps.openNow) for (const f of folk) { const o = f.inside || deps.openNow(f.biz, f.b.open, W ? W.cal().wd : 0); if (f.p.visible !== o) f.p.visible = o; } // and outside their hours (js/klok.js)
     if (deps.busy()) return;
     for (const f of folk) {
       if (!f.p.visible) continue;

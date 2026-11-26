@@ -197,10 +197,11 @@ export function createWinkels(deps) {
   function enter(biz) {
     const b = byId[biz]; if (!b) return;
     if (!b.open.includes(wdNow())) { deps.toast('GESLOTEN', `${b.name} is closed today. Open ${b.hours}.`, 2.5); return; }
+    if (deps.openNow && !deps.openNow(biz, b.open, wdNow())) { deps.toast('GESLOTEN', `${b.name} is closed at this hour. Open ${deps.hoursText ? deps.hoursText(biz) : b.hours}.`, 2.5); return; }
     deps.beep(1320, 0.05, 'sine', 0.04); setTimeout(() => deps.beep(990, 0.12, 'sine', 0.035), 90); // de winkelbel
     fadeTo(() => {
       const r = build(biz); inside = biz; r.g.visible = true; r.light.intensity = 2.2; S().visits++;
-      const k = keeperOf(biz); if (k) { keeperBack = { f: k, x: k.p.position.x, z: k.p.position.z, home: k.home }; k.p.position.set(r.keeper.x, 0, r.keeper.z); k.home = 0; k.p.rotation.y = 0; }
+      const k = keeperOf(biz); if (k) { k.inside = true; keeperBack = { f: k, x: k.p.position.x, z: k.p.position.z, home: k.home }; k.p.position.set(r.keeper.x, 0, r.keeper.z); k.home = 0; k.p.rotation.y = 0; }
       player.position.set(r.door.x, 0, r.door.z); player.rotation.y = Math.PI;
       deps.setBounds({ x0: r.ox - W / 2 + 0.3, x1: r.ox + W / 2 - 0.3, z0: r.oz - D / 2 + 0.3, z1: r.oz + D / 2 - 0.1 });
       deps.snapCam();
@@ -211,7 +212,7 @@ export function createWinkels(deps) {
     if (!inside) return; const biz = inside, r = rooms[biz], d = deps.doorAt(biz);
     const go = () => {
       inside = null; r.g.visible = false; r.light.intensity = 0; deps.setBounds(null);
-      if (keeperBack) { const { f, x, z, home } = keeperBack; f.p.position.set(x, 0, z); f.home = home; f.p.rotation.y = home; keeperBack = null; }
+      if (keeperBack) { keeperBack.f.inside = false; const { f, x, z, home } = keeperBack; f.p.position.set(x, 0, z); f.home = home; f.p.rotation.y = home; keeperBack = null; }
       player.position.set(d.x, 0, d.z - 0.9); player.rotation.y = Math.PI; deps.snapCam();
     };
     if (quick) go(); else { deps.beep(990, 0.08, 'sine', 0.03); fadeTo(go); }
@@ -220,7 +221,7 @@ export function createWinkels(deps) {
   for (const biz of IDS) {
     const b = byId[biz]; if (!b || b.x0 == null) continue;
     deps.addInteract({ pos: () => { const d = deps.doorAt(biz); return new THREE.Vector3(d.x, 0, d.z - 0.45); }, r: 1.15, enabled: () => !inside && !deps.busy(),
-      label: () => (b.open.includes(wdNow()) ? `Naar binnen · ${b.short || b.name}` : `${b.short || b.name} · gesloten vandaag`), act: () => enter(biz) });
+      label: () => (!b.open.includes(wdNow()) ? `${b.short || b.name} · gesloten vandaag` : deps.openNow && !deps.openNow(biz, b.open, wdNow()) ? `${b.short || b.name} · gesloten (${deps.hoursText ? deps.hoursText(biz) : ''})` : `Naar binnen · ${b.short || b.name}`), act: () => enter(biz) });
   }
   const regulars = () => Object.entries(S().jobs).filter(([biz, j]) => JOBS[biz] && j.done && j.miss < 2).map(([biz]) => biz);
   const camFocus = (p) => { const r = rooms[inside]; return new THREE.Vector3(r.ox * 0.55 + p.x * 0.45, 0, (r.oz - 0.5) * 0.55 + p.z * 0.45); };

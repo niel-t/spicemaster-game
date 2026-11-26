@@ -165,10 +165,11 @@ export function createFiets(deps) {
     const s = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.11), new THREE.MeshLambertMaterial({ map: t })); s.position.set(0.82, 0.94, 0); s.rotation.y = Math.PI / 2; bike.add(s);
   }
   scene.add(bike);
-  const B = { x: deps.park.x, z: deps.park.z, h: deps.park.h, v: 0, on: false, phase: 0, lean: 0, ring: 0 };
-  const place = () => { bike.position.set(B.x, 0, B.z); bike.rotation.set(0, B.h - Math.PI / 2, 0); bike.rotateX(B.on ? B.lean : 0.12); };
+  // every rideable thing is a vehicle { obj, kind: 'bike' | 'car', B: its motion state }; Eddy's own omafiets is the first
+  const own = { obj: bike, kind: 'bike', name: "Eddy's omafiets", seat: bike.userData.seats[0], tilt: 0.12, B: { x: deps.park.x, z: deps.park.z, h: deps.park.h, v: 0, on: false, phase: 0, lean: 0, ring: 0 } };
+  const fleet = [own]; let cur = own, B = own.B, seat = own.seat;
+  const place = () => { const o = cur.obj; o.position.set(B.x, 0, B.z); o.rotation.set(0, B.h - Math.PI / 2, 0); if (cur.kind !== 'car') o.rotateX(B.on ? B.lean : (cur.tilt || 0.12)); };
   place();
-  const seat = bike.userData.seats[0];
 
   // ---- HUD + touch pedals (the van drive's layout)
   const css = document.createElement('style');
@@ -225,31 +226,52 @@ export function createFiets(deps) {
     return null;
   }
 
-  function ring() { if (B.ring > 0) return; B.ring = 0.5; if (deps.bell) deps.bell(); }
-  function mount() {
+  function ring() { if (B.ring > 0) return; B.ring = 0.5; if (cur.kind === 'car') { if (deps.honk) deps.honk(); } else if (deps.bell) deps.bell(); }
+  function mount(v = own) {
     if (B.on || (deps.busy && deps.busy())) return;
-    B.on = true; B.v = 0; B.t0 = performance.now(); hud.style.display = 'block'; document.body.classList.add('riding');
-    if (deps.toast) deps.toast('OP DE FIETS', document.body.classList.contains('touch') ? 'TRAP to pedal, REM to brake, slide on the bar to steer. AFSTAPPEN to get off.' : 'W pedal · S brake · A/D steer · H bell · E get off.', 3);
+    cur = v; B = v.B; seat = v.seat;
+    if (v !== own) { const o = v.obj; B.x = o.position.x; B.z = o.position.z; B.h = o.rotation.y + Math.PI / 2; if (v.solid) v.solid.off = true; }
+    B.on = true; B.v = 0; B.t0 = performance.now(); hud.style.display = 'block'; document.body.classList.add('riding'); hud.classList.toggle('car', v.kind === 'car');
+    { const c2 = v.kind === 'car'; $('ftsGas').innerHTML = c2 ? '▲<br>GAS' : '▲<br>TRAP'; $('ftsOff').textContent = c2 ? 'UITSTAPPEN' : 'AFSTAPPEN'; $('ftsBell').textContent = c2 ? '📣 TOETER' : '🔔 BEL';
+      hud.querySelector('.hint').innerHTML = c2 ? '<b>W</b> gas · <b>S</b> remmen / achteruit · <b>A</b><b>D</b> sturen · <b>H</b> toeter · <b>E</b> uitstappen' : '<b>W</b> trappen · <b>S</b> remmen · <b>A</b><b>D</b> sturen · <b>Shift</b> staan op de trappers · <b>H</b> bel · <b>E</b> afstappen'; }
+    if (v.kind === 'car') player.visible = false;
+    const touch = document.body.classList.contains('touch');
+    if (deps.toast) deps.toast(v.kind === 'car' ? `IN DE ${String(v.name || 'auto').toUpperCase()}` : 'OP DE FIETS', v.kind === 'car' ? (touch ? 'GAS, REM and the bar to steer. UITSTAPPEN to get out. It is not yours: people notice.' : 'W gas · S brake / reverse · A/D steer · H horn · E get out. It is not yours: people notice.') : touch ? 'TRAP to pedal, REM to brake, slide on the bar to steer. AFSTAPPEN to get off.' : 'W pedal · S brake · A/D steer · H bell · E get off.', 3);
+    if (v !== own && deps.onBorrow) deps.onBorrow(v);
   }
   function dismount() {
     if (!B.on) return;
-    B.on = false; B.v = 0; tp.gas = tp.rev = tp.steer = 0; hud.style.display = 'none'; document.body.classList.remove('riding');
-    const side = new THREE.Vector3(Math.cos(B.h), 0, -Math.sin(B.h)); // step off to the right
-    player.position.set(B.x + side.x * 0.75, 0, B.z + side.z * 0.75); deps.collide(player.position, 0.38);
-    const u = player.userData; if (u.legs) u.legs.forEach((l) => { l.rotation.x = 0; }); if (u.arms) u.arms.forEach((a) => { a.rotation.x = 0; });
+    const v = cur; B.on = false; B.v = 0; tp.gas = tp.rev = tp.steer = 0; hud.style.display = 'none'; document.body.classList.remove('riding');
+    const side = new THREE.Vector3(Math.cos(B.h), 0, -Math.sin(B.h)), out = v.kind === 'car' ? (v.width || 1.7) / 2 + 0.55 : 0.75; // step off to the right
+    player.visible = true; player.rotation.set(0, B.h, 0);
+    player.position.set(B.x + side.x * out, 0, B.z + side.z * out); deps.collide(player.position, 0.38);
+    const u = player.userData; if (u.legs) u.legs.forEach((l) => { l.rotation.x = 0; }); if (u.arms) u.arms.forEach((a) => { a.rotation.x = 0; }); if (u.body) u.body.rotation.x = 0;
     place();
+    if (v.solid) { const fx = Math.abs(Math.sin(B.h)), fz = Math.abs(Math.cos(B.h)), L = v.half || 1, W2 = (v.width || 0.6) / 2, ex = L * fx + W2 * fz, ez = L * fz + W2 * fx; Object.assign(v.solid, { minx: B.x - ex, maxx: B.x + ex, minz: B.z - ez, maxz: B.z + ez, off: false }); deps.collide(player.position, 0.38); }
+    if (deps.onLeave) deps.onLeave(v);
   }
   addEventListener('keydown', (e) => { // while riding, E gets off and H rings, before main.js sees them
     if (!B.on || e.repeat || performance.now() - B.t0 < 300) return; // the touch ACTIE button sends E to window, where the mount handler may run first
     if (e.code === 'KeyE' || e.code === 'Enter') { e.stopImmediatePropagation(); dismount(); } else if (e.code === 'KeyH' || e.code === 'Space') { e.stopImmediatePropagation(); e.preventDefault(); ring(); }
   }, true);
-  deps.addInteract({ obj: bike, pos: () => bike.position, r: 1.7, enabled: () => !B.on && !(deps.busy && deps.busy()), label: () => "Eddy's omafiets · opstappen", act: mount });
+  deps.addInteract({ obj: bike, pos: () => bike.position, r: 1.7, enabled: () => !B.on && !(deps.busy && deps.busy()), label: () => "Eddy's omafiets · opstappen", act: () => mount(own) });
+  // any parked bike or car on the street can be borrowed (js/main.js adopts them): the same pedals, the same HUD
+  function adopt(obj, cfg) {
+    const v = { obj, kind: cfg.kind || 'bike', name: cfg.name || '', solid: cfg.solid || null, half: cfg.half, width: cfg.width, seat: cfg.seat || (obj.userData.seats && obj.userData.seats[0]) || [0, 0.95, 0],
+      B: { x: obj.position.x, z: obj.position.z, h: obj.rotation.y + Math.PI / 2, v: 0, on: false, phase: 0, lean: 0, ring: 0 }, tilt: cfg.tilt || 0 };
+    fleet.push(v);
+    deps.addInteract({ obj, pos: () => obj.position, r: cfg.kind === 'car' ? 2.6 : 1.5, enabled: () => !B.on && obj.visible && !(deps.busy && deps.busy()) && (!cfg.enabled || cfg.enabled()),
+      label: () => (cfg.kind === 'car' ? `${v.name || 'Auto'} · even lenen` : `${v.name || 'Fiets'} · even lenen`), act: () => mount(v) });
+    return v;
+  }
 
   // ---- per frame: returns true while Eddy rides (main.js then skips walking)
+  const K = { bike: { vmax: 7, acc: 5, brake: 11, rev: -1.1, turn: 2.3, grip: 2.2, r: 0.42, nose: 0.6 }, car: { vmax: 15, acc: 6.5, brake: 15, rev: -4.5, turn: 1.55, grip: 4, r: 0.95, nose: 1.45 } };
   function update(dt) {
     if (B.ring > 0) B.ring -= dt;
-    if (!B.on) { for (const w of bike.userData.wheels) w.rotation.z -= B.v * dt / w.userData.r; return false; }
+    if (!B.on) { if (cur === own) for (const w of bike.userData.wheels) w.rotation.z -= B.v * dt / w.userData.r; return false; }
     if ((deps.busy && deps.busy()) || (deps.knocked && deps.knocked())) { dismount(); return false; }
+    const car = cur.kind === 'car', k = K[car ? 'car' : 'bike'], ro = cur.obj;
     let thr = 0, st = 0;
     if (!(deps.frozen && deps.frozen())) {
       if (keys.KeyW || keys.ArrowUp) thr += 1; if (keys.KeyS || keys.ArrowDown) thr -= 1;
@@ -258,29 +280,34 @@ export function createFiets(deps) {
       thr = Math.max(-1, Math.min(1, thr)); st = Math.max(-1, Math.min(1, st));
     }
     $('ftsL').classList.toggle('on', st > 0.1); $('ftsR').classList.toggle('on', st < -0.1);
-    const stand = keys.ShiftLeft || keys.ShiftRight, vmax = stand ? 9.5 : 7;
-    if (thr > 0) B.v += (B.v < 0 ? 10 : 5 * thr * (1 - Math.max(0, B.v) / vmax)) * dt;
-    else if (thr < 0) B.v = B.v > 0.3 ? B.v - 11 * dt : Math.max(-1.1, B.v - 3 * dt); // brake, then walk it back
-    else B.v -= Math.sign(B.v) * Math.min(Math.abs(B.v), 1.1 * dt); // freewheel
-    B.h += st * 2.3 * Math.min(1, Math.abs(B.v) / 2.2) * Math.sign(B.v || 1) * dt;
+    const stand = !car && (keys.ShiftLeft || keys.ShiftRight), vmax = stand ? 9.5 : k.vmax;
+    if (thr > 0) B.v += (B.v < 0 ? 10 : k.acc * thr * (1 - Math.max(0, B.v) / vmax)) * dt;
+    else if (thr < 0) B.v = B.v > 0.3 ? B.v - k.brake * dt : Math.max(k.rev, B.v - 3 * dt); // brake, then back up
+    else B.v -= Math.sign(B.v) * Math.min(Math.abs(B.v), (car ? 2.2 : 1.1) * dt); // roll out
+    B.h += st * k.turn * Math.min(1, Math.abs(B.v) / k.grip) * Math.sign(B.v || 1) * dt;
     const fx = Math.sin(B.h), fz = Math.cos(B.h), p = new THREE.Vector3(B.x + fx * B.v * dt, 0, B.z + fz * B.v * dt);
-    const before = p.clone(); deps.collide(p, 0.42); const nose = p.clone().addScaledVector(new THREE.Vector3(fx, 0, fz), 0.6), n0 = nose.clone(); deps.collide(nose, 0.3); p.add(nose.sub(n0));
-    if (p.distanceTo(before) > 0.02 && Math.abs(B.v) > 3) { if (deps.beep) deps.beep(90, 0.08, 'square', 0.04); B.v *= 0.35; } else if (p.distanceTo(before) > 0.02) B.v *= 0.7;
-    B.x = p.x; B.z = p.z;
-    B.lean += (-st * Math.min(1, Math.abs(B.v) / 5) * 0.28 - B.lean) * Math.min(1, dt * 6);
+    const before = p.clone(); deps.collide(p, k.r);
+    for (const sgn of car ? [1, -1] : [1]) { const nose = p.clone().addScaledVector(new THREE.Vector3(fx, 0, fz), k.nose * sgn), n0 = nose.clone(); deps.collide(nose, car ? 0.8 : 0.3); p.add(nose.sub(n0)); }
+    const hit = p.distanceTo(before);
+    if (hit > 0.02 && Math.abs(B.v) > 3) { if (deps.beep) deps.beep(car ? 70 : 90, car ? 0.14 : 0.08, car ? 'sawtooth' : 'square', 0.05); if (deps.onCrash) deps.onCrash(cur, Math.abs(B.v)); B.v *= car ? 0.25 : 0.35; } else if (hit > 0.02) B.v *= 0.7;
+    const moved = Math.hypot(p.x - B.x, p.z - B.z); B.x = p.x; B.z = p.z;
+    if (deps.onMove && moved > 0) deps.onMove(cur, moved, Math.abs(B.v));
+    B.lean += ((car ? 0 : -st * Math.min(1, Math.abs(B.v) / 5) * 0.28) - B.lean) * Math.min(1, dt * 6);
     place();
-    for (const w of bike.userData.wheels) w.rotation.z -= B.v * dt / w.userData.r;
-    const pedalling = thr > 0 && B.v > -0.1; if (pedalling) B.phase += dt * (3 + B.v * 1.1) * (stand ? 1.25 : 1);
-    if (bike.userData.crank) bike.userData.crank.rotation.z = -B.phase;
-    // Eddy on the saddle: the bike's seat in world space, hands on the grips, legs going round with the cranks
-    const sp = bike.localToWorld(new THREE.Vector3(seat[0] - 0.02, seat[1] - (stand ? 0.72 : 0.9), 0));
-    player.position.copy(sp); player.rotation.set(0, B.h, -B.lean * 0.9);
-    const u = player.userData;
-    if (u.legs) { u.legs[0].rotation.x = -0.9 + Math.sin(B.phase) * 0.5; u.legs[1].rotation.x = -0.9 - Math.sin(B.phase) * 0.5; }
-    if (u.arms) { u.arms[0].rotation.x = u.arms[1].rotation.x = -1.05; }
-    if (u.body) u.body.rotation.x = stand ? 0.25 : 0.08;
+    if (ro.userData.wheels) for (const w of ro.userData.wheels) if (w.parent) w.rotation.z -= B.v * dt / w.userData.r;
+    const pedalling = !car && thr > 0 && B.v > -0.1; if (pedalling) B.phase += dt * (3 + B.v * 1.1) * (stand ? 1.25 : 1);
+    if (ro.userData.crank && ro.userData.crank.parent) ro.userData.crank.rotation.z = -B.phase;
+    if (car) { player.position.set(B.x, 0, B.z); player.rotation.set(0, B.h, 0); }
+    else { // Eddy on the saddle: the bike's seat in world space, hands on the grips, legs going round with the cranks
+      const sp = ro.localToWorld(new THREE.Vector3(seat[0] - 0.02, seat[1] - (stand ? 0.72 : 0.9), 0));
+      player.position.copy(sp); player.rotation.set(0, B.h, -B.lean * 0.9);
+      const u = player.userData;
+      if (u.legs) { u.legs[0].rotation.x = -0.9 + Math.sin(B.phase) * 0.5; u.legs[1].rotation.x = -0.9 - Math.sin(B.phase) * 0.5; }
+      if (u.arms) { u.arms[0].rotation.x = u.arms[1].rotation.x = -1.05; }
+      if (u.body) u.body.rotation.x = stand ? 0.25 : 0.08;
+    }
     $('ftsSpd').textContent = `${Math.round(Math.abs(B.v) * 3.6)} km/u${stand && thr > 0 ? ' · STAAN' : ''}`;
     return true;
   }
-  return { update, riding: () => B.on, mount, dismount, bike, state: B };
+  return { update, riding: () => B.on, mount, dismount, bike, adopt, fleet, get current() { return B.on ? cur : null; }, get state() { return B; } };
 }

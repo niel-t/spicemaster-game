@@ -85,8 +85,8 @@ export function createRoam(deps) {
   }
   function setVis(c, on) {
     if (c.vis === on) return; c.vis = on;
-    for (const o of c.objs) o.visible = on;
-    for (const s of c.sols) s.off = !on;
+    for (const o of c.objs) if (!o.userData.moved) o.visible = on; // a car Eddy drove off in stays where he left it
+    for (const s of c.sols) if (!s.moved) s.off = !on;
     const F = deps.fadeables;
     if (on) { for (const h of c.houses) if (!F.includes(h)) F.push(h); }
     else for (const h of c.houses) { const i = F.indexOf(h); if (i >= 0) F.splice(i, 1); }
