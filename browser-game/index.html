@@ -443,6 +443,8 @@
     #kit { top: calc(52px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); font-size: 11px; max-width: 44vw; text-align: right; }
     #weapon { font-size: 12px; padding: 5px 8px; bottom: calc(10px + env(safe-area-inset-bottom)); right: calc(12px + env(safe-area-inset-right)); }
     body.touch #weapon { display: none !important; }
+    /* a mission brief is a paragraph: on a phone it covered a quarter of the screen for the whole raid (the intro card has it in full) */
+    html body.touch.in-mission #objective { font-size: 13px !important; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
     #prompt { font-size: 15px; bottom: 90px; max-width: 90vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #toast { font-size: 26px; width: 90vw; } #toast small { font-size: 13px; }
     #help { display: none; }

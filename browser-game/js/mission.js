@@ -870,6 +870,7 @@ export function initMission(ctx) {
   }
   // a level brings in held-back foes (spawn { reserve: true }) at a spot: n of them, already hunting Eddy
   function reinforce(n, x, z, lines) {
+    if (R.cleared || R.results) return 0; // a boat or flare that lands after the floor cleared brings nobody
     let k = 0;
     for (const e of enemies) { const f = e.userData.foe; if (!f.res || k >= n) continue;
       f.res = false; f.alive = true; e.visible = true; setFoeWeapon(e, f.spawn[3]); e.position.set(x + rnd(-1.2, 1.2), 0, z + rnd(-0.5, 0.5));
@@ -1887,7 +1888,7 @@ export function initMission(ctx) {
     player.rotation.y = Math.atan2(-dir[0], -dir[1]); P.vx = dir[0] * (FORCE[cause] || 4); P.vz = dir[1] * (FORCE[cause] || 4);
     bloodBurst(player.position, dir, 60, 5); floorDecal(player.position.x + dir[0] * 0.3, player.position.z + dir[1] * 0.3, 1.4, Math.random() * 6);
     sfx('splat'); sfx('die'); FX.flash = 0.5; FX.flashC = '204,0,13'; shake(0.6); hud();
-    const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', pump: 'Blown away by a pump shotgun.', smg: 'Sprayed by an Uzi.', m16: 'Cut down by an M16.', revolver: 'Shot with a .357.', dual: 'Shot by dual 9mms.', goldak: 'Golden AK. Very shiny, very dead.', fists: `Punched out by a ${(LV && LV.factionName) || 'Lampas'}.`, boom: 'Too close to a red barrel.', hazard: (LV && LV.hazard && LV.hazard.death) || 'Burnt.' }[cause] || 'Killed by the Lampas.';
+    const by = { bat: 'Beaten with a honkbalknuppel.', makarov: 'Shot with a Makarov.', shotgun: 'Blown away by a sawn-off.', pump: 'Blown away by a pump shotgun.', smg: 'Sprayed by an Uzi.', m16: 'Cut down by an M16.', revolver: 'Shot with a .357.', dual: 'Shot by dual 9mms.', goldak: 'Golden AK. Very shiny, very dead.', fists: `Punched out by a ${(LV && LV.factionName) || 'Lampas'}.`, boom: 'Too close to a red barrel.', hazard: (LV && LV.hazard && LV.hazard.death) || 'Burnt.' , machete: 'Cut down with a machete.', scimitar: "Ras al Gara's scimitar. Quick, at least." }[cause] || `Killed by the ${(LV && LV.factionName) || 'Lampas'}.`;
     setTimeout(() => { if (P.dead && M.active) showScreen(`<div class="big red">JE BENT DOOD</div><div class="hint" style="color:#ffb3bd">${by}</div><div class="hint">${((tl) => tl[Math.floor(Math.random() * tl.length)])([...TIPS, ...(LV.text.tips || [])])}</div><div class="btn" data-act="retry">RETRY · ${glyph('Backspace')}</div>`); }, 900);
   }
 
@@ -2591,6 +2592,7 @@ export function initMission(ctx) {
   M.debugPark = () => ({ on: PK.on, paid: PK.paid, how: PK.how, t: +PK.t.toFixed(1), scanAt: +PK.scanAt.toFixed(1), scanned: PK.scanned, clamped: PK.clamped, warden: !!PK.ws, setScan: (t) => { PK.scanAt = t; } });
   M.debugArr = () => ARR && { ph: ARR.ph, t: +ARR.t.toFixed(2), route: ARR.route && ARR.route.map((v) => [+(v.x - OX).toFixed(2), +v.z.toFixed(2)]) };
   M.debugWave = () => ({ fired: WV.fired, arrived: WV.arrived, t: +WV.t.toFixed(1), pending: pendingN(), room: navRoom, arrow: arrow.visible });
+  M.debugTasks = () => tasks.map((t) => ({ label: typeof t.label === 'function' ? t.label() : t.label, done: !!t.done, optional: !!t.optional, x: +t.pos.x.toFixed(1), z: +t.pos.z.toFixed(1) })); M._doTask = (i) => doTask(tasks[i]);
   M.debugClear = () => { for (const e of enemies) e.userData.foe.alive = false; R.score = R.score || 9000; results(); };
   buildLevel(spekbuurt); // Mission 1 is built up front (as before); other levels replace it when they're launched
   hud();

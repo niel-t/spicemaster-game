@@ -9,6 +9,7 @@
 //    then walks it back, A/D steer, Shift stands up on the pedals; phone: TRAP / REM pedals and the steering bar from the
 //    van drive, a BEL and AFSTAPPEN; controller: RT / LT and the left stick. E (or AFSTAPPEN) gets off, H (or BEL) rings.
 //    The HUD follows the Lettertype setting: glass and gel under Aero, the brown van-drive pedals under Klassiek.
+import { IS_PHONE } from './mobile.js';
 
 // spice palette frames: saffron, paprika, cumin, cardamom, cream, turmeric, cinnamon, clove, nigella black
 export const BIKE_PAINT = [0x1c1a18, 0xc8402a, 0xe8a33d, 0x6f8f4a, 0xefe3c8, 0xd8a420, 0x9a5a32, 0x5a2a1e, 0x2f4a5a];
@@ -34,10 +35,12 @@ function spokeGeo(THREE, r) { // 18 wire spokes, hub to rim, crossing like a rea
 }
 const geo = (THREE, key, make) => cache[key] || (cache[key] = make());
 
+// phones: a bike is ~40 thin parts and the street has dozens, so they skip the shadow pass there (it was most of the draw calls)
+const BIKE_SHADOW = !IS_PHONE;
 export function makeBikeModel(THREE, kind = 0, color = 0x1c1a18, opt = {}) {
   const b = new THREE.Group(), M = mats(THREE), fm = paint(THREE, color), trim = opt.trim !== undefined ? paint(THREE, opt.trim) : M.black;
   const seats = [], wheels = [];
-  const add = (mesh, x, y, z = 0) => { mesh.position.set(x, y, z); mesh.castShadow = true; b.add(mesh); return mesh; };
+  const add = (mesh, x, y, z = 0) => { mesh.position.set(x, y, z); mesh.castShadow = BIKE_SHADOW; b.add(mesh); return mesh; };
   const tube = (x0, y0, x1, y1, z = 0, r = 0.022, m = fm) => {
     const len = Math.hypot(x1 - x0, y1 - y0), g = geo(THREE, `t${r}`, () => new THREE.CylinderGeometry(1, 1, 1, 7));
     const t = new THREE.Mesh(g, m); t.scale.set(r, len, r); t.rotation.z = Math.atan2(y1 - y0, x1 - x0) - Math.PI / 2; return add(t, (x0 + x1) / 2, (y0 + y1) / 2, z);
@@ -49,7 +52,7 @@ export function makeBikeModel(THREE, kind = 0, color = 0x1c1a18, opt = {}) {
     w.add(new THREE.Mesh(geo(THREE, `ri${r}`, () => new THREE.TorusGeometry(r - 0.034, 0.011, 4, 22)), M.rim));
     w.add(new THREE.LineSegments(spokeGeo(THREE, r), M.spoke));
     const hub = new THREE.Mesh(geo(THREE, 'hub', () => new THREE.CylinderGeometry(0.03, 0.03, 0.09, 8)), M.chrome); hub.rotation.x = Math.PI / 2; w.add(hub);
-    w.children[0].castShadow = true; b.add(w); wheels.push(w); return w;
+    w.children[0].castShadow = BIKE_SHADOW; b.add(w); wheels.push(w); return w;
   };
   const guard = (x, r) => { // a mudguard over the top of the wheel
     const m = new THREE.Mesh(geo(THREE, `mg${r}`, () => new THREE.TorusGeometry(r + 0.06, 0.028, 4, 14, Math.PI * 0.95)), trim); m.scale.z = 1.6; m.rotation.z = Math.PI * 0.03; return add(m, x, r + 0.02);
@@ -79,7 +82,7 @@ export function makeBikeModel(THREE, kind = 0, color = 0x1c1a18, opt = {}) {
   const tail = (x, y) => add(new THREE.Mesh(geo(THREE, 'tail', () => new THREE.BoxGeometry(0.02, 0.04, 0.06)), M.red), x, y);
   const basket = (x, y, w = 0.32, kindB = 'wicker') => {
     const g = new THREE.Group(); g.position.set(x, y, 0); b.add(g); const m = kindB === 'crate' ? M.crate : M.wicker;
-    const bx = (sx, sy, sz, px, py, pz) => { const q = new THREE.Mesh(geo(THREE, 'bx', () => new THREE.BoxGeometry(1, 1, 1)), m); q.scale.set(sx, sy, sz); q.position.set(px, py, pz); q.castShadow = true; g.add(q); };
+    const bx = (sx, sy, sz, px, py, pz) => { const q = new THREE.Mesh(geo(THREE, 'bx', () => new THREE.BoxGeometry(1, 1, 1)), m); q.scale.set(sx, sy, sz); q.position.set(px, py, pz); q.castShadow = BIKE_SHADOW; g.add(q); };
     bx(w, 0.02, w * 1.1, 0, 0, 0); for (const s of [-1, 1]) { bx(w, 0.2, 0.02, 0, 0.1, s * w * 0.55); bx(0.02, 0.2, w * 1.1, s * w * 0.5, 0.1, 0); }
     if (kindB === 'crate') for (const s of [-1, 1]) bx(w + 0.02, 0.03, 0.03, 0, 0.16, s * w * 0.56);
     return g;
@@ -107,7 +110,7 @@ export function makeBikeModel(THREE, kind = 0, color = 0x1c1a18, opt = {}) {
     guard(-0.72, 0.34); chainGuard(-0.68, -0.2, 0.36); rack(-0.95, -0.55, 0.78); tail(-0.98, 0.74);
     saddle(-0.3, 0.94); omaBars(0.32, 1.06); tube(0.32, 0.88, 0.32, 0.96, 0, 0.02, M.chrome); crank(-0.2, 0.38); kick(-0.6);
     const bx = new THREE.Group(); bx.position.set(0.82, 0.62, 0); b.add(bx);
-    const w = new THREE.Mesh(geo(THREE, 'bak', () => new THREE.BoxGeometry(0.86, 0.46, 0.7)), M.wood); w.castShadow = true; bx.add(w);
+    const w = new THREE.Mesh(geo(THREE, 'bak', () => new THREE.BoxGeometry(0.86, 0.46, 0.7)), M.wood); w.castShadow = BIKE_SHADOW; bx.add(w);
     const ch = new THREE.Mesh(geo(THREE, 'gouda', () => new THREE.CylinderGeometry(0.28, 0.28, 0.2, 18)), M.gouda); ch.position.set(0, 0.32, 0); ch.rotation.z = 0.25; bx.add(ch);
     const rd = new THREE.Mesh(geo(THREE, 'rind', () => new THREE.TorusGeometry(0.28, 0.02, 4, 18)), M.rind); rd.rotation.set(Math.PI / 2, 0.25, 0); rd.position.copy(ch.position); bx.add(rd);
   } else if (kind === 5) { // mini bike: tiny wheels, rider squatting over it like a frog

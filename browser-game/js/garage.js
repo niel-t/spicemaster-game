@@ -35,14 +35,32 @@ export function createGarage(deps) {
   function ensure() {
     const v = state.van && typeof state.van === 'object' ? state.van : (state.van = {});
     if (!VANS.some((x) => x.id === v.tier)) v.tier = 'blauw';
-    v.mods = v.mods || {}; v.fines = +v.fines || 0; if (!Array.isArray(v.tickets)) v.tickets = [];
+    v.mods = v.mods || {}; v.fines = +v.fines || 0; v.wear = Math.max(0, Math.min(100, +v.wear || 0)); if (!Array.isArray(v.tickets)) v.tickets = [];
     return v;
   }
   const van = () => VANS.find((x) => x.id === ensure().tier);
   const has = (id) => !!ensure().mods[id];
   function stats() {
     const V = van();
-    return { livery: deps.livery ? deps.livery() : 'zn', name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0) + (has('koel') ? 100 : 0), maxV: V.maxV + (has('chip') ? 3 : 0) + (has('eco') ? 2 : 0) + (has('nitro') ? 4 : 0), dmg: V.dmg * (has('staal') ? 0.7 : 1), tint: has('ramen'), hidden: has('luik') ? HIDE : 0 };
+    return { livery: deps.livery ? deps.livery() : 'zn', name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0) + (has('koel') ? 100 : 0), maxV: V.maxV + (has('chip') ? 3 : 0) + (has('eco') ? 2 : 0) + (has('nitro') ? 4 : 0) - wearSlow(), wear: Math.round(ensure().wear), dmg: V.dmg * (has('staal') ? 0.7 : 1), tint: has('ramen'), hidden: has('luik') ? HIDE : 0 };
+  }
+  // ---- slijtage (2026-11-26): every drive wears the van a little, dents and the canal a lot. A worn van rattles (slower);
+  // Mo fixes it for a price per point that grows with the van (insurance via js/bills.js halves it).
+  const WEAR_COST = { blauw: 6, zilver: 8, reus: 11 }, WEAR_RATE = { blauw: 1, zilver: 0.8, reus: 0.6 };
+  const wearSlow = () => { const w = ensure().wear; return w >= 90 ? 6 : w >= 60 ? 3 : 0; };
+  const wearWord = (w) => (w >= 90 ? 'falling apart' : w >= 60 ? 'rattling' : w >= 30 ? 'worn' : 'fine');
+  function addWear(n) { const v = ensure(), before = v.wear; v.wear = Math.min(100, v.wear + n * (WEAR_RATE[v.tier] || 1));
+    if (deps.toast && before < 60 && v.wear >= 60) deps.toast('DE OOFMOBIEL RAMMELT', 'Something knocks under the van and the top speed is gone. Garage Mo can fix it.', 4);
+    else if (deps.toast && before < 90 && v.wear >= 90) deps.toast('DE OOFMOBIEL VALT UIT ELKAAR', 'Smoke, a whine, and the speedo barely moves. Get it to Garage Mo.', 4.5);
+    if (deps.tip && v.wear >= 30) deps.tip('wear'); }
+  const insured = () => !!(deps.bills && deps.bills() && deps.bills().insured());
+  const repairCost = () => { const v = ensure(); return Math.round(v.wear * (WEAR_COST[v.tier] || 6) * (insured() ? 0.5 : 1) / 5) * 5; };
+  function repair(el) {
+    const v = ensure(), cost = repairCost(); if (v.wear < 1) return 'Mo: "Nothing to fix. Go and earn some money."';
+    if (state.money < cost) return 'Not enough Wilders.';
+    deps.addMoney(-cost, el); v.wear = 0; v.repairs = (v.repairs | 0) + 1;
+    if (deps.save) deps.save();
+    return `Mo: "New shocks, a weld on the exhaust, and I found your sunglasses." −${fmt(cost)}${insured() ? ' (half paid by the insurance)' : ''}.`;
   }
   const unlocked = (V) => (!V.needs || !!state[V.needs]) && !locked(V);
   function buyVan(id, el) {
@@ -133,6 +151,8 @@ export function createGarage(deps) {
   // ---- the PC tab
   function html() {
     const v = ensure(), s = stats(), cur = van();
+    const wearRow = `<div class="well" style="margin-top:8px"><b>Slijtage:</b> <span style="display:inline-block;width:120px;height:10px;border:1px solid #555;vertical-align:middle;background:linear-gradient(90deg,${v.wear >= 60 ? '#c33' : v.wear >= 30 ? '#d90' : '#3a3'} ${v.wear}%,#eee ${v.wear}%)"></span> ${Math.round(v.wear)}% · ${wearWord(v.wear)}${wearSlow() ? ` (−${wearSlow()} top speed)` : ''} <button class="b95" data-vanfix="1"${v.wear < 1 ? ' disabled' : ''}>Repair (${fmt(repairCost())})</button><br>
+      <small>Every drive wears the van; dents, a wreck or a swim in the canal wear it a lot. ${deps.bills ? `<label><input type="checkbox" data-vanins="1"${insured() ? ' checked' : ''}> Van insurance, W 40 a week on the Maandag bills: repairs half price, the canal tow is free.</label>` : ''}</small></div>`;
     let h = `<div class="well"><b>Garage Mo</b> · under the railway · "No phone. Just come by."<br>Your van: <b>${s.name}</b> · cargo <b>${s.cargo} kg</b> · top speed <b>${s.maxV}</b> · damage taken <b>${Math.round(s.dmg * 100)}%</b>${v.clamp ? ' · <b style="color:#a00">clamped!</b>' : ''}<br><small>Speed and armour count on every Oofmobiel drive. Cargo will cap what one Nachtklus can carry home. Fines paid so far: ${v.fines}.</small></div>`;
     if (v.tickets.length) h += `<div class="well" style="margin-top:8px"><b style="color:#a00">${v.tickets.length} open parking ticket${v.tickets.length > 1 ? 's' : ''}</b> (${v.tickets.map((t) => t.where || '?').join(', ')}): ${fmt(ticketSum())}. <small>At ${CLAMP_AT} open tickets a handhaver clamps the van. Leave them and Van der Belasting adds them to his bill, with ${Math.round((COLLECT - 1) * 100)}% collection costs.</small> <button class="b95" data-vantix="1">Pay the tickets</button></div>`;
     h += '<table class="list" style="margin-top:8px"><tr><th>Van</th><th>Cargo</th><th>Speed</th><th>Damage taken</th><th>Price (Mo takes yours for half)</th><th></th></tr>';
@@ -145,6 +165,7 @@ export function createGarage(deps) {
     for (const M of MODS) h += `<tr><td><b>${M.name}</b></td><td><small>${M.text}</small></td><td>${fmt(M.price)}</td><td>${v.mods[M.id] ? '<b style="color:#070">fitted</b>' : actLocked(M) ? `<small style="color:#888">${ACT_TXT[M.act]}</small>` : locked(M) ? `<small style="color:#888">at rank ${RANK_NAMES[M.rank]}</small>` : `<button class="b95" data-vanmod="${M.id}">Fit it</button>`}</td></tr>`;
     h += '</table>';
     if (v.clamp) h += `<div class="well" style="margin-top:8px"><b style="color:#a00">Wheel clamp on the Oofmobiel.</b> <button class="b95" data-vanclamp="pay">Pay the fine (${fmt(CLAMP_FINE + ticketSum())}${ticketSum() ? ' with the tickets' : ''})</button> <button class="b95" data-vanclamp="mo">Ask Mo (${fmt(MO_CLAMP)})</button></div>`;
+    { const i = h.indexOf('</div>') + 6; h = h.slice(0, i) + wearRow + h.slice(i); } // wear right under the van line
     return h;
   }
   function bind(body, rerender) {
@@ -152,7 +173,9 @@ export function createGarage(deps) {
     body.querySelectorAll('[data-vanbuy]').forEach((b) => b.onclick = () => msg(buyVan(b.dataset.vanbuy, b)));
     body.querySelectorAll('[data-vanmod]').forEach((b) => b.onclick = () => msg(buyMod(b.dataset.vanmod, b)));
     body.querySelectorAll('[data-vanclamp]').forEach((b) => b.onclick = () => { unclamp(b.dataset.vanclamp, b); rerender(); });
+    body.querySelectorAll('[data-vanfix]').forEach((b) => b.onclick = () => msg(repair(b)));
+    body.querySelectorAll('[data-vanins]').forEach((b) => b.onchange = () => { if (deps.bills && deps.bills()) deps.bills().setIns(b.checked); rerender(); });
     body.querySelectorAll('[data-vantix]').forEach((b) => b.onclick = () => { payTickets(b); rerender(); });
   }
-  return { ensure, stats, has, buyVan, buyMod, afterMission, unclamp, addTicket, payTickets, ticketSum, parkingDone, TICKET, onMarketDay, dayCheck, inspectorDue, inspectorFine, settleInspector, html, bind, CLAMP_FINE, MO_CLAMP };
+  return { addWear, repair, repairCost, insured, ensure, stats, has, buyVan, buyMod, afterMission, unclamp, addTicket, payTickets, ticketSum, parkingDone, TICKET, onMarketDay, dayCheck, inspectorDue, inspectorFine, settleInspector, html, bind, CLAMP_FINE, MO_CLAMP };
 }

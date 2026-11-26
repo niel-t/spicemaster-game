@@ -9,7 +9,8 @@
 //     userData: { half (half length), width, model (name), paint (the paint material) }
 
 // ---------------------------------------------------------------- shared helpers and materials (built once per THREE)
-import { liveryTex, cargoTex, BIZ } from './livery.js'; // printed van liveries (Eddy & Zn, Eddy's, Shooki Koerier, street businesses)
+import { liveryTex, cargoTex, BIZ } from './livery.js';
+import { mergeStatic } from './richtex.js'; // street cars collapse to one mesh per material (phones drew ~75 meshes per car) // printed van liveries (Eddy & Zn, Eddy's, Shooki Koerier, street businesses)
 let K = null;
 function kit(THREE, canvasTex) {
   if (K) return K;
@@ -638,5 +639,6 @@ export function makeCar(THREE, canvasTex, opts = {}) {
   }
   const blob = new THREE.Mesh(new THREE.PlaneGeometry(L + Lb + 0.6, M.W + 0.5), K.blob); blob.rotation.x = -Math.PI / 2; blob.position.set((L - Lb) / 2, 0.025, 0); g.add(blob);
   g.userData.half = Math.max(L, Lb) + 0.08; g.userData.width = M.W; g.userData.model = M.n; g.userData.paint = pm;
+  pm.userData.mergeKey = pm.uuid; mergeStatic(g); // the paint stays its own material: wrecks blacken it and the drive repaints it
   return g;
 }

@@ -236,7 +236,7 @@ export function mergeStatic(group, keep = () => false) {
     if (!o.isMesh || o === group || o.isInstancedMesh || o.isSkinnedMesh || Array.isArray(o.material) || keep(o)) return;
     const m = o.material; if (m.blending !== THREE.NormalBlending || (m.map && m.map.userData && m.map.userData.sign) || m.userData.baseOp !== undefined) return;
     let p = o.parent, ok = true; while (p && p !== group) { if (!p.visible) ok = false; p = p.parent; } if (!ok || !o.visible) return;
-    const key = [m.type, m.color ? m.color.getHex() : 0, m.map ? m.map.uuid : '', m.normalMap ? m.normalMap.uuid : '', m.bumpMap ? m.bumpMap.uuid : '', m.emissive ? m.emissive.getHex() : '', m.transparent, m.side, m.flatShading, m.vertexColors, o.castShadow].join('|');
+    const key = [m.type, m.color ? m.color.getHex() : 0, m.map ? m.map.uuid : '', m.normalMap ? m.normalMap.uuid : '', m.bumpMap ? m.bumpMap.uuid : '', m.emissive ? m.emissive.getHex() : '', m.transparent, m.side, m.flatShading, m.vertexColors, o.castShadow, m.userData.mergeKey || ''].join('|');
     if (!buckets.has(key)) buckets.set(key, { m, cast: o.castShadow, recv: o.receiveShadow, parts: [], objs: [] });
     const mx = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
     let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); geo.applyMatrix4(mx);
