@@ -219,7 +219,7 @@ function collide(p, r) {
       }
     }
   }
-  const B = BOUNDS.cur || { x0: WALK.x0, x1: WALK.x1, z0: -37.2, z1: FAR.front - 0.45 }; // z0: the hall and tent on the plot behind the shed; z1: the shop fronts across the canal
+  const B = BOUNDS.cur || { x0: WALK.x0, x1: WALK.x1, z0: WALK.z0, z1: FAR.front - 0.45 }; // z0: the hall and tent on the plot behind the shed; z1: the shop fronts across the canal
   p.x = Math.max(B.x0, Math.min(B.x1, p.x));
   p.z = Math.max(B.z0, Math.min(B.z1, p.z));
   if (!BOUNDS.cur) { // the canal: only over a bridge, and a bridge keeps you between its railings
@@ -238,7 +238,7 @@ function collide(p, r) {
 const RC = 1.6;
 // the street runs east-west from -SX to SX (was ±70; made longer 2026-11-24 for Club Monique in the west and Tryshtahn's showroom in the east)
 const SX = 100, SXK = SX / 70; // half length, and how much longer the tiled textures repeat
-const WALK = { x0: -70, x1: 84 }; // how far Eddy can walk along it (js/roam.js stretches it once the buurten open)
+const WALK = { x0: -70, x1: 84, z0: -37.2 }; // how far Eddy can walk along it (js/roam.js stretches it once the buurten open)
 let lifeLast = [-(SX - 2), SX - 2];
 const lifeWin = (m = 100) => { if (BOUNDS.cur) return lifeLast; const lo = Math.max(WALK.x0 - 4, player.position.x - m), hi = Math.min(WALK.x1 + 4, player.position.x + m); return (lifeLast = WALK.x0 > -80 ? [-(SX - 2), SX - 2] : [lo, hi]); }; // traffic, bikes and walkers stay within ~100 m of Eddy; on the home street alone it is the old ±SX
 const ROAD = { pN: RC - 5.0, lane: 3.0, pS: RC + 5.0, bike0: RC + 5.2, bike1: RC + 7.6, walk1: RC + 10.9 };
@@ -737,7 +737,7 @@ for (const [a, b] of [[LOT.x1, PS.x0], [PS.x1, DEALER.x0], [DEALER.x1, SX]]) for
   g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 }
 for (let x = -SX, i = 0; x < SX; i++) { const w = 5 + (i % 3); if ((x + w < -34 || x > 12) && (x + w < DEALER.x0 - 2 || x > DEALER.x1 + 2) && (x + w < CLUB.x0 || x > CLUB.x1)) house(x + w / 2, -25.5, w, 9, 10 + (i % 4) * 1.2, 0, i + 7, null, { simple: true }); x += w; } // behind the shed: the bouwkavel (js/loods.js)
-for (let x = -34, i = 0; x < 12; i++) { const w = 5 + (i % 3); house(x + w / 2, -42, w, 9, 10 + (i % 4) * 1.2, 0, i + 3, null, { simple: true }); x += w; } // and the row behind the plot
+// (the row behind the plot is the Komijnstraat now: js/roam.js builds it)
 // the houses across the canal, behind their quay
 for (let x = -60, i = 0; x < 60; i++) { const w = 5 + (i % 3); house(x + w / 2, SROW, w, 8, 9 + (i % 4), Math.PI, i + 2, i === 13 ? 'SHOARMA HABIBI' : bizSign('s', i)); x += w; }
 for (const [a, b, k0] of [[-SX, -60, 40], [60, SX, 50]]) { let x = a; spanWidths(b - a, k0).forEach((w, i) => { house(x + w / 2, SROW, w, 8, 9 + ((k0 + i) % 4), Math.PI, k0 + i, null); x += w; }); } // and on along the longer street
@@ -3488,7 +3488,7 @@ politie = createPolitie({ THREE, scene, player, state, lam, RC, lifeWin, toast, 
   paused: () => state.inDialogue || choiceOpen || state.inPC || isPaused(), busy: () => !!(mission.active || oofDrive.active) || state.step !== 'free', riding: () => fiets.current, dismount: () => fiets.dismount(), speedOf: () => (fiets.current ? Math.abs(fiets.state.v) : 0),
   near: (x, z, r) => walkers.some((w) => w.visible && !(w.userData.walk && w.userData.walk.home) && Math.hypot(w.position.x - x, w.position.z - z) < r),
   onChase: () => stats.add('chases'), onEscape: () => stats.add('escapes'), onArrest: (paid) => { stats.add('arrests'); stats.add('fines', paid); brep.add('kade', -4, 'arrested on the street'); }, passTime: (h) => klok.pass(h) });
-roam = createRoam({ THREE, scene, player, state, streetPiece, house, spanWidths, solid, solids, fadeables, car, kit, box, lam, signTex, addInteract, dialogue, choice, toast,
+roam = createRoam({ THREE, scene, player, state, streetPiece, ST, kerbMat, groundMat, lamp, tree, bollard, house, spanWidths, solid, solids, fadeables, car, kit, box, lam, signTex, addInteract, dialogue, choice, toast,
   busy: () => !!(mission.active || oofDrive.active) || state.inDialogue || choiceOpen, SROW, RC, FAR, WALK, HOME: { x0: -70, x1: 84 }, low: IS_PHONE, snapCam: () => window.__sme.snapCam(),
   owns: (id) => owns(id), retaken: (id) => econ.isRetaken(id), canRoam: () => state.step === 'free' && !tutorial.active(), setArea: (t) => { $('area').textContent = t; },
   raid: (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); },
