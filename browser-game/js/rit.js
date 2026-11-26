@@ -33,7 +33,7 @@ export function createRit(deps) {
   const { THREE, scene, player, state } = deps;
   const R = { active: false, phase: null, opts: null, t: 0, hp: 100, bumped: 0, wrecked: 0, smart: 0, ambush: 0, over: false, route: ROUTES.lampas, flashed: false };
   let van = null, veh = null, strip = null, scenery = null, ring = null, flash = null;
-  const cars = [], works = [], gang = [], sols = []; let johanCue = null, vBase = 19, crashT = 0;
+  const cars = [], works = [], gang = [], sols = [], far = [], spinners = []; let lampPool = null, headPool = null; let johanCue = null, vBase = 19, crashT = 0;
   // ---- the fade and the trip card
   const fade = document.createElement('div'); fade.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40'; document.body.appendChild(fade);
   const fadeTo = (fn) => { fade.style.opacity = '1'; setTimeout(() => { try { fn(); } finally { setTimeout(() => { fade.style.opacity = '0'; }, 80); } }, 380); };
@@ -53,12 +53,99 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
     const o = R.opts, rt = R.route, kmh = Math.round(Math.abs(veh.B.v) * 3.6);
     const where = R.phase === 'street' ? `oprit <span class="an">A10</span> ${Math.max(0, Math.round(deps.exit.x - veh.B.x))} m`
       : veh.B.x < X0 + LEN * 0.4 && rt.a !== 'A10' ? `<span class="an">A10</span> ring → <span class="an">${rt.a}</span>` : `<span class="an">${rt.a}</span> afrit ${rt.afrit} ${o.to} ${Math.max(0, Math.round(X0 + EXIT0 - veh.B.x))} m`;
-    const h = `<b>${o.from} → ${o.to}</b><br>${fmtT(R.t)} <small>(par ${fmtT(PAR)})</small> · <b>${kmh} km/u</b> · ${where}<div class="bar"><i style="width:${R.hp}%;background:${R.hp > 60 ? '#6ed36e' : R.hp > 30 ? '#ffd36b' : '#ff4a4a'}"></i></div><small>Oofmobiel ${Math.round(R.hp)}%${R.smart ? ` · boetes W ${R.smart}` : ''}${R.wrecked ? ` · ${R.wrecked} wrecked` : ''}</small><br><button>Omkeren (give up)</button>`;
+    const h = `<b>${o.from} → ${o.to}</b><br>${fmtT(R.t)} <small>(par ${fmtT(PAR)})</small> · <b>${kmh} km/u</b> · ${where}<div class="bar"><i style="width:${R.hp}%;background:${R.hp > 60 ? '#6ed36e' : R.hp > 30 ? '#ffd36b' : '#ff4a4a'}"></i></div><small>Oofmobiel ${Math.round(R.hp)}%${R.smart ? ` · boetes W ${R.smart}` : ''}${R.bonus ? ` · claxon +W ${R.bonus}` : ''}${R.wrecked ? ` · ${R.wrecked} wrecked` : ''}</small><br><button>Omkeren (give up)</button>`;
     if (h !== hudKey) { hudEl.innerHTML = h; hudKey = h; }
   }
   const ev = (type, data) => { const o = R.opts; if (o && o.onEvent) try { o.onEvent(type, data); } catch (e) { console.error(e); } };
   const box2 = (s, x, z, hx, hz) => Object.assign(s, { minx: x - hx, maxx: x + hx, minz: z - hz, maxz: z + hz });
 
+  // ---- the other traffic (2026-11-26: real vehicles instead of boxes). Everything faces +x; one kit mesh per vehicle,
+  // a livery plane on each side, and unlit red tail lights that read at any hour.
+  const GL = 0x1c2630, TYRE = 0x16161a, HUB = 0xb8bcc2, CHROME = 0xc8ccd2;
+  const tail = (g, x, y, zs, w = 0.34, h = 0.16) => { const m = new THREE.MeshBasicMaterial({ color: 0xff2a1a }); for (const z of zs) { const q = new THREE.Mesh(new THREE.BoxGeometry(0.06, h, w), m); q.position.set(x, y, z); g.add(q); } };
+  const livery = (g, text, sub, bg, fg, w, h, x, y, zHalf) => { const t = deps.signTex([{ t: text, size: 62 }, ...(sub ? [{ t: sub, size: 26, color: fg }] : [])], bg, fg, 512, Math.round(512 * h / w)); for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), deps.lam({ map: t })); p.position.set(x, y, s * zHalf); p.rotation.y = s > 0 ? 0 : Math.PI; g.add(p); } };
+  const wheelSet = (K, xs, zHalf, r = 0.52) => { for (const x of xs) for (const s of [1, -1]) { K.cyl(r, r, 0.34, TYRE, x, r, s * zHalf, 14, Math.PI / 2); K.cyl(r * 0.5, r * 0.5, 0.36, HUB, x, r, s * zHalf, 10, Math.PI / 2); } };
+  // a DAF-like cab-over tractor: the cab ends at x = nose, the fifth wheel sits behind it
+  function tractor(K, nose, col) {
+    const x = nose - 1.15;
+    K.box(2.3, 2.1, 2.46, col, x, 2.15, 0); K.box(2.1, 0.5, 2.4, col, x - 0.1, 3.4, 0); K.box(1.6, 0.42, 2.3, col, x - 0.35, 3.78, 0, 0, 0, 0.16); // cab, roof, wind deflector
+    K.box(0.06, 0.95, 2.1, GL, nose + 0.005, 2.55, 0); for (const s of [1, -1]) K.box(0.9, 0.7, 0.05, GL, x + 0.35, 2.55, s * 1.235); // windscreen and door glass
+    K.box(0.08, 0.75, 1.9, 0x2a2e34, nose + 0.01, 1.55, 0); for (let i = 0; i < 3; i++) K.box(0.1, 0.07, 1.7, CHROME, nose + 0.02, 1.34 + i * 0.2, 0); // grille
+    K.box(0.3, 0.42, 2.5, 0x2a2e34, nose - 0.1, 0.78, 0); for (const s of [1, -1]) { K.box(0.08, 0.2, 0.42, 0xfff6d8, nose + 0.06, 0.82, s * 0.92); K.box(0.12, 0.5, 0.12, 0x2a2e34, nose - 0.25, 2.75, s * 1.42); K.box(0.06, 0.42, 0.26, GL, nose - 0.25, 2.75, s * 1.5); K.box(0.7, 0.5, 0.5, 0x2a2e34, x - 0.2, 0.75, s * 1.02); }
+    K.box(3.4, 0.36, 1.0, 0x2a2c30, x - 1.9, 0.86, 0); for (const s of [1, -1]) K.cyl(0.3, 0.3, 1.1, CHROME, x - 2.0, 0.78, s * 0.95, 12, 0, 0, Math.PI / 2); K.cyl(0.07, 0.07, 1.9, CHROME, x - 1.35, 2.9, 1.0, 8); // chassis, tanks, exhaust
+    wheelSet(K, [x + 0.25, x - 3.3], 1.08);
+  }
+  function rearEnd(K, g, x, top, zh = 1.24) { // doors, the red and yellow chevrons, the underrun bar
+    K.box(0.05, top - 1.25, zh * 2 - 0.1, 0xe8e6e0, x - 0.01, (top + 1.25) / 2, 0); K.box(0.07, top - 1.3, 0.05, 0x6a6e74, x - 0.02, (top + 1.25) / 2, 0);
+    for (let i = 0; i < 6; i++) K.box(0.06, 0.2, zh * 2 / 6, i % 2 ? 0xe8202a : 0xf2c31a, x - 0.03, 1.12, -zh + zh / 6 + i * zh / 3);
+    K.box(0.12, 0.14, zh * 2, 0x2a2c30, x - 0.05, 0.62, 0); tail(g, x - 0.05, 0.92, [zh - 0.22, -zh + 0.22], 0.36, 0.2);
+  }
+  function makeTruck(kind, i) {
+    const g = new THREE.Group(), K = deps.kit(), nose = 8.2, cols = [0x2a5a9a, 0xc8402a, 0x2f7a4a, 0xf2efe6, 0xe8a020], col = cols[i % cols.length];
+    tractor(K, nose, kind === 'tank' ? 0xf2efe6 : col);
+    const x0 = -8.2, x1 = 4.5, L = x1 - x0, cx = (x0 + x1) / 2; // the trailer
+    K.box(L, 0.3, 2.3, 0x2a2c30, cx, 1.1, 0); wheelSet(K, [x0 + 1.5, x0 + 2.85, x0 + 4.2], 1.08); for (const s of [1, -1]) K.box(4.2, 0.08, 0.5, 0x2a2c30, x0 + 2.85, 1.18, s * 1.06); K.box(0.18, 0.9, 0.18, 0x2a2c30, x1 - 2.6, 0.6, 0.6); K.box(0.18, 0.9, 0.18, 0x2a2c30, x1 - 2.6, 0.6, -0.6);
+    if (kind === 'box') { const B = [['ALBERT KAAS', 'Elke dag vers', '#1a6ab8', '#ffffff'], ['KAASLAND LOGISTIEK', 'Kipkruidenkwartier · Europa', '#f2efe6', '#c8102e'], ['DE HARING VERS', 'Vis uit Kroketkade', '#12506a', '#ffe14a'], ['SPEKSLAGER & ZN', 'Worst op wielen', '#8a1a1a', '#fff2c8']][i % 4];
+      K.box(L, 2.75, 2.5, parseInt(B[2].slice(1), 16), cx, 2.65, 0); K.box(L + 0.02, 0.1, 2.52, 0x8a8e94, cx, 1.3, 0); K.box(L + 0.02, 0.08, 2.52, 0x8a8e94, cx, 4.02, 0); rearEnd(K, g, x0, 4.0);
+      const m = K.build(); m.castShadow = true; g.add(m); livery(g, B[0], B[1], B[2], B[3], L - 1.2, 2.3, cx, 2.65, 1.262); }
+    else if (kind === 'tank') { K.cyl(1.22, 1.22, L - 0.4, 0xc8ccd2, cx, 2.5, 0, 18, 0, 0, Math.PI / 2); for (const dx of [-4.5, -1.5, 1.5, 4.5]) K.cyl(1.25, 1.25, 0.12, 0x9a9ea6, cx + dx, 2.5, 0, 18, 0, 0, Math.PI / 2); K.box(L - 1, 0.12, 0.6, 0x8a8e94, cx, 3.76, 0); for (const dx of [-3, 0, 3]) K.cyl(0.3, 0.3, 0.16, 0x8a8e94, cx + dx, 3.86, 0, 10);
+      K.box(0.1, 0.5, 2.2, 0x2a2c30, x0 + 0.1, 1.4, 0); for (let k = 0; k < 6; k++) K.box(0.06, 0.2, 0.4, k % 2 ? 0xe8202a : 0xf2c31a, x0 - 0.02, 1.12, -1.0 + k * 0.4); tail(g, x0 - 0.02, 0.92, [0.95, -0.95], 0.36, 0.2);
+      const m = K.build(); m.castShadow = true; g.add(m); livery(g, 'KAASMELK', 'Vers van de polder', '#e8ecf0', '#1a6ab8', 6.5, 1.3, cx, 2.55, 1.24); }
+    else { const cc = [0xc8402a, 0x2a5a9a, 0xe8a020, 0x3a7a4a][i % 4]; K.box(L - 0.3, 2.6, 2.44, cc, cx, 2.55, 0); for (let rx = x0 + 0.5; rx < x1 - 0.3; rx += 0.42) for (const s of [1, -1]) K.box(0.16, 2.4, 0.05, cc, rx, 2.55, s * 1.245); K.box(L - 0.2, 0.14, 2.5, 0x4a4e54, cx, 1.28, 0); K.box(L - 0.2, 0.12, 2.5, 0x4a4e54, cx, 3.88, 0); rearEnd(K, g, x0 + 0.1, 3.85);
+      const m = K.build(); m.castShadow = true; g.add(m); livery(g, ['KAASLINE', 'DOKKEN LLOYD', 'ABDAVISSIES & CO', 'CMA KGM'][i % 4], null, '#' + cc.toString(16).padStart(6, '0'), '#ffffff', 5.5, 1.3, cx, 3.0, 1.275); }
+    return { g, half: 8.3 };
+  }
+  function makeCoach() { // a touring car: the Kaasliner to Costa del Kaas
+    const g = new THREE.Group(), K = deps.kit(), L = 12, c = 0xf4f2ec;
+    K.box(L, 2.5, 2.5, c, 0, 2.0, 0); K.box(L - 0.4, 0.5, 2.4, c, -0.1, 3.42, 0); K.box(L + 0.02, 0.5, 2.52, 0xff8a1c, 0, 1.35, 0); K.box(L + 0.02, 0.14, 2.52, 0x1a2a5a, 0, 1.7, 0);
+    for (const s of [1, -1]) K.box(L - 2.4, 0.95, 0.05, GL, -0.4, 2.62, s * 1.26); K.box(0.06, 1.5, 2.3, GL, L / 2 + 0.01, 2.35, 0); K.box(0.06, 0.8, 2.0, GL, -L / 2 - 0.01, 2.7, 0);
+    for (const s of [1, -1]) { K.box(0.08, 0.2, 0.44, 0xfff6d8, L / 2 + 0.04, 1.0, s * 0.9); K.box(0.14, 0.5, 0.14, 0x2a2e34, L / 2 - 0.2, 3.0, s * 1.42); }
+    K.box(0.3, 0.4, 2.52, 0x2a2e34, L / 2 - 0.1, 0.72, 0); K.box(0.3, 0.4, 2.52, 0x2a2e34, -L / 2 + 0.1, 0.72, 0); K.box(1.6, 0.3, 1.2, 0xd8d4cc, -3, 3.8, 0); wheelSet(K, [4.1, -3.3, -4.5], 1.1, 0.5);
+    const m = K.build(); m.castShadow = true; g.add(m); tail(g, -L / 2 - 0.03, 1.15, [0.95, -0.95], 0.4, 0.3);
+    livery(g, 'KAASLINER', 'Costa del Kaas · elke vrijdag', '#f4f2ec', '#ff8a1c', 6, 0.62, -0.4, 1.72, 1.268);
+    return { g, half: 6.1 };
+  }
+  function makeCaravanCombo() { // a family car towing the sleurhut: where there is a Dutch motorway, there is a caravan
+    const g = new THREE.Group(), car = deps.makeCar({ model: 2 }), ch = car.userData.half; car.position.x = 3.4; g.add(car);
+    const K = deps.kit(), cx = -1.9; K.box(4.4, 1.9, 2.1, 0xf6f4ee, cx, 1.55, 0); K.box(4.0, 0.3, 2.0, 0xf6f4ee, cx, 2.6, 0); K.box(4.42, 0.22, 2.12, 0x2a8ad8, cx, 1.25, 0); K.box(4.42, 0.08, 2.12, 0xe8a020, cx, 1.02, 0);
+    for (const s of [1, -1]) { K.box(1.3, 0.6, 0.05, GL, cx + 0.6, 1.95, s * 1.06); K.box(0.7, 0.6, 0.05, GL, cx - 1.2, 1.95, s * 1.06); } K.box(0.05, 0.7, 1.4, GL, cx + 2.21, 1.95, 0); K.box(0.05, 0.6, 1.2, GL, cx - 2.21, 2.0, 0);
+    K.box(1.5, 0.08, 0.08, 0x2a2c30, cx + 2.9, 0.55, 0); K.box(0.5, 0.5, 0.7, 0xd8d4cc, cx + 2.5, 0.85, 0); wheelSet(K, [cx - 0.2], 1.0, 0.34); K.box(0.3, 0.2, 1.6, 0xf6f4ee, cx - 0.2, 2.85, 0); // towbar, gas locker, wheels, roof vent
+    const m = K.build(); m.castShadow = true; g.add(m); tail(g, cx - 2.24, 0.95, [0.85, -0.85]); tail(car, -ch - 0.02, 0.74, [0.55, -0.55], 0.3, 0.12);
+    return { g, half: 5.6 };
+  }
+  // the far carriageway: cheap little cars coming the other way, there to be seen
+  function farCar(i) {
+    const g = new THREE.Group(), K = deps.kit(), c = [0xc8102e, 0xf2e8c8, 0x1f4fa0, 0x2d2d2d, 0xd8d8d8, 0x2f6a3a, 0xe8b020, 0x7a2a5a][i % 8], van = i % 4 === 3;
+    K.box(van ? 4.8 : 4.2, van ? 1.5 : 0.75, 1.8, c, 0, van ? 1.1 : 0.7, 0); if (!van) { K.box(2.2, 0.6, 1.6, c, -0.2, 1.3, 0); K.box(2.25, 0.42, 1.5, GL, -0.2, 1.3, 0); K.box(2.0, 0.44, 1.62, GL, -0.2, 1.3, 0); } else K.box(0.06, 0.6, 1.6, GL, 2.41, 1.35, 0);
+    for (const x of [1.35, -1.35]) for (const s of [1, -1]) K.cyl(0.33, 0.33, 0.24, TYRE, x, 0.33, s * 0.86, 10, Math.PI / 2);
+    const m = K.build(); g.add(m); const hl = new THREE.MeshBasicMaterial({ color: 0xfff4c8 }); for (const s of [1, -1]) { const q = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.32), hl); q.position.set(van ? 2.42 : 2.12, 0.72, s * 0.62); g.add(q); }
+    g.rotation.y = Math.PI; return g;
+  }
+  // ---- flitsers (Tristan 2026-11-26): flitspalen on the verge and unmarked vans with a camera in the back, parked on the
+  // vluchtstrook. Eddy can't see one without saying something, in Dutch or in Hebrew. Past one faster than 120 and it
+  // flashes (a fine); sound the claxon at one and it is bonus Wilders on the trip.
+  const RLI = '⁧', PDI = '⁩';
+  const RANT_NL = ['Een flitspaal! Dieven met een camera!', 'Daar staat de staat weer te hengelen.', 'Honderdtwintig? Mijn oma rijdt harder. Op de fiets.', 'Ik betaal al erfpacht, wat willen jullie nog meer?!', 'Flitsers. Het enige in Kaasland dat nooit stuk is.', 'Kijk ze staan. Zakkenvullers langs de vluchtstrook.', 'Lach maar naar het vogeltje, Eddy. Nee. NEE.'];
+  const RANT_HE = [['עוד מצלמה! גנבים עם רישיון!', 'od matslema! ganavim im rishayon!', 'nog een camera! dieven met een vergunning!'], ['מה אתם רוצים מהחיים שלי?!', 'ma atem rotsim mehachayim sheli?!', 'wat willen jullie van mijn leven?!'], ['לכו תעבדו בעבודה אמיתית!', 'lechu ta\'avdu ba\'avoda amitit!', 'ga echt werk zoeken!'], ['חצופים! אני רק נוסע עם פפריקה!', 'chatsufim! ani rak nose\'a im paprika!', 'brutalen! ik rij alleen maar met paprika!'], ['אוי ואבוי, עוד קנס.', 'oy va\'avoy, od knas.', 'oei oei, weer een boete.']];
+  const HONK_NL = ['TOET! Fijne dag nog, flitsmeneer!', 'TOEEET! Koffie gemorst? Mooi zo!', 'TOET TOET! Groeten van Eddy & Zn!', 'TOEEET! Zet dat maar op de foto!'];
+  const HONK_HE = [['תתעוררו שם!', 'tit\'oreru sham!', 'wakker worden daar!'], ['שלום שלום, ביי ביי!', 'shalom shalom, bye bye!', 'hallo hallo, doei doei!']];
+  const cams = []; let rantT = 0;
+  const rantEl = document.createElement('div'); rantEl.id = 'ritRant'; document.body.appendChild(rantEl);
+  { const st = document.createElement('style'); st.textContent = `#ritRant{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:10;display:none;max-width:min(520px,88vw);padding:8px 16px 9px;border-radius:16px 16px 16px 4px;text-align:center;color:#07304f;font:700 15px/1.3 "Segoe UI",Tahoma,Rubik,Arial,sans-serif;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(226,244,255,.94) 50%,rgba(204,236,255,.94) 52%,rgba(232,248,255,.96));box-shadow:0 0 0 2px rgba(80,170,230,.6),0 8px 22px rgba(0,40,80,.4);pointer-events:none}
+#ritRant small{display:block;font-weight:400;font-size:12px;color:#3a6a8a}#ritRant b{color:#b8501a}#ritRant .he{font-size:18px;direction:rtl;unicode-bidi:isolate}
+body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:13.5px}`; document.head.appendChild(st); }
+  function rant(set, extra) { const he = Math.random() < 0.4, pool = set === 'honk' ? (he ? HONK_HE : HONK_NL) : he ? RANT_HE : RANT_NL, l = pool[Math.floor(Math.random() * pool.length)];
+    rantEl.innerHTML = (Array.isArray(l) ? `<span class="he">${RLI}${l[0]}${PDI}</span><small>${l[1]} · ${l[2]}</small>` : l) + (extra ? `<small><b>${extra}</b></small>` : ''); rantEl.style.display = 'block'; rantT = 3.4; }
+  function makeFlitspaal() { const g = new THREE.Group(), K = deps.kit(); K.cyl(0.14, 0.18, 3.0, 0x6a6e74, 0, 1.5, 0, 10); K.box(0.62, 0.95, 0.62, 0x7a7e84, 0, 3.4, 0); K.box(0.66, 0.16, 0.66, 0xf2c31a, 0, 3.0, 0); K.box(0.66, 0.1, 0.66, 0x1a1a1a, 0, 3.86, 0);
+    for (const [y, r] of [[3.58, 0.13], [3.26, 0.1]]) K.cyl(r, r, 0.08, 0x16161a, -0.32, y, 0, 12, 0, 0, Math.PI / 2); K.box(0.9, 0.05, 0.9, 0x9a9690, 0, 0.03, 0); const m = K.build(); m.castShadow = true; g.add(m); return g; }
+  function makeFlitsbus() { // an unmarked grey van, back doors to the traffic, the camera behind the rear window and a radar on a tripod beside it
+    const g = new THREE.Group(), K = deps.kit(), c = 0x5a5e66;
+    K.box(4.6, 1.5, 1.9, c, 0, 1.15, 0); K.box(1.3, 0.9, 1.85, c, 1.6, 0.85, 0); K.box(0.06, 0.6, 1.6, GL, 2.27, 1.45, 0); for (const s of [1, -1]) K.box(0.9, 0.5, 0.05, GL, 1.3, 1.5, s * 0.96);
+    K.box(0.05, 0.62, 1.5, GL, -2.31, 1.45, 0); K.box(0.3, 0.3, 0.4, 0x16161a, -2.2, 1.4, 0.3); K.cyl(0.11, 0.11, 0.16, 0x2a4a6a, -2.36, 1.4, 0.3, 12, 0, 0, Math.PI / 2); // the lens behind the glass
+    K.box(0.3, 0.3, 2.0, 0x2a2c30, -2.28, 0.5, 0); for (const x of [1.45, -1.45]) for (const s of [1, -1]) K.cyl(0.36, 0.36, 0.26, TYRE, x, 0.36, s * 0.9, 12, Math.PI / 2);
+    for (const a of [0, 2.1, 4.2]) K.cyl(0.025, 0.025, 1.3, 0x2a2c30, -3.4 + Math.cos(a) * 0.28, 0.6, 1.5 + Math.sin(a) * 0.28, 5, Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4); K.box(0.4, 0.3, 0.3, 0x3a3e44, -3.4, 1.35, 1.5); K.cyl(0.1, 0.1, 0.1, 0x16161a, -3.62, 1.35, 1.5, 10, 0, 0, Math.PI / 2); // the radar on its tripod
+    K.cyl(0.05, 0.22, 0.6, 0xff6a1a, -4.6, 0.3, 0.9, 8); K.cyl(0.05, 0.22, 0.6, 0xff6a1a, -6.2, 0.3, 0.4, 8); // two cones, for form's sake
+    const m = K.build(); m.castShadow = true; g.add(m); return g; }
   // ---- the motorway: built once, signed and dressed per trip
   function buildStrip() {
     strip = new THREE.Group(); scene.add(strip);
@@ -80,16 +167,27 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
     // the car park: bays and a kerb
     for (let i = -3; i <= 3; i++) K.box(0.12, 0.012, 5, W_, PARK.x + i * 4.5, 0.04, PARK.z + 4);
     K.box(40, 0.2, 0.3, 0xb8b2a6, PARK.x, 0.1, SEDGE + 26.2);
+    // a proper middenberm: a rail on each side, the anti-glare hedge between them, and the far carriageway's own lines
+    K.box(L, 0.32, 0.08, 0xb8bcc2, cx, 0.62, NEDGE - 0.9); for (let x = X0 - 48; x < X0 + LEN + 50; x += 4) K.box(0.1, 0.7, 0.1, 0x8a8e94, x, 0.35, NEDGE - 0.84); K.box(L, 0.9, 0.5, 0x3e6a3a, cx, 0.55, NEDGE - 0.3);
+    for (const z of [NEDGE - 4.85, NEDGE - 8.15]) for (let x = X0 - 50; x < X0 + LEN + 50; x += 12) K.box(3, 0.01, 0.15, W_, x, 0.035, z); for (const z of [NEDGE - 1.6, NEDGE - 11.4]) K.box(L, 0.01, 0.2, W_, cx, 0.035, z);
+    K.box(L, 0.02, 2.5, 0x5a5c60, cx, 0.024, SEDGE - 1.3); for (let x = X0 - 40; x < X0 + EXIT0; x += 0.9) K.box(0.3, 0.012, 0.12, 0x3a3c40, x, 0.04, Z0 + LW * 1.5 + 0.35); // the vluchtstrook is a paler tarmac, with a ribbelstrook along the line
     const km = K.build(); if (km) strip.add(km);
     ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc83a, transparent: true, opacity: 0.85, fog: false })); ring.position.set(PARK.x, 0.06, PARK.z); strip.add(ring);
     flash = new THREE.Mesh(new THREE.PlaneGeometry(26, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, fog: false })); flash.position.set(X0 + 520, 0.08, Z0); strip.add(flash);
-    // traffic, all going Eddy's way: trucks on the right, cars in the middle, the fast ones on the left
-    for (let i = 0; i < 12; i++) {
-      const truck = i < 3, lane = truck ? 1 : i < 8 ? (i % 2 ? 0 : 1) : -1; let g, half;
-      if (truck) { g = new THREE.Group(); const kk = deps.kit(), col = [0x2a5a9a, 0xc8402a, 0xf2efe6][i]; kk.box(9.5, 2.9, 2.5, col, -1.2, 2.05, 0); kk.box(2.3, 2.5, 2.4, 0xe8e4dc, 5.1, 1.75, 0); kk.box(0.1, 1.0, 2.2, 0x22262c, 6.26, 2.2, 0); kk.box(11.5, 0.4, 2.3, 0x2a2c30, 0, 0.7, 0); for (const wx of [-4.6, -3.4, 2.2, 5.0]) kk.cyl(0.5, 0.5, 2.5, 0x1a1a1a, wx, 0.5, 0, 12, Math.PI / 2); const m = kk.build(); m.castShadow = true; g.add(m); half = 6.3; }
-      else { g = deps.makeCar({}); half = g.userData.half; }
-      strip.add(g); cars.push({ g, lane, truck, half, v: truck ? 21 + i : lane < 0 ? 31 + (i % 3) : lane === 0 ? 26 + (i % 3) : 23, vv: 0 });
+    // traffic, all going Eddy's way: trucks, a tanker, a container, a caravan and a coach on the right and in the middle, fast cars on the left
+    const mk = [() => makeTruck('box', 0), () => makeTruck('tank', 1), () => makeTruck('cont', 2), () => makeTruck('box', 3), makeCaravanCombo, makeCoach];
+    for (let i = 0; i < 15; i++) {
+      const heavy = i < mk.length, lane = heavy ? (i === 5 ? 0 : 1) : i < 11 ? (i % 2 ? 0 : 1) : -1; let g, half;
+      if (heavy) ({ g, half } = mk[i]()); else { g = deps.makeCar({}); half = g.userData.half; tail(g, -half - 0.02, 0.74, [0.55, -0.55], 0.3, 0.12); }
+      strip.add(g); cars.push({ g, lane, truck: heavy, half, v: heavy ? (i === 5 ? 25 : i === 4 ? 22 : 21 + (i % 3)) : lane < 0 ? 31 + (i % 3) : lane === 0 ? 26 + (i % 3) : 23, vv: 0 });
     }
+    for (let i = 0; i < 8; i++) { const g = farCar(i); g.position.set(X0 + i * 130, 0, NEDGE - 3.2 - (i % 3) * 3.3); strip.add(g); far.push({ g, v: 27 + (i % 4) * 2 }); } // and the other carriageway
+    { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c2 = cv.getContext('2d'), gr = c2.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c2.fillStyle = gr; c2.fillRect(0, 0, 64, 64);
+      const glow = new THREE.CanvasTexture(cv), n = Math.ceil(LEN / 45), m4 = new THREE.Matrix4(); // the lamp masts light the road at night: one additive quad a lamp
+      lampPool = new THREE.InstancedMesh(new THREE.PlaneGeometry(34, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glow, color: 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), n);
+      for (let i = 0; i < n; i++) { m4.makeTranslation(X0 + 20 + i * 45, 0.07, Z0 - 0.5); lampPool.setMatrixAt(i, m4); } lampPool.visible = false; lampPool.renderOrder = 3; strip.add(lampPool);
+      headPool = new THREE.Mesh(new THREE.PlaneGeometry(16, 7).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glow, color: 0xfff2d0, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); headPool.visible = false; headPool.renderOrder = 3; scene.add(headPool); }
+    for (const kind of ['paal', 'paal', 'bus', 'bus']) { const g = kind === 'paal' ? makeFlitspaal() : makeFlitsbus(); strip.add(g); cams.push({ g, kind, x: 0, sol: kind === 'bus' ? deps.solid(0, 0, 0, 0) : null }); }
     // wegwerkzaamheden: a pijlwagen, a row of cones and a closed right lane (two of them)
     for (let i = 0; i < 2; i++) { const g = new THREE.Group(), kk = deps.kit(); kk.box(4.2, 1.6, 2.2, 0xf2a01a, 0, 1.1, 0); kk.box(0.2, 2.4, 2.4, 0x1a1a1a, -2.1, 2.5, 0); for (let a = 0; a < 5; a++) kk.box(0.22, 0.3, 0.3, 0xffe14a, -2.22, 2.0 + (a < 3 ? a * 0.45 : (4 - a) * 0.45 + 0.45), -0.6 + a * 0.3 - (a > 2 ? 0.6 : 0)); for (const wx of [-1.3, 1.3]) kk.cyl(0.4, 0.4, 2.3, 0x1a1a1a, wx, 0.4, 0, 10, Math.PI / 2);
       for (let c = 0; c < 14; c++) { const x = -34 + c * 2.4, z = c < 6 ? (LW * 0.5) - c * (LW / 6) + 0.2 : -LW / 2 + 0.25; kk.cyl(0.05, 0.22, 0.6, 0xff6a1a, x, 0.3, z, 8); kk.cyl(0.12, 0.16, 0.12, W_, x, 0.38, z, 8); }
@@ -101,25 +199,31 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
       deps.solid(X0 - 8, X0 - 7, NEDGE, SEDGE), deps.solid(X0 + LEN + 20, X0 + LEN + 21, SEDGE, SEDGE + 27)]) sols.push(s);
     strip.visible = false; solidsOff(true);
   }
-  function solidsOff(off) { for (const s of sols) s.off = off; for (const w of works) { w.sol.off = off; w.sol2.off = off; } }
+  function solidsOff(off) { for (const s of sols) s.off = off; for (const w of works) { w.sol.off = off; w.sol2.off = off; } for (const c of cams) if (c.sol) c.sol.off = off; }
   // a blue ANWB sign: lines of [text, size, colour]
-  function sign(lines, w, h, x, y, z, ry = -Math.PI / 2) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), deps.lam({ map: deps.signTex(lines.map(([t, size, color]) => ({ t, size, color: color || '#ffffff' })), '#14499a', '#ffffff', 512, Math.round(512 * h / w)), emissive: 0x0a2040 })); m.position.set(x, y, z); m.rotation.y = ry; scenery.add(m); return m; }
-  function gantry(K, x, lines) { K.box(0.5, 7, 0.5, 0x8a8e94, x, 3.5, NEDGE - 0.4); K.box(0.5, 7, 0.5, 0x8a8e94, x, 3.5, SEDGE + 0.6); K.box(0.4, 0.5, SEDGE - NEDGE + 1.6, 0x8a8e94, x, 6.9, (NEDGE + SEDGE) / 2); K.box(0.3, 0.3, SEDGE - NEDGE + 1.6, 0x8a8e94, x, 5.6, (NEDGE + SEDGE) / 2);
-    lines.forEach((ln, i) => sign(ln, 5.6, 2.2, x - 0.3, 6.2, Z0 - LW + i * LW * 1.75)); }
+  function sign(lines, w, h, x, y, z, ry = -Math.PI / 2, bg = '#14499a') { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), deps.lam({ map: deps.signTex(lines.map(([t, size, color]) => ({ t, size, color: color || '#ffffff' })), bg, '#ffffff', 512, Math.round(512 * h / w)), emissive: bg === '#14499a' ? 0x0a2040 : 0x202020 })); m.position.set(x, y, z); m.rotation.y = ry; scenery.add(m); return m; }
+  function gantry(K, x, lines, matrix) { // a steel truss portaal: lattice legs and beam, the blue boards, and a matrix board over each lane
+    const zA = NEDGE - 0.6, zB = SEDGE + 0.8, span = zB - zA, zc = (zA + zB) / 2, c = 0x9a9ea6;
+    for (const z of [zA, zB]) { for (const dx of [-0.45, 0.45]) K.box(0.16, 7.6, 0.16, c, x + dx, 3.8, z); for (let y = 0.6; y < 7; y += 1.3) K.box(1.0, 0.08, 0.08, c, x, y, z, 0, 0, y % 2.6 < 1.3 ? 0.9 : -0.9); K.box(1.3, 0.3, 0.7, 0x8a8680, x, 0.15, z); }
+    for (const y of [6.2, 7.5]) for (const dx of [-0.45, 0.45]) K.box(0.14, 0.14, span, c, x + dx, y, zc); for (let z = zA; z < zB; z += 1.3) K.box(0.08, 1.4, 0.08, c, x - 0.45, 6.85, z, 0, (z / 1.3) % 2 < 1 ? 0.75 : -0.75, 0);
+    lines.forEach((ln, i) => { const z = Z0 - LW + i * LW * 1.75; sign(ln, 5.6, 2.2, x - 0.62, 6.5, z); K.box(0.1, 2.3, 5.7, 0x6a6e74, x - 0.55, 6.5, z); });
+    (matrix || ['100', '100', '100']).forEach((t, i) => { const z = Z0 + (i - 1) * LW; K.box(0.3, 1.5, 1.5, 0x16161a, x - 0.5, 8.7, z); sign([[t, t.length > 2 ? 150 : 200, t === '✕' ? '#ff3a2a' : t === '↖' ? '#ffffff' : '#ffffff']], 1.3, 1.3, x - 0.67, 8.7, z, -Math.PI / 2, '#0a0a0a'); if (/^\d/.test(t)) for (const [dy, dz, w, h] of [[0.6, 0, 1.3, 0.08], [-0.6, 0, 1.3, 0.08]]) K.box(0.05, h, w, 0xd8202a, x - 0.68, 8.7 + dy, z + dz); });
+  }
+  function turbine(x, z) { const K2 = deps.kit(); K2.cyl(0.7, 1.4, 44, 0xf4f4f0, x, 22, z, 12); K2.box(4.2, 1.8, 1.8, 0xf4f4f0, x + 0.6, 44.6, z); const m = K2.build(); scenery.add(m);
+    const hub = new THREE.Group(), kb = deps.kit(); kb.cyl(0.9, 0.9, 1.2, 0xe8e8e4, 0, 0, 0, 10, 0, 0, Math.PI / 2); for (let a = 0; a < 3; a++) { const an = a * Math.PI * 2 / 3; kb.box(0.3, 17, 1.3, 0xf4f4f0, -0.2, Math.cos(an) * 8.5, Math.sin(an) * 8.5, 0, an, 0); }
+    hub.add(kb.build()); hub.position.set(x - 1.7, 44.6, z); scenery.add(hub); spinners.push(hub); }
   function dress(key) {
     if (scenery) { strip.remove(scenery); scenery.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map) o.material.map.dispose(); }); }
-    scenery = new THREE.Group(); strip.add(scenery);
+    scenery = new THREE.Group(); strip.add(scenery); spinners.length = 0;
     const T = R.route, o = R.opts, K = deps.kit(), to = String(o.to); let s = 11 + key.length * 17; const rnd = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
     const gr = new THREE.Mesh(new THREE.PlaneGeometry(LEN + 300, 220), deps.lam({ color: T.ground })); gr.rotation.x = -Math.PI / 2; gr.position.set(X0 + LEN / 2, 0, Z0); gr.receiveShadow = true; scenery.add(gr);
     // the signs: the ring, the knooppunt, the afrit
-    gantry(K, X0 + 70, [[['A10', 44, '#ff5a6a'], ['Ring Kaasland', 34]], [[T.a, 44, '#ff5a6a'], [T.via, 34], [to, 30, '#ffe14a']]]);
-    gantry(K, X0 + LEN * 0.4, [[[T.other[0], 44, '#ff5a6a'], [T.other[1], 34], ['↖', 40]], [[T.a, 44, '#ff5a6a'], [`${T.via} · ${to}`, 30], ['↑', 40]]]);
-    gantry(K, X0 + EXIT0 - 150, [[[T.a, 44, '#ff5a6a'], [T.via, 34], ['↑', 40]], [[`afrit ${T.afrit}`, 30, '#ffe14a'], [to, 38], ['600 m ↗', 34]]]);
+    gantry(K, X0 + 70, [[['A10', 44, '#ff5a6a'], ['Ring Kaasland', 34]], [[T.a, 44, '#ff5a6a'], [T.via, 34], [to, 30, '#ffe14a']]], ['100', '100', '90']);
+    gantry(K, X0 + LEN * 0.4, [[[T.other[0], 44, '#ff5a6a'], [T.other[1], 34], ['↖', 40]], [[T.a, 44, '#ff5a6a'], [`${T.via} · ${to}`, 30], ['↑', 40]]], ['90', '90', '70']);
+    gantry(K, X0 + EXIT0 - 150, [[[T.a, 44, '#ff5a6a'], [T.via, 34], ['↑', 40]], [[`afrit ${T.afrit}`, 30, '#ffe14a'], [to, 38], ['600 m ↗', 34]]], ['120', '120', '100']);
     sign([[`${T.afrit}`, 30, '#ffe14a'], [to, 40], ['↗', 44]], 4.6, 2.6, X0 + EXIT0 + 6, 3.2, SEDGE + 1.6); for (const dz of [0.6, 2.6]) K.box(0.16, 2.2, 0.16, 0x8a8e94, X0 + EXIT0 + 6.1, 1.1, SEDGE + dz);
     sign([['UIT', 60]], 1.6, 1.0, X0 + EXIT1 + 2, 1.5, Z0 + LW * 1.5 + 1.2); K.box(0.12, 1.2, 0.12, 0x8a8e94, X0 + EXIT1 + 2.1, 0.6, Z0 + LW * 1.5 + 1.2);
     sign([['P', 70], [o.airport ? 'Kiss & Ride' : to, 30]], 3, 2.2, PARK.x - 22, 2.6, SEDGE + 25.5, Math.PI); K.box(0.14, 1.6, 0.14, 0x8a8e94, PARK.x - 22, 0.8, SEDGE + 25.6);
-    // the flitspaal
-    K.box(0.3, 3.2, 0.3, 0x5a5e62, X0 + 520, 1.6, SEDGE + 0.9); K.box(0.5, 0.7, 0.5, 0x3a3c40, X0 + 520, 3.3, SEDGE + 0.9); K.box(0.52, 0.3, 0.3, 0xf2c31a, X0 + 520, 3.3, SEDGE + 0.6);
     // the land beside the road
     for (let x = X0 - 30; x < X0 + LEN + 40; ) {
       const w = 8 + rnd() * 10, cx = x + w / 2, far = cx > X0 + EXIT0 - 10, zz = far ? SEDGE + 34 + rnd() * 8 : SEDGE + 7 + rnd() * 10;
@@ -139,9 +243,37 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
       for (const [px, pz, ry] of [[ax - 20, az + 26, 0.3], [ax + 22, az + 30, -0.4]]) { K.box(22, 2.6, 2.6, 0xf6f6f2, px, 3.2, pz, ry); K.box(4, 0.3, 24, 0xf6f6f2, px, 3, pz, ry); K.box(2.6, 4.4, 0.4, 0xe87a1a, px - 9.6 * Math.cos(ry), 6, pz + 9.6 * Math.sin(ry), ry); K.box(0.4, 0.3, 7, 0xf6f6f2, px - 9.4 * Math.cos(ry), 4.4, pz + 9.4 * Math.sin(ry), ry); }
       for (let i = 0; i < 16; i++) K.box(0.4, 0.3, 0.4, i % 2 ? 0x2a6aff : 0xffe14a, ax - 60 + i * 9, 0.2, az + 46);
       sign([['SCHIPTAGAT', 60], ['Vertrek · Departures', 26]], 16, 3, ax, 9.4, az - 7.1, Math.PI); }
+    // ---- roadside furniture (2026-11-26): what makes a Dutch snelweg look like one
+    for (const [bx, n] of [[X0 + EXIT0 - 300, 3], [X0 + EXIT0 - 200, 2], [X0 + EXIT0 - 100, 1]]) { // afritbakens: three, two, one blue stripe
+      K.box(0.1, 1.5, 0.1, 0x8a8e94, bx, 0.75, SEDGE + 1.1); K.box(0.06, 1.5, 0.46, W_, bx - 0.06, 1.9, SEDGE + 1.1); for (let i = 0; i < n; i++) K.box(0.07, 0.2, 0.5, 0x1a4ab8, bx - 0.08, 2.35 - i * 0.42, SEDGE + 1.1, 0, 0.5, 0); }
+    for (let x = X0 + 110; x < X0 + EXIT0 - 60; x += 260) { K.box(0.34, 1.5, 0.34, 0xf2c31a, x, 0.75, SEDGE + 1.3); K.box(0.4, 0.3, 0.4, 0x1a4a9a, x, 1.62, SEDGE + 1.3); K.box(0.9, 0.05, 0.9, 0x9a9690, x, 0.03, SEDGE + 1.3); } // praatpalen
+    for (const vx of [X0 + 352, X0 + EXIT0 - 60]) { // two viaducts: a deck high over the road, columns in the middenberm and the verge, the embankments, a railing
+      const z0 = NEDGE - 20, z1 = SEDGE + 20, zc = (z0 + z1) / 2, zl = z1 - z0;
+      K.box(11, 1.1, zl, 0xbdb8ae, vx, 11.3, zc); K.box(11.4, 0.3, zl, 0x9a968e, vx, 11.95, zc); K.box(9, 0.04, zl, 0x4a4c52, vx, 12.12, zc);
+      for (const dx of [-5.5, 5.5]) { K.box(0.14, 0.9, zl, 0x6a8a9a, vx + dx, 12.6, zc); for (let z = z0 + 2; z < z1; z += 4) K.box(0.16, 1.0, 0.16, 0x5a6a74, vx + dx, 12.6, z); }
+      for (const pz of [NEDGE - 1.1, NEDGE - 11.8, SEDGE + 1.9]) for (const dx of [-3.4, 3.4]) { K.cyl(0.6, 0.6, 10.8, 0xb0aba0, vx + dx, 5.4, pz, 14); K.box(1.8, 0.5, 1.8, 0xa8a398, vx + dx, 10.6, pz); }
+      for (const [ez, s] of [[z0, -1], [z1, 1]]) { K.box(11, 1.0, 30, 0x6a8a4a, vx, 5.2, ez + s * 13.6, 0, s * -0.38, 0); K.box(9, 0.05, 30, 0x4a4c52, vx, 5.76, ez + s * 13.6, 0, s * -0.38, 0); }
+      for (const [cx2, cz2, cc] of [[vx - 1.6, zc - 6, 0xc8102e], [vx + 1.7, zc + 9, 0xf2e8c8]]) { K.box(1.8, 0.7, 4.2, cc, cx2, 12.6, cz2); K.box(1.6, 0.55, 2.2, GL, cx2, 13.2, cz2 - 0.2); } // somebody crossing over the top
+    }
+    { const gx = X0 + 150, gz = SEDGE + 15; // a tankstation on the right: Kaasolie, with the shop, the canopy and the price totem
+      K.box(46, 0.04, 20, 0x55575c, gx, 0.02, gz); K.box(18, 0.5, 10, W_, gx, 5.2, gz); K.box(18.2, 0.7, 10.2, 0xff8a1c, gx, 4.75, gz); for (const [dx, dz] of [[-7, -3.6], [7, -3.6], [-7, 3.6], [7, 3.6]]) K.cyl(0.22, 0.22, 4.5, 0xd8d4cc, gx + dx, 2.25, gz + dz, 10);
+      for (const dx of [-5, 0, 5]) { K.box(1.2, 0.2, 3.2, 0x9a9690, gx + dx, 0.1, gz); for (const dz of [-0.9, 0.9]) { K.box(0.7, 1.5, 0.5, 0xf4f2ec, gx + dx, 0.95, gz + dz); K.box(0.72, 0.4, 0.52, 0xff8a1c, gx + dx, 1.5, gz + dz); K.box(0.5, 0.3, 0.05, GL, gx + dx, 1.15, gz + dz + 0.27); } }
+      K.box(14, 3.6, 7, 0xe8e4dc, gx, 1.8, gz + 13); K.box(14.4, 0.5, 7.4, 0xff8a1c, gx, 3.85, gz + 13); K.box(9, 2.2, 0.08, 0x7ab8e8, gx, 1.5, gz + 9.48); K.box(1.6, 2.4, 0.1, 0x3a4a5a, gx + 5.4, 1.2, gz + 9.47);
+      K.box(4.2, 0.75, 1.8, 0x2a5a9a, gx - 5, 0.7, gz + 4.2); K.box(2.2, 0.6, 1.6, 0x2a5a9a, gx - 5.2, 1.3, gz + 4.2); K.box(2.0, 0.44, 1.62, GL, gx - 5.2, 1.3, gz + 4.2); // somebody filling up
+      K.box(0.5, 7.5, 0.5, 0x8a8e94, gx - 26, 3.75, gz - 6); sign([['KAASOLIE', 56, '#ffffff'], ['Euro95  1.98', 34, '#ffe14a'], ['Diesel  1.79', 34, '#ffe14a'], ['Koffie  W 2', 30]], 3.4, 4.4, gx - 26.3, 6.2, gz - 6, -Math.PI / 2, '#d86a10');
+      sign([['KAASOLIE', 80, '#ffffff']], 9, 1.4, gx, 4.75, gz - 5.12, Math.PI, '#ff8a1c'); sign([['Tanken · Shop · WC', 40]], 5, 0.9, gx - 30, 2.4, SEDGE + 3.2); K.box(0.14, 2.0, 0.14, 0x8a8e94, gx - 29.9, 1.0, SEDGE + 3.2); }
+    // the verge on the right: a sloot, and a row of trees that suits the land
+    K.box(EXIT0 + 20, 0.03, 1.5, 0x35606a, X0 + EXIT0 / 2 - 20, 0.02, SEDGE + 3.6); K.box(EXIT0 + 20, 0.02, 0.5, 0x5a7a44, X0 + EXIT0 / 2 - 20, 0.04, SEDGE + 2.7);
+    if (T.props !== 'sand' && T.props !== 'docks') for (let x = X0 - 20, i = 0; x < X0 + EXIT0 - 20; x += 13, i++) { if (Math.abs(x - (X0 + 150)) < 30 || Math.abs(x - (X0 + 352)) < 9) continue; const h = 9 + (i % 3) * 1.5, z = SEDGE + 5.6; K.cyl(0.16, 0.24, h * 0.45, 0x5e4a36, x, h * 0.22, z, 7);
+      if (T.props === 'air') K.cyl(0.25, 1.25, h, [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 8); else K.geo(new THREE.SphereGeometry(1, 8, 6), [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 0, i, 0, 2.6, h * 0.36, 2.6); } // poplars by the polder, plane trees in town
+    // far away: what tells you where you are
+    if (T.props === 'brick' || T.props === 'hip') for (let x = X0 - 60, i = 0; x < X0 + LEN + 80; x += 22 + rnd() * 16, i++) { const h = 16 + rnd() * 30, w = 12 + rnd() * 10, z = SEDGE + 78 + rnd() * 24, c = T.props === 'hip' ? [0xe8d8c8, 0xd8c8e0, 0xc8e0d8, 0xf0d8a8][i % 4] : [0x8a7a70, 0x9a8a7a, 0x6a6a72, 0xa89a88][i % 4]; K.box(w, h, 12, c, x, h / 2, z); for (let wy = 3; wy < h - 2; wy += 3.4) K.box(w - 2, 1.3, 0.1, 0xf2e6c0, x, wy, z - 6.03); }
+    if (T.props === 'docks') for (let x = X0 + 40; x < X0 + LEN; x += 120) { const z = SEDGE + 70; K.box(1.4, 40, 1.4, 0xf2c31a, x - 7, 20, z); K.box(1.4, 40, 1.4, 0xf2c31a, x + 7, 20, z); K.box(16, 1.6, 2, 0xf2c31a, x, 40, z); K.box(2, 1.6, 46, 0xf2c31a, x, 41.6, z - 12, 0, 0.14, 0); K.box(4, 3, 4, 0xe8e4dc, x, 37.6, z - 8); K.box(60, 14, 16, [0x2a3a5a, 0x5a2a2a, 0x2a4a3a][Math.round(x) % 3], x + 30, 7, z + 26); } // gantry cranes and a ship behind them
+    if (T.props === 'sand') { K.cyl(1.6, 2.4, 22, 0xf4f2ec, X0 + EXIT0 - 80, 11, SEDGE + 80, 12); for (const y of [5, 11, 17]) K.cyl(2.0, 2.2, 2.2, 0xc8102e, X0 + EXIT0 - 80, y, SEDGE + 80, 12); K.cyl(1.2, 1.9, 2.6, 0x2a2e34, X0 + EXIT0 - 80, 23.3, SEDGE + 80, 10); } // the vuurtoren of De Zandwijk
+    if (T.props === 'air' || T.props === 'sand' || T.props === 'docks') for (const [tx, tz] of [[X0 + 200, SEDGE + 60], [X0 + 430, SEDGE + 78], [X0 + 640, SEDGE + 64]]) turbine(tx, tz); // wind turbines, turning
     // sound barriers behind the far carriageway, and lamp masts in the middenberm
     for (let x = X0 - 40, i = 0; x < X0 + LEN + 40; x += 8, i++) K.box(7.8, 3.6, 0.3, i % 2 ? 0x5a8a6a : 0x4a7a5a, x + 4, 1.8, NEDGE - 13);
-    for (let x = X0 + 20; x < X0 + LEN; x += 45) { K.cyl(0.1, 0.16, 11, 0x8a8e94, x, 5.5, NEDGE - 0.4, 8); K.box(0.3, 0.12, 3.4, 0x8a8e94, x, 10.9, NEDGE + 1.2); K.box(0.4, 0.1, 0.7, 0xfff4d0, x, 10.82, NEDGE + 2.7); }
+    for (let x = X0 + 20; x < X0 + LEN; x += 45) { K.cyl(0.1, 0.18, 12, 0x8a8e94, x, 6, NEDGE - 0.6, 8); for (const s of [1, -1]) { K.box(0.2, 0.12, 3.6, 0x8a8e94, x, 11.9, NEDGE - 0.6 + s * 1.7, 0, s * -0.12, 0); K.box(0.5, 0.12, 0.9, 0xfff4d0, x, 11.95, NEDGE - 0.6 + s * 3.5); } } // double-armed masts, one arm over each carriageway
     const m = K.build(); if (m) { m.castShadow = true; m.receiveShadow = true; scenery.add(m); }
   }
   function layout() { // a different motorway every trip: where the works are and how the traffic is spread
@@ -149,7 +281,10 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
     works.forEach((w, i) => { const x = X0 + 230 + i * 300 + rnd() * 60, z = Z0 + LW; w.g.position.set(x, 0, z); box2(w.sol, x + 9, z, 13.5, 1.5); box2(w.sol2, x - 2.1, z, 2.3, 1.2); w.sol.off = w.sol2.off = false; });
     cars.forEach((c) => { c.g.position.set(X0 + 60 + rnd() * (LEN - 200), 0, Z0 + c.lane * LW); c.g.rotation.y = 0; c.wreck = false; c.vv = c.v; });
     gang.forEach((g) => { g.on = false; g.dead = false; g.g.visible = false; if (g.g.userData.paint) g.g.userData.paint.color.setHex(0xff7a1a); });
-    R.flashed = false; flash.material.opacity = 0;
+    flash.material.opacity = 0;
+    const cx = [X0 + 300 + rnd() * 40, X0 + 470 + rnd() * 50, X0 + 90 + rnd() * 30, X0 + 590 + rnd() * 50]; // two palen, two flitsbussen
+    cams.forEach((c, i) => { c.x = cx[i]; c.seen = c.done = c.honked = false; if (c.kind === 'paal') c.g.position.set(c.x, 0, SEDGE + 1.0); else { c.g.position.set(c.x, 0, SEDGE - 1.25); box2(c.sol, c.x - 0.6, SEDGE - 1.25, 3.4, 1.0); c.sol.off = false; } });
+    far.forEach((f, i) => { f.g.position.x = X0 + i * 130 + rnd() * 60; });
   }
 
   // ---- start
@@ -158,7 +293,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
     if (!strip) buildStrip();
     if (!van) { van = deps.makeVan(); van.visible = false; scene.add(van); veh = deps.fiets.adopt(van, { kind: 'car', name: 'Oofmobiel', own: true, quiet: true, half: 2.5, width: 2.0, locked: () => R.active && !R.over, k: { vmax: 19, acc: 7, brake: 16, rev: -5, turn: 1.5, grip: 4.5, r: 1.0, nose: 1.9 } }); }
     R.opts = o; R.route = o.airport ? ROUTES.air : ROUTES[o.theme] || ROUTES.lampas;
-    Object.assign(R, { active: true, phase: 'street', t: 0, hp: 100, bumped: 0, wrecked: 0, smart: 0, ambush: 0, over: false });
+    Object.assign(R, { active: true, phase: 'street', t: 0, hp: 100, bumped: 0, wrecked: 0, smart: 0, bonus: 0, ambush: 0, over: false });
     vBase = Math.max(15, ((o.van && o.van.maxV) || 26) * 0.72); Object.assign(veh.k, { vmax: vBase, acc: 7, turn: 1.5, grip: 4.5 }); veh.gripMul = Math.max(0.35, o.grip || 1);
     johanCue = o.johan || null;
     fadeTo(() => {
@@ -186,13 +321,17 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
   }
   function damage(n) { if (R.over) return; n *= (R.opts.van && R.opts.van.dmg) || 1; R.hp = Math.max(0, R.hp - n); if (R.hp <= 0) finish(false, 'OOFMOBIEL KAPOT', 'The van gave up. Freddy Sr. would have had words.'); }
   function crash(speed) { if (!R.active || R.over || R.t - crashT < 0.7) return; crashT = R.t; if (speed > 9) ev('crash'); damage(Math.max(0, speed - 5) * (R.phase === 'ring' ? 0.9 : 1.3)); } // a scrape costs little, a wall at speed a lot
+  function honked() { // Eddy's claxon: at a flitser within earshot it is worth something
+    if (!R.active || R.over || R.phase !== 'ring' || !veh) return; const B = veh.B;
+    for (const c of cams) if (!c.honked && c.x - B.x < 110 && c.x - B.x > -50) { c.honked = true; const b = c.kind === 'bus' ? 30 : 15; R.bonus += b; rant('honk', `+W ${b} claxonbonus`); deps.beep(1047, 0.1, 'triangle', 0.05); if (deps.onHonk) deps.onHonk(c.kind); return; }
+  }
   function giveUp() { if (!R.active || R.over) return; deps.choice('Eddy Jr.', 'Turn the Oofmobiel round and go home? The trip is lost.', ['Omkeren', 'Keep driving'], (i) => { if (i === 0) finish(false, 'OMGEKEERD', 'Back to the warehouse.'); }); }
   function finish(arrived, title, sub) {
     if (R.over) return; R.over = true;
-    const o = R.opts, pay = !arrived ? 0 : o.noPay ? -R.smart : Math.max(0, BASE_PAY + R.wrecked * BOUNTY + Math.max(0, Math.round((PAR - R.t) * 3)) - R.smart);
+    const o = R.opts, pay = !arrived ? 0 : o.noPay ? (R.bonus | 0) - R.smart : Math.max(0, BASE_PAY + R.wrecked * BOUNTY + Math.max(0, Math.round((PAR - R.t) * 3)) - R.smart) + (R.bonus | 0);
     if (arrived) { ev('arrive', { t: R.t, par: PAR, bumped: R.bumped, dents: Math.round(100 - R.hp) }); deps.beep(523, 0.15, 'triangle', 0.06); setTimeout(() => deps.beep(784, 0.3, 'triangle', 0.06), 160); }
     else { ev('fail', { title }); deps.beep(160, 0.3, 'sawtooth', 0.06); }
-    deps.toast(arrived ? 'AANGEKOMEN!' : title, arrived ? `${o.to} in ${fmtT(R.t)} (par ${fmtT(PAR)}). ${o.noPay ? (o.arrived || '') : `Fee W ${BASE_PAY}${R.wrecked ? ` · ${R.wrecked} wrecked +W ${R.wrecked * BOUNTY}` : ''}${R.smart ? ` · boetes −W ${R.smart}` : ''} · total W ${pay}.`}` : sub, 4.5);
+    deps.toast(arrived ? 'AANGEKOMEN!' : title, arrived ? `${o.to} in ${fmtT(R.t)} (par ${fmtT(PAR)}). ${o.noPay ? (o.arrived || '') : `Fee W ${BASE_PAY}${R.wrecked ? ` · ${R.wrecked} wrecked +W ${R.wrecked * BOUNTY}` : ''}${R.smart ? ` · boetes −W ${R.smart}` : ''}${R.bonus ? ` · claxonbonus +W ${R.bonus}` : ''} · total W ${pay}.`}` : sub, 4.5);
     const res = { arrived, pay, time: R.t, wrecked: R.wrecked, bumped: R.bumped };
     setTimeout(() => fadeTo(() => { stop(); if (o.onDone) o.onDone(res); }), arrived ? 900 : 1400);
   }
@@ -200,7 +339,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
     if (!R.active) return;
     R.active = false; R.phase = null; hudEl.style.display = 'none'; document.body.classList.remove('ritting');
     if (deps.fiets.current === veh) { veh.locked = () => false; deps.fiets.dismount(); veh.locked = () => R.active && !R.over; }
-    van.visible = false;
+    van.visible = false; rantEl.style.display = 'none'; if (headPool) headPool.visible = false;
     if (strip) { strip.visible = false; solidsOff(true); }
     deps.setBounds(null); const B = deps.buurt(); if (B) B.clearRoute();
     deps.oof.visible = true; deps.oofSolid.off = false;
@@ -212,6 +351,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
   function update(dt) {
     if (!R.active || R.over || R.phase === 'fade' || !veh || deps.fiets.current !== veh) return;
     R.t += dt; const B = veh.B, sp = Math.abs(B.v);
+    { const n = deps.nightK ? deps.nightK() : 0; headPool.visible = n > 0.3; if (headPool.visible) { headPool.position.set(B.x + Math.sin(B.h) * 9, 0.09, B.z + Math.cos(B.h) * 9); headPool.rotation.y = B.h - Math.PI / 2; } } // the van's headlights on the road
     if (R.phase === 'street') {
       if (B.x >= deps.exit.x - 3 && Math.abs(B.z - deps.RC) < 6) toRing();
       else if (johanCue && R.t > 6 && B.x > 30 && sp < 1.2 && !state.inDialogue) { const c = johanCue; johanCue = null; if (c.onMeet) c.onMeet(() => {}); } // Johan pulls up when Eddy stops
@@ -232,9 +372,15 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
         if (Math.abs(B.z - p.z) > 1.2) B.z += Math.sign(B.z - p.z) * 6 * dt; else if (behind) { B.v = Math.min(B.v, c.vv - 1.5); B.x = Math.min(B.x, p.x - c.half - 2.35); } else { c.vv = Math.min(c.vv, B.v - 1.5); p.x = Math.min(p.x, B.x - c.half - 2.35); }
       }
     }
-    // the flitspaal
-    if (!R.flashed && B.x > X0 + 520 && B.x < X0 + 545) { R.flashed = true; if (sp > FLITS) { R.smart += FINE; R.bumped++; flash.material.opacity = 0.9; deps.toast('FLITS!', `${Math.round(sp * 3.6)} km/u where 120 is allowed. −W ${FINE}, and a photo of you looking guilty.`, 2.6); deps.beep(1400, 0.05, 'square', 0.05); } }
+    // the flitsers: Eddy sees one and says so; too fast past it and it flashes
+    for (const c of cams) { const d = c.x - B.x;
+      if (!c.seen && d > 0 && d < 140) { c.seen = true; rant('see'); }
+      if (!c.done && d < 0) { c.done = true; if (sp > FLITS) { const fine = c.kind === 'bus' ? FINE + 15 : FINE; R.smart += fine; R.bumped++; flash.position.x = c.x; flash.material.opacity = 0.9; deps.toast('FLITS!', `${Math.round(sp * 3.6)} km/u where 120 is allowed. −W ${fine}, and a photo of you looking guilty.`, 2.6); deps.beep(1400, 0.05, 'square', 0.05); } } }
     if (flash.material.opacity > 0) flash.material.opacity = Math.max(0, flash.material.opacity - dt * 4);
+    if (rantT > 0 && (rantT -= dt) <= 0) rantEl.style.display = 'none';
+    for (const f of far) { f.g.position.x -= f.v * dt; if (f.g.position.x < B.x - 160) f.g.position.x = B.x + 330 + Math.random() * 120; else if (f.g.position.x > B.x + 520) f.g.position.x = B.x + 300; }
+    for (const h of spinners) h.rotation.x += dt * 1.1;
+    { const n = deps.nightK ? deps.nightK() : 0; lampPool.visible = n > 0.05; lampPool.material.opacity = 0.5 * n; }
     // the gang: past half-way two of their cars come up from behind and ram
     const o = R.opts;
     if (!R.ambush && B.x > X0 + LEN * 0.42) {
@@ -258,5 +404,5 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
     if (Math.hypot(B.x - PARK.x, B.z - PARK.z) < 3.6 && sp < 2.8) { finish(true); return; }
     hud();
   }
-  return { start, stop, update, crash, giveUp, get active() { return R.active; }, get phase() { return R.phase; }, get run() { return R; }, vehicle: () => veh, X0, Z0, LEN, PAR, PARK, ROUTES };
+  return { honked, cams, start, stop, update, crash, giveUp, get active() { return R.active; }, get phase() { return R.phase; }, get run() { return R; }, vehicle: () => veh, X0, Z0, LEN, PAR, PARK, ROUTES };
 }

@@ -11,7 +11,7 @@ const ROWS = [ // [key, label, format]
   ['raids', 'Raids won', num], ['sGrades', 'S grades', num], ['kos', 'Fights won (knock-outs)', num], ['heists', 'Nachtklussen pulled off', num],
   ['klusjes', 'Klusjes for shopkeepers', num], ['vaste', 'Vaste-klant orders served', num], ['stam', 'Stamklanten served', num], ['haggles', 'Deals haggled', num], ['goals', "Shooki's goals done", num], ['streak', 'Longest goal streak (days)', num],
   ['walked', 'Walked', (n) => (n / 1000).toFixed(1) + ' km'], ['biked', 'Cycled', (n) => (n / 1000).toFixed(1) + ' km'], ['driven', 'Driven in borrowed cars', (n) => (n / 1000).toFixed(1) + ' km'],
-  ['borrowed', 'Cars borrowed', num], ['chases', 'Police chases', num], ['escapes', 'Times you shook them off', num], ['arrests', 'Times arrested', num], ['fines', 'Fines paid', fmt], ['billsPaid', 'Weeks of bills paid', num],
+  ['flitsers', 'Flitsers given the claxon', num], ['borrowed', 'Cars borrowed', num], ['chases', 'Police chases', num], ['escapes', 'Times you shook them off', num], ['arrests', 'Times arrested', num], ['fines', 'Fines paid', fmt], ['billsPaid', 'Weeks of bills paid', num],
 ];
 export const ACH = [
   { id: 'eerste', name: 'Eerste klant', desc: 'Deliver your first order.', w: 50, t: (n) => n.deliveries >= 1 },
@@ -32,6 +32,7 @@ export const ACH = [
   { id: 'wandel', name: 'Vierdaagse', desc: 'Walk 10 km.', w: 100, t: (n) => n.walked >= 10000 },
   { id: 'fiets', name: 'Echte Kaaslander', desc: 'Cycle 5 km.', w: 100, t: (n) => n.biked >= 5000 },
   { id: 'joyride', name: 'Even lenen', desc: 'Borrow a car.', w: 0, t: (n) => n.borrowed >= 1 },
+  { id: 'toeter', name: 'Groeten van Eddy', desc: 'Sound the claxon at 10 flitsers.', w: 150, t: (n) => n.flitsers >= 10 },
   { id: 'ontsnapt', name: 'Kwijt!', desc: 'Shake off the police.', w: 100, t: (n) => n.escapes >= 1 },
   { id: 'boef', name: 'Bekende van de politie', desc: 'Get arrested three times.', w: 0, t: (n) => n.arrests >= 3 },
   { id: 'eenvanons', name: 'Een van ons', desc: 'Reach "Een van ons" in a buurt.', w: 300, t: (n, c) => c.maxRep() >= 70 },
