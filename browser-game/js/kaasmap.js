@@ -97,6 +97,7 @@ export function createKaasMap() {
 <rect x="-3000" y="-3000" width="${W + 6000}" height="${H + 6000}" fill="#94c9d7"/>
 <image class="km-air" href="${aerialURL || ''}" width="${W}" height="${H}" ${aerialURL ? '' : 'style="opacity:0"'}/>
 <g class="km-locks">${ACTS.filter((a) => !openAct(a.r)).map((a) => (a.r === 'fin' ? `<ellipse cx="${ISLAND.cx}" cy="${ISLAND.cy}" rx="${ISLAND.rx}" ry="${ISLAND.ry}"/>` : `<path d="${path(REGIONS[a.r])}"/>`)).join('')}</g>
+<g class="km-snelweg">${G.HIGHWAYS.map((h) => h.shields.map(([x, y]) => `<g transform="translate(${x},${y})"><rect x="-19" y="-10" width="38" height="20" rx="4.5" fill="#c8102e" stroke="#fff" stroke-width="1.8"/><text y="5" text-anchor="middle" font-size="13.5" font-weight="900" font-family="Arial, sans-serif" fill="#fff">${h.id}</text></g>`).join('')).join('')}</g>
 <g class="km-roadnames">${ROAD_LABELS.map(([n], i) => `<text dy="3.4"><textPath href="#kmRd${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
 <g class="km-canalnames">${CANAL_NAMES.map((n, i) => `<text dy="3.4"><textPath href="#kmCn${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
 <text class="km-water"><textPath href="#kmRiver" startOffset="50%" text-anchor="middle">D e   K a a s</textPath></text>

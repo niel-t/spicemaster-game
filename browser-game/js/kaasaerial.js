@@ -7,7 +7,7 @@
 import * as G from './kaasgeo.js';
 import { topBoat } from './boat2d.js';
 
-const { W, H, C0, polar, arc, RIVER, ISLAND, CANALS, BASINS, MARINA, SLOOT, YARDS, SILOS, PARKS, FIELDS, REGIONS, ROADS, HOME, KASBAH, SOUK, AIRPORT, inPoly } = G;
+const { W, H, C0, polar, arc, RIVER, ISLAND, CANALS, BASINS, MARINA, SLOOT, YARDS, SILOS, PARKS, FIELDS, REGIONS, ROADS, HOME, KASBAH, SOUK, AIRPORT, HIGHWAYS, inPoly } = G;
 const DUNE = [40, 506, 42, 26]; // a sand lot at the edge of De Zandwijk
 
 const PAL = {
@@ -92,6 +92,7 @@ export function paintKaasland({ R = 2.5, still = false } = {}) {
   m.fillRect(AIRPORT.x - 2, AIRPORT.y - 2, AIRPORT.w + 4, AIRPORT.h + 4); // Schiptagat
   for (const s of streets) { trace(m, s.pts, false); m.lineWidth = s.w + (s.region === 'nosh' ? 6 : s.region === 'abd' ? 3 : s.region === 'start' ? 2.2 : s.region === 'para' ? 0.6 : 1); m.stroke(); }
   for (const r of ROADS) { trace(m, r.pts, false); m.lineWidth = r.ring ? 10 : 8; m.stroke(); }
+  for (const h of HIGHWAYS) { trace(m, h.pts, !!h.ring); m.lineWidth = 15; m.stroke(); } // nothing is built on a snelweg
   m.beginPath(); m.arc(600, 352, 15, 0, 7); m.fill(); // the market square
   m.beginPath(); m.arc(SILOS[0], SILOS[1], 16, 0, 7); m.fill();
   m.save(); m.translate(HOME[0], HOME[1]); m.rotate(-12 * Math.PI / 180); m.fillRect(-12, -9, 24, 18); m.restore(); // the warehouse
@@ -173,6 +174,10 @@ export function paintKaasland({ R = 2.5, still = false } = {}) {
   for (const r of ROADS) { trace(ctx, r.pts, false); ctx.strokeStyle = r.bridge ? '#a89a80' : PAL.mainCase; ctx.lineWidth = r.ring ? 8.2 : 6.6; ctx.stroke(); }
   for (const r of ROADS) { trace(ctx, r.pts, false); ctx.strokeStyle = PAL.main; ctx.lineWidth = r.ring ? 6.6 : 5; ctx.stroke(); }
   ctx.setLineDash([2.2, 2.2]); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 0.45; for (const r of ROADS.filter((x) => x.ring)) { trace(ctx, r.pts, false); ctx.stroke(); } ctx.setLineDash([]);
+  // the snelwegen: a green verge, a dark casing, two carriageways in motorway orange-red with the middenberm between them
+  ctx.lineJoin = ctx.lineCap = 'round';
+  for (const [col, w] of [['rgba(60,90,50,.35)', 15], ['#6a2a1e', 9.4], ['#e8643a', 7.6], ['#f6e9c8', 1.5], ['#e8643a', 0]]) if (w) for (const h of HIGHWAYS) { trace(ctx, h.pts, !!h.ring); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.stroke(); }
+  for (const h of HIGHWAYS) if (!h.ring) { const [x, y] = h.pts[0]; ctx.fillStyle = '#6a2a1e'; ctx.beginPath(); ctx.arc(x, y, 7.2, 0, 7); ctx.fill(); ctx.fillStyle = '#e8643a'; ctx.beginPath(); ctx.arc(x, y, 5.6, 0, 7); ctx.fill(); } // a knooppunt where a motorway leaves the ring
 
   // ---- buildings, lot by lot along the streets
   const palm = (x, y, r) => { // a date palm from above: fronds around a dark crown

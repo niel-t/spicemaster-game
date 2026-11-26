@@ -83,6 +83,18 @@ export const ROADS = [
   R('re', 'd1', 'Kadeweg'), R('d1', 'd2', 'Containerweg'), R('d2', 'd3', 'Havenstraat'), R('d2', 'd4', 'Containerweg'), R('rse', 'd5', 'Dokweg'), R('d5', 'd2', 'Dokweg'),
 ].map((r) => ({ ...r, pts: r.ring ? arc(r.ring[0], r.ring[1], RING_R, 4) : [NODES[r.a].slice(0, 2), ...(r.via || []), NODES[r.b].slice(0, 2)] }));
 
+// the snelwegen (2026-11-26), after Amsterdam's: the A10 ring round the whole city and the motorways that leave it.
+// js/rit.js drives them (the A8 for Hipsterheuvel, the A1 for the docks, the A5 for De Zandwijk, the A4 for Schiptagat,
+// afrit S100 of the ring for Oud-Vettenburg); the painter and the map draw them here. shield: where the number sits.
+export const HIGHWAYS = [
+  { id: 'A10', ring: true, pts: [[120, 118], [330, 48], [620, 30], [900, 40], [1120, 96], [1190, 220], [1192, 470], [1130, 640], [990, 722], [820, 742], [700, 690], [600, 668], [470, 670], [380, 690], [300, 722], [190, 742], [70, 690], [30, 560], [24, 400], [40, 240]], shields: [[470, 38], [1192, 345], [905, 734], [27, 480]] },
+  { id: 'A8', pts: [[620, 30], [632, 8], [640, -30]], shields: [[658, 14]] },
+  { id: 'A1', pts: [[1192, 470], [1206, 500], [1240, 520]], shields: [[1178, 512]] },
+  { id: 'A2', pts: [[820, 742], [832, 775], [838, 830]], shields: [[852, 778]] },
+  { id: 'A4', pts: [[600, 668], [588, 700], [578, 740], [570, 780], [560, 830]], shields: [[562, 752]] },
+  { id: 'A9', pts: [[572, 772], [470, 790], [360, 800], [250, 830]], shields: [[420, 786]] },
+  { id: 'A5', pts: [[24, 400], [6, 392], [-30, 380]], shields: [[22, 372]] },
+];
 export function inPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 export const regionOf = (x, y) => (inPoly(x, y, RIVER) ? 'water' : Object.keys(REGIONS).find((r) => inPoly(x, y, REGIONS[r])) || 'start');
 export function bboxOf(r) {

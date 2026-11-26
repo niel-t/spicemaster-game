@@ -3,8 +3,8 @@
 //   1. De straat: Eddy pulls out of his parking at the warehouse and drives the home street east, through Kroketkade,
 //      to the oprit (the yellow light and the arrow on the screen edge point the way).
 //   2. De snelweg: Kaasland has Amsterdam's motorways. Every trip starts on the A10 ring and turns onto the motorway
-//      for its district: the A4 for Schiptagat airport, the A1 for Oud-Vettenburg, the A8 for Hipsterheuvel, the A5
-//      for the docks, the A9 for De Zandwijk. Three lanes, a vluchtstrook, blue ANWB signs on gantries, trucks on the
+//      for its district, as on the map (js/kaasgeo.js HIGHWAYS): the A4 for Schiptagat airport, the A8 for Hipsterheuvel, the A1
+//      for the docks, the A5 for De Zandwijk, and afrit S100 of the ring itself for Oud-Vettenburg. Three lanes, a vluchtstrook, blue ANWB signs on gantries, trucks on the
 //      right, fast cars on the left, wegwerkzaamheden that close a lane, a flitspaal, and past half-way a rival gang's
 //      cars that ram the van: lead them into the roadworks or a truck and they wreck (a bounty).
 //   3. Take the afrit on the right and park in the yellow ring: the raid, the delivery or the pick-up starts.
@@ -20,10 +20,10 @@ const W_ = 0xf4f2ec;
 const fmtT = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 // where each trip goes: the motorway, the afrit number, the towns on the signs, the land beside the road
 export const ROUTES = {
-  lampas: { a: 'A1', afrit: 3, via: 'Kaasfoort', other: ['A2', 'Uitkaas'], gang: 'Lampas', props: 'brick', ground: 0x7a8a5a },
+  lampas: { a: 'A10', afrit: 'S100', via: 'Centrum', other: ['A2', 'Uitkaas'], gang: 'Lampas', props: 'brick', ground: 0x7a8a5a },
   nosh: { a: 'A8', afrit: 2, via: 'Kaasdam', other: ['A7', 'Purmerkaas'], gang: 'Noshgey Kariot', props: 'hip', ground: 0x7a9a5a },
-  docks: { a: 'A5', afrit: 4, via: 'Westpoort', other: ['A9', 'Haarlemmerkaas'], gang: 'Abdavissies', props: 'docks', ground: 0x6a6e72 },
-  sand: { a: 'A9', afrit: 7, via: 'Haarlemmerkaas', other: ['A5', 'Westpoort'], gang: 'Paravim', props: 'sand', ground: 0xd8b878 },
+  docks: { a: 'A1', afrit: 4, via: 'Kaasfoort', other: ['A2', 'Uitkaas'], gang: 'Abdavissies', props: 'docks', ground: 0x6a6e72 },
+  sand: { a: 'A5', afrit: 7, via: 'Haarlemmerkaas', other: ['A8', 'Kaasdam'], gang: 'Paravim', props: 'sand', ground: 0xd8b878 },
   air: { a: 'A4', afrit: 2, via: 'Den Kaas', other: ['A9', 'Kaasstelveen'], gang: '', props: 'air', ground: 0x7a9a5a },
 };
 
@@ -52,7 +52,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
   function hud() {
     const o = R.opts, rt = R.route, kmh = Math.round(Math.abs(veh.B.v) * 3.6);
     const where = R.phase === 'street' ? `oprit <span class="an">A10</span> ${Math.max(0, Math.round(deps.exit.x - veh.B.x))} m`
-      : veh.B.x < X0 + LEN * 0.4 ? `<span class="an">A10</span> ring → <span class="an">${rt.a}</span>` : `<span class="an">${rt.a}</span> afrit ${rt.afrit} ${o.to} ${Math.max(0, Math.round(X0 + EXIT0 - veh.B.x))} m`;
+      : veh.B.x < X0 + LEN * 0.4 && rt.a !== 'A10' ? `<span class="an">A10</span> ring → <span class="an">${rt.a}</span>` : `<span class="an">${rt.a}</span> afrit ${rt.afrit} ${o.to} ${Math.max(0, Math.round(X0 + EXIT0 - veh.B.x))} m`;
     const h = `<b>${o.from} → ${o.to}</b><br>${fmtT(R.t)} <small>(par ${fmtT(PAR)})</small> · <b>${kmh} km/u</b> · ${where}<div class="bar"><i style="width:${R.hp}%;background:${R.hp > 60 ? '#6ed36e' : R.hp > 30 ? '#ffd36b' : '#ff4a4a'}"></i></div><small>Oofmobiel ${Math.round(R.hp)}%${R.smart ? ` · boetes W ${R.smart}` : ''}${R.wrecked ? ` · ${R.wrecked} wrecked` : ''}</small><br><button>Omkeren (give up)</button>`;
     if (h !== hudKey) { hudEl.innerHTML = h; hudKey = h; }
   }
@@ -167,7 +167,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
       deps.fiets.mount(veh); document.body.classList.add('ritting'); hudEl.style.display = 'block'; crashT = 0;
       { const hint = document.querySelector('#fts .hint'); if (hint) hint.innerHTML = '<b>W</b> gas · <b>S</b> remmen / achteruit · <b>A</b><b>D</b> sturen · <b>H</b> claxon'; }
       const B = deps.buurt(); if (B) B.setPoint(deps.exit.x, deps.exit.z, 'oprit A10');
-      deps.toast(`${o.from} → ${o.to}`, `Pull out and drive <b>east</b> down the street to the oprit of the <b>A10</b>, then the <b>${R.route.a}</b>, afrit ${R.route.afrit}.${o.mission ? ' ' + o.mission : ''}`, 4.8);
+      deps.toast(`${o.from} → ${o.to}`, `Pull out and drive <b>east</b> down the street to the oprit of the <b>A10</b>, ${R.route.a === 'A10' ? '' : `then the <b>${R.route.a}</b>, `}afrit ${R.route.afrit}.${o.mission ? ' ' + o.mission : ''}`, 4.8);
       deps.snapCam(); ev('start', { to: o.to });
     });
     return true;
@@ -181,7 +181,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
       deps.setBounds({ x0: X0 - 6, x1: X0 + LEN + 19, z0: NEDGE + 1.0, z1: SEDGE + 25.5 });
       const B = deps.buurt(); if (B) B.setPoint(PARK.x, PARK.z, o.to);
       R.phase = 'ring'; deps.snapCam();
-      deps.toast(`A10 → ${R.route.a}`, `${o.to}: afrit ${R.route.afrit}, on the right at the end. Trucks keep right, the works close a lane, and there is a flitspaal at 120.`, 4);
+      deps.toast(R.route.a === 'A10' ? 'A10 RING' : `A10 → ${R.route.a}`, `${o.to}: afrit ${R.route.afrit}, on the right at the end. Trucks keep right, the works close a lane, and there is a flitspaal at 120.`, 4);
     });
   }
   function damage(n) { if (R.over) return; n *= (R.opts.van && R.opts.van.dmg) || 1; R.hp = Math.max(0, R.hp - n); if (R.hp <= 0) finish(false, 'OOFMOBIEL KAPOT', 'The van gave up. Freddy Sr. would have had words.'); }
