@@ -1,6 +1,6 @@
 // Johan: Eddy's childhood friend who sold him out. The worst of it was The Letter: everything that is wrong with Eddy,
 // in bullet points, and point 3 was the forklift. Two moments:
-//  1. Early game, on a drive in the Oofmobiel (js/drive.js asks driveCue()), Johan's red Mazda Miata overtakes the van,
+//  1. Early game, on a drive in the Oofmobiel (js/rit.js asks driveCue()), Johan's red Mazda Miata overtakes the van,
 //     cuts in front and brakes. "How's business? Got a forklift yet?" He hasn't. Johan laughs and roars off.
 //  2. Once Eddy owns De Hal and the Heftruck (js/loods.js), Johan parks his Miata in the hall to have a look.
 //     Eddy drives the heftruck at it, slides the forks under, lifts it and flips it onto its roof. Point 3: crossed off.
@@ -79,7 +79,7 @@ export function createJohan(deps) {
     letterEl.onclick = () => { letterEl.style.display = 'none'; state.inDialogue = false; if (done) done(); };
   }
 
-  // ------------------------------------------------------------------ 1. the Miata on the road (js/drive.js)
+  // ------------------------------------------------------------------ 1. the Miata on the road (js/rit.js)
   // driveCue(): handed to every drive. Early game only (no heftruck yet, Act 1 not done): a chance per drive, sure by the third.
   function driveCue() {
     const j = S();

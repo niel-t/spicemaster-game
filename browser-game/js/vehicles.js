@@ -1,5 +1,5 @@
 // Shared vehicle models: the Oofmobiel and the street cars, used by the hub (main.js), the missions (through main.js'
-// car() and the van clone) and the top-down drive (drive.js). Physically based paint, glass, rubber and chrome, so
+// car() and the van clone) and the drive (js/rit.js). Physically based paint, glass, rubber and chrome, so
 // they pick up the scene's environment map.
 //
 //   makeOofmobiel(THREE, canvasTex)          → Group, nose towards local +z, wheels on y = 0

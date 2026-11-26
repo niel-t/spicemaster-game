@@ -174,13 +174,14 @@ body.riding #dstrip{display:none!important}
   const V = new deps.THREE.Vector3();
   function arrow() {
     const B = deps.buurt(), r = B && B.route;
-    if (!r || deps.blocked() || state.inPC || deps.indoors()) { if (wa.style.display !== 'none') wa.style.display = 'none'; return; }
+    const trip = deps.arrowOk && deps.arrowOk(); // on a drive (js/rit.js) the arrow is the sat-nav
+    if (!r || state.inPC || (!trip && (deps.blocked() || deps.indoors()))) { if (wa.style.display !== 'none') wa.style.display = 'none'; return; }
     V.set(r.x, 1, r.z).project(deps.camera); let x = (V.x + 1) / 2 * innerWidth, y = (1 - V.y) / 2 * innerHeight; const behind = V.z > 1;
     const onScreen = !behind && x > 30 && x < innerWidth - 30 && y > 30 && y < innerHeight - 30;
     if (onScreen) { wa.style.display = 'none'; return; }
     const cx = innerWidth / 2, cy = innerHeight / 2; let dx = x - cx, dy = y - cy; if (behind) { dx = -dx; dy = -dy; }
     const k = Math.min((innerWidth / 2 - 46) / Math.abs(dx || 1e-3), (innerHeight / 2 - 60) / Math.abs(dy || 1e-3));
-    wa.style.left = (cx + dx * k) + 'px'; wa.style.top = (cy + dy * k) + 'px'; wa.style.display = 'block';
+    wa.style.left = (cx + dx * k) + 'px'; wa.style.top = Math.max(trip ? (innerWidth < 600 ? 150 : 60) : 0, cy + dy * k) + 'px'; wa.style.display = 'block'; // clear of the trip card
     wa.querySelector('.wa').style.transform = `rotate(${Math.atan2(dx, -dy)}rad)`;
     const d = Math.round(Math.hypot(deps.player.position.x - r.x, deps.player.position.z - r.z)); wa.querySelector('small').textContent = `${r.name || ''} ${d} m`;
   }

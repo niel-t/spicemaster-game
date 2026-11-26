@@ -17,7 +17,7 @@ import { createWoning } from './woning.js'; // Eddy's homes, furniture, morning 
 import { makeOofmobiel, makeKangoo, makeCar, setLivery } from './vehicles.js';
 import { makeSloep, makeTourBoat, makeArk, makeBarge, rockBoat, PAL } from './boats.js'; // canal boats: sloep, rondvaartboot, woonark, tjalk
 import { signFace } from './livery.js'; // the warehouse sign follows the van's brand // shared van and street cars
-import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
+import { createRit } from './rit.js'; // every drive in the Oofmobiel, in 3D: the home street, then the ring road to the district
 import { createEconomy, rankOf, CLIENTS, BLENDS } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
 import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
@@ -239,7 +239,8 @@ const RC = 1.6;
 // the street runs east-west from -SX to SX (was ±70; made longer 2026-11-24 for Club Monique in the west and Tryshtahn's showroom in the east)
 const SX = 100, SXK = SX / 70; // half length, and how much longer the tiled textures repeat
 const WALK = { x0: -70, x1: 84 }; // how far Eddy can walk along it (js/roam.js stretches it once the buurten open)
-const lifeWin = (m = 100) => { const lo = Math.max(WALK.x0 - 4, player.position.x - m), hi = Math.min(WALK.x1 + 4, player.position.x + m); return WALK.x0 > -80 ? [-(SX - 2), SX - 2] : [lo, hi]; }; // traffic, bikes and walkers stay within ~100 m of Eddy; on the home street alone it is the old ±SX
+let lifeLast = [-(SX - 2), SX - 2];
+const lifeWin = (m = 100) => { if (BOUNDS.cur) return lifeLast; const lo = Math.max(WALK.x0 - 4, player.position.x - m), hi = Math.min(WALK.x1 + 4, player.position.x + m); return (lifeLast = WALK.x0 > -80 ? [-(SX - 2), SX - 2] : [lo, hi]); }; // traffic, bikes and walkers stay within ~100 m of Eddy; on the home street alone it is the old ±SX
 const ROAD = { pN: RC - 5.0, lane: 3.0, pS: RC + 5.0, bike0: RC + 5.2, bike1: RC + 7.6, walk1: RC + 10.9 };
 const CZ = 15 + RC;
 // across the canal: the even side of the Kipkruidengracht. The houses stand back from the water, a klinker quay runs in front of them,
@@ -964,7 +965,7 @@ for (const rx of [-24, 4, 30]) for (let i = 0; i < 5; i++) {
 }
 const oof = new THREE.Group(); oof.position.set(BAYS.oof, 0, -11.4); oof.rotation.y = -Math.PI / 2; scene.add(oof);
 { const v = makeOofmobiel(THREE, canvasTex); v.rotation.y = Math.PI / 2; oof.add(v); } // nose along the group's +x, as before
-solid(oof.position.x - 1.15, oof.position.x + 1.15, oof.position.z - 3.0, oof.position.z + 3.3);
+const oofSolid = solid(oof.position.x - 1.15, oof.position.x + 1.15, oof.position.z - 3.0, oof.position.z + 3.3); // off while the van is out on a trip (js/rit.js)
 // Shooki's Renault Kangoo: parked next to the Oofmobiel once Kipkruidenkwartier is Eddy's (Shooki runs the errands in it)
 const kangoo = (() => {
   const g = makeKangoo(THREE, canvasTex, { plate: 'SH-00-KI', livery: 'shooki' });
@@ -1666,7 +1667,7 @@ function renderPC() {
 // Each territory is a mission (js/levels/*.js). Spekbuurt opens the other two; owning all three clears the district.
 const D1 = [['Spekbuurt', 'spekbuurt', 1], ['Kroketkade', 'kroketkade', 2], ['Uitjesbuurt', 'uitjesbuurt', 3]];
 // Act 1: Oud-Vettenburg, the Lampas heartland. One mission per territory (plan: Frietwijk first, then the rest, Pindasausplein last).
-// [name, level id, mission number, unlocked(), drive target]; reached by the top-down Oofmobiel drive (js/drive.js), which starts the mission on arrival.
+// [name, level id, mission number, unlocked(), drive target]; reached by the Oofmobiel drive (js/rit.js), which starts the mission on arrival.
 const LAMPAS = [['Frietwijk', 'frietwijk', 1, () => !!state.district1], ['Sauzenbuurt', 'sauzenbuurt', 2, () => owns('frietwijk'), [0, 6]], ['Knoflooksteeg', 'knoflooksteeg', 3, () => owns('frietwijk'), [2, 7]],
   ['Mayonaisemarkt', 'mayonaisemarkt', 4, () => owns('frietwijk'), [3, 9]], ['Halve Kip Plein', 'halvekipplein', 5, () => ['sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt'].filter(owns).length >= 2, [3, 6]],
   ['Bitterbalbuurt', 'bitterbalbuurt', 6, () => ['sauzenbuurt', 'knoflooksteeg', 'mayonaisemarkt'].filter(owns).length >= 2, [5, 7]],
@@ -2060,7 +2061,10 @@ function showPrompt(it) {
   if (ok) { const w = ui.prompt.offsetWidth, cx = Math.max(w / 2 + 8, Math.min(innerWidth - w / 2 - 8, x)); ui.prompt.style.left = cx + 'px'; ui.prompt.style.top = y + 'px'; ui.prompt.style.setProperty('--tail', (x - cx) + 'px'); }
   else { ui.prompt.style.left = ui.prompt.style.top = ''; }
 }
-ui.prompt.addEventListener('click', (e) => { e.stopPropagation(); if (current && !state.inDialogue && !state.inPC && !choiceOpen) current.act(); });
+ui.prompt.addEventListener('click', (e) => { e.stopPropagation(); if (current && !state.inDialogue && !state.inPC && !choiceOpen && !(fiets && fiets.riding())) current.act(); });
+// in a car the camera looks where it is going: up to 9 m ahead at speed
+let driveZoom = 1, chaseH = Math.PI;
+const driveFocus = () => { const p = player.position.clone(), v = fiets && fiets.current; if (v && v.kind === 'car') { const sp = Math.min(6.5, Math.abs(v.B.v) * 0.36) * Math.sign(v.B.v || 1); p.x += Math.sin(v.B.h) * sp; p.z += Math.cos(v.B.h) * sp; } return p; };
 const roomCam = () => (woning && woning.inside() ? woning : winkels && winkels.inside() ? winkels : null); // rooms frame the camera themselves
 function skipHiddenMatrices() {
   for (const c of scene.children) {
@@ -2193,7 +2197,7 @@ addEventListener('wheel', (e) => { if (!state.inPC) zoom = Math.max(0.6, Math.mi
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
 canvas.addEventListener('pointerdown', (e) => {
   if (state.inDialogue) { nextLine(); return; }
-  if (state.inPC) return;
+  if (state.inPC || (fiets && fiets.riding())) return;
   mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
   for (const it of inter) {
@@ -2348,11 +2352,11 @@ for (let i = 0; i < 20; i++) {
 }
 // Kaasland leeft (js/kaasweer.js): weekdays, seasons, weather on the street and in the trade, Krant voor het Kaasvolk
 world = createKaasweer({ ad: (d) => (buurt ? buurt.paperAd(d) : ''), THREE, state, scene, hemi, sun, walkers, wetMats, econ, day: () => econ.ensure().day, rank: () => rankNow(), active: () => state.step === 'free',
-  busy: () => !!(mission.active || oofDrive.active), thunder: () => { beep(42, 1.1, 'sawtooth', 0.035); setTimeout(() => beep(31, 1.4, 'triangle', 0.05), 120); },
+  busy: () => !!mission.active, thunder: () => { beep(42, 1.1, 'sawtooth', 0.035); setTimeout(() => beep(31, 1.4, 'triangle', 0.05), 120); },
   onApply: (w, c, tod) => { if (state.step === 'free' && !['zon', 'bewolkt'].includes(w.id)) tips.show('weer');
     const n = tod ? tod.n : 0; lampHeadMat.emissive.setHex(0x806a30).multiplyScalar(1 + 3.2 * n); lampPools.visible = n > 0.05; lampPools.material.opacity = 0.42 * n; oldGlassLit.emissiveIntensity = 0.3 + 1.0 * n; shopLit.emissiveIntensity = 0.16 + 0.9 * n; } }); // lamps and windows come on at dusk (js/klok.js)
 buurt = createBuurt({ far: FAR, bridges: BRIDGES, canal: [CZ - 3.75, CZ + 3.75], THREE, scene, state, player, world: () => world, z: ROAD.walk1 - 0.6, rc: RC, walk: WALK, houses: () => streetHouses, solid, addInteract, choice, toast, beep, tip: (k) => tips.show(k),
-  busy: () => !!(mission.active || oofDrive.active), indoors: () => isInside(player.position) || !!(winkels && winkels.inside()) || !!(woning && woning.inside()) || !!(venues && venues.inside()) });
+  busy: () => !!mission.active, indoors: () => isInside(player.position) || !!(winkels && winkels.inside()) || !!(woning && woning.inside()) || !!(venues && venues.inside()) });
 bfolk = createBuurtFolk({ openNow: (id, days, wd) => (klok ? klok.openNow(id, days, wd) : true), serve: (f) => { if (vandaag) vandaag.note('talk'); return winkels ? winkels.serve(f) : false; }, scene, player, far: FAR, world: () => world, addInteract, dialogue, makePerson: (look, scale) => makePerson({ ps2: look, scale }), animate: (p, dt) => animate(p, 0, dt), busy: () => !!(mission.active || oofDrive.active) });
 winkels = createWinkels({ openNow: (id, days, wd) => (klok ? klok.openNow(id, days, wd) : true), hoursText: (id) => (klok ? klok.hoursText(id) : ''), THREE, scene, player, state, econ, world: () => world, bfolk: () => bfolk, BIZ, box, cyl, lam, canvasTex, signTex, solid, addInteract, dialogue, choice, toast, beep, addMoney,
   save: () => writeSave(), busy: () => !!(mission.active || oofDrive.active), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), chat: (f) => bfolk.chat(f),
@@ -3082,7 +3086,7 @@ function updateStreet(dt) {
         u.blocked = 0; moving = true;
         w.position.x += u.v * u.dir * dt; w.position.z += (lane - w.position.z) * Math.min(1, dt * 2);
         w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-        { const lo = Math.max(WALK.x0 + 6, P.x - 84), hi = Math.min(WALK.x1 - 6, P.x + 84); // they turn at the ends of the street, or 84 m from Eddy, and catch up when he has walked on
+        if (!BOUNDS.cur) { const lo = Math.max(WALK.x0 + 6, P.x - 84), hi = Math.min(WALK.x1 - 6, P.x + 84); // they turn at the ends of the street, or 84 m from Eddy, and catch up when he has walked on
           if (u.dir > 0 ? w.position.x > hi : w.position.x < lo) { if (w.position.x > hi + 30 || w.position.x < lo - 30) w.position.x = w.position.x > hi ? hi - 2 : lo + 2; u.dir *= -1; u.wait = 0.5 + Math.random(); } }
       }
     }
@@ -3118,12 +3122,13 @@ const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let incomeT = 0, lastStep = state.step, titleSkip = 0;
 function tick() {
   autoQ.tick(performance.now(), isPaused() || state.step === 'title');
-  if (isPaused()) { clock.getDelta(); if (oofDrive.active) post.render(oofDrive.scene, oofDrive.camera); else post.render(scene, camera); balloons.sync(oofDrive.active ? oofDrive.scene : scene, oofDrive.active ? oofDrive.camera : camera); requestAnimationFrame(tick); return; }
-  if (oofDrive.active) { const ddt = Math.min(clock.getDelta(), 0.05); oofDrive.update(ddt); if (freddy) freddy.tick(ddt); post.render(oofDrive.scene, oofDrive.camera); balloons.sync(oofDrive.scene, oofDrive.camera); requestAnimationFrame(tick); return; }
+  if (isPaused()) { clock.getDelta(); post.render(scene, camera); balloons.sync(scene, camera); requestAnimationFrame(tick); return; }
+  // (the drive is part of this world now: js/rit.js runs below, with everything else)
   if (state.step !== lastStep) { lastStep = state.step; writeSave(); }
   let dt = Math.min(clock.getDelta(), 0.05);
   if (mission && mission.active) dt = mission.hitstop(dt); // Neon Vice hitstop on kills
   const riding = !!(fiets && !(mission && mission.active) && fiets.update(dt)); // on the omafiets: js/bikes.js moves Eddy
+  if (oofDrive.active) oofDrive.update(dt);
   if (stats && state.step === 'free' && !riding && !(mission && mission.active)) { const wd = Math.hypot(player.position.x - walkFrom.x, player.position.z - walkFrom.z); if (wd > 0.001 && wd < 1) stats.add('walked', wd); } walkFrom.x = player.position.x; walkFrom.z = player.position.z;
   // movement (screen-relative: camera looks north)
   let mx = 0, mz = 0;
@@ -3234,11 +3239,16 @@ function tick() {
     const score = d - (d > 0.05 ? (dx * fx + dz * fz) / d : 1) * 0.6; // two things in reach: the one Eddy faces wins
     if (score < best) { best = score; current = it; }
   }
-  if (current && !state.inDialogue && !state.inPC && state.step !== 'title') { showPrompt(current); }
+  if (current && !state.inDialogue && !state.inPC && state.step !== 'title' && !(fiets && fiets.riding())) { showPrompt(current); }
   else { ui.prompt.style.display = 'none'; promptFor = null; }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) ui.toast.style.display = 'none'; }
   // camera: Neon Vice-style high top-down, eased
-  const off = new THREE.Vector3(0, 12.5 * zoom, 6 * zoom);
+  const carV = fiets && fiets.current && fiets.current.kind === 'car' ? Math.abs(fiets.current.B.v) : -1; driveZoom += ((carV < 0 ? 1 : 1.22 + Math.min(0.4, carV / 45)) - driveZoom) * Math.min(1, dt * 2); // a car pulls the camera back, more at speed
+  const off = new THREE.Vector3(0, 12.5 * zoom * driveZoom, 6 * zoom * driveZoom);
+  if (oofDrive.active && fiets && fiets.current) { // a trip in the Oofmobiel: the camera sits behind the van and turns with it, so the road ahead is up the screen (also on an upright phone)
+    const hh = fiets.current.B.h; chaseH += Math.atan2(Math.sin(hh - chaseH), Math.cos(hh - chaseH)) * Math.min(1, dt * 2.6);
+    const d = 7.5 * zoom * driveZoom; off.set(-Math.sin(chaseH) * d, 11.5 * zoom * driveZoom, -Math.cos(chaseH) * d);
+  } else chaseH = Math.PI;
   if (mOn || BOUNDS.cur || state.step === 'title') { camFlip = false; flipA = 0; } else if (!camFlip && player.position.z > CZ + 1.2) camFlip = true; else if (camFlip && player.position.z < CZ - 1.2) camFlip = false;
   flipA += ((camFlip ? Math.PI : 0) - flipA) * Math.min(1, dt * 2.2);
   if (flipA > 0.002) off.set(Math.sin(flipA) * 6 * zoom, 12.5 * zoom, Math.cos(flipA) * 6 * zoom); // swing round the east side to face the far quay
@@ -3247,8 +3257,8 @@ function tick() {
   const rc = roomCam(), wf = rc ? rc.camFocus(player.position) : null; // in Eddy's woning or a shop: frame the room, follow Eddy a little
   if (wf) { const ch = rc.camHeight(); off.set(0, ch * zoom, ch * 0.43 * zoom); }
   const jc = new THREE.Vector3(((JS.x0 + JS.x1) / 2) * 0.4 + player.position.x * 0.6, 0, -11.5 * 0.5 + player.position.z * 0.5);
-  camPos.lerp((inJ ? jc.clone() : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : wf ? wf.clone() : player.position.clone()).add(off), Math.min(1, dt * 4));
-  const lookAt = inJ ? jc.clone().setY(0.8) : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : wf ? wf.clone().setY(0.8) : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
+  camPos.lerp((inJ ? jc.clone() : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0, -12.2 * 0.5 + player.position.z * 0.5) : wf ? wf.clone() : driveFocus()).add(off), Math.min(1, dt * (fiets && fiets.riding() ? 6 : 4)));
+  const lookAt = inJ ? jc.clone().setY(0.8) : inShop ? new THREE.Vector3((PS.x0 + PS.x1) / 2 * 0.4 + player.position.x * 0.6, 0.8, -12.2 * 0.5 + player.position.z * 0.5) : wf ? wf.clone().setY(0.8) : driveFocus().add(new THREE.Vector3(0, 0.8, 0));
   if (state.step === 'title') { const tt = performance.now() * 0.001; camPos.set(-14 + Math.sin(tt * 0.045) * 16, 5.2 + Math.sin(tt * 0.11) * 0.6, 7.5); camLook.set(camPos.x * 0.85 + 2, 1.6, -7); }
   else if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
   else camLook.lerp(lookAt, Math.min(1, dt * 6));
@@ -3286,9 +3296,12 @@ mission = initMission({ onEvent: (t, x) => { if (freddy) freddy.onMission(t, x);
   arrived: (i) => razimArrived(i), left: () => razimLeft(), // Razim sometimes waits by the van (above)
   makeVan: () => oof.clone(true), brand: () => liveryNow(), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post, fonts });
-// top-down drive to the next district (js/drive.js): from the van map once Kipkruidenkwartier is yours
+// the drive to the next district (js/rit.js): from the van map once Kipkruidenkwartier is yours
 { const enter0 = mission.enter; mission.enter = (id, o) => { const r = enter0(id, o); if (r !== null && freddy) freddy.onMission('enter', o || {}); setTimeout(() => tips.show(o && o.heist ? 'heist' : o && o.defend ? 'siege' : o && o.remix ? 'remix' : 'mission'), 1600); return r; }; } // Shooki's first-time tips
-const oofDrive = initDrive({ THREE, balloons, renderer, canvasTex, signTex, beep, virt, isPaused });
+const oofDrive = createRit({ THREE, scene, player, state, kit, lam, signTex, solid, toast, beep, choice, RC, roadMat: ST.road, isPaused, day: () => econ.ensure().day,
+  makeCar: (o) => makeCar(THREE, canvasTex, { ...o, rand: crand }), makeVan: () => oof.clone(true), passerBy: (seed) => passerBy(seed), animate: (p, v, dt) => animate(p, v, dt),
+  get fiets() { return fiets; }, oof, oofSolid, buurt: () => buurt, setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(),
+  exit: { get x() { return Math.min(213, WALK.x1 - 3); }, z: RC + 1.5 }, blockedStart: () => !!(mission && mission.active) || !!(fiets && fiets.riding()) });
 { const start0 = oofDrive.start; oofDrive.start = (o) => { // today's weather rides along: wet or frozen roads slide (js/kaasweer.js)
   const g = world ? world.grip() : 1; start0({ grip: g, ...o });
   if (g < 0.95) setTimeout(() => toast(g < 0.6 ? 'SPEKGLAD' : 'GLAD WEGDEK', `${world.weather().icon} ${world.weather().name}: the Oofmobiel slides in the corners. Brake early.`, 3), 400);
@@ -3448,7 +3461,7 @@ hub = createHub({ THREE, state, econ, world: () => world, bills: () => bills, br
   blocked: () => state.step === 'title' || state.inDialogue || choiceOpen || mission.active || oofDrive.active || isPaused() || (state.inPC && !hub.isOpen()),
   busy: () => state.inDialogue || choiceOpen || state.inPC || mission.active || oofDrive.active || isPaused() || !!(phone && phone.isOpen),
   indoors: () => isInside(player.position) || !!(winkels && winkels.inside()) || !!(woning && woning.inside()) || !!(venues && venues.inside()),
-  stam: () => stam, stats: () => stats, time: () => (klok ? klok.label() : ''), goalSpot, dueToday, tabLabel: (id) => (icons.find(([i]) => i === id) || [, , id])[2], isTouch: () => document.body.classList.contains('touch'),
+  stam: () => stam, stats: () => stats, time: () => (klok ? klok.label() : ''), arrowOk: () => oofDrive.active, goalSpot, dueToday, tabLabel: (id) => (icons.find(([i]) => i === id) || [, , id])[2], isTouch: () => document.body.classList.contains('touch'),
   inPCTab: () => (state.inPC && pcTab ? (icons.find(([id]) => id === pcTab) || [, , ''])[2] : '') });
 ui.money.addEventListener('click', (e) => { e.stopPropagation(); if (hub.show('geld')) beep(700, 0.03, 'triangle', 0.02); });
 stats = createStats({ state, econ, addMoney, toast, beep, save: () => writeSave(), jobsDone: () => Object.values((state.winkels || {}).jobs || {}).filter((j) => j && j.done).length, maxHearts: () => (stam ? stam.maxHearts() : 0), maxRep: () => (brep ? Math.max(...brep.BUURTEN.map((b) => brep.get(b.id))) : 0) });
@@ -3465,11 +3478,12 @@ roam = createRoam({ THREE, scene, player, state, streetPiece, house, spanWidths,
   raid: (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); },
   clientLine: (cid) => { const c = CLIENTS.find((x) => x.id === cid); if (!c) return null; const b = BLENDS.find((x) => x.id === c.blend), have = Math.floor((econ.ensure().blends[c.blend] || { kg: 0 }).kg), st = brep ? brep.tierOf(brep.get(cid)).name : ''; return [c.who, `${c.kg} kg ${b ? b.name : c.blend} every market day, Eddy. ${have >= c.kg ? 'I see you have it on the shelf. Good.' : `You have ${have} kg. Don\u2019t make me call the Lampas.`}${st ? ` (The buurt: ${st}.)` : ''}`]; } });
 window.__sme = { get stats() { return stats; }, get stam() { return stam; }, get klok() { return klok; }, get politie() { return politie; }, get roam() { return roam; }, get hub() { return hub; }, get vandaag() { return vandaag; }, get brep() { return brep; }, get winkels() { return winkels; }, get bills() { return bills; }, get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
-aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
+aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active });
 fiets = createFiets({ honk, onBorrow: (v) => { v.obj.userData.moved = true; if (v.solid) v.solid.moved = true; if (v.kind === 'car') { stats.add('borrowed'); politie.witness('theft', v.obj.position.x, v.obj.position.z); } },
   onMove: (v, d, sp) => { stats.add(v.kind === 'car' ? 'driven' : 'biked', d); if (sp > 3.5) { const R = v.kind === 'car' ? 1.5 : 0.8, fx = Math.sin(player.rotation.y), fz = Math.cos(player.rotation.y); for (const w of walkers) { if (!w.visible || w.userData.down > 0 || (w.userData.walk && w.userData.walk.home)) continue; if (Math.hypot(w.position.x - player.position.x, w.position.z - player.position.z) < R) { hitStreetPerson(w, { x: fx, z: fz }); politie.witness('hit', w.position.x, w.position.z); } } } },
   THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
-  busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });
+  onCrash: (v, sp) => { if (oofDrive.active && v === oofDrive.vehicle()) oofDrive.crash(sp); },
+  busy: () => mission.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 && !oofDrive.active });
 for (const [g, kind] of lendQ) adoptRide(g, kind); lendQ.length = 0;
 if (IS_PHONE) { // phones: the shadow pass was three quarters of the home street's draw calls, most of it small street furniture.
   // Anything under a metre across that is not a person, an animal or a vehicle stops casting; houses, trees, cars and people keep their shadows.

@@ -1,7 +1,7 @@
 // Garage Mo: the Oofmobiel gets stats, two trade-ups and add-ons, plus the street-life nuisances that come with
 // owning a van and a pile of cash: parking fines (a wheel clamp after a mission), parking tickets from levels with a paid
 // bay (def.parking in js/levels: the gemeente scan car), and tax inspector Van der Belasting, who also collects unpaid tickets.
-// Van stats feed the top-down drive (js/drive.js): top speed, how hard hits dent it, and whether the Lampas spot
+// Van stats feed the 3D drive (js/rit.js): top speed, how hard hits dent it, and whether the Lampas spot
 // you early. Cargo is shown now and caps Nachtklus hauls once those exist. Everything lives in state.van.
 
 export const VANS = [

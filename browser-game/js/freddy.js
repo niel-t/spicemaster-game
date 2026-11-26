@@ -1,5 +1,5 @@
 // Freddy Sr. comes back (Tristan 2026-11-22): once Kipkruidenkwartier is Eddy's, Pa calls from Costa del Kaas. He lands at
-// Schiptagat, the little airport south of Kaaspark, and Eddy fetches him in the Oofmobiel (a drive to the airport: drive.js
+// Schiptagat, the little airport south of Kaaspark, and Eddy fetches him in the Oofmobiel (a drive to the airport: js/rit.js
 // opts.airport). From then on he rides along: he walks behind Eddy in the street, sits in the van on every drive and waits
 // outside every raid, and he says what he thinks, good or bad. He joins the meetings too: Nabil, Schmatzel, The Russian,
 // Ome Joop, Shooki and the rest get a word from him (chime() adds his line to their dialogue).
@@ -84,7 +84,7 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
     if (!back() || !SAY[key]) return false;
     if (!force && gap > 0) return false;
     let line = rnd(SAY[key]); if (SAY[key].length > 1) while (line === last[key]) line = rnd(SAY[key]);
-    last[key] = line; const s = F().said; s[key] = (s[key] || 0) + 1;
+    last[key] = line; const s = F().said || (F().said = {}); s[key] = (s[key] || 0) + 1;
     gap = 6; show(line, top); return true;
   }
 
@@ -206,7 +206,7 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
 
   // ------------------------------------------------------------------ on the job
   const near = (r = 9) => back() && dad.visible && dad.position.distanceTo(player.position) < r;
-  function driveEvent(type, x) { // drive.js opts.onEvent: Pa is in the passenger seat on every drive
+  function driveEvent(type, x) { // js/rit.js opts.onEvent: Pa is in the passenger seat on every drive
     if (!back()) return;
     if (type === 'start') { gap = 0; setTimeout(() => say('driveStart', true), 3600); }
     else if (type === 'arrive') say(x && x.t <= x.par ? 'arriveFast' : 'arriveSlow', true, true);

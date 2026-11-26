@@ -31,7 +31,7 @@ export const TIPS = {
   remix: ['Remix raid', 'A joint you already own, but tonight it\'s different: other rules, other score. Stash jobs on the Klusbord pay for these.'],
   heist: ['Nachtklus', 'Stay out of the light and the sight cones. Walking is quiet, <b>Shift</b> is loud, shots are very loud. <b>N</b> for night vision if you have it. Full bag? Back to the van.'],
   siege: ['Spice war', 'They\'re coming for the warehouse. Three waves through the doors. Keep them away from the Naknikim under the tables. A barricade and an oil drum help.'],
-  drive: ['Driving', '<b>W</b> gas, <b>S</b> brake, <b>A D</b> steer, <b>Shift</b> handbrake, <b>E</b> honk. Follow the arrow and park in the ring. Lampas cars ram you: the bar top left is the van.'],
+  drive: ['Driving', 'You drive it yourself now, bro. <b>W</b> gas, <b>S</b> brake and reverse, <b>A D</b> steer, <b>H</b> horn. East down the street to the ring road, then mind the skips and the traffic and park in the yellow ring. Their cars ram you: lead them into a skip. The bar top left is the van.'],
   day: ['Plan your day', 'One day, one plan, bro. A <b>raid</b> takes the whole day, and only if you have not worked yet. <b>Racking pallets</b> and <b>deliveries</b> (one van run, Klusbord orders) fit together in one day. Done? <b>Sleep</b> in your bed or hit <b>Dag afsluiten</b> on the PC. A day with nothing done is a <b>rest day</b>: one every three days. The plan for today is under your objective.'],
   'tab:krant': ['Krant voor het Kaasvolk', 'The paper, bro. Every morning: what you did yesterday (yes, they write about you), the <b>weather</b> and the forecast, and the <b>Snackbarbarometer</b>: Friday, Saturday, sun and holidays mean bigger orders, Monday and rain mean smaller. Storm or snow? The truck comes a day late, so order early.'],
   buurt: ['Buurtkaart', 'Every shop on the block, cuz. Click one: who runs it, if it is open today, and its ad. <b>Set route</b> and follow the yellow light. The posters on the green plakzuilen by the canal are ads for the same places.'],
@@ -58,7 +58,7 @@ const STEP_KEYS = ['start', 'step:list', 'step:sell', 'step:hire', 'step:russian
 const TOUCH_TIPS = {
   mission: "Your <b>right thumb</b> aims, push it past the ring to shoot (or tap <b>SLAAN</b>). <b>WISSEL</b> weapons, <b>RELOAD</b>, <b>ACTIE</b> grab and throw, <b>GRANAAT</b> held down and let go. Three hits and you're down: <b>OPNIEUW</b> tries again. Clear the floor and the joint is yours.",
   heist: 'Stay out of the light and the sight cones. Walking is quiet, <b>SPRINT</b> is loud, shots are very loud. <b>NACHTZICHT</b> for night vision if you have it. Full bag? Back to the van.',
-  drive: '<b>GAS</b> drives, <b>ACHTERUIT</b> brakes and backs up, slide your thumb on the bar to steer, <b>TOETER</b> honks. Follow the arrow and park in the ring. Lampas cars ram you: the bar top left is the van.',
+  drive: 'You drive it yourself now, bro. <b>GAS</b> drives, <b>REM</b> brakes and backs up, slide your thumb on the bar to steer, <b>TOETER</b> honks. East down the street to the ring road, then mind the skips and the traffic and park in the yellow ring. Their cars ram you: lead them into a skip.',
   phone: "Your phone is ringing, bro. <b>Tap the phone</b> to answer. Hakan wants kipkraud: say yes and I bring it tomorrow, if there's Kip Shoarma in stock.",
   shmokia: 'Your phone. Call people, trade a bit. The <b>SHMOKIA</b> button opens it, <b>Terug</b> closes it.',
 };
