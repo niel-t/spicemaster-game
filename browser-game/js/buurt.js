@@ -92,7 +92,7 @@ export function createBuurt(deps) {
 
   // ---------------------------------------------------------------- plakzuilen: green poster columns on the canal pavement
   const COLS = [{ x: -42, ads: ['schmatzel', 'kapsalon', 'club', 'bloem'] }, { x: 21, ads: ['eddy', 'avond', 'bakker', 'bel'] }, { x: 44, ads: ['spasibo', 'dealer', 'reis', 'bitterbal'] }];
-  const Z = deps.z, RC0 = deps.rc; // the pavement line the columns stand on, the road's centre line
+  const FZ = deps.far.front, Z = deps.z, RC0 = deps.rc; // FZ: the shop fronts across the canal; // the pavement line the columns stand on, the road's centre line
   const green = new THREE.MeshStandardMaterial({ color: 0x1f4a32, roughness: 0.55, metalness: 0.25 });
   const zuilen = COLS.map((c) => {
     const g = new THREE.Group(); g.position.set(c.x, 0, Z); scene.add(g);
@@ -136,10 +136,11 @@ export function createBuurt(deps) {
   function drawBoard(c, W, H) { // a simple painted version of the map for the board itself
     c.fillStyle = '#f4f0e4'; c.fillRect(0, 0, W, H); c.fillStyle = '#1f4a32'; c.fillRect(0, 0, W, 40);
     c.fillStyle = '#fff'; c.font = '900 24px Arial'; c.textAlign = 'left'; c.fillText('KIPKRUIDENKWARTIER · PLATTEGROND', 14, 28);
-    const X = (x) => ((x + 72) / 158) * W, Zy = (z) => 40 + ((z + 20) / 50) * (H - 40);
+    const X = (x) => ((x + 72) / 158) * W, Zy = (z) => 40 + ((z + 20) / 55) * (H - 40);
     c.fillStyle = '#9a9a9a'; c.fillRect(0, Zy(RC0 - 3), W, Zy(RC0 + 3) - Zy(RC0 - 3));
-    c.fillStyle = '#6ab0d8'; c.fillRect(0, Zy(12.85), W, Zy(20.35) - Zy(12.85));
-    for (const b of BIZ) if (b.x0 != null) { c.fillStyle = KINDS[b.kind].col; const z0 = b.side === 'n' ? -15.5 : 21.1; c.fillRect(X(b.x0) + 1, Zy(z0), X(b.x1) - X(b.x0) - 2, Zy(z0 + 8.5) - Zy(z0)); }
+    c.fillStyle = '#6ab0d8'; c.fillRect(0, Zy(deps.canal[0]), W, Zy(deps.canal[1]) - Zy(deps.canal[0]));
+    c.fillStyle = '#c9c2b0'; for (const b of deps.bridges) c.fillRect(X(b.x0), Zy(deps.canal[0]), X(b.x1) - X(b.x0), Zy(deps.canal[1]) - Zy(deps.canal[0]));
+    for (const b of BIZ) if (b.x0 != null) { c.fillStyle = KINDS[b.kind].col; const z0 = b.side === 'n' ? -15.5 : FZ; c.fillRect(X(b.x0) + 1, Zy(z0), X(b.x1) - X(b.x0) - 2, Zy(z0 + 8.5) - Zy(z0)); }
     c.fillStyle = '#e8202a'; c.beginPath(); c.arc(X(BOARD.x), Zy(Z), 8, 0, 7); c.fill(); c.fillStyle = '#111'; c.font = '700 16px Arial'; c.fillText('U bent hier', X(BOARD.x) + 12, Zy(Z) + 6);
   }
 
@@ -147,12 +148,12 @@ export function createBuurt(deps) {
   {
     const arm = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5, metalness: 0.6 }), disc = new THREE.PlaneGeometry(1.2, 1.2); // every sign has its own outline, so the board is the logo itself
     for (const b of BIZ) {
-      if (b.side !== 'n' || b.x0 == null || b.id === 'club' || b.id === 'dealer') continue;
-      const fz = b.id === 'eddy' ? -7 : -6.5, x = b.x1 - 0.85, g = new THREE.Group(); g.position.set(x, 0, fz); scene.add(g);
+      if (b.x0 == null || b.id === 'club' || b.id === 'dealer') continue;
+      const far = b.side === 's', fz = far ? FZ : b.id === 'eddy' ? -7 : -6.5, x = b.x1 - 0.85, g = new THREE.Group(); g.position.set(x, 0, fz); if (far) g.rotation.y = Math.PI; scene.add(g);
       const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.0), arm); a1.position.set(0, 3.72, 0.5); g.add(a1);
       const a2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), arm); a2.position.set(0, 3.62, 0.9); g.add(a2);
       const cv = document.createElement('canvas'); cv.width = cv.height = 256; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      const m = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true, alphaTest: 0.4 })); m.position.set(0, 2.95, 0.9); g.add(m);
+      const m = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true, alphaTest: 0.4 })); m.position.set(0, 2.95, 0.9); g.add(m); // across the canal the camera swings round to face the shops, so the board reads the right way there too
       logoImages().then((im) => { if (im[b.id]) { cv.getContext('2d').drawImage(im[b.id], 0, 0, 256, 256); t.needsUpdate = true; } });
       b.board = m;
     }
@@ -189,8 +190,8 @@ export function createBuurt(deps) {
   function setRoute(id) {
     const b = byId[id]; if (!b || b.x0 == null) return;
     const x = Math.max(deps.walk.x0 + 1, Math.min(deps.walk.x1 - 1, cx(b)));
-    route = { id, x, z: b.side === 'n' ? -5.4 : Z - 0.9 }; beacon.position.set(route.x, 0, route.z); beacon.visible = true;
-    deps.toast('ROUTE', `${b.name}: follow the yellow light.${b.side === 's' ? ' It is across the canal: the light marks the best view of it.' : ''}`, 2.6);
+    route = { id, x, z: b.side === 'n' ? -5.4 : FZ - 1.3 }; beacon.position.set(route.x, 0, route.z); beacon.visible = true;
+    deps.toast('ROUTE', `${b.name}: follow the yellow light.${b.side === 's' ? ' It is across the canal: take the bridge by your parking or the white ophaalbrug at the east end.' : ''}`, 2.6);
   }
   function update(dt) {
     panels();
@@ -205,17 +206,18 @@ export function createBuurt(deps) {
   function svg() {
     const H = deps.houses(), now = wd();
     const R = (x0, z0, x1, z1, fill, extra = '') => `<rect x="${x0}" y="${z0}" width="${x1 - x0}" height="${z1 - z0}" fill="${fill}" ${extra}/>`;
-    let s = `<svg class="bz-map" viewBox="-72 -20 158 50" preserveAspectRatio="xMidYMid meet">`;
+    let s = `<svg class="bz-map" viewBox="-72 -20 158 55" preserveAspectRatio="xMidYMid meet">`;
     s += `<defs><linearGradient id="bzw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4e8"/><stop offset="1" stop-color="#4a98c8"/></linearGradient></defs>`;
-    s += R(-72, -20, 86, 30, '#ece6d6');
+    s += R(-72, -20, 86, 35, '#ece6d6');
     s += R(-72, -7, 86, RC0 - 5.2, '#d8d2c4') + R(-72, RC0 - 5, 86, RC0 - 3, '#b8b4ac') + R(-72, RC0 - 3, 86, RC0 + 3, '#6a6c70') + R(-72, RC0 + 3, 86, RC0 + 5, '#b8b4ac');
-    s += R(-72, RC0 + 5.2, 86, RC0 + 7.6, '#c86a5a') + R(-72, RC0 + 7.6, 86, RC0 + 10.9, '#d8d2c4') + R(-72, 12.85, 86, 20.35, 'url(#bzw)');
+    s += R(-72, RC0 + 5.2, 86, RC0 + 7.6, '#c86a5a') + R(-72, RC0 + 7.6, 86, RC0 + 10.9, '#d8d2c4') + R(-72, deps.canal[0], 86, deps.canal[1], 'url(#bzw)') + R(-72, deps.canal[1], 86, FZ, '#c8a090');
+    for (const b of deps.bridges) s += R(b.x0, deps.canal[0] - 0.3, b.x1, deps.canal[1] + 0.3, '#d8d0bc', 'stroke="#7a7468" stroke-width="0.25"') + `<text x="${(b.x0 + b.x1) / 2}" y="${(deps.canal[0] + deps.canal[1]) / 2 + 0.4}" text-anchor="middle" font-size="1.05" fill="#4a463c" transform="rotate(-90 ${(b.x0 + b.x1) / 2} ${(deps.canal[0] + deps.canal[1]) / 2})">${b === deps.bridges[0] ? 'brug' : 'ophaalbrug'}</text>`;
     for (let x = -70; x < 86; x += 4) s += R(x, RC0 - 0.08, x + 2, RC0 + 0.08, '#fff');
     for (let i = 0; i < 6; i++) s += R(-19.6, RC0 - 2.9 + i, -16.4, RC0 - 2.5 + i, '#f4f4f4');
     for (const h of H) s += R(h.x - h.w / 2 + 0.15, h.z - h.d / 2, h.x + h.w / 2 - 0.15, h.z + h.d / 2, '#c9bfae', 'rx="0.4"');
     s += R(1.15, -7, 9.5, -3.4, '#a8a4a0'); // Eddy's parking
     for (const b of BIZ) {
-      if (b.x0 == null) continue; const k = KINDS[b.kind], z0 = b.side === 'n' ? (b.id === 'eddy' ? -19 : -15.5) : 21.1, z1 = b.side === 'n' ? -6.5 : 29.1, x = cx(b), dim = filt && filt !== b.kind;
+      if (b.x0 == null) continue; const k = KINDS[b.kind], z0 = b.side === 'n' ? (b.id === 'eddy' ? -19 : -15.5) : FZ, z1 = b.side === 'n' ? -6.5 : FZ + 8, x = cx(b), dim = filt && filt !== b.kind;
       const op = openToday(b, now);
       s += `<g class="bz-b${sel === b.id ? ' on' : ''}" data-b="${b.id}" opacity="${dim ? 0.25 : 1}"><rect x="${b.x0 + 0.2}" y="${z0}" width="${b.x1 - b.x0 - 0.4}" height="${z1 - z0}" rx="0.6" fill="${k.col}" stroke="#fff" stroke-width="${sel === b.id ? 0.6 : 0.25}"/>`;
       const nm = b.x1 - b.x0 < 9 && b.short ? b.short : b.name, wds = nm.split(' '), narrow = b.x1 - b.x0 < 9 && nm.length > 9, half = Math.ceil(wds.length / 2), lines = narrow ? [wds.slice(0, half).join(' '), wds.slice(half).join(' ')] : [nm];
@@ -229,7 +231,7 @@ export function createBuurt(deps) {
     s += `<rect x="${BOARD.x - 0.9}" y="${Z - 0.3}" width="1.8" height="0.6" fill="#2a2e34"><title>Plattegrond</title></rect>`;
     if (route) s += `<circle cx="${route.x}" cy="${route.z}" r="1.4" fill="none" stroke="#ffc83a" stroke-width="0.45" class="bz-rt"/>`;
     s += `<g id="bzme"><circle r="1.3" fill="#e8202a" stroke="#fff" stroke-width="0.35"/><text y="-1.9" text-anchor="middle" font-size="1.3" class="bz-me">Eddy</text></g>`;
-    s += `<text x="-70.5" y="16.9" font-size="1.4" fill="#e8f6ff" font-style="italic">Kipkruidengracht</text><text x="60" y="${RC0 + 0.9}" font-size="1.2" fill="#e8e8e8">Kruidenstraat</text>`;
+    s += `<text x="-70.5" y="16.9" font-size="1.4" fill="#e8f6ff" font-style="italic">Kipkruidengracht</text><text x="60" y="${FZ - 2}" font-size="1.2" fill="#6a3a2a">Kipkruidenkade</text><text x="60" y="${RC0 + 0.9}" font-size="1.2" fill="#e8e8e8">Kruidenstraat</text>`;
     return s + '</svg>';
   }
   function cardHTML() {

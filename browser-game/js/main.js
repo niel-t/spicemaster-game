@@ -201,9 +201,17 @@ function collide(p, r) {
       }
     }
   }
-  const B = BOUNDS.cur || { x0: WALK.x0, x1: WALK.x1, z0: -37.2, z1: 10.6 + RC }; // z0: the hall and tent on the plot behind the shed
+  const B = BOUNDS.cur || { x0: WALK.x0, x1: WALK.x1, z0: -37.2, z1: FAR.front - 0.45 }; // z0: the hall and tent on the plot behind the shed; z1: the shop fronts across the canal
   p.x = Math.max(B.x0, Math.min(B.x1, p.x));
   p.z = Math.max(B.z0, Math.min(B.z1, p.z));
+  if (!BOUNDS.cur) { // the canal: only over a bridge, and a bridge keeps you between its railings
+    const N = 10.6 + RC, S_ = FAR.edge + 0.45;
+    if (p.z > N && p.z < S_) {
+      const br = onBridge || BRIDGES.find((b) => p.x > b.x0 + 0.3 && p.x < b.x1 - 0.3);
+      if (br) { onBridge = br; p.x = Math.max(br.x0 + 0.42, Math.min(br.x1 - 0.42, p.x)); }
+      else p.z = p.z < CZ ? N : S_;
+    } else onBridge = null;
+  }
 }
 
 // ------------------------------------------------------------------ world: ground, street, canal
@@ -215,6 +223,13 @@ const SX = 100, SXK = SX / 70; // half length, and how much longer the tiled tex
 const WALK = { x0: -70, x1: 84 }; // how far Eddy can walk along it
 const ROAD = { pN: RC - 5.0, lane: 3.0, pS: RC + 5.0, bike0: RC + 5.2, bike1: RC + 7.6, walk1: RC + 10.9 };
 const CZ = 15 + RC;
+// across the canal: the even side of the Kipkruidengracht. The houses stand back from the water, a klinker quay runs in front of them,
+// and two bridges cross: the brick one by Eddy's parking and a white ophaalbrug at the east end.
+const SROW = CZ + 13, FAR = { edge: CZ + 3.75, front: CZ + 9, lane: [CZ + 6.3, CZ + 7.4] };
+const BRIDGES = [{ x0: 11.5, x1: 16.5 }, { x0: 56.2, x1: 59.8 }];
+const offBridge = (x, m = 3) => BRIDGES.every((b) => Math.abs(x - (b.x0 + b.x1) / 2) > (b.x1 - b.x0) / 2 + m - 2.5);
+let onBridge = null; // the bridge Eddy is crossing (collide keeps him on the deck)
+let camFlip = false, flipA = 0, ctrlFlip = false; // across the canal the camera swings round to look south at the shop fronts; the controls follow once the keys are let go
 const groundMat = macro(lam({ map: tex('paving.jpg', 40, 20), color: 0xd8d2c4 }), 0.18, 0.08);
 for (const [z0, z1] of [[-70, CZ - 3.75], [CZ + 3.75, 70]]) {
   const g = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, z1 - z0), groundMat);
@@ -379,7 +394,7 @@ const fadeables = [];
 // a thin bar from (x0,y0) to (x1,y1) on the facade plane
 function edge(g, x0, y0, x1, y1, z, m, t = 0.16) { const b = box(Math.hypot(x1 - x0, y1 - y0) + t * 0.6, t, 0.1, m, (x0 + x1) / 2, (y0 + y1) / 2, z, g, false); b.rotation.z = Math.atan2(y1 - y0, x1 - x0); return b; }
 function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
-  if (!opt.simple && !opt.y && (z === -11 || z === CZ + 8.5)) { streetHouses.push({ x, z, w, d }); if (shopSign) { const b = bizBySign(shopSign); if (b) placeBiz(b.id, x, w); } }
+  if (!opt.simple && !opt.y && (z === -11 || z === SROW)) { streetHouses.push({ x, z, w, d }); if (shopSign) { const b = bizBySign(shopSign); if (b) placeBiz(b.id, x, w); } }
   const g = new THREE.Group(); g.position.set(x, opt.y || 0, z); g.rotation.y = facing; scene.add(g);
   g.userData.fade = 1; fadeables.push(g);
   const K = kit(); // small detail (chimney, gutters, plinth, flower boxes...) baked into one mesh at the end
@@ -525,11 +540,38 @@ for (const [a, b] of [[LOT.x1, PS.x0], [PS.x1, DEALER.x0], [DEALER.x1, SX]]) for
   nx += w; hi++;
 }
 // back row behind the street (only the roofs show) so nothing looks empty from the camera
+// the ophaalbrug at the east end: a white double drawbridge, the Amsterdam kind. Brick abutments, a plank deck, two portals
+// with their balance beams and counterweights, chains down to the leaves.
+{
+  const B_ = BRIDGES[1], bx = (B_.x0 + B_.x1) / 2, W_ = B_.x1 - B_.x0, g = new THREE.Group(); g.position.set(bx, 0, CZ); scene.add(g);
+  const white = lam({ color: 0xf4f2ea }), iron = lam({ color: 0x2a2c30 }), brick = lam({ map: tex('brick_red.jpg', 2, 0.5), color: 0x9a7a6a });
+  const planks = lam({ map: canvasTex(64, 64, (c) => { c.fillStyle = '#7a5c3e'; c.fillRect(0, 0, 64, 64); for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#6e5236' : '#84654a'; c.fillRect(0, i * 8, 64, 7); } }) });
+  planks.map.wrapS = planks.map.wrapT = THREE.RepeatWrapping; planks.map.repeat.set(1, 6);
+  for (const s_ of [-1, 1]) {
+    box(W_ + 0.6, 1.0, 1.5, brick, 0, -0.5, s_ * 3.05, g); // abutment
+    box(W_, 0.12, 3.72, planks, 0, 0.0, s_ * 1.88, g); // one leaf
+    box(W_ + 0.1, 0.1, 0.12, iron, 0, 0.02, s_ * 0.02, g, false); // the seam where the leaves meet
+    const pz = s_ * 2.75; // the portal
+    for (const x of [-W_ / 2 - 0.12, W_ / 2 + 0.12]) {
+      box(0.2, 4.7, 0.2, white, x, 2.35, pz, g);
+      const br = box(0.1, 1.5, 0.1, white, x, 3.95, pz - s_ * 0.5, g, false); br.rotation.x = s_ * 0.72; // brace up to the beam
+      // balance beam: pivots on the portal, the long arm reaches over the water, the short arm carries the counterweight
+      const beam = new THREE.Group(); beam.position.set(x, 4.78, pz); beam.rotation.x = s_ * 0.13; g.add(beam);
+      box(0.15, 0.2, 5.0, white, 0, 0, -s_ * 0.3, beam);
+      const ch = box(0.035, 4.5, 0.035, iron, x * 0.96, 2.4, pz - s_ * 2.55, g, false); ch.rotation.x = s_ * 0.03; // the chain
+      for (let z = 0.15; z < 3.7; z += 0.92) box(0.07, 0.95, 0.07, white, x * 0.985, 0.52, s_ * z, g, false); // railing posts
+      box(0.07, 0.07, 3.7, white, x * 0.985, 1.0, s_ * 1.88, g, false); box(0.05, 0.05, 3.7, white, x * 0.985, 0.55, s_ * 1.88, g, false);
+    }
+    box(W_ + 0.64, 0.22, 0.26, white, 0, 4.72, pz, g); // portal head
+    const cw = new THREE.Group(); cw.position.set(0, 4.78, pz); cw.rotation.x = s_ * 0.13; g.add(cw); box(W_ + 0.5, 0.5, 0.8, white, 0, -0.05, s_ * 1.95, cw); // counterweight box
+  }
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+}
 for (let x = -SX, i = 0; x < SX; i++) { const w = 5 + (i % 3); if ((x + w < -34 || x > 12) && (x + w < DEALER.x0 - 2 || x > DEALER.x1 + 2) && (x + w < CLUB.x0 || x > CLUB.x1)) house(x + w / 2, -25.5, w, 9, 10 + (i % 4) * 1.2, 0, i + 7, null, { simple: true }); x += w; } // behind the shed: the bouwkavel (js/loods.js)
 for (let x = -34, i = 0; x < 12; i++) { const w = 5 + (i % 3); house(x + w / 2, -42, w, 9, 10 + (i % 4) * 1.2, 0, i + 3, null, { simple: true }); x += w; } // and the row behind the plot
-// backdrop houses across the canal
-for (let x = -60, i = 0; x < 60; i++) { const w = 5 + (i % 3); house(x + w / 2, CZ + 8.5, w, 8, 9 + (i % 4), Math.PI, i + 2, i === 13 ? 'SHOARMA HABIBI' : bizSign('s', i)); x += w; }
-for (const [a, b, k0] of [[-SX, -60, 40], [60, SX, 50]]) { let x = a; spanWidths(b - a, k0).forEach((w, i) => { house(x + w / 2, CZ + 8.5, w, 8, 9 + ((k0 + i) % 4), Math.PI, k0 + i, null); x += w; }); } // and on along the longer street
+// the houses across the canal, behind their quay
+for (let x = -60, i = 0; x < 60; i++) { const w = 5 + (i % 3); house(x + w / 2, SROW, w, 8, 9 + (i % 4), Math.PI, i + 2, i === 13 ? 'SHOARMA HABIBI' : bizSign('s', i)); x += w; }
+for (const [a, b, k0] of [[-SX, -60, 40], [60, SX, 50]]) { let x = a; spanWidths(b - a, k0).forEach((w, i) => { house(x + w / 2, SROW, w, 8, 9 + ((k0 + i) % 4), Math.PI, k0 + i, null); x += w; }); } // and on along the longer street
 
 // ------------------------------------------------------------------ the warehouse
 const WH = { x0: -11, x1: 1, z0: -19, z1: -7, h: 5.2, doorX0: -7, doorX1: -2.5 };
@@ -632,7 +674,12 @@ function bollard(x, z, K = streetKit) { // Amsterdammertje: dark paprika cast ir
   K.geo(new THREE.SphereGeometry(0.088, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), c, x, 0.86, z);
   for (let k = 0; k < 3; k++) K.box(0.025, 0.07, 0.025, 0xf2efe6, x + 0.09 * Math.cos(k * 2.1), 0.55 - k * 0.1, z + 0.09 * Math.sin(k * 2.1));
 }
-for (let x = -70; x <= 84; x += 2.6) if (Math.abs(x - 14) > 3) bollard(x, ROAD.walk1 + 0.05);
+for (let x = -70; x <= 84; x += 2.6) if (offBridge(x)) bollard(x, ROAD.walk1 + 0.05);
+// the far quay: red klinkers, a bluestone edge, Amsterdammertjes along the water, lindens and lamps
+wetMats.push(strip(FAR.edge, FAR.front, surface(klinker('red'), 70 * SXK, 2.4, { rough: 0.9, nscale: 1.0, macroAmt: 0.16 }), 0.022).material);
+box(SX * 2, 0.14, 0.4, kerbMat, 0, 0.07, FAR.edge + 0.15, scene, false);
+for (let x = -70; x <= 84; x += 2.6) if (offBridge(x)) bollard(x, FAR.edge + 0.6);
+for (let x = -66; x <= 80; x += 24) { lamp(x, FAR.edge + 0.9); if (offBridge(x + 11, 4)) tree(x + 11, FAR.edge + 1.5, 0.9); }
 // north pavement: a row of Amsterdammertjes along the kerb (not at Eddy's driveway, the zebra or a lamp), green bins in the row
 if (!RICH_LOW) for (let x = -SX + 2.4; x <= SX - 2.4; x += 2.4) {
   if ((x > -0.6 && x < 10.8) || (x > DEALER.x0 + 3 && x < DEALER.x1 - 3) || Math.abs(x - (CLUB.x0 + CLUB.x1) / 2) < 2.4 || Math.abs(x + 18) < 2.6 || LAMPS.some(([lx, lz]) => lz < 0 && Math.abs(lx - x) < 0.9)) continue;
@@ -657,7 +704,7 @@ function flushDecals() { // one merged quad mesh per decal texture
     const m = new THREE.Mesh(geo, lam({ map: decal(kind), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })); m.receiveShadow = true; m.renderOrder = 1; scene.add(m);
   }
 }
-if (!RICH_LOW) for (let x = -60; x <= 60; x += 9) if (Math.abs(x - 14) > 4) { const K = clutterKit, z = CZ - 3.85; K.cyl(0.13, 0.15, 0.42, 0x26282c, x, 0.35, z, 10); K.cyl(0.19, 0.19, 0.07, 0x26282c, x, 0.58, z, 10); K.geo(new THREE.TorusGeometry(0.12, 0.025, 6, 12), 0x3a3c40, x, -0.25, CZ - 3.73, 0, 0, 0); } // iron mooring posts, a ring in the quay wall
+if (!RICH_LOW) for (let x = -60; x <= 60; x += 9) if (offBridge(x, 4)) { const K = clutterKit, z = CZ - 3.85; K.cyl(0.13, 0.15, 0.42, 0x26282c, x, 0.35, z, 10); K.cyl(0.19, 0.19, 0.07, 0x26282c, x, 0.58, z, 10); K.geo(new THREE.TorusGeometry(0.12, 0.025, 6, 12), 0x3a3c40, x, -0.25, CZ - 3.73, 0, 0, 0); } // iron mooring posts, a ring in the quay wall
 flushDecals();
 { const m = streetKit.build(); if (m) scene.add(m); const c = clutterKit.build(); if (c) clutter.add(c); }
 // 80s Kaasland cars: side profiles with rounded corners, extruded with a bevel, glass greenhouses, chrome bits
@@ -2031,11 +2078,11 @@ BIKE_KINDS.forEach((kind, i) => {
   cyclists.push(bike);
 });
 const walkers = [];
-const LANES = { N: [-4.5, -5.6], S: [RC + 8.55, RC + 9.45] };
+const LANES = { N: [-4.5, -5.6], S: [RC + 8.55, RC + 9.45], F: FAR.lane }; // F: the quay across the canal
 const folk = createStreetFolk({ scene, lam, mat, box, beep });
-for (let i = 0; i < 16; i++) {
-  const side = i % 2 ? 'S' : 'N', dir = (i >> 1) % 2 ? 1 : -1;
-  const police = i === 4 || i === 13, arch = police ? null : folk.SLOTS[i], A_ = arch && folk.ARCH[arch];
+for (let i = 0; i < 20; i++) {
+  const side = i >= 16 ? 'F' : i % 2 ? 'S' : 'N', dir = (i >> 1) % 2 ? 1 : -1;
+  const police = i === 4 || i === 13, arch = police ? null : folk.SLOTS[i >= 16 ? [9, 6, 11, 1][i - 16] : i], A_ = arch && folk.ARCH[arch];
   const p = passerBy(i + 1, { police, look: A_ ? A_.look : undefined, female: arch === 'buggy' || arch === 'pram' ? i % 3 !== 2 : undefined });
   p.position.set(-60 + ((i * 37) % 130), 0, LANES[side][dir > 0 ? 0 : 1]);
   const u = { side, dir, v: police ? 1.0 : A_ ? A_.v * (0.92 + ((i * 7) % 5) * 0.04) : 1.1 + ((i * 7) % 5) * 0.12, wait: 0, blocked: 0, police, comp: null };
@@ -2050,7 +2097,7 @@ for (let i = 0; i < 16; i++) {
 world = createKaasweer({ ad: (d) => (buurt ? buurt.paperAd(d) : ''), THREE, state, scene, hemi, sun, walkers, wetMats, econ, day: () => econ.ensure().day, rank: () => rankNow(), active: () => state.step === 'free',
   busy: () => !!(mission.active || oofDrive.active), thunder: () => { beep(42, 1.1, 'sawtooth', 0.035); setTimeout(() => beep(31, 1.4, 'triangle', 0.05), 120); },
   onApply: (w) => { if (state.step === 'free' && !['zon', 'bewolkt'].includes(w.id)) tips.show('weer'); } });
-buurt = createBuurt({ THREE, scene, state, player, world: () => world, z: ROAD.walk1 - 0.6, rc: RC, walk: WALK, houses: () => streetHouses, solid, addInteract, choice, toast, beep, tip: (k) => tips.show(k),
+buurt = createBuurt({ far: FAR, bridges: BRIDGES, canal: [CZ - 3.75, CZ + 3.75], THREE, scene, state, player, world: () => world, z: ROAD.walk1 - 0.6, rc: RC, walk: WALK, houses: () => streetHouses, solid, addInteract, choice, toast, beep, tip: (k) => tips.show(k),
   busy: () => !!(mission.active || oofDrive.active), indoors: () => isInside(player.position) || !!(woning && woning.inside()) || !!(venues && venues.inside()) });
 const LINES_POLICE = ['Alles in orde hier, meneer?', 'No loitering near the canal.', 'We are watching the Lampas boys. And you.', 'Nice van. Is it registered?'];
 // Everyday Kaasland grumbling: the weather, Den Haag, petrol, groceries, rent. Generic parody, nobody real named.
@@ -2823,6 +2870,8 @@ function tick() {
     if (keys.KeyA || keys.ArrowLeft) mx -= 1; if (keys.KeyD || keys.ArrowRight) mx += 1;
     mx += virt.mx; mz += virt.mz; // controller / touch stick
   }
+  if (mOn || BOUNDS.cur) ctrlFlip = false; else if (!mx && !mz) ctrlFlip = camFlip; // screen-relative, also with the camera turned round (latched while a key is held, so crossing never reverses you)
+  if (ctrlFlip) { mx = -mx; mz = -mz; }
   if (knock.t > 0 || riding || (loods && loods.driving())) { mx = mz = 0; } // on the heftruck, js/loods.js drives
   let len = Math.hypot(mx, mz); if (len < 0.15) { mx = mz = 0; len = 0; }
   const speed = len ? (keys.ShiftLeft || keys.ShiftRight ? 7.5 : 4.2) * (1 + 0.06 * (woning ? woning.perk('fleet') : 0)) : 0;
@@ -2924,6 +2973,9 @@ function tick() {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) ui.toast.style.display = 'none'; }
   // camera: Neon Vice-style high top-down, eased
   const off = new THREE.Vector3(0, 12.5 * zoom, 6 * zoom);
+  if (mOn || BOUNDS.cur || state.step === 'title') { camFlip = false; flipA = 0; } else if (!camFlip && player.position.z > CZ + 1.2) camFlip = true; else if (camFlip && player.position.z < CZ - 1.2) camFlip = false;
+  flipA += ((camFlip ? Math.PI : 0) - flipA) * Math.min(1, dt * 2.2);
+  if (flipA > 0.002) off.set(Math.sin(flipA) * 6 * zoom, 12.5 * zoom, Math.cos(flipA) * 6 * zoom); // swing round the east side to face the far quay
   if (inside || inShop || inJ) off.set(0, 14 * zoom, 4.5 * zoom);
   if (loods && loods.inside()) off.set(0, 16 * zoom, 5.5 * zoom); // De Hal is big
   const wf = woning && woning.inside() ? woning.camFocus(player.position) : null; // in Eddy's woning: frame the room, follow Eddy a little
