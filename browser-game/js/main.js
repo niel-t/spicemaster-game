@@ -393,8 +393,156 @@ function graffiti(g, x, y, z, k, wdt = 1.6) { const p = new THREE.Mesh(new THREE
 const fadeables = [];
 // a thin bar from (x0,y0) to (x1,y1) on the facade plane
 function edge(g, x0, y0, x1, y1, z, m, t = 0.16) { const b = box(Math.hypot(x1 - x0, y1 - y0) + t * 0.6, t, 0.1, m, (x0 + x1) / 2, (y0 + y1) / 2, z, g, false); b.rotation.z = Math.atan2(y1 - y0, x1 - x0); return b; }
+// ------------------------------------------------------------------ old Dutch canal houses (2026-11-26)
+// Every house on the street is its own building: brick in ten tones (red, brown, yellow IJsselsteen, black-tarred, plastered),
+// one of five gables (trapgevel, klokgevel, halsgevel, tuitgevel, lijstgevel) with a sandstone outline, a hoist beam and a loft
+// hatch or oeil-de-boeuf, tall small-paned sash windows with stone lintels, some lit, some with shutters, a painted door with a
+// fanlight. A business gets a projecting glass winkelpui in its own colours with its own window display (SHOPLOOK).
+const OLD_WALLS = [
+  pbr('brick_red.jpg', 2, 3, 0xc07a5c), pbr('brick_red2.jpg', 2, 3, 0x9a6a5c), pbr('brick_red.jpg', 2, 3, 0x7a4a3c), pbr('brick_cream2.jpg', 2, 3, 0xd8c090), pbr('brick_red2.jpg', 2, 3, 0x6a5850),
+  pbr('plaster2.jpg', 2, 3, 0x34302e, 0.9, 0.4), pbr('brick_red.jpg', 2, 3, 0xa85a44), pbr('plaster2.jpg', 2, 3, 0xe6dcc8, 0.95, 0.4), pbr('brick_cream2.jpg', 2, 3, 0xb8a890), pbr('brick_red2.jpg', 2, 3, 0xb87060),
+];
+const stoneMat = lam({ color: 0xe6dcc6 }), roofDark = pbr('roof_tiles.jpg', 2, 2, 0x55555e, 0.8, 1.0);
+const oldGlassTex = canvasTex(64, 96, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#9ab8cc'); gr.addColorStop(0.4, '#4a6a8a'); gr.addColorStop(1, '#1c2a3a');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.moveTo(6, h); g.lineTo(22, h); g.lineTo(56, 0); g.lineTo(40, 0); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.moveTo(30, h); g.lineTo(36, h); g.lineTo(64, 14); g.lineTo(64, 4); g.fill();
+});
+const oldGlass = new THREE.MeshStandardMaterial({ map: oldGlassTex, roughness: 0.06, metalness: 0.5, envMapIntensity: 1.5 });
+const oldGlassLit = new THREE.MeshStandardMaterial({ map: oldGlassTex, roughness: 0.1, metalness: 0.3, envMapIntensity: 1.2, emissive: 0xffc878, emissiveIntensity: 0.55 });
+const shopGlass = new THREE.MeshStandardMaterial({ color: 0x7fb0c8, roughness: 0.05, metalness: 0.2, envMapIntensity: 0.6, transparent: true, opacity: 0.26, depthWrite: false }); shopGlass.userData.baseOp = 0.26;
+const shopLit = lam({ color: 0x8a7858, emissive: 0xffc880, emissiveIntensity: 0.16 });
+const OLD_DOORS = [0x1f3a2c, 0x5a1a1a, 0x1a2a4a, 0x16181a, 0x2a4a3a, 0x6a4a1a, 0x7a1a14, 0x23374a];
+const OLD_GABLES = ['step', 'bell', 'neck', 'spout', 'bell', 'cornice', 'neck'];
+const ballGeo = new THREE.SphereGeometry(1, 10, 7), ringGeo = new THREE.TorusGeometry(1, 0.1, 6, 20);
+// what is in each shop window, and how its front is dressed. seg: the glass panes [{ x, wd }]; S: { w, SW, F, top, dx }
+const SHOPLOOK = {
+  bitterbal: { trim: 0x3a2412, door: 'r', awn: 'stripe', props(K, g, S, seg) { const x = seg[0].x; K.box(seg[0].wd, 0.07, 0.5, 0xd8d0c0, x, 1.05, S.F + 0.62); K.box(0.9, 0.6, 0.04, 0x1a1a1a, x, 2.0, S.F + 0.08); for (let i = 0; i < 5; i++) K.geo(ballGeo, 0xa8601e, x - 0.5 + i * 0.25, 1.16, S.F + 0.62, 0, 0, 0, 0.075, 0.075, 0.075); K.cyl(0.12, 0.1, 0.2, 0xf2c14e, x + 0.75, 1.19, S.F + 0.6, 10); } },
+  habibi: { trim: 0x0c5a40, door: 'l', awn: 'solid', props(K, g, S, seg) { const x = seg[0].x; K.cyl(0.015, 0.015, 1.5, 0xd0d0d0, x, 1.5, S.F + 0.24, 6); K.cyl(0.14, 0.24, 0.95, 0xa8602a, x, 1.5, S.F + 0.24, 12); K.cyl(0.3, 0.3, 0.05, 0xb8b8b8, x, 0.98, S.F + 0.24, 14); K.box(0.5, 0.36, 0.03, 0xffd23a, x + 0.9, 2.0, S.F + 0.08); neonRect(g, x, 1.55, 0.9, 1.5, S.F + 0.1, 0xe8402a); } },
+  kapsalon: { trim: 0xf4f2ea, door: 'r', props(K, g, S, seg) { const x = seg[0].x, px = -S.SW / 2 - 0.02; K.cyl(0.075, 0.075, 0.95, 0xf4f2ea, px, 1.7, S.F + 0.66, 12); for (let i = 0; i < 5; i++) K.cyl(0.08, 0.08, 0.09, i % 2 ? 0x1d2a8a : 0xc8102e, px, 1.34 + i * 0.18, S.F + 0.66, 12); K.geo(ballGeo, 0xd8b040, px, 2.24, S.F + 0.66, 0, 0, 0, 0.09, 0.09, 0.09); K.box(0.7, 0.9, 0.02, 0xbfd8e8, x, 1.7, S.F + 0.07); K.box(0.5, 0.5, 0.26, 0x8a1a1a, x, 0.85, S.F + 0.24); K.box(0.5, 0.6, 0.08, 0x8a1a1a, x, 1.3, S.F + 0.12); } },
+  avond: { trim: 0x14204a, door: 'c', awn: 'stripe', props(K, g, S, seg) { const F_ = [0xf08a1c, 0xd8201a, 0x5f9a3c, 0xf2c14e]; for (const [i, sg] of seg.entries()) { K.box(0.75, 0.3, 0.5, 0x8a6a3a, sg.x, 0.2, S.F + 0.95, 0, 0.25); K.box(0.75, 0.3, 0.5, 0x7a5a30, sg.x, 0.42, S.F + 0.78, 0, 0.25); for (let q = 0; q < 8; q++) K.geo(ballGeo, F_[(q + i) % 4], sg.x - 0.27 + (q % 4) * 0.18, q < 4 ? 0.44 : 0.66, S.F + (q < 4 ? 1.0 : 0.82), 0, 0, 0, 0.085, 0.085, 0.085); } neonRect(g, seg[0].x, 1.9, 0.8, 0.4, S.F + 0.1, 0xe8202a); } },
+  fiets: { trim: 0x1f6a44, door: 'l', props(K, g, S, seg) { const x = seg[0].x; for (const [dx, y] of [[-0.45, 1.75], [0.4, 1.55], [0.1, 0.95]]) { K.geo(ringGeo, 0x1c1c1c, x + dx, y, S.F + 0.22, 0, 0, 0, 0.32, 0.32, 0.32); K.cyl(0.03, 0.03, 0.05, 0x9aa0a4, x + dx, y, S.F + 0.22, 8, Math.PI / 2); } for (let i = 0; i < 3; i++) K.geo(ringGeo, 0x222222, S.SW / 2 - 0.5, 0.1 + i * 0.1, S.F + 0.95, Math.PI / 2, 0, 0, 0.3, 0.3, 0.3); K.cyl(0.03, 0.03, 0.7, 0xe8202a, S.SW / 2 - 1.0, 0.35, S.F + 0.9, 8); } },
+  bakker: { trim: 0x8a4a12, riser: 0xf2e6c8, door: 'r', awn: 'stripe', props(K, g, S, seg) { const sg = seg[0]; for (const y of [0.98, 1.5]) { K.box(sg.wd - 0.2, 0.05, 0.32, 0xd8c8a0, sg.x, y, S.F + 0.22); const n = Math.max(3, Math.floor(sg.wd / 0.36)); for (let i = 0; i < n; i++) K.geo(ballGeo, [0xc8873a, 0xb8702a, 0xd89a4a][i % 3], sg.x - (n - 1) * 0.17 + i * 0.34, y + 0.11, S.F + 0.22, 0, 0, 0, y > 1 ? 0.1 : 0.15, 0.085, 0.1); } K.cyl(0.2, 0.2, 0.1, 0xe8c070, sg.x, 2.02, S.F + 0.22, 14); } },
+  was: { trim: 0x2a8ad8, riser: 0xffffff, door: 'l', props(K, g, S, seg) { const sg = seg[0], n = Math.max(2, Math.floor(sg.wd / 0.7)); for (let i = 0; i < n; i++) { const x = sg.x - (n - 1) * 0.33 + i * 0.66; K.box(0.58, 0.8, 0.36, 0xf4f4f4, x, 0.92, S.F + 0.22); K.cyl(0.18, 0.18, 0.03, 0x2a3a50, x, 0.88, S.F + 0.41, 14, Math.PI / 2); K.box(0.4, 0.07, 0.02, 0x9ab0c0, x, 1.24, S.F + 0.41); } K.box(sg.wd - 0.3, 0.3, 0.03, 0x2a8ad8, sg.x, 2.0, S.F + 0.07); } },
+  bloem: { trim: 0x2f8a3a, door: 'c', awn: 'solid', props(K, g, S, seg) { const T = [0xe8203a, 0xf2c14e, 0xff8fb8, 0xf08a1c, 0x9a5ad0, 0xffffff]; for (const [i, sg] of seg.entries()) for (let b = 0; b < 3; b++) { const x = sg.x - 0.45 + b * 0.45, z = S.F + 0.85 + (b % 2) * 0.22; K.cyl(0.15, 0.11, 0.32, 0x26282c, x, 0.16, z, 10); K.cyl(0.13, 0.13, 0.28, 0x2f8a3a, x, 0.42, z, 8); for (let q = 0; q < 5; q++) K.geo(ballGeo, T[(b + i * 3) % 6], x + Math.cos(q * 1.26) * 0.09, 0.6 + (q % 2) * 0.05, z + Math.sin(q * 1.26) * 0.09, 0, 0, 0, 0.055, 0.075, 0.055); } K.box(seg[0].wd - 0.2, 0.9, 0.03, 0x2a5a34, seg[0].x, 1.6, S.F + 0.07); } },
+  kaas: { trim: 0x5a3208, riser: 0xf6c12a, door: 'r', props(K, g, S, seg) { const sg = seg[0], n = Math.max(2, Math.floor(sg.wd / 0.62)); K.box(sg.wd - 0.2, 0.06, 0.34, 0x8a5a2a, sg.x, 0.92, S.F + 0.22); for (let i = 0; i < n; i++) { const x = sg.x - (n - 1) * 0.3 + i * 0.6, k = 2 + (i % 3); for (let q = 0; q < k; q++) K.cyl(0.25, 0.25, 0.14, q === k - 1 && i % 2 ? 0xc8201a : [0xf2b81a, 0xe8a010, 0xf6c83a][q % 3], x, 1.03 + q * 0.15, S.F + 0.22, 16); } } },
+  bel: { trim: 0x5a2ad8, door: 'r', props(K, g, S, seg) { const sg = seg[0]; for (const dx of [-0.45, 0.45]) { K.box(0.6, 1.0, 0.24, 0xffffff, sg.x + dx, 1.0, S.F + 0.2); for (let q = 0; q < 6; q++) K.box(0.09, 0.17, 0.03, [0x1a1a1a, 0xc8f04a, 0xe8202a, 0x2a8ad8, 0xf2c14e, 0x9a5ad0][q], sg.x + dx - 0.18 + (q % 3) * 0.18, 1.2 - Math.floor(q / 3) * 0.3, S.F + 0.34); } neonRect(g, sg.x, 2.0, 1.0, 0.36, S.F + 0.1, 0xc8f04a); } },
+  reis: { trim: 0xff8a1c, door: 'l', awn: 'solid', props(K, g, S, seg) { const sg = seg[0]; K.cyl(0.05, 0.12, 0.5, 0x5a3a1a, sg.x - 0.4, 0.8, S.F + 0.24, 8); K.geo(ballGeo, 0x2a7ad8, sg.x - 0.4, 1.26, S.F + 0.24, 0, 0, 0, 0.24, 0.24, 0.24); K.geo(ringGeo, 0xd8b040, sg.x - 0.4, 1.26, S.F + 0.24, 0.4, 0, 0, 0.27, 0.27, 0.27); K.box(0.5, 0.7, 0.02, 0xffe14a, sg.x + 0.4, 1.6, S.F + 0.07); K.box(0.5, 0.3, 0.025, 0x5ac0ff, sg.x + 0.4, 1.4, S.F + 0.08); K.box(0.5, 0.7, 0.02, 0xff8fb8, sg.x + 1.0, 1.5, S.F + 0.07, 0, 0, 0.06); } },
+  makelaar: { trim: 0x121212, riser: 0x121212, door: 'c', props(K, g, S, seg) { for (const sg of seg) { const n = Math.max(2, Math.floor(sg.wd / 0.4)); for (let r = 0; r < 3; r++) for (let i = 0; i < n; i++) { const x = sg.x - (n - 1) * 0.18 + i * 0.36, y = 0.95 + r * 0.5; K.box(0.28, 0.38, 0.02, 0xfdfbf4, x, y, S.F + 0.3); K.box(0.28, 0.16, 0.025, [0x8a5a4a, 0x5a7a9a, 0x7a8a5a, 0xb08a64][(r + i) % 4], x, y + 0.09, S.F + 0.31); } K.box(sg.wd - 0.1, 0.05, 0.05, 0xd8b040, sg.x, 2.38, S.F + 0.3); } } },
+};
+function shopfront(g, K, w, F, mi, shopSign, col) {
+  const b = bizBySign(shopSign), look = (b && SHOPLOOK[b.id]) || {}, hex = (c) => parseInt(c.slice(1), 16);
+  const bg = b ? hex(b.ad.bg) : 0x1e120a, fg = b ? hex(b.ad.fg) : 0xe8862c, trim = look.trim ?? 0x1c1c1e, SW = w * 0.9, top = 2.55;
+  const dx = look.door === 'c' ? 0 : (look.door === 'l' ? -1 : 1) * (SW / 2 - 0.72), S = { w, SW, F, top, dx };
+  K.box(SW - 0.3, 0.5, 0.5, look.riser ?? bg, 0, 0.25, F + 0.25); // the tiled riser under the glass
+  box(SW - 0.3, top - 0.5, 0.04, shopLit, 0, 0.5 + (top - 0.5) / 2, F + 0.03, g, false); // a lit shop behind it
+  for (const sx of [-1, 1]) K.box(0.16, top, 0.54, trim, sx * (SW / 2 - 0.08), top / 2, F + 0.27); // pilasters
+  K.box(SW, 0.1, 0.56, trim, 0, top + 0.05, F + 0.28);
+  // the door: glass in a painted frame, a kick plate and a brass push bar
+  for (const sx of [-1, 1]) K.box(0.07, top, 0.08, trim, dx + sx * 0.5, top / 2, F + 0.47);
+  box(0.92, 2.05, 0.04, shopGlass, dx, 1.12, F + 0.46, g, false); K.box(0.92, 0.28, 0.05, trim, dx, 0.16, F + 0.46); K.box(0.06, 0.5, 0.05, 0xd8b040, dx + (dx > 0 ? -0.34 : 0.34), 1.15, F + 0.5);
+  K.box(0.92, 0.3, 0.05, trim, dx, 2.38, F + 0.46);
+  // the panes either side of the door
+  const seg = [];
+  for (const [x0, x1] of [[-SW / 2 + 0.16, dx - 0.54], [dx + 0.54, SW / 2 - 0.16]]) if (x1 - x0 > 0.55) {
+    const wd = x1 - x0, x = (x0 + x1) / 2; seg.push({ x, wd });
+    box(wd, top - 0.5, 0.04, shopGlass, x, 0.5 + (top - 0.5) / 2, F + 0.46, g, false);
+    K.box(wd, 0.06, 0.07, trim, x, 0.52, F + 0.47); if (wd > 2.2) K.box(0.05, top - 0.5, 0.07, trim, x, 0.5 + (top - 0.5) / 2, F + 0.47);
+    K.box(wd, 0.05, 0.07, trim, x, 2.12, F + 0.47); // a transom bar: small lights above, like the old pui
+  }
+  seg.sort((a, c) => c.wd - a.wd);
+  // fascia in the shop's own colours, a cornice over it
+  K.box(SW + 0.1, 0.74, 0.5, bg, 0, top + 0.47, F + 0.27);
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(SW - 0.1, 0.6), new THREE.MeshBasicMaterial({ map: signTex([{ t: shopSign, size: 46 }], b ? b.ad.bg : '#1e120a', b ? b.ad.fg : '#e8862c'), color: 0xd8d8d8 })); // unlit, so the shop's colours stay true in full sun
+  sg.position.set(0, top + 0.5, F + 0.6); sg.rotation.x = -0.5; g.add(sg); // tilted up a little, the way painted fascia boards lean out, so it reads from the street camera
+  K.box(SW + 0.3, 0.1, 0.64, look.trim === 0x121212 ? 0xd8b040 : 0xf0ece0, 0, top + 0.89, F + 0.3);
+  if (look.awn) {
+    const c1 = '#' + bg.toString(16).padStart(6, '0'), c2 = '#' + fg.toString(16).padStart(6, '0');
+    const awnT = canvasTex(64, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = look.awn === 'stripe' && i % 2 ? '#fbf6ea' : (look.awn === 'stripe' ? c2 === '#ffffff' ? c1 : c2 : c1); c.fillRect(i * 8, 0, 8, 64); } });
+    const awn = box(SW, 0.06, 0.85, lam({ map: awnT }), 0, top - 0.16, F + 0.9, g); awn.rotation.x = 0.45; // short and steep, so the glass still shows from above
+  }
+  if (seg.length && look.props) look.props(K, g, S, seg);
+}
+function oldHouse(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = facing; scene.add(g);
+  g.userData.fade = 1; fadeables.push(g);
+  const K = kit(), F = d / 2, wall = OLD_WALLS[(mi * 7 + 3) % OLD_WALLS.length], kind = OLD_GABLES[(mi * 3) % OLD_GABLES.length];
+  const dark = (mi * 7 + 3) % OLD_WALLS.length === 5, door = OLD_DOORS[(mi * 5 + 1) % OLD_DOORS.length], STONE = 0xe6dcc6;
+  box(w, h, d, wall, 0, h / 2, 0, g);
+  // the gable: its outline as a shape, the brick face, a sandstone band along the edge
+  const gs = new THREE.Shape(), L = []; let apex, R;
+  if (kind === 'step') { const n = w > 5.5 ? 4 : 3, sw = (w / 2 - 0.55) / n, sh = 0.62; apex = n * sh + 0.55; R = apex - 0.7; for (let i = 0; i < n; i++) L.push([-w / 2 + i * sw, i * sh], [-w / 2 + i * sw, (i + 1) * sh]); L.push([-0.55, n * sh], [-0.55, apex]); }
+  else if (kind === 'spout') { apex = Math.min(w * 0.72, 4.0); R = apex - 0.6; L.push([-w / 2, 0], [-w / 2, 0.45], [-0.42, apex - 0.75], [-0.42, apex]); }
+  else if (kind === 'cornice') { apex = 0.55; R = 1.9; L.push([-w / 2, 0], [-w / 2, apex]); }
+  if (L.length) { gs.moveTo(L[0][0], L[0][1]); for (const p of L.slice(1)) gs.lineTo(p[0], p[1]); for (const p of L.slice().reverse()) gs.lineTo(-p[0], p[1]); }
+  else if (kind === 'bell') { apex = 3.0; R = 2.3; gs.moveTo(-w / 2, 0); gs.quadraticCurveTo(-w / 2, 1.2, -w / 4, 1.5); gs.lineTo(-w / 4, apex - 0.4); gs.quadraticCurveTo(0, apex + 0.3, w / 4, apex - 0.4); gs.lineTo(w / 4, 1.5); gs.quadraticCurveTo(w / 2, 1.2, w / 2, 0); }
+  else { const nw = Math.min(1.2, w * 0.25); apex = 3.7; R = 2.2; gs.moveTo(-w / 2, 0); gs.lineTo(-w / 2, 0.3); gs.quadraticCurveTo(-nw - 0.2, 0.5, -nw, 1.5); gs.lineTo(-nw, apex - 0.75); gs.lineTo(-nw - 0.18, apex - 0.75); gs.lineTo(0, apex); gs.lineTo(nw + 0.18, apex - 0.75); gs.lineTo(nw, apex - 0.75); gs.lineTo(nw, 1.5); gs.quadraticCurveTo(nw + 0.2, 0.5, w / 2, 0.3); gs.lineTo(w / 2, 0); }
+  const gg = new THREE.ExtrudeGeometry(gs, { depth: 0.4, bevelEnabled: false }), uv = gg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / w + 0.5, uv.getY(i) / h); // bricks the size of the wall's
+  const gm = new THREE.Mesh(gg, wall); gm.position.set(0, h, F - 0.4); gm.castShadow = true; g.add(gm);
+  const rs = new THREE.Shape(); rs.moveTo(-w / 2 - 0.25, -0.1); rs.lineTo(0, R); rs.lineTo(w / 2 + 0.25, -0.1);
+  const rm = new THREE.Mesh(new THREE.ExtrudeGeometry(rs, { depth: d - 0.6, bevelEnabled: false }), mi % 3 === 0 ? roofDark : roofMat);
+  rm.position.set(0, h, -F); rm.castShadow = true; g.add(rm);
+  roofDetail(K, w, d, h, R, F, mi, !opt.simple);
+  if (opt.simple) { fadeables.pop(); { const km = K.build(); if (km) g.add(km); } mergeStatic(g); return g; } // back-row filler: silhouette only
+  if (!opt.simple) { const P = gs.getPoints(5); for (let i = 0; i < P.length - 1; i++) if (P[i].y > 0.01 || P[i + 1].y > 0.01) edge(g, P[i].x, h + P[i].y, P[i + 1].x, h + P[i + 1].y, F + 0.02, stoneMat, 0.13); }
+  box(w + 0.06, 0.14, 0.12, stoneMat, 0, h, F + 0.03, g, false); // a stone band where the gable starts
+  // hoist beam with its hook, and under it a loft hatch (warehouse gables) or a round window
+  if (kind === 'cornice') { // lijstgevel: a deep white cornice and a dormer that carries the beam
+    K.box(w + 0.34, 0.3, 0.55, 0xf0ece0, 0, h + apex + 0.05, F - 0.05); for (let i = 0; i < Math.floor(w / 0.9); i++) K.box(0.14, 0.22, 0.3, 0xf0ece0, -w / 2 + 0.5 + i * 0.9, h + apex - 0.2, F + 0.12);
+    K.box(1.3, 1.25, 0.7, 0xf0ece0, 0, h + apex + 0.8, F - 0.75); box(0.8, 0.75, 0.05, oldGlass, 0, h + apex + 0.78, F - 0.38, g, false); K.box(0.05, 0.75, 0.07, 0xf0ece0, 0, h + apex + 0.78, F - 0.37);
+    K.box(0.95, 0.09, 0.85, 0x55555e, -0.36, h + apex + 1.6, F - 0.72, 0, 0, 0.6); K.box(0.95, 0.09, 0.85, 0x55555e, 0.36, h + apex + 1.6, F - 0.72, 0, 0, -0.6);
+    K.box(0.11, 0.11, 0.9, 0x2a2420, 0, h + apex + 1.52, F - 0.1); K.box(0.03, 0.2, 0.03, 0x1a1a1a, 0, h + apex + 1.38, F + 0.3);
+  } else {
+    const by = h + apex - (kind === 'neck' ? 1.0 : kind === 'bell' ? 0.62 : 0.5);
+    K.box(0.12, 0.12, 0.95, 0x2a2420, 0, by, F + 0.42); K.box(0.03, 0.22, 0.03, 0x1a1a1a, 0, by - 0.16, F + 0.84); K.geo(ringGeo, 0x1a1a1a, 0, by - 0.32, F + 0.84, 0, 0, 0, 0.06, 0.06, 0.06);
+    const ly = h + (kind === 'neck' ? 1.75 : kind === 'bell' ? 1.45 : apex * 0.42);
+    if (kind === 'neck' || kind === 'bell') { const c = new THREE.Mesh(new THREE.CircleGeometry(0.36, 20), mi % 2 ? oldGlassLit : oldGlass); c.position.set(0, ly, F + 0.03); g.add(c); K.geo(ringGeo, STONE, 0, ly, F + 0.04, 0, 0, 0, 0.4, 0.4, 0.4); K.box(0.05, 0.72, 0.03, STONE, 0, ly, F + 0.05); K.box(0.72, 0.05, 0.03, STONE, 0, ly, F + 0.05); }
+    else { K.box(0.78, 1.06, 0.05, STONE, 0, ly, F + 0.03); K.box(0.62, 0.92, 0.05, door, 0, ly, F + 0.05); for (const sx of [-1, 1]) K.box(0.3, 0.92, 0.04, mi % 2 ? 0x8a1a14 : 0x1f3a2c, sx * 0.56, ly, F + 0.05); K.box(0.2, 0.2, 0.05, STONE, 0, ly + 0.72, F + 0.04, 0, 0, 0.785); }
+    if (kind === 'neck') for (const sx of [-1, 1]) { K.geo(ballGeo, STONE, sx * (Math.min(1.2, w * 0.25) + 0.42), h + 0.72, F - 0.1, 0, 0, 0, 0.3, 0.42, 0.12); K.box(0.2, 0.34, 0.2, STONE, sx * (w / 2 - 0.16), h + 0.5, F - 0.1); } // the claw pieces and corner vases
+    if (kind === 'step') K.box(0.22, 0.4, 0.22, STONE, 0, h + apex + 0.2, F - 0.2);
+  }
+  if (mi % 4 === 1) { K.box(0.56, 0.42, 0.05, STONE, w / 2 - 0.75, h - 0.5, F + 0.03); K.box(0.44, 0.3, 0.05, [0x2a5a8a, 0xc8201a, 0x1f6a44][mi % 3], w / 2 - 0.75, h - 0.5, F + 0.045); } // a gevelsteen
+  // tall small-paned windows, smaller towards the top; stone lintel with a keystone, a sill, sometimes shutters or geraniums
+  const pane = (wx, y, ww, hg, lit) => {
+    box(ww + 0.18, hg + 0.18, 0.06, frameMat, wx, y, F + 0.02, g, false); box(ww, hg, 0.07, lit ? oldGlassLit : oldGlass, wx, y, F + 0.04, g, false);
+    box(0.045, hg, 0.09, frameMat, wx, y, F + 0.05, g, false); for (const k of [-0.17, 0.17]) box(ww, 0.045, 0.09, frameMat, wx, y + hg * k, F + 0.05, g, false);
+    K.box(ww + 0.3, 0.16, 0.1, dark ? 0xf4f0e6 : STONE, wx, y + hg / 2 + 0.17, F + 0.06); K.box(0.16, 0.25, 0.12, dark ? 0xf4f0e6 : STONE, wx, y + hg / 2 + 0.19, F + 0.07); K.box(ww + 0.3, 0.08, 0.2, STONE, wx, y - hg / 2 - 0.13, F + 0.1);
+  };
+  const floors = Math.floor((h - 1) / 2.8), nW = w >= 6.2 ? 3 : 2, ww = Math.min(1.1, (w / nW) * 0.5);
+  for (let f = 0; f < floors; f++) {
+    const y = 3.5 + f * 2.8 + (shopSign && f === 0 ? 0.6 : 0), hg = [1.95, 1.8, 1.5, 1.25][Math.min(f, 3)] - (shopSign && f === 0 ? 0.7 : 0);
+    for (let k = 0; k < nW; k++) {
+      const wx = nW === 3 ? (k - 1) * w * 0.3 : (k - 0.5) * w * 0.46;
+      pane(wx, y, ww, hg, (mi * 5 + f * 3 + k * 7) % 4 === 0);
+      if (mi % 5 === 2 && f === 0 && nW === 2) for (const sx of [-1, 1]) K.box(ww * 0.46, hg, 0.05, door, wx + sx * (ww * 0.73 + 0.1), y, F + 0.05);
+      if (f === 0 && (mi + k) % 3 === 0 && !shopSign) { K.box(ww + 0.1, 0.22, 0.24, 0x6a4a2a, wx, y - hg / 2 - 0.02, F + 0.22); for (let q = 0; q < 5; q++) K.geo(blobGeo(1 + (q % 4), 0), [0xc8402e, 0xf2c14e, 0xe8862c, 0x5f8a3c, 0xc8402e][(q + mi) % 5], wx - 0.4 + q * 0.2, y - hg / 2 + 0.17, F + 0.24, q, q * 2, 0, 0.15, 0.13, 0.15); } // geraniums
+    }
+  }
+  if (shopSign) shopfront(g, K, w, F, mi, shopSign);
+  else if (!opt.noDoor) { // a painted door with a fanlight up two bluestone steps, and the tall windows of the voorkamer
+    const dx = w * 0.28;
+    box(1.12, 2.95, 0.08, frameMat, dx, 1.48, F + 0.02, g, false); K.box(0.92, 2.12, 0.1, door, dx, 1.08, F + 0.04);
+    for (const [py, ph] of [[1.6, 0.8], [0.62, 0.8]]) K.box(0.62, ph, 0.03, ((door >> 1) & 0x7f7f7f), dx, py, F + 0.1);
+    box(0.92, 0.6, 0.07, oldGlassLit, dx, 2.52, F + 0.04, g, false); box(0.04, 0.6, 0.09, frameMat, dx, 2.52, F + 0.05, g, false);
+    K.geo(ballGeo, 0xd8b040, dx - 0.32, 1.12, F + 0.12, 0, 0, 0, 0.045, 0.045, 0.045);
+    K.box(0.14, 0.26, 0.14, 0x16181a, dx + 0.78, 2.3, F + 0.14); K.box(0.1, 0.16, 0.1, 0xffd9a0, dx + 0.78, 2.3, F + 0.16); // the lantern by the door
+    if (w > 6.4) { pane(-w * 0.34, 1.75, ww, 2.0, mi % 3 === 0); pane(-w * 0.08, 1.75, ww, 2.0, mi % 3 === 1); } else pane(-w * 0.2, 1.75, Math.min(1.25, ww + 0.15), 2.0, mi % 3 === 0);
+    if (mi % 6 === 1) graffiti(g, -w * 0.2, 0.42, F + 0.03, mi, 1.5);
+  }
+  // bluestone plinth, the steps, wall anchors, a zinc downpipe
+  K.box(w - 0.04, 0.42, 0.06, 0x5c6064, 0, 0.21, F + 0.045);
+  if (!shopSign && !opt.noDoor) { K.box(1.4, 0.16, 0.62, 0x6a6e72, w * 0.28, 0.08, F + 0.33); K.box(1.2, 0.16, 0.34, 0x74787c, w * 0.28, 0.24, F + 0.19); }
+  for (let f = 1; f <= floors; f++) for (const sx of [-1, 1]) { const ax = sx * (w / 2 - 0.3), ay = 2.2 + f * 2.8 - 0.1; K.box(0.06, 0.5, 0.04, 0x1e1e20, ax, ay, F + 0.04); K.box(0.2, 0.05, 0.04, 0x1e1e20, ax, ay + 0.2, F + 0.04); }
+  if (mi % 2 === 0) { const px = (mi % 4 ? 1 : -1) * (w / 2 - 0.12); K.cyl(0.055, 0.055, h - 0.2, 0x9aa0a4, px, (h - 0.2) / 2, F + 0.1, 8); K.cyl(0.07, 0.07, 0.12, 0x8a9094, px, 0.06, F + 0.1, 8); }
+  { const km = K.build(); if (km) g.add(km); }
+  mergeStatic(g);
+  g.traverse((c) => { if (c.isMesh) { c.material = c.material.clone(); c.material.transparent = true; } });
+  return g;
+}
 function house(x, z, w, d, h, facing, mi, shopSign, opt = {}) {
   if (!opt.simple && !opt.y && (z === -11 || z === SROW)) { streetHouses.push({ x, z, w, d }); if (shopSign) { const b = bizBySign(shopSign); if (b) placeBiz(b.id, x, w); } }
+  if (opt.color == null && !opt.y) return oldHouse(x, z, w, d, h, facing, mi, shopSign, opt); // the Zaanse wooden look stays for Hotel Kaasland and the clock house
   const g = new THREE.Group(); g.position.set(x, opt.y || 0, z); g.rotation.y = facing; scene.add(g);
   g.userData.fade = 1; fadeables.push(g);
   const K = kit(); // small detail (chimney, gutters, plinth, flower boxes...) baked into one mesh at the end

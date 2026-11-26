@@ -150,10 +150,10 @@ export function createBuurt(deps) {
     for (const b of BIZ) {
       if (b.x0 == null || b.id === 'club' || b.id === 'dealer') continue;
       const far = b.side === 's', fz = far ? FZ : b.id === 'eddy' ? -7 : -6.5, x = b.x1 - 0.85, g = new THREE.Group(); g.position.set(x, 0, fz); if (far) g.rotation.y = Math.PI; scene.add(g);
-      const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.0), arm); a1.position.set(0, 3.72, 0.5); g.add(a1);
-      const a2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), arm); a2.position.set(0, 3.62, 0.9); g.add(a2);
+      const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.0), arm); a1.position.set(0, 4.42, 0.5); g.add(a1);
+      const a2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), arm); a2.position.set(0, 4.32, 0.9); g.add(a2);
       const cv = document.createElement('canvas'); cv.width = cv.height = 256; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      const m = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true, alphaTest: 0.4 })); m.position.set(0, 2.95, 0.9); g.add(m); // across the canal the camera swings round to face the shops, so the board reads the right way there too
+      const m = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true, alphaTest: 0.4 })); m.position.set(0, 3.68, 0.9); g.add(m); // across the canal the camera swings round to face the shops, so the board reads the right way there too
       logoImages().then((im) => { if (im[b.id]) { cv.getContext('2d').drawImage(im[b.id], 0, 0, 256, 256); t.needsUpdate = true; } });
       b.board = m;
     }
