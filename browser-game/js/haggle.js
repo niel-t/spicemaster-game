@@ -158,7 +158,7 @@ export function createHaggle(deps) {
     const t = trustOf(who);
     if (move === 'accept') {
       const price = s.offer; close();
-      nudgeTrust(who, s.story === 'caught' ? 0 : 0.5);
+      nudgeTrust(who, s.story === 'caught' ? 0 : 0.5); if (deps.onDeal) deps.onDeal(who, s.story === 'caught' ? 'caught' : 'deal'); // word gets around (js/buurtrep.js)
       delete mem().s[cfg.key];
       if (deps.toast) deps.toast(p.name.toUpperCase(), say(K('deal'), who, {}), 2.5);
       cfg.onDeal(price);

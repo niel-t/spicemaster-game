@@ -108,7 +108,8 @@ export function createSollicitanten(deps) {
     const d = deps.day(), rank = deps.rank();
     if (S.day !== d || !Array.isArray(S.list)) {
       const used = new Set((state.crew || []).map((m) => m.name)), list = [];
-      for (let i = 0; i < (rank >= 2 ? 4 : 3); i++) { const c = roll(S.seed + d, i, rank, used); used.add(c.name); list.push(c); }
+      const n = Math.max(2, (rank >= 2 ? 4 : 3) + (deps.extra ? deps.extra() : 0)); // the buurt's word: an extra candidate, or one fewer (js/buurtrep.js)
+      for (let i = 0; i < n; i++) { const c = roll(S.seed + d, i, rank, used); used.add(c.name); list.push(c); }
       // the agency always sends one beginner a Hulpje can pay for
       if (!list.some((c) => feeOf(c) <= 450)) { const c = list[list.length - 1]; while (feeOf(c) > 450) { const k = ['tempo', 'skill', 'ethic'].sort((a, b) => c[b] - c[a])[0]; c[k]--; } }
       S.day = d; S.list = list;

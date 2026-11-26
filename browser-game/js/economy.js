@@ -335,7 +335,7 @@ export function createEconomy(deps) {
   const addTrust = (id, d) => { const e = ensure(); e.trust[id] = clamp(trustOf(id) + d, 0, 100); };
   const controlOf = (id) => { const e = ensure(); if (NOT_TURF.includes(id)) return 100; if (e.control[id] === undefined) e.control[id] = 60; return e.control[id]; };
   const ctlMult = (id) => (NOT_TURF.includes(id) ? 1.1 : 0.5 + 0.7 * controlOf(id) / 100); // 0 control: half pay, 100: x1.2
-  const clientPrice = (blendId, q, cid) => { const b = BLENDS.find((x) => x.id === blendId), bomb = cid && ensure().bombed && ensure().bombed[cid] ? 0.6 : 1; return Math.round(b.value * (0.6 + 0.15 * q) * (cid ? ctlMult(cid) : 1) * bomb * 10) / 10; };
+  const clientPrice = (blendId, q, cid) => { const b = BLENDS.find((x) => x.id === blendId), bomb = cid && ensure().bombed && ensure().bombed[cid] ? 0.6 : 1; return Math.round(b.value * (0.6 + 0.15 * q) * (cid ? ctlMult(cid) * (deps.sellBias ? deps.sellBias(cid) : 1) : 1) * bomb * 10) / 10; };
   function deliver() {
     const e = ensure(), rows = []; let paid = 0, missed = 0;
     // late payments from earlier days come in first
@@ -347,7 +347,7 @@ export function createEconomy(deps) {
       if (e.pause[c.id] > 0) { e.pause[c.id]--; if (!e.pause[c.id]) e.trust[c.id] = 30; rows.push({ name: c.name, note: e.pause[c.id] ? 'buying from the Lampas for now' : 'willing to talk again tomorrow', pay: 0 }); continue; }
       const b = BLENDS.find((x) => x.id === cb), have = blendOf(cb), want = orderKg(c), kg = Math.min(want, Math.floor(have.kg));
       if (kg <= 0) {
-        missed++; addTrust(c.id, c.kind === 'loyal' ? -5 : -15); addControl(c.id, -10);
+        missed++; addTrust(c.id, c.kind === 'loyal' ? -5 : -15); addControl(c.id, -10); if (deps.onSale) deps.onSale(c.id, false); // the buurt notices (js/buurtrep.js)
         rows.push({ name: c.name, want: `${want} kg ${b.name}`, note: c.kind === 'loyal' ? '"No spice today? Next time, jongen."' : 'MISSED: no stock', pay: 0 });
       } else {
         have.kg -= kg; if (have.kg <= 0) delete e.blends[cb]; else e.blends[cb] = have;
@@ -357,7 +357,7 @@ export function createEconomy(deps) {
         if (c.kind === 'haggler' && Math.random() < 0.35 && !e.cards.some((x) => x.id === c.id)) { e.cards.push({ id: c.id, name: c.name, who: c.who, text: pick(HAGGLES), amount: pay }); note += ', wants to haggle'; pay = 0; }
         else if (c.kind === 'late' && Math.random() < 0.5) { const d = 1 + Math.floor(Math.random() * 2); e.owed.push({ name: c.name, amount: pay, days: d }); note += `, pays in ${d} day(s)`; pay = 0; }
         rows.push({ name: c.name, want: `${want} kg ${b.name}`, kg, q: have.q, note, pay });
-        paid += pay;
+        paid += pay; if (deps.onSale) deps.onSale(c.id, kg >= want);
       }
       if (trustOf(c.id) < 20 && !e.pause[c.id]) { e.pause[c.id] = 2; rows.at(-1).note += '. Fed up: back to the Lampas for 2 days'; }
     }
@@ -365,9 +365,9 @@ export function createEconomy(deps) {
     for (const g of DISTRICT_SALES) { // the joints Eddy took in Acts 1-3 buy their district's blend (Kip as a fallback); none in stock, no sale, no hard feelings
       const n = (deps.joints ? deps.joints() : []).filter((id) => g.ids.includes(id)).length; if (!n) continue;
       const want = n * DISTRICT_KG, bl = blendOf(g.blend).kg >= 1 ? g.blend : 'kip', have = blendOf(bl), kg = Math.min(want, Math.floor(have.kg)), bn = BLENDS.find((x) => x.id === bl).name;
-      if (kg <= 0) { rows.push({ name: `${g.name} (${n} joint${n > 1 ? 's' : ''})`, want: `${want} kg ${BLENDS.find((x) => x.id === g.blend).name}`, note: 'nothing in stock: they bought elsewhere today', pay: 0 }); continue; }
+      if (kg <= 0) { if (deps.onGroup) deps.onGroup(g.name, false); rows.push({ name: `${g.name} (${n} joint${n > 1 ? 's' : ''})`, want: `${want} kg ${BLENDS.find((x) => x.id === g.blend).name}`, note: 'nothing in stock: they bought elsewhere today', pay: 0 }); continue; }
       have.kg -= kg; if (have.kg <= 0) delete e.blends[bl]; else e.blends[bl] = have;
-      const pay = Math.round(clientPrice(bl, have.q, null) * kg);
+      const pay = Math.round(clientPrice(bl, have.q, null) * kg * (deps.groupBias ? deps.groupBias(g.name) : 1)); if (deps.onGroup) deps.onGroup(g.name, kg >= want);
       rows.push({ name: `${g.name} (${n} joint${n > 1 ? 's' : ''})`, want: `${want} kg ${bn}`, kg, q: have.q, note: kg < want ? `short ${want - kg} kg` : 'on time', pay }); paid += pay;
     }
     const po = e.phoneOrder; // Hakan's kipkruiden, ordered by phone yesterday: Shooki drops it off after the joints are served
@@ -428,7 +428,7 @@ export function createEconomy(deps) {
       const held = rivalsHeld(f), known = e.rivalKnown[f.id] || (e.rivalKnown[f.id] = []);
       const mult = f.mult || 1;
       for (const id of held) if (!known.includes(id)) { known.push(id); L[f.id] = (L[f.id] || 0) + 15 * mult; } // balance 2026-11-15: was +25
-      L[f.id] = clamp((L[f.id] || 0) + held.length * mult - 4, 0, 100); // was +2 a joint: heat sat at 100 for most of an act
+      L[f.id] = clamp((L[f.id] || 0) + held.length * mult - 4 + (deps.heatBias ? deps.heatBias(f.id) : 0), 0, 100); // was +2 a joint: heat sat at 100 for most of an act
       if (!held.length) continue;
       if (L[f.id] >= 100 && deps.siege && !e.siege) { e.siege = { faction: f.id, day: e.day }; L[f.id] = 95; out.push(`The ${f.name} are massing outside your warehouse. Go home and defend it, or let them take what they want.`); continue; }
       if (f.id === 'noshgey' && L.noshgey >= 50 && !Object.keys(e.bombed).length && Math.random() < 0.4) { // one campaign at a time
@@ -457,7 +457,7 @@ export function createEconomy(deps) {
     const ov = (deps.joints ? deps.joints() : []).filter((id) => LAMPAS_JOINTS.includes(id));
     if (!e.knownOV) e.knownOV = ov.slice(); // an older save: what's already held doesn't spike the heat
     for (const id of ov) if (!e.knownOV.includes(id)) { e.knownOV.push(id); L.lampas += 10; }
-    L.lampas = clamp(L.lampas + 2 * held.length + ov.length - 4, 0, 100);
+    L.lampas = clamp(L.lampas + 2 * held.length + ov.length - 4 + (deps.heatBias ? deps.heatBias('lampas') : 0), 0, 100); // a buurt on Eddy's side cools it (js/buurtrep.js)
     const name = (id) => CLIENTS.find((c) => c.id === id).name;
     if (L.lampas >= 40) { for (const id of held) if (!e.wh[id]) addControl(id, -5); if (!e.event) { const bl = pick(BLENDS.filter(blendOpen)); e.event = { id: 'pricewar', text: `The Lampas dump cheap ${bl.name} on your turf: clients pay 25% less for it today`, pay: 0.75, blend: bl.id }; } }
     if (L.lampas >= 60 && held.length && Math.random() < 0.5) { const id = pick(held); addControl(id, -10); out.push(`Lampas thugs leaned on ${name(id)} (control -10).`); }

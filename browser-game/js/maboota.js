@@ -28,7 +28,7 @@ export function createMabootaLaw(deps) {
     if (!live() || !deps.isPublic()) return false;
     const c = S(), d = day();
     if (c.reports.filter((r) => r.day === d).length >= 4) return false; // one street can only call so often
-    c.reports.push({ day: d, how }); if (c.reports.length > 40) c.reports.splice(0, c.reports.length - 40);
+    c.reports.push({ day: d, how }); if (deps.onReport) deps.onReport(how); if (c.reports.length > 40) c.reports.splice(0, c.reports.length - 40);
     if (toldToday !== d) {
       toldToday = d; deps.tips.show('maboota');
       const v = c.visits;
@@ -58,7 +58,7 @@ export function createMabootaLaw(deps) {
       if (!sees) { u.wit = Math.max(0, (u.wit || 0) - dt * 0.6); continue; }
       u.wit = (u.wit || 0) + dt * (L < 4 ? 1.4 : 1);
       if (!u.witStage && u.wit >= NOTICE) { u.witStage = 1; personBubble(w, u.police ? rnd(COP_SEE) : rnd(STARTLED), u.police ? '#3a6aff' : '#e8a33d', u.police ? 'Politie' : ''); }
-      else if (u.witStage === 1 && u.wit >= (u.police ? COP_CALL : CALL)) {
+      else if (u.witStage === 1 && u.wit >= (u.police ? COP_CALL : CALL * (deps.callMult ? deps.callMult() : 1))) {
         u.witStage = 2; u.witCd = now + 90;
         if (u.police) { personBubble(w, rnd(COP_NOTE), '#3a6aff', 'Politie'); report('cop', 'A police officer on patrol'); }
         else { personBubble(w, rnd(CALLING), '#ff7a1a'); u.flee = true; u.dir = Math.sign(w.position.x - player.position.x) || 1; report('seen'); }
@@ -104,6 +104,10 @@ export function createMabootaLaw(deps) {
       choice(B, `Me again, meneer Eddy. We had ${what}. Again.`, ['"I was holding it for a friend."', '"It won\'t happen again."'], (i) => {
         deps.dialogue([[B, i ? 'That is what you said last time. More or less.' : 'A friend. With a truncheon. In Kipkruidenkwartier.'], [B, 'Second warning, and the last one. Next time it\'s not a chat: a <b>fine</b>, and we take a look inside your warehouse. Put. It. Away.']], end);
       });
+    } else if (deps.pardon && deps.pardon()) { // the buurt put in a good word (js/buurtrep.js)
+      choice(B, `Meneer Eddy. ${what[0].toUpperCase() + what.slice(1)}. By the book this is a fine.`, ['"The whole street knows me, Bakker."'], () => {
+        deps.dialogue([[B, 'I know. Half the Kipkruidenkade called the bureau to say you’re a good lad who helps out. Mevrouw Bos even. Mevrouw Bos!'], [B, 'So: a warning, one more time. Don’t make me regret it.']], end);
+      });
     } else {
       const fine = Math.min(3000, 250 * (n - 2) + 150 * (reps.length - 1) + 200 * hits), pSearch = Math.min(0.9, 0.5 + 0.1 * (n - 3) + 0.1 * hits);
       choice(B, `Meneer Eddy. ${what[0].toUpperCase() + what.slice(1)}. I warned you twice. That is a fine of <b>${fmt(fine)}</b>.`, [`Pay ${fmt(fine)}`, 'Deny everything'], (i) => {
@@ -111,7 +115,7 @@ export function createMabootaLaw(deps) {
           const paid = Math.min(state.money, fine); deps.addMoney(-paid); toast('FINE PAID', `${fmt(paid)} to the gemeente. Keep the Maboota holstered in public.`, 4);
           deps.dialogue([[B, 'Thank you. And meneer? Next time it\'s more. Keep it out of sight.']], end);
         } else if (Math.random() < pSearch) {
-          const kg = seizeStock(), g = gangsHear(); claimDay();
+          const kg = seizeStock(), g = gangsHear(); claimDay(); if (deps.onReport) deps.onReport('search');
           deps.dialogue([[B, 'Deny everything. Fine. Then you won\'t mind if we look around. Huiszoeking, meneer.'], ['Eddy Jr.', '(Two more agents walk past him into the warehouse.)'], [B, kg ? `${kg} kg of unlabelled spice. "Evidence." And the fine stands.` : 'Nothing on the shelves. Suspicious. The fine stands.']], () => {
             deps.addMoney(-Math.min(state.money, fine));
             toast('HUISZOEKING', `The police searched the warehouse: ${kg ? `${kg} kg of spice seized, ` : ''}fine ${fmt(fine)}. The search took the morning: no raid today.${g ? ` Word gets around: ${NAMES[g] || g} heat +10.` : ''}`, 7);
