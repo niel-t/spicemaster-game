@@ -63,7 +63,7 @@ export function createWijk(deps) {
     for (const [x, nl, en] of [[AIR.pick.x, 'AANKOMST', 'Arrivals · ophalen'], [AIR.drop.x, 'VERTREK', 'Departures · afzetten']]) {
       K.box(11, 3.3, 0.5, 0x1a2a3a, O.x + x, 1.65, O.z - 9.5); for (const dx of [-2.6, 0, 2.6]) K.box(2.3, 2.8, 0.1, 0x6a94b4, O.x + x + dx, 1.5, O.z - 9.22); // the sliding doors
       K.box(12.5, 0.3, 3.2, 0xf4f4f0, O.x + x, 3.55, O.z - 8.1); for (const dx of [-6, 6]) K.cyl(0.11, 0.11, 3.5, 0xc8ccd2, O.x + x + dx, 1.75, O.z - 6.9, 8); // the awning
-      board([[nl, 64], [en, 28]], 9.5, 2.3, x, 5.1, -9.36);
+      board([[nl, 64], [en, 28]], 9.5, 2.3, x, 6.0, -9.36);
       board([[nl === 'AANKOMST' ? 'Kiss & Ride · ophalen' : 'Kiss & Ride · afzetten', 50]], 3.6, 0.8, x - 9, 2.6, -6.9); K.cyl(0.05, 0.05, 2.6, 0x8a8e94, O.x + x - 9, 1.3, O.z - 6.95, 6);
     }
     board([['SCHIPTAGAT', 60]], 30, 4.2, 100, 11.6, -9.4, '#f4f4f0', '#14499a'); K.box(30.6, 0.3, 0.3, 0x8a8e94, O.x + 100, 9.45, O.z - 9.5);
