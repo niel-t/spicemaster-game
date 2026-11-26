@@ -750,7 +750,7 @@ for (let x = -60, i = 0; x < 60; i++) { const w = 5 + (i % 3); house(x + w / 2, 
 for (const [a, b, k0] of [[-SX, -60, 40], [60, SX, 50]]) { let x = a; spanWidths(b - a, k0).forEach((w, i) => { house(x + w / 2, SROW, w, 8, 9 + ((k0 + i) % 4), Math.PI, k0 + i, null); x += w; }); } // and on along the longer street
 
 // ------------------------------------------------------------------ the warehouse
-const WH = { x0: -11, x1: 1, z0: -19, z1: -7, h: 5.2, doorX0: -7, doorX1: -2.5 };
+const WH = { x0: -11, x1: 1, z0: -21, z1: -7, h: 5.2, doorX0: -7, doorX1: -2.5 }; // z0 was -19: two metres deeper from the start (Tristan 2026-11-26), up to the plot
 const wh = new THREE.Group(); scene.add(wh);
 // painted corrugated sheet (generated so the colour stays bright): mint walls like the outlet sheds
 const corrTex = canvasTex(128, 32, (g, w, h) => { for (let x = 0; x < w; x++) { const v = 200 + Math.round(55 * Math.cos(x / w * Math.PI * 16)); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, h); } });
@@ -813,8 +813,8 @@ for (let i = 0; i < 2; i++) box(1.2, 0.5, 1.2, lam({ color: 0x8a8f94 }), WH.x0 +
   box(WH.x1 - WH.x0 + 0.2, 0.2, 0.25, white, (WH.x0 + WH.x1) / 2, WH.h - 0.05, WH.z1 + 0.06, frontHigh, false);
 }
 // interior lights
-const inLight1 = new THREE.PointLight(0xfff0d0, 0, 14, 1.6); inLight1.position.set(-7.5, 4.2, -13); wh.add(inLight1);
-const inLight2 = new THREE.PointLight(0xfff0d0, 0, 14, 1.6); inLight2.position.set(-2.5, 4.2, -13); wh.add(inLight2);
+const inLight1 = new THREE.PointLight(0xfff0d0, 0, 15, 1.5); inLight1.position.set(-7.5, 4.2, -14); wh.add(inLight1);
+const inLight2 = new THREE.PointLight(0xfff0d0, 0, 15, 1.5); inLight2.position.set(-2.5, 4.2, -14); wh.add(inLight2);
 for (const x of [-7.5, -2.5]) box(2.4, 0.1, 0.25, lam({ color: 0xffffff, emissive: 0xfff6d8 }), x, 4.7, -13, roof, false);
 // shelves along the back
 const backShelf = { meshes: [], sol: null }; // the first one makes way for the door into De Hal (js/loods.js)
@@ -825,6 +825,57 @@ for (let i = 0; i < 2; i++) {
   const so = solid(sx - 1.8, sx + 1.8, WH.z0, WH.z0 + 1.35);
   if (i === 0) { backShelf.meshes = ms; backShelf.sol = so; }
 }
+// ------------------------------------------------------------------ De Loods, laid out (Tristan 2026-11-26)
+// The floor says what goes where: goods come in through the roller door (LAADZONE), stand on the pallets along the east wall
+// (OPSLAG), are mixed at the back (MENGERIJ, with the mill beside it), bagged by the door (INPAK) and go out again. The west
+// wall is for the racking, the back corner is the office, and the Naknikim have lockers. Every upgrade that is not there yet
+// has its outline and its name stencilled on the concrete in white, so Eddy can see where it will stand.
+const whZones = []; // { g, done() }: the outline of something still to come
+{
+  const K = kit(), Y = 0xf2c31a, WHT = 0xf4f2ec, DADO = 0x3f8f86;
+  const liner = (KK) => (x0, z0, x1, z1, c = Y, w = 0.09) => KK.box(Math.abs(x1 - x0) + w, 0.012, Math.abs(z1 - z0) + w, c, (x0 + x1) / 2, 0.042, (z0 + z1) / 2);
+  const rectOf = (ln) => (x0, z0, x1, z1, c, dash) => { if (!dash) { ln(x0, z0, x1, z0, c); ln(x0, z1, x1, z1, c); ln(x0, z0, x0, z1, c); ln(x1, z0, x1, z1, c); return; }
+    for (let x = x0; x < x1 - 0.05; x += 0.5) { ln(x, z0, Math.min(x1, x + 0.28), z0, c); ln(x, z1, Math.min(x1, x + 0.28), z1, c); } for (let z = z0; z < z1 - 0.05; z += 0.5) { ln(x0, z, x0, Math.min(z1, z + 0.28), c); ln(x1, z, x1, Math.min(z1, z + 0.28), c); } };
+  const stencil = (text, x, z, w, col = '#f2c31a', parent = wh, ry = 0) => {
+    const t = canvasTex(256, 56, (g, cw, ch) => { g.clearRect(0, 0, cw, ch); g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; let fs = 40; g.font = `900 ${fs}px Arial Black, Impact, sans-serif`; while (g.measureText(text).width > cw - 10 && fs > 10) { fs -= 2; g.font = `900 ${fs}px Arial Black, Impact, sans-serif`; } g.fillText(text, cw / 2, ch / 2 + 2); });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 56 / 256), lam({ map: t, transparent: true, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, 0.046, z); parent.add(m); return m; };
+  const line = liner(K), rect = rectOf(line);
+  // LAADZONE: yellow hatching inside the roller door, keep it clear
+  rect(WH.doorX0 + 0.1, -9.4, WH.doorX1 - 0.1, WH.z1 - 0.35, Y); for (let i = 0; i < 6; i++) K.box(2.5, 0.012, 0.1, Y, WH.doorX0 + 0.75 + i * 0.6, 0.042, -8.38, 0.9); stencil('LAADZONE', (WH.doorX0 + WH.doorX1) / 2, -9.75, 2.6);
+  // OPSLAG: the pallet places along the east wall
+  rect(-1.2, -15.8, WH.x1 - 0.25, -9.15, Y); stencil('OPSLAG', -1.62, -12.45, 2.6, '#f2c31a', wh, Math.PI / 2);
+  // MENGERIJ: the mixer at the back
+  rect(-4.15, -17.0, -1.38, -14.25, 0xe8862c); stencil('MENGERIJ', -2.76, -13.9, 2.4, '#e8862c');
+  // INPAK: bagging by the door, so the bags leave the way the vaten came
+  rect(-1.55, -9.0, WH.x1 - 0.25, -7.4, 0x3aa0ff); stencil('INPAK', -2.2, -8.2, 1.4, '#3aa0ff', wh, Math.PI / 2);
+  // KANTOOR: the desk in the back corner on Oma's kilim, a pin board and a clock over it
+  K.box(3.6, 0.02, 2.3, 0x9a2a2a, -8.8, 0.04, -19.45); K.box(3.2, 0.022, 1.9, 0xc8a05a, -8.8, 0.041, -19.45); K.box(2.6, 0.024, 1.3, 0x7a1f24, -8.8, 0.042, -19.45); for (const dx of [-1.0, 0, 1.0]) K.box(0.5, 0.026, 0.5, 0xe8d8b0, -8.8 + dx, 0.043, -19.45, Math.PI / 4);
+  stencil('KANTOOR', -8.8, -18.05, 2.2);
+  K.box(1.7, 1.0, 0.05, 0xb08a5a, -9.1, 1.9, WH.z0 + 0.19); K.box(1.8, 0.07, 0.07, 0x5a3a22, -9.1, 2.42, WH.z0 + 0.2); for (const [dx, dy, c] of [[-0.5, 0.2, 0xf4f2ec], [0.1, 0.25, 0xffe08a], [0.5, -0.1, 0xf4f2ec], [-0.2, -0.25, 0xff9a8a], [0.55, 0.3, 0x9ad0ff]]) K.box(0.3, 0.36, 0.01, c, -9.1 + dx, 1.9 + dy, WH.z0 + 0.225);
+  K.cyl(0.24, 0.24, 0.05, 0xf4f2ec, -7.6, 2.5, WH.z0 + 0.19, 18, Math.PI / 2); K.cyl(0.27, 0.27, 0.03, 0x1a1a1a, -7.6, 2.5, WH.z0 + 0.175, 18, Math.PI / 2); K.box(0.02, 0.17, 0.01, 0x1a1a1a, -7.6, 2.57, WH.z0 + 0.225); K.box(0.12, 0.02, 0.01, 0x1a1a1a, -7.55, 2.5, WH.z0 + 0.225);
+  K.box(0.5, 1.3, 0.55, 0x8a8f94, -10.5, 0.65, -18.4); for (let i = 0; i < 3; i++) K.box(0.03, 0.04, 0.3, 0x3a3e44, -10.24, 0.3 + i * 0.42, -18.4); solid(-10.8, -10.22, -18.72, -18.08); // a filing cabinet
+  // the Naknikim's corner on the west wall: lockers, a bench, the time clock
+  for (let i = 0; i < 3; i++) { const z = -12.7 + i * 0.56; K.box(0.5, 1.9, 0.52, [0x2f62b8, 0x2a58a6, 0x2f62b8][i], -10.55, 0.95, z); for (let v = 0; v < 3; v++) K.box(0.02, 0.02, 0.3, 0x1a2a4a, -10.29, 1.6 + v * 0.07, z); K.box(0.03, 0.1, 0.04, 0xd8d8d8, -10.29, 1.0, z + 0.16); }
+  solid(-10.85, -10.27, -13.0, -11.28);
+  K.box(0.4, 0.06, 1.5, 0x7a5a3a, -10.5, 0.45, -10.4); for (const dz of [-0.6, 0.6]) K.box(0.36, 0.45, 0.06, 0x3a3e44, -10.5, 0.225, -10.4 + dz); solid(-10.8, -10.28, -11.2, -9.6);
+  K.box(0.06, 0.4, 0.3, 0x3a3e44, WH.x0 + 0.2, 1.5, -13.5); K.box(0.02, 0.12, 0.2, 0x40ff60, WH.x0 + 0.24, 1.58, -13.5); stencil('NAKNIKIM', -9.55, -12.15, 1.9, '#9ad0ff', wh, Math.PI / 2);
+  // safety: a painted band round the walls, an extinguisher and a first aid box by the door, a mirror for the heftruck some day
+  for (const [x0, x1] of [[WH.x0 + 0.2, -5.75], [-3.45, WH.x1 - 0.2]]) K.box(x1 - x0, 1.0, 0.04, DADO, (x0 + x1) / 2, 0.5, WH.z0 + 0.18);
+  K.box(0.04, 1.0, WH.z1 - WH.z0 - 0.4, DADO, WH.x0 + 0.18, 0.5, (WH.z0 + WH.z1) / 2); for (const [z0, z1] of [[WH.z0 + 0.2, -17.2], [-16.0, WH.z1 - 0.2]]) K.box(0.04, 1.0, z1 - z0, DADO, WH.x1 - 0.18, 0.5, (z0 + z1) / 2);
+  K.cyl(0.085, 0.085, 0.42, 0xd8202a, -2.15, 0.95, WH.z1 - 0.32, 10); K.cyl(0.03, 0.05, 0.1, 0x1a1a1a, -2.15, 1.21, WH.z1 - 0.32, 8); K.box(0.3, 0.3, 0.02, 0xd8202a, -2.15, 1.75, WH.z1 - 0.2);
+  K.box(0.36, 0.3, 0.12, 0xf4f2ec, -7.4, 1.5, WH.z1 - 0.24); K.box(0.16, 0.05, 0.02, 0x2f8a3a, -7.4, 1.5, WH.z1 - 0.31); K.box(0.05, 0.16, 0.02, 0x2f8a3a, -7.4, 1.5, WH.z1 - 0.31);
+  { const km = K.build(); if (km) { km.receiveShadow = true; wh.add(km); } }
+  // ---- still to come: white dashed outlines with the name of the upgrade, gone once it stands there
+  const ghost = (done, fn) => { const g = new THREE.Group(), GK = kit(); wh.add(g); fn(rectOf(liner(GK)), (t, x, z, w, ry = 0) => stencil(t, x, z, w, '#f4f2ec', g, ry)); const m = GK.build(); if (m) g.add(m); whZones.push({ g, done }); };
+  const has = (id) => !!(loods && loods.has(id));
+  ghost(() => !!(loods && loods.ensure().racks > 0), (r, s) => { r(WH.x0 + 0.2, -16.7, -9.65, -13.4, WHT, true); s('PALLETSTELLING', -9.3, -15.05, 2.6, Math.PI / 2); });
+  ghost(() => has('menger1'), (r, s) => { r(-3.95, -16.75, -1.6, -15.2, WHT, true); s('MENGMACHINE', -2.76, -17.3, 2.3); });
+  ghost(() => has('molen'), (r, s) => { r(-7.25, -15.85, -5.35, -13.95, WHT, true); s('KRUIDENMOLEN', -6.3, -13.6, 2.3); });
+  ghost(() => has('inpak'), (r, s) => { r(-1.3, -8.8, WH.x1 - 0.45, -7.6, WHT, true); s('INPAKMACHINE', -0.4, -9.25, 2.1); });
+  ghost(() => has('hal'), (r, s) => { r(-5.65, WH.z0 + 0.25, -3.55, -19.7, WHT, true); s('DEUR NAAR DE HAL', -4.6, -19.4, 2.6); });
+  ghost(() => has('roldeur'), (r, s) => { s('STALEN ROLDEUR', (WH.doorX0 + WH.doorX1) / 2, WH.z1 - 0.7, 2.6); });
+}
+function whZoneTick() { for (const q of whZones) { let d = false; try { d = q.done(); } catch (e) { /* the loods is not set up yet */ } if (q.g.visible === d) q.g.visible = !d; } } // every frame: six cheap checks
 const hokDoor = { leaf: null, pl: null }; // Het Hok: an open doorway while Eddy lives there, a shut storage door after the move
 { const hd = new THREE.Group(); hd.position.set(WH.x1 - 0.17, 0, -16.6); wh.add(hd); box(0.06, 0.12, 1.15, lam({ color: 0xf2ead8 }), 0, 2.3, 0, hd, false);
   const leaf = new THREE.Group(); hd.add(leaf); box(0.07, 2.2, 1.0, lam({ color: 0x6a4a2a }), 0, 1.1, 0, leaf, false); box(0.04, 0.05, 0.14, lam({ color: 0xd8b040 }), -0.05, 1.0, 0.3, leaf, false);
@@ -1421,7 +1472,7 @@ function buildJunk(d) {
 }
 junkDefs.forEach(buildJunk);
 // desk with the Kaasdows XL PC
-const desk = new THREE.Group(); desk.position.set(-8.8, 0, -17.6); scene.add(desk);
+const desk = new THREE.Group(); desk.position.set(-8.8, 0, -19.6); scene.add(desk);
 box(2.4, 0.08, 1.0, mat.wood, 0, 0.78, 0, desk); for (const [x, z] of [[-1.1, -0.42], [1.1, -0.42], [-1.1, 0.42], [1.1, 0.42]]) box(0.07, 0.78, 0.07, mat.wood, x, 0.39, z, desk);
 const beige = lam({ color: 0xd8d0b8 });
 box(0.62, 0.52, 0.55, beige, 0, 1.12, -0.12, desk); box(0.45, 0.12, 0.3, beige, 0, 0.86, -0.12, desk);
@@ -1433,7 +1484,7 @@ screen.position.set(0, 1.14, 0.16); desk.add(screen);
 box(0.6, 0.04, 0.22, beige, 0, 0.84, 0.3, desk);
 box(0.6, 0.08, 0.6, lam({ color: 0x333338 }), 0, 0.5, 1.0, desk); box(0.6, 0.7, 0.08, lam({ color: 0x333338 }), 0, 0.9, 1.3, desk);
 const pcGlow = new THREE.PointLight(0x5ad0d0, 0.8, 4); pcGlow.position.set(0, 1.3, 0.8); desk.add(pcGlow);
-solid(-10.05, -7.55, -18.15, -17.05);
+solid(-10.05, -7.55, -20.15, -19.05);
 // mixing table (appears after buying)
 const mixTable = new THREE.Group(); mixTable.position.set(-4.6, 0, -12.6); mixTable.visible = false; scene.add(mixTable);
 box(2.6, 0.08, 1.3, mat.steel, 0, 0.92, 0, mixTable); for (const [x, z] of [[-1.2, -0.55], [1.2, -0.55], [-1.2, 0.55], [1.2, 0.55]]) box(0.07, 0.92, 0.07, mat.steel, x, 0.46, z, mixTable);
@@ -1937,7 +1988,7 @@ junkDefs.forEach((d) => addInteract({
     updateObjective();
   },
 }));
-addInteract({ obj: desk, pos: () => new THREE.Vector3(-8.8, 0, -16.6), r: 1.8, enabled: () => state.step !== 'talk', label: () => 'Kaasdows XL · log in', act: () => openPC(state.step === 'hire' ? (state.table ? 'hire' : 'shop') : state.step === 'map' ? 'map' : 'sell') });
+addInteract({ obj: desk, pos: () => new THREE.Vector3(-8.8, 0, -18.6), r: 1.8, enabled: () => state.step !== 'talk', label: () => 'Kaasdows XL · log in', act: () => openPC(state.step === 'hire' ? (state.table ? 'hire' : 'shop') : state.step === 'map' ? 'map' : 'sell') });
 addInteract({ obj: oof, pos: () => oof.position, r: 4.2, label: () => 'Oofmobiel · get in', act: () => { if (garage.ensure().clamp) { tips.show('clamp'); } if (garage.ensure().clamp) return choice('Oofmobiel', `There's a <b>wheel clamp</b> on the front wheel. Pay the fine (W ${garage.CLAMP_FINE + garage.ticketSum()}${garage.ticketSum() ? ', with your open tickets' : ''}) or get Monteur Mo to cut it off (W ${garage.MO_CLAMP})?`, ['Pay the fine', 'Call Mo', 'Leave it'], (i) => { if (i < 2 && garage.unclamp(i ? 'mo' : 'pay')) openPC('map', 'van'); }); openPC('map', 'van'); }, far: true });
 addInteract({ obj: kangoo, pos: () => kangoo.position, r: 2.6, enabled: () => kangoo.visible && !(mission && mission.active), label: () => "Shooki's Kangoo", act: () => dialogue([['Eddy Jr.', 'A white Renault Kangoo. "SHOOKI KOERIER · 24/7 · FAMILIEPRIJS". There\'s a dent in the back door shaped like a bollard.'], ...(npcs && npcs.met('shooki') ? [['Shooki', ['Don\'t touch the mirror, bro. It\'s held on with tape and love.', 'Diesel, bro. It smells like money.', 'I sleep in the back sometimes. Business is business.', 'Hakan\'s kipkraud goes in the back, the rest goes on top.'][Math.floor(Math.random() * 4)]]] : [])]) });
 
@@ -3265,7 +3316,7 @@ function tick() {
   // inside the warehouse: hide roof + front wall, switch on lights
   const inside = isInside(player.position) && state.step !== 'title'; // the title backdrop shows the street with the roof on
   roof.visible = !inside; frontHigh.visible = !inside; shutter.visible = !inside || shutterOpen < 0.5;
-  whCull(inside);
+  whCull(inside); whZoneTick();
   const li = inside ? 2.2 : 0; inLight1.intensity += (li - inLight1.intensity) * dt * 4; inLight2.intensity = inLight1.intensity;
   // pawnshop: door swings open, roof + façade hide while you're inside, bunker lights come on
   shopDoorOpen += (shopDoorTarget - shopDoorOpen) * Math.min(1, dt * 3); shopDoor.rotation.y = shopDoorOpen * 1.7;
@@ -3461,7 +3512,7 @@ activists = createActivists({ scene, lam, box, passerBy, personBubble, animate, 
     cell: (t) => [...document.querySelectorAll('#winbody td')].find((e) => e.textContent.includes(t)) || null,
     junkLeft: () => junkDefs.length - state.listed.size, isInShop: () => isInShop(player.position),
     pos: {
-      dad: () => (dad.visible ? at(dad) : null), desk: () => V(-8.8, -17.2, 2.4), door: () => V((PS.doorX0 + PS.doorX1) / 2, PS.z1 + 0.4, 2.6),
+      dad: () => (dad.visible ? at(dad) : null), desk: () => V(-8.8, -19.2, 2.4), door: () => V((PS.doorX0 + PS.doorX1) / 2, PS.z1 + 0.4, 2.6),
       russian: () => at(russian), oof: () => at(oof), shooki: () => castPos('shooki'), joop: () => castPos('joop'),
       junk: () => { const left = junkDefs.filter((j) => !state.listed.has(j.id) && j.group.visible); left.sort((a, b) => Math.hypot(a.x - player.position.x, a.z - player.position.z) - Math.hypot(b.x - player.position.x, b.z - player.position.z)); return left[0] ? V(left[0].x, left[0].z, 1.9) : null; },
     } });
@@ -3503,7 +3554,7 @@ function goalSpot(id) { // where a Vandaag goal happens on the street
   const pc = { x: -8.8, z: -15.4, name: 'the Kaasdows pc' };
   if (['order', 'krant', 'haggle', 'bills', 'repair'].includes(id)) return pc;
   if (id === 'rit') return { x: oof.position.x, z: oof.position.z + 2.4, name: 'the Oofmobiel' };
-  if (id === 'rack') return { x: -4.6, z: -18.5, name: 'the racks in De Loods' };
+  if (id === 'rack') return { x: -4.6, z: -20.5, name: 'the racks in De Loods' };
   if (id === 'naknik' && naknikim[0]) return { x: naknikim[0].position.x, z: naknikim[0].position.z, name: 'a Naknik' };
   const wd = world ? world.cal().wd : 0, open = bfolk.folk.filter((f) => f.b.open.includes(wd));
   if (id === 'klus') { const k = open.find((f) => winkels.JOBS[f.biz] && !((state.winkels || {}).jobs || {})[f.biz]); return k ? { biz: k.biz } : null; }

@@ -9,6 +9,7 @@ const C = { blue: 0x2a5aa8, orange: 0xe8742a, pallet: 0xc49a62, slat: 0x8a6438, 
 const ING_COL = { paprika: 0xc2412d, komijn: 0x8a5a2a, knoflook: 0xe8e0c8, koriander: 0x9aa04a, kurkuma: 0xe2a21a, kaneel: 0xa0562a, kardemom: 0x7a9a4a, saffraan: 0xe86a1a };
 const PALLET_KG = 50, RACK_KG = 120;
 const HX = 0, HZ = -28.4; // the hall stands on the plot behind the shed (Tristan 2026-11-15), reached through a doorway in the shed's back wall
+const SHED_BACK = -21; // the shed's back wall (js/main.js WH.z0)
 const DX = -4.6; // x of the doorway / corridor between the shed and the hall
 const PLOT = { x0: -33.5, x1: 11.5, z0: -37.4, z1: -21.2 }; // the bouwkavel: for sale at the start
 const HALL = { x0: -11, x1: 11, z0: -7, z1: 7, h: 4.8 }, TENT = { x0: -33, x1: -11, z0: -8.7, z1: 7 };
@@ -153,11 +154,11 @@ export function createLoods(deps) {
   ];
   // the short corridor from the shed's back wall to the hall (z -19 .. -21.4)
   const corr = new THREE.Group(); corr.visible = false; scene.add(corr);
-  { const len = -19.15 - (HZ + HALL.z1), cz = (-19.15 + HZ + HALL.z1) / 2;
+  { const len = SHED_BACK - 0.15 - (HZ + HALL.z1), cz = (SHED_BACK - 0.15 + HZ + HALL.z1) / 2;
     for (const x of [DX - 0.95, DX + 0.95]) box(0.15, 2.8, len, mt(0x5a7088), x, 1.4, cz, corr);
     const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.8, len + 0.3), lam({ color: 0x9a9890 })); fl.rotation.x = -Math.PI / 2; fl.position.set(DX, 0.012, cz); corr.add(fl);
     corr.userData.roof = box(2.3, 0.15, len + 0.2, mt(0x7a8290), DX, 2.85, cz, corr);
-    corr.userData.sol = [solid(DX - 1.05, DX - 0.85, HZ + HALL.z1, -19), solid(DX + 0.85, DX + 1.05, HZ + HALL.z1, -19)]; }
+    corr.userData.sol = [solid(DX - 1.05, DX - 0.85, HZ + HALL.z1, SHED_BACK), solid(DX + 0.85, DX + 1.05, HZ + HALL.z1, SHED_BACK)]; }
   const hallWestSol = solid(HX + HALL.x0 - 0.3, HX + HALL.x0 + 0.1, HZ + HALL.z0, HZ + HALL.z1);
   // ---- De Overkapping: white membrane on a steel truss frame, black-wrapped pallets along the walls
   {
@@ -381,7 +382,7 @@ export function createLoods(deps) {
   }
 
   // ================================================================== the door between the shed and the hall
-  const hallDoor = new THREE.Group(); hallDoor.position.set(-4.6, 0, -18.83); hallDoor.visible = false; scene.add(hallDoor);
+  const hallDoor = new THREE.Group(); hallDoor.position.set(-4.6, 0, SHED_BACK + 0.17); hallDoor.visible = false; scene.add(hallDoor);
   { for (const x of [-1.0, 1.0]) box(0.12, 2.6, 0.2, mt(0x3a3e44), x, 1.3, 0.05, hallDoor, false); box(2.12, 0.14, 0.2, mt(0x3a3e44), 0, 2.6, 0.05, hallDoor, false);
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.36), lam({ map: signTex([{ t: 'DE HAL', size: 44 }], '#f2b21a', '#1a1a1a', 256, 58) })); pl.position.set(0, 2.85, 0.05); hallDoor.add(pl); }
   let inHall = false;
@@ -390,11 +391,11 @@ export function createLoods(deps) {
   function bounds() { return { x0: HX + (has('tent') ? TENT.x0 : HALL.x0) + 0.3, x1: HX + HALL.x1 - 0.3, z0: HZ + (has('tent') ? TENT.z0 : HALL.z0) + 0.3, z1: HZ + HALL.z1 - 0.3 }; }
   // the hall is walked into through the doorway (no fade): these two are shortcuts for tests
   function enterHall() { if (!has('hal')) return; player.position.set(DX, 0, HZ + HALL.z1 - 0.9); player.rotation.y = Math.PI; if (deps.snapCam) deps.snapCam(); }
-  function leaveHall() { if (F.drive) getOff(); player.position.set(DX, 0, -17.9); player.rotation.y = 0; if (deps.snapCam) deps.snapCam(); }
+  function leaveHall() { if (F.drive) getOff(); player.position.set(DX, 0, SHED_BACK + 1.1); player.rotation.y = 0; if (deps.snapCam) deps.snapCam(); }
   const inRect = (p, x0, x1, z0, z1) => p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1;
-  const hallHere = (p) => has('hal') && (inRect(p, HX + HALL.x0, HX + HALL.x1, HZ + HALL.z0, -19) && (p.z < HZ + HALL.z1 || Math.abs(p.x - DX) < 1)) || (has('tent') && inRect(p, HX + TENT.x0, HX + TENT.x1, HZ + TENT.z0, HZ + TENT.z1));
+  const hallHere = (p) => has('hal') && (inRect(p, HX + HALL.x0, HX + HALL.x1, HZ + HALL.z0, SHED_BACK) && (p.z < HZ + HALL.z1 || Math.abs(p.x - DX) < 1)) || (has('tent') && inRect(p, HX + TENT.x0, HX + TENT.x1, HZ + TENT.z0, HZ + TENT.z1));
   const far = new THREE.Vector3(0, -99, 0);
-  deps.addInteract({ pos: () => (has('kavel') || !deps.inWarehouse() ? far : new THREE.Vector3(DX, 0, -17.9)), r: 1.4, enabled: () => !has('kavel') && deps.inWarehouse(), label: () => 'Behind this wall: an empty plot, TE KOOP · Loods tab', act: () => deps.toast('BOUWKAVEL', 'The plot behind the shed is for sale. Buy it on the Loods tab and the warehouse can grow onto it.', 3) });
+  deps.addInteract({ pos: () => (has('kavel') || !deps.inWarehouse() ? far : new THREE.Vector3(DX, 0, SHED_BACK + 1.1)), r: 1.4, enabled: () => !has('kavel') && deps.inWarehouse(), label: () => 'Behind this wall: an empty plot, TE KOOP · Loods tab', act: () => deps.toast('BOUWKAVEL', 'The plot behind the shed is for sale. Buy it on the Loods tab and the warehouse can grow onto it.', 3) });
   deps.addInteract({ pos: () => (inHall && fork.visible && !F.drive ? new THREE.Vector3(F.x, 0, F.z) : far), r: 1.9, enabled: () => inHall && fork.visible && !F.drive, label: () => (A.phase ? `Take over the heftruck from ${A.who}` : 'Drive the heftruck'), act: getOn });
   deps.addInteract({ pos: () => (F.drive ? player.position : far), r: 5, enabled: () => F.drive && !F.busy, label: () => forkAction().label, act: () => forkAction().act() });
   // the dock pallets can be looked at on foot too
@@ -602,12 +603,12 @@ export function createLoods(deps) {
   // ---- where the Naknikim work (js/naknikwork.js): the hall and tent floors, and spots to grab, rack and tip sacks (world coords)
   function workRooms() {
     const r = [];
-    if (has('hal')) r.push({ x0: HX + HALL.x0, x1: HX + HALL.x1, z0: HZ + HALL.z0, z1: HZ + HALL.z1 }, { x0: DX - 0.85, x1: DX + 0.85, z0: HZ + HALL.z1 - 0.6, z1: -18.2 });
+    if (has('hal')) r.push({ x0: HX + HALL.x0, x1: HX + HALL.x1, z0: HZ + HALL.z0, z1: HZ + HALL.z1 }, { x0: DX - 0.85, x1: DX + 0.85, z0: HZ + HALL.z1 - 0.6, z1: SHED_BACK + 0.8 });
     if (has('tent')) r.push({ x0: HX + TENT.x0, x1: HX + TENT.x1 + 0.6, z0: HZ + TENT.z0, z1: HZ + TENT.z1 });
     return r;
   }
   function workStations() {
-    const L = ensure(), out = [], area = (x, z) => (z > -19 ? 'shed' : x < HX + HALL.x0 ? 'tent' : 'hall');
+    const L = ensure(), out = [], area = (x, z) => (z > SHED_BACK ? 'shed' : x < HX + HALL.x0 ? 'tent' : 'hall');
     bays.forEach((b, i) => { // the two lower levels of every open bay: grab from a pallet, or put a sack on an empty beam
       if (i >= L.racks) return;
       const n = new THREE.Vector3(Math.sin(b.ry), 0, Math.cos(b.ry)), c = b.g.position;

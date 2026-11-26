@@ -143,7 +143,7 @@ export function createWoning(deps) {
     box(W + 0.3, WH, 0.15, wm, 0, WH / 2, -D / 2 - 0.07, g); // back wall
     const outer = hok ? lam({ map: (() => { const t = corrT.clone(); t.needsUpdate = true; t.repeat.set(3, 1); return t; })(), color: 0x8ae6da }) : null; // Het Hok outside: the shed's mint sheet
     if (hok) { // the shed's east wall is Het Hok's west wall from z -19; behind the shed it needs its own piece
-      box(0.15, WH, (-19 - HOK.z) + D / 2, wmS, -W / 2 - 0.07, WH / 2, (-D / 2 + (-19 - HOK.z)) / 2, g);
+      if (-21 - HOK.z + D / 2 > 0.05) box(0.15, WH, (-21 - HOK.z) + D / 2, wmS, -W / 2 - 0.07, WH / 2, (-D / 2 + (-21 - HOK.z)) / 2, g);
       box(0.15, WH, D, wmS, W / 2 + 0.07, WH / 2, 0, g); box(0.06, WH, D + 0.3, outer, W / 2 + 0.17, WH / 2, 0, g);
     } else { box(0.15, WH, D, wmS, -W / 2 - 0.07, WH / 2, 0, g); box(0.15, WH, D, wmS, W / 2 + 0.07, WH / 2, 0, g); }
     box(W + 0.3, 0.12, 0.2, mt(L.trim), 0, 0.06, -D / 2 + 0.02, g, false); // skirting
@@ -174,7 +174,7 @@ export function createWoning(deps) {
     // walls block walking (local -> world)
     const sol = [];
     sol.push(solid(ox - W / 2 - 0.3, ox + W / 2 + 0.3, oz - D / 2 - 0.3, oz - D / 2 + 0.05));
-    if (hok) sol.push(solid(ox - W / 2 - 0.3, ox - W / 2 + 0.05, oz - D / 2, -19)); // (the shed's east wall covers the rest)
+    if (hok) sol.push(solid(ox - W / 2 - 0.3, ox - W / 2 + 0.05, oz - D / 2, -21)); // (the shed's east wall covers the rest)
     else sol.push(solid(ox - W / 2 - 0.3, ox - W / 2 + 0.05, oz - D / 2, oz + D / 2));
     sol.push(solid(ox + W / 2 - 0.05, ox + W / 2 + 0.3, oz - D / 2, oz + D / 2));
     if (hok) sol.push(solid(ox - W / 2, ox + W / 2, oz + D / 2 - 0.05, oz + D / 2 + 0.3));

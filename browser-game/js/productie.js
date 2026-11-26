@@ -358,7 +358,7 @@ export function createProductie(deps) {
   // ================================================================== the production board on the back wall
   const boardCv = document.createElement('canvas'); boardCv.width = 640; boardCv.height = 256;
   const boardTex = new THREE.CanvasTexture(boardCv); boardTex.colorSpace = THREE.SRGBColorSpace;
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 1.32), new THREE.MeshBasicMaterial({ map: boardTex })); board.position.set(-0.75, 3.55, -18.8); board.visible = false; scene.add(board);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 1.32), new THREE.MeshBasicMaterial({ map: boardTex })); board.position.set(-0.75, 3.55, -20.8); board.visible = false; scene.add(board);
   let boardSig = '';
   function drawBoard() {
     const e = econ.ensure(), p = P(), T = target(), b = blend(e.order), n = econ.mixers();

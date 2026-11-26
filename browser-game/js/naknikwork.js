@@ -191,7 +191,7 @@ export function createNaknikWork(deps) {
   function init(n) {
     const u = n.userData; if (u.work) return u.work;
     const W = u.work = { plan: [], step: null, path: null, t: rnd(2, 9), stir: 0, pp: { ...POSE.none }, pose: 'stir', sack: null, sackCol: pick(SPICE), tilt: 0, paddle: makePaddle(), ph: Math.random() * 6, keys: [] };
-    const h = homeOf(n); u.workArea = h.z > -19 ? 'shed' : h.x < -11 ? 'tent' : 'hall';
+    const h = homeOf(n); u.workArea = h.z > -21 ? 'shed' : h.x < -11 ? 'tent' : 'hall';
     W.paddle.visible = false; n.add(W.paddle);
     W.sack = new THREE.Group(); W.sack.visible = false; n.add(W.sack); W.carry = {};
     W.carry.sack = makeSack(); W.sack.add(W.carry.sack);
