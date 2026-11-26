@@ -17,6 +17,7 @@ export const WIJKEN = {
     signs: ['SCHEEPSHANDEL', 'HAVENCAFE HET ANKER', 'VISHAL', 'TOUW & ZEIL', 'DOUANE', 'CONTAINERVERHUUR', 'ZEEMANSHUIS', 'KRAANVERHUUR'] },
   sand: { name: 'De Zandwijk', gang: 'Paravim', seed: 53, at: 3, colors: [0xe8d2a0, 0xf2ead8, 0xd8a868, 0xc87848, 0xf0dcb0], ground: 0xd8b878, tree: 0,
     signs: ['THEEHUIS', 'SOUK', 'DADELS & NOTEN', 'TAPIJTEN', 'SHISHA LOUNGE', 'KRUIDENBAZAAR', 'BAKKERIJ PITA', 'KOPERSMID'] },
+  air: { name: 'Schiptagat', gang: 'airport', seed: 71, at: 4, custom: true }, // the airport off the A4: a forecourt, not a grid (buildAir)
 };
 // the plan of every district, in its own coordinates: three long streets (z 0, 46, 92) and five dwarsstraten (four on a phone),
 // so twelve blocks; the one in the middle of the first strip is the plein. The afrit is at the west end of the first street,
@@ -35,10 +36,83 @@ export function createWijk(deps) {
   const RECT = { x0: -5.6, x1: XE + 5.6, z0: SZ[0] - RW - PV + 0.4, z1: SZ[SZ.length - 1] + RW + PV - 0.4 };
   let T = null, back = null, wasMission = false, van = null, vanSol = null, veh = null, target = null, atOprit = false;
   const origin = (W) => ({ x: 3000 + W.at * 700, z: -1500 });
+  // ---- Schiptagat (Tristan 2026-11-26): off the A4 the afrit ends on the airport forecourt. One road runs past the terminal:
+  // AANKOMST first (the pickup bay, where Pa waits with his suitcases), then VERTREK (the drop-off bay, for whoever has to
+  // catch a plane later), taxis in between, the car park across the road, the tower and a plane behind the glass.
+  const AIR = { rect: { x0: -5.6, x1: 215.6, z0: -9.1, z1: 6.1 }, van: { x: 2, z: 1.6 }, oprit: { x: 210, z: 1 }, pick: { x: 58, z: -5.2 }, drop: { x: 142, z: -5.2 }, lanes: [-1.6, 1.8], walks: [-8.2, 5.2] };
+  function buildAir(t) {
+    const O = t.O, ST = deps.ST, low = deps.low, g = new THREE.Group(), K = deps.kit(), WH = 0xf4f2ec, YEL = '#f2c31a', X0 = -6, X1 = 216;
+    const flat = (x0, x1, z0, z1, m, y) => { const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0), uv = geo.attributes.uv, k = (x1 - x0) / 200; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * k);
+      const p = new THREE.Mesh(geo, m); p.rotation.x = -Math.PI / 2; p.position.set(O.x + (x0 + x1) / 2, y, O.z + (z0 + z1) / 2); p.receiveShadow = true; g.add(p); return p; };
+    const board = (lines, w, h, x, y, z, bg = YEL, fg = '#111111', ry = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), deps.lam({ map: deps.signTex(lines.map(([tx, size]) => ({ t: tx, size })), bg, fg, 512, Math.round(512 * h / w)) })); m.position.set(O.x + x, y, O.z + z); m.rotation.y = ry; g.add(m); return m; };
+    flat(X0 - 80, X1 + 80, -110, 90, deps.lam({ color: 0x7a9a5a }), 0); // grass, as far as the polder goes
+    flat(X0, X1, -4, 4, ST.road, 0.02); flat(14, 196, -6.6, -4, ST.bay, 0.022); flat(X0, X1, -9.6, -6.6, ST.paveN, 0.012); flat(X0, X1, 4, 6.6, ST.paveN, 0.012); flat(8, 204, 6.6, 26, ST.road, 0.018);
+    flat(2, 210, -70, -24.5, deps.lam({ color: 0x8a8e92 }), 0.01); // the platform behind the terminal
+    for (const z of [-6.7, 4.1]) { const q = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0, 0.16, 0.18), deps.kerbMat); q.position.set(O.x + (X0 + X1) / 2, 0.08, O.z + z); g.add(q); }
+    for (let x = X0 + 2; x < X1; x += 4) K.box(2, 0.01, 0.12, WH, O.x + x, 0.035, O.z);
+    for (let x = 16; x < 196; x += 6) K.box(0.1, 0.01, 2.4, WH, O.x + x, 0.032, O.z - 5.3); // kiss & ride bays
+    for (let x = 14; x < 200; x += 2.9) for (const z of [9.5, 20]) K.box(0.08, 0.01, 4.6, WH, O.x + x, 0.03, O.z + z); // the car park
+    // the two bays that matter, painted on the tarmac
+    for (const [p, col] of [[AIR.pick, 0xffd23a], [AIR.drop, 0x3aa0ff]]) { const ar = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, depthWrite: false })); ar.rotation.x = -Math.PI / 2; ar.position.set(O.x + p.x, 0.05, O.z + p.z); g.add(ar); }
+    { const ar = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.35, depthWrite: false })); ar.rotation.x = -Math.PI / 2; ar.position.set(O.x + AIR.oprit.x, 0.05, O.z + AIR.oprit.z); g.add(ar); }
+    // the terminal: a long glass hall under a white roof, yellow boards the Dutch way
+    const glass = new THREE.MeshStandardMaterial({ color: 0x2a4a66, roughness: 0.12, metalness: 0.5, emissive: 0x1a3048, emissiveIntensity: 0.5 });
+    { const hall = new THREE.Mesh(new THREE.BoxGeometry(188, 8.6, 14.6), glass); hall.position.set(O.x + 104, 4.3, O.z - 17); hall.castShadow = true; g.add(hall); }
+    K.box(192, 0.7, 17.4, 0xf4f4f0, O.x + 104, 8.95, O.z - 16.2); K.box(192, 0.5, 0.5, 0xf4f4f0, O.x + 104, 4.4, O.z - 9.55); K.box(188, 0.9, 0.3, 0x3a3e44, O.x + 104, 0.45, O.z - 9.62);
+    for (let x = 12; x <= 196; x += 4) K.box(0.16, 8.6, 0.22, 0xf4f4f0, O.x + x, 4.3, O.z - 9.62); // mullions
+    for (const [x, nl, en] of [[AIR.pick.x, 'AANKOMST', 'Arrivals · ophalen'], [AIR.drop.x, 'VERTREK', 'Departures · afzetten']]) {
+      K.box(11, 3.3, 0.5, 0x1a2a3a, O.x + x, 1.65, O.z - 9.5); for (const dx of [-2.6, 0, 2.6]) K.box(2.3, 2.8, 0.1, 0x6a94b4, O.x + x + dx, 1.5, O.z - 9.22); // the sliding doors
+      K.box(12.5, 0.3, 3.2, 0xf4f4f0, O.x + x, 3.55, O.z - 8.1); for (const dx of [-6, 6]) K.cyl(0.11, 0.11, 3.5, 0xc8ccd2, O.x + x + dx, 1.75, O.z - 6.9, 8); // the awning
+      board([[nl, 64], [en, 28]], 9.5, 2.3, x, 5.1, -9.36);
+      board([[nl === 'AANKOMST' ? 'Kiss & Ride · ophalen' : 'Kiss & Ride · afzetten', 50]], 3.6, 0.8, x - 9, 2.6, -6.9); K.cyl(0.05, 0.05, 2.6, 0x8a8e94, O.x + x - 9, 1.3, O.z - 6.95, 6);
+    }
+    board([['SCHIPTAGAT', 60]], 30, 4.2, 100, 11.6, -9.4, '#f4f4f0', '#14499a'); K.box(30.6, 0.3, 0.3, 0x8a8e94, O.x + 100, 9.45, O.z - 9.5);
+    board([['← P  Parkeren', 60], ['Aankomst · Vertrek  →', 60]], 6, 2.2, 6, 3.6, -7.2); for (const dx of [-2.6, 2.6]) K.cyl(0.07, 0.07, 3.6, 0x8a8e94, O.x + 6 + dx, 1.8, O.z - 7.26, 6);
+    board([['A4  oprit', 74], ['Kipkruidenkwartier', 42]], 5, 1.9, AIR.oprit.x - 2, 3.3, -7.2, '#14499a', '#ffffff'); K.cyl(0.07, 0.07, 3.3, 0x8a8e94, O.x + AIR.oprit.x - 2, 1.65, O.z - 7.26, 6);
+    // the tower, and a Kaasland Air 737 nose-in behind the glass
+    K.cyl(2.2, 3.0, 30, 0xe8e8e4, O.x + 176, 15, O.z - 34, 12); K.cyl(4.6, 3.4, 3.2, 0x2a4a66, O.x + 176, 31.6, O.z - 34, 12); K.cyl(5.0, 5.0, 0.5, 0xf4f4f0, O.x + 176, 33.4, O.z - 34, 12); K.cyl(0.06, 0.06, 4, 0xd8202a, O.x + 176, 35.6, O.z - 34, 5);
+    for (const [px, livery] of [[70, 0x14499a], [128, 0xe8862c]]) { const pz = O.z - 44;
+      K.cyl(2.0, 2.0, 34, 0xf4f4f0, O.x + px, 4.4, pz, 14, Math.PI / 2); K.cyl(0.3, 2.0, 4, 0xf4f4f0, O.x + px, 4.4, pz + 19, 14, Math.PI / 2); K.cyl(2.0, 0.7, 6, 0xf4f4f0, O.x + px, 4.9, pz - 20, 14, Math.PI / 2);
+      K.box(32, 0.4, 5.5, 0xe4e6ea, O.x + px, 3.6, pz - 2); K.box(1.0, 6.4, 5.2, livery, O.x + px, 9.2, pz - 19.5); K.box(11, 0.3, 2.6, 0xe4e6ea, O.x + px, 6.2, pz - 20.5);
+      for (const dx of [-7, 7]) K.cyl(1.0, 1.0, 3.6, 0x8a8e94, O.x + px + dx, 2.6, pz, 12, Math.PI / 2); K.box(0.5, 0.5, 30, livery, O.x + px, 5.2, pz - 1); }
+    // forecourt furniture: lamps, bollards, luggage trolleys, flags, a bus shelter, the pay machine
+    for (let x = 4; x < X1; x += 16) { deps.lamp(O.x + x, O.z - 6.9, K); }
+    for (let x = 12; x < 200; x += 3.2) deps.bollard(O.x + x, O.z + 4.35, K);
+    for (const [x, n] of [[44, 5], [70, 4], [128, 5], [154, 3]]) for (let i = 0; i < n; i++) { K.box(0.5, 0.06, 0.8, 0xc8ccd2, O.x + x + i * 0.3, 0.3, O.z - 8.6); K.box(0.5, 0.7, 0.04, 0xc8ccd2, O.x + x + i * 0.3, 0.65, O.z - 9.0); K.box(0.46, 0.05, 0.05, 0xf2c31a, O.x + x + i * 0.3, 1.0, O.z - 9.0); }
+    for (let i = 0; i < 6; i++) { const fx = O.x + 92 + i * 3.2; K.cyl(0.05, 0.06, 7, 0xc8ccd2, fx, 3.5, O.z + 5.4, 6); K.box(1.5, 0.9, 0.03, [0xd8202a, 0xf4f4f0, 0x14499a, 0xe8862c, 0xf2c31a, 0x2f6a3a][i], fx + 0.8, 6.4, O.z + 5.4); }
+    K.box(5, 0.12, 1.8, 0x3a3e44, O.x + 30, 2.5, O.z + 5.3); for (const dx of [-2.4, 2.4]) K.box(0.08, 2.5, 0.08, 0x3a3e44, O.x + 30 + dx, 1.25, O.z + 5.9); K.box(4.8, 2.0, 0.06, 0x6a94b4, O.x + 30, 1.3, O.z + 6.1); K.box(3.4, 0.08, 0.4, 0x7a5a3a, O.x + 30, 0.5, O.z + 5.7);
+    K.box(0.6, 1.5, 0.45, 0xf2c31a, O.x + 12, 0.75, O.z + 5.3); K.box(0.4, 0.3, 0.04, 0x1a1a1a, O.x + 12, 1.15, O.z + 5.06);
+    { const km = K.build(); if (km) { km.castShadow = !low; g.add(km); } }
+    { const pts = []; for (let x = 4; x < X1; x += 16) pts.push([O.x + x, O.z - 5.4]); deps.lampPool(pts, g); }
+    scene.add(g);
+    // Pa's luggage on the pavement at Aankomst (there while somebody waits to be fetched)
+    { const P = deps.kit(), px = O.x + AIR.pick.x, pz = O.z - 7.6; P.box(0.5, 0.75, 0.3, 0x8a4a2a, px + 0.8, 0.38, pz); P.box(0.06, 0.2, 0.2, 0x3a2a1a, px + 0.8, 0.85, pz); P.box(0.62, 0.9, 0.34, 0x2a5a8a, px + 1.5, 0.45, pz + 0.1); P.box(0.4, 0.3, 0.5, 0xd8202a, px + 1.15, 0.15, pz + 0.55); P.cyl(0.42, 0.5, 0.05, 0xd8b040, px + 1.5, 0.93, pz + 0.1, 14); P.cyl(0.16, 0.2, 0.2, 0xd8b040, px + 1.5, 1.05, pz + 0.1, 12);
+      t.luggage = P.build(); if (t.luggage) { t.luggage.visible = false; scene.add(t.luggage); } }
+    // taxis on the rank between the halls, cars in the car park (the taxis can be borrowed, the car park is behind the kerb)
+    for (let i = 0; i < 3; i++) deps.car(O.x + 88 + i * 6, O.z - 5.3, 0xe8b020, 0, true, 0);
+    { let k = 3; for (let x = 16; x < 198; x += 2.9) for (const z of [9.5, 20]) { k++; if ((k * 7) % (low ? 9 : 4) !== 0) continue; deps.car(O.x + x, O.z + z, null, k % 2 ? Math.PI / 2 : -Math.PI / 2, false); } }
+    t.rect = AIR.rect; t.vanAt = AIR.van; t.oprit = AIR.oprit; t.lines = [{ x0: -4, x1: 214, lanes: AIR.lanes, walks: AIR.walks }];
+  }
+  // somebody to fetch or to see off. job: { kind: 'pickup' | 'drop', who, lines: [[speaker, text]...], onAboard(), onHome(res), onDone() }
+  function airJob(dt) {
+    const J = T.job; if (!J || J.done || deps.busy()) return;
+    const P = J.kind === 'pickup' ? AIR.pick : AIR.drop, riding = deps.riding() === veh;
+    if (J.kind === 'pickup' && !J.aboard && T.fig) deps.animate(T.fig, 0, dt);
+    if (!riding || (J.kind === 'pickup' && J.aboard)) return;
+    if (Math.abs(veh.B.x - (T.O.x + P.x)) < 4.2 && Math.abs(veh.B.z - (T.O.z + P.z)) < 2.2 && Math.abs(veh.B.v) < 1.6) {
+      veh.B.v = 0;
+      if (J.kind === 'pickup') { J.aboard = true; if (T.fig) T.fig.visible = false; if (T.luggage) T.luggage.visible = false; deps.beep(660, 0.1, 'triangle', 0.05); if (J.onAboard) J.onAboard();
+        deps.dialogue(J.lines || [[J.who, 'There you are.']], () => { deps.route(T.O.x + AIR.oprit.x, T.O.z + AIR.oprit.z, 'A4 oprit'); deps.toast(`${J.who.toUpperCase()} IS IN`, 'Suitcases in the back. The A4 oprit is at the end of the forecourt: drive on to the yellow patch.', 5); }); }
+      else { J.done = true; deps.beep(523, 0.12, 'triangle', 0.05); deps.dialogue(J.lines || [[J.who, 'This is me. Vertrek. Do not wait, I hate goodbyes.']], () => { deps.route(null); deps.toast(`${J.who.toUpperCase()} IS OFF`, 'Through the sliding doors and gone. The A4 oprit is at the end of the forecourt.', 4.5); if (J.onDone) J.onDone(); }); }
+    }
+  }
 
   function build(key) {
     const W = WIJKEN[key], O = origin(W), low = deps.low, ST = deps.ST, t = { key, W, O, objs: [], sols: [], houses: [], doors: [], vis: true };
     const n0 = scene.children.length, s0 = deps.solids.length, f0 = deps.fadeables.length;
+    const track = () => { for (let i = n0; i < scene.children.length; i++) t.objs.push(scene.children[i]); for (let i = s0; i < deps.solids.length; i++) t.sols.push(deps.solids[i]); for (let i = f0; i < deps.fadeables.length; i++) t.houses.push(deps.fadeables[i]); return (towns[key] = t); };
+    if (W.custom) { buildAir(t); return track(); }
+    t.rect = RECT; t.vanAt = { x: XS[0] + 1, z: SA + RW - 1.2 }; t.oprit = { x: XE, z: SA + 1 }; t.lines = SZ.map((zs) => ({ x0: -4, x1: XE + 4, lanes: [zs - 0.5, zs + 2.5], walks: [zs - RW - 1.3, zs + RW + 1.5] }));
     const g = new THREE.Group(), K = deps.kit(), WH = 0xf4f2ec, X0 = XS[0] - 6, X1 = XE + 6, L = X1 - X0, ZN = SZ[SZ.length - 1];
     const flat = (x0, x1, z0, z1, m, y, alongZ) => { const len = alongZ ? z1 - z0 : x1 - x0, wid = alongZ ? x1 - x0 : z1 - z0, geo = new THREE.PlaneGeometry(len, wid), uv = geo.attributes.uv, k = len / 200;
       for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * k);
@@ -114,10 +188,7 @@ export function createWijk(deps) {
       const ar = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.35, depthWrite: false })); ar.rotation.x = -Math.PI / 2; ar.position.set(O.x + XE, 0.05, O.z + SA + 1); scene.add(ar); }
     // parked cars to borrow, along the north kerbs
     { let k = W.seed; for (const zs of SZ) for (let x = X0 + 14; x < X1 - 6; x += 5.6) { k++; if ((k * 7) % (low ? 6 : 3) !== 0 || XS.some((X) => Math.abs(x - X) < 7)) continue; deps.car(O.x + x, O.z + zs - RW + 1, null, (k % 2) * Math.PI, true); } }
-    for (let i = n0; i < scene.children.length; i++) t.objs.push(scene.children[i]);
-    for (let i = s0; i < deps.solids.length; i++) t.sols.push(deps.solids[i]);
-    for (let i = f0; i < deps.fadeables.length; i++) t.houses.push(deps.fadeables[i]);
-    return (towns[key] = t);
+    return track();
   }
   function setVis(t, on) {
     if (t.vis === on) return; t.vis = on;
@@ -135,22 +206,23 @@ export function createWijk(deps) {
   function placeVan(t) {
     if (!van) { van = deps.makeVan(); scene.add(van); vanSol = deps.solid(0, 0, 0, 0); veh = deps.adoptVan(van, vanSol);
       deps.addInteract({ pos: () => van.position, r: 3.2, enabled: () => !!T && !deps.busy() && !deps.riding(), label: () => 'Oofmobiel · step in, or take the snelweg', act: () => deps.choice('Eddy Jr.', `The Oofmobiel, in ${T.W.name}.`, ['Step in and drive', 'Take the snelweg…', 'Stay'], (i) => { if (i === 0) deps.mount(veh); else if (i === 1) setTimeout(snelweg, 60); }) }); }
-    const x = t.O.x + XS[0] + 1, z = t.O.z + SA + RW - 1.2; van.position.set(x, 0, z); van.rotation.y = 0; van.visible = true; // nose east, down the street
+    const x = t.O.x + t.vanAt.x, z = t.O.z + t.vanAt.z; van.position.set(x, 0, z); van.rotation.y = 0; van.visible = true; // nose east, down the street
     Object.assign(veh.B, { x, z, h: Math.PI / 2, v: 0 });
     Object.assign(vanSol, { minx: x - 2.6, maxx: x + 2.6, minz: z - 1.05, maxz: z + 1.05, off: false });
   }
   // where the snelweg goes from here: home, or any other district the story has opened
   function snelweg() {
     if (!T || deps.busy()) return;
-    const dests = [null, ...Object.keys(WIJKEN).filter((k) => k !== T.key && deps.isOpen(k))];
-    deps.choice('A10', `From ${T.W.name}. Where to?`, [...dests.map((k) => (k ? `${WIJKEN[k].name} (${WIJKEN[k].gang})` : 'Kipkruidenkwartier (home)')), 'Stay here'], (i) => { if (i < dests.length) travel(dests[i]); });
+    const aboard = T.job && T.job.aboard && !T.job.done; // with a passenger from the airport there is one way: home
+    const dests = [null, ...(aboard ? [] : Object.keys(WIJKEN).filter((k) => k !== T.key && deps.isOpen(k)))];
+    deps.choice('A10', `From ${T.W.name}. Where to?`, [...dests.map((k) => (k ? `${WIJKEN[k].name} (${WIJKEN[k].gang})`.replace(' (airport)', ' (airport, A4)') : 'Kipkruidenkwartier (home)')), 'Stay here'], (i) => { if (i < dests.length) travel(dests[i]); });
   }
   function travel(dest) { // onto the snelweg in the Oofmobiel: to another district, or home
-    if (!T) return; const from = T.W.name;
-    deps.fadeTo(() => { quit(); deps.trip({ from, to: dest ? WIJKEN[dest].name : 'Kipkruidenkwartier', theme: dest || 'lampas', onDone: (res) => { if (dest && res && res.arrived) enter(dest); } }); }, 650);
+    if (!T) return; const from = T.W.name, J = T.job && T.job.aboard && !T.job.done ? T.job : null;
+    deps.fadeTo(() => { quit(); deps.trip({ from, to: dest ? WIJKEN[dest].name : 'Kipkruidenkwartier', theme: dest || (from === 'Schiptagat' ? 'air' : 'lampas'), onDone: (res) => { if (J) { J.done = true; if (J.onHome) J.onHome(res); } else if (dest && res && res.arrived) enter(dest); } }); }, 650);
   }
-  function quit() { const t = T; if (!t) return; deps.dismount(); T = null; target = null; back = null; atOprit = false; setVis(t, false); if (van) { van.visible = false; vanSol.off = true; } deps.setBounds(null); deps.route(null); deps.goHome(); deps.setArea('KAASLAND · KIPKRUIDENKWARTIER'); deps.snapCam(); }
-  const bounds = (t) => ({ x0: t.O.x + RECT.x0, x1: t.O.x + RECT.x1, z0: t.O.z + RECT.z0, z1: t.O.z + RECT.z1 });
+  function quit() { const t = T; if (!t) return; deps.dismount(); T = null; target = null; back = null; atOprit = false; setVis(t, false); if (t.fig) t.fig.visible = false; if (van) { van.visible = false; vanSol.off = true; } deps.setBounds(null); deps.route(null); deps.goHome(); deps.setArea('KAASLAND · KIPKRUIDENKWARTIER'); deps.snapCam(); }
+  const bounds = (t) => ({ x0: t.O.x + t.rect.x0, x1: t.O.x + t.rect.x1, z0: t.O.z + t.rect.z0, z1: t.O.z + t.rect.z1 });
   // arrive in a district (after the afrit). o.target: the joint Eddy came for (its door gets the route arrow)
   function enter(key, o = {}) {
     if (!WIJKEN[key] || T) return false;
@@ -160,6 +232,13 @@ export function createWijk(deps) {
     deps.setArea(`KAASLAND · ${t.W.name.toUpperCase()}`);
     const d = target && t.doors.find((q) => q.j.id === target);
     if (d) deps.route(d.x, d.z, d.j.name);
+    if (t.W.custom) { // the airport: who is there to fetch, or who has a plane to catch
+      const J = t.job = o.job || (deps.airJob && deps.airJob()) || null;
+      if (t.luggage) t.luggage.visible = !!(J && J.kind === 'pickup');
+      if (J && J.kind === 'pickup') { t.fig = t.fig || deps.makePa(); t.fig.visible = true; t.fig.position.set(t.O.x + AIR.pick.x, 0, t.O.z - 7.6); t.fig.rotation.y = 0; deps.route(t.O.x + AIR.pick.x, t.O.z + AIR.pick.z, 'Aankomst'); }
+      else if (J) deps.route(t.O.x + AIR.drop.x, t.O.z + AIR.drop.z, 'Vertrek');
+      deps.toast('SCHIPTAGAT', J && J.kind === 'pickup' ? `${J.who} is at <b>Aankomst</b>. Step into the Oofmobiel, drive up the forecourt and stop on the yellow bay.` : J ? `${J.who} has a plane to catch: stop on the blue bay at <b>Vertrek</b>.` : 'Aankomst to pick people up, Vertrek to drop them off. The A4 oprit is at the far end.', 6);
+      return true; }
     deps.toast(t.W.name.toUpperCase(), d ? `${d.j.name} is down the street. Walk or drive there. The A10 oprit is at the east end of this street.` : `${t.W.gang} turf. Every joint has its own door. The A10 oprit is at the east end of this street.`, 5);
     return true;
   }
@@ -172,9 +251,11 @@ export function createWijk(deps) {
       player.position.set(p.x, 0, p.z); deps.setArea(`KAASLAND · ${T.W.name.toUpperCase()}`); deps.route(null); deps.snapCam();
     }
     // the oprit: drive the Oofmobiel onto the yellow patch at the east end of the first street
-    const near = deps.riding() === veh && Math.abs(veh.B.x - (T.O.x + XE)) < 3.2 && Math.abs(veh.B.z - (T.O.z + SA + 1)) < 3.2;
+    if (T.W.custom) airJob(dt);
+    const near = deps.riding() === veh && Math.abs(veh.B.x - (T.O.x + T.oprit.x)) < 3.2 && Math.abs(veh.B.z - (T.O.z + T.oprit.z)) < 3.2;
     if (near && !atOprit && !deps.busy()) { atOprit = true; veh.B.v = 0; snelweg(); } else if (!near) atOprit = false;
   }
-  const streets = () => (T ? SZ.map((zs) => ({ x0: T.O.x - 4, x1: T.O.x + XE + 4, lanes: [T.O.z + zs - 0.5, T.O.z + zs + 2.5], walks: [T.O.z + zs - RW - 1.3, T.O.z + zs + RW + 1.5] })) : null);
-  return { enter, leave, travel, snelweg, streets, update, WIJKEN, XS, SZ, vehicle: () => veh, get active() { return !!T; }, get town() { return T; }, towns, rect: RECT, origin: (key) => origin(WIJKEN[key]) };
+  let lineKey = null, lineOut = null;
+  const streets = () => { if (!T) return null; if (lineKey !== T) { lineKey = T; lineOut = T.lines.map((l) => ({ x0: T.O.x + l.x0, x1: T.O.x + l.x1, lanes: l.lanes.map((z) => T.O.z + z), walks: l.walks.map((z) => T.O.z + z) })); } return lineOut; };
+  return { enter, leave, travel, snelweg, streets, update, AIR, WIJKEN, XS, SZ, vehicle: () => veh, get active() { return !!T; }, get town() { return T; }, towns, rect: RECT, origin: (key) => origin(WIJKEN[key]) };
 }

@@ -255,6 +255,7 @@ export function createFiets(deps) {
     if (deps.onLeave) deps.onLeave(v);
   }
   addEventListener('keydown', (e) => { // while riding, E gets off and H rings, before main.js sees them
+    if ((deps.frozen && deps.frozen()) || (deps.talkedAt && performance.now() - deps.talkedAt() < 350)) return; // a dialogue is up, or this very key press just closed it: E belongs to the dialogue, not to the door handle
     if (!B.on || e.repeat || performance.now() - B.t0 < 300) return; // the touch ACTIE button sends E to window, where the mount handler may run first
     if (e.code === 'KeyE' || e.code === 'Enter') { e.stopImmediatePropagation(); dismount(); } else if (e.code === 'KeyH' || e.code === 'Space') { e.stopImmediatePropagation(); e.preventDefault(); ring(); }
   }, true);

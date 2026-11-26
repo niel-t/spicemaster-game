@@ -103,23 +103,43 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
   function onMissed() { callWait = 45; toast('GEMISTE OPROEP', 'Pa (Freddy Sr.). "Eddy, pick up! It is four Wilders a minute!"', 3); }
   function objective() { return due() ? '<b style="color:#ffd36b">Pa is coming home.</b> Freddy Sr. lands at <b>Schiptagat</b>. Get in the <b>Oofmobiel</b> and pick the airport on the map.' : null; }
   // the drive to the airport: no ambush, no pay, Pa on the kiss & ride with two suitcases and a sombrero
+  // Pa is fetched for real: the A4 afrit ends on the Schiptagat forecourt (js/wijk.js buildAir), Eddy drives up to Aankomst,
+  // Pa gets in with his suitcases and the sombrero, and the A4 takes them home, where Pa wants to see his own house first.
+  const WELCOME = [
+    ['Freddy Sr.', 'Ahh. Kipkruidenkwartier. Smell that? Cumin, diesel and frikandel. Home.'],
+    ['Freddy Sr.', 'And my house. Look at it, jongen. One room, one bed, seven televisions. I designed it myself.'],
+    ['Eddy Jr.', 'Pa. The bed is turning.'],
+    ['Freddy Sr.', 'Of course it is turning. I left it on. Three years. You do not switch off a bed like that, you never get it going again.'],
+    ['Eddy Jr.', 'So you\'re back for good?'],
+    ['Freddy Sr.', 'Back to help. Not to boss you around. Mostly not. I ride with you: every job, every drive, every meeting. And I tell you when you do it wrong.'],
+    ['Freddy Sr.', 'Also when you do it right. Less often, probably. Now show me the loods. And do not sit on the suede.'],
+  ];
+  const airJob = () => (due() ? { kind: 'pickup', who: 'Freddy Sr.', onHome: home, lines: [
+    ['Freddy Sr.', 'Eddy! JONGEN! You came! In the Oofmobiel! With YOUR name on it!'],
+    ['Eddy Jr.', 'Pa. What is on your head.'],
+    ['Freddy Sr.', 'A sombrero. It was a long three years. Put the suitcases in the back, careful with the red one, it is all duty-free.'],
+    ['Freddy Sr.', 'And drive past my house first. Komijnstraat. I want to see if it still turns.'],
+  ] } : null);
+  function home() { // the Oofmobiel is back on its parking, with Pa in it
+    d.afterDrive(); F().back = true; F().follow = true; F().day = d.econ.ensure().day; F().welcome = true;
+    appear(true); d.save(); d.objective();
+    if (d.paHouse) { d.paHouse(); toast('PA IS HOME', 'First stop: his own house on the <b>Komijnstraat</b>, one street behind the kade. Follow the arrow and go in with him.', 6.5); }
+    else welcome();
+  }
+  function welcome() { // the first time through his front door (or at once, where there is no house)
+    if (!F().welcome) return; F().welcome = false; d.save();
+    dialogue(WELCOME, () => toast('FREDDY SR. RIDES ALONG', 'Pa walks with you, rides in the van and has an opinion on everything. Talk to him to send him home or bring him along.', 5));
+  }
   function pickup() {
     if (!due() || d.drive().active) return;
     d.drive().start({ van: d.van(), from: 'Kipkruidenkwartier', to: 'Schiptagat', target: [5, 3], airport: true, noPay: true,
-      arrived: 'Pa stands on the kiss & ride with two suitcases, a sombrero and a tan you could fry an egg on.', doneLabel: 'Let Pa in',
+      arrived: 'Now the forecourt: Pa is at Aankomst.', doneLabel: 'To the terminal',
       onDone: (res) => {
         d.afterDrive();
-        if (!res.arrived) { toast('NO PA', 'The Oofmobiel never made it to Schiptagat. Pa is still waiting by the kiss & ride. Try again.', 4); d.save(); return; }
+        if (!res.arrived) { toast('NO PA', 'The Oofmobiel never made it to Schiptagat. Pa is still waiting at Aankomst. Try again.', 4); d.save(); return; }
         if (res.pay < 0) d.addMoney(res.pay); // smartengeld
-        F().back = true; F().follow = true; F().day = d.econ.ensure().day;
-        appear(true); d.save(); d.objective();
-        dialogue([
-          ['Freddy Sr.', 'Ahh. Kipkruidenkwartier. Smell that? Cumin, diesel and frikandel. Home.'],
-          ['Freddy Sr.', 'Look at the loods! Naknikim! Your name on the van! Jongen... I have to sit down. No, I have to stand up. I am too proud to sit.'],
-          ['Eddy Jr.', 'So you\'re back for good?'],
-          ['Freddy Sr.', 'Back to help. Not to boss you around. Mostly not. I ride with you: every job, every drive, every meeting. And I tell you when you do it wrong.'],
-          ['Freddy Sr.', 'Also when you do it right. Less often, probably. Come. Show me what you built.'],
-        ], () => toast('FREDDY SR. RIDES ALONG', 'Pa walks with you, rides in the van and has an opinion on everything. Talk to him to send him home or bring him along.', 5));
+        if (d.airport && d.airport(airJob())) return; // the forecourt, in 3D
+        home();
       } });
   }
 
@@ -237,5 +257,5 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
     const f = F(); f.met = f.met || {}; if (f.met[who]) return null;
     f.met[who] = true; d.save(); chimeT = performance.now(); return m.first;
   }
-  return { preChoice, update, tick, say, talk, talkable, chat, pickup, onCall, onMissed, objective, due, back, driveEvent, onMission, hit, chime, appear, owns: back, mapState: () => (due() ? 'due' : 'air'), SAY, MEET };
+  return { airJob, welcome, preChoice, update, tick, say, talk, talkable, chat, pickup, onCall, onMissed, objective, due, back, driveEvent, onMission, hit, chime, appear, owns: back, mapState: () => (due() ? 'due' : 'air'), SAY, MEET };
 }
