@@ -267,7 +267,7 @@ box(SX * 2, 0.08, 0.12, kerbMat, 0, 0.04, ROAD.bike1, scene, false);
 // canal along the south side of the street (Amsterdam-style)
 const waterRip = rippleNormal(); // slow ripples so the Klassiek canal catches the light (js/richtex.js)
 const water = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 7.5), new THREE.MeshPhongMaterial({ color: 0x2e5a5c, shininess: 80, specular: 0x88aaaa, normalMap: waterRip, normalScale: new THREE.Vector2(0.45, 0.45) }));
-water.rotation.x = -Math.PI / 2; water.position.set(0, -1.1, CZ); scene.add(water);
+water.rotation.x = -Math.PI / 2; water.position.set(0, -1.1, CZ); water.renderOrder = 10; scene.add(water); // drawn after the boats' dry wells (js/boats.js), so open boats are not full of canal
 const quayMat = macro(pbr('brick_red.jpg', 60 * SXK, 1, 0x9a7a6a, 0.9, 1.0), 0.2, 0.15);
 const q1 = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 1.2), quayMat); q1.position.set(0, -0.55, CZ - 3.74); scene.add(q1);
 const q2 = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 1.2), quayMat); q2.position.set(0, -0.55, CZ + 3.74); q2.rotation.y = Math.PI; scene.add(q2);
@@ -2839,20 +2839,21 @@ function updateGulls(dt) {
 // ---- the canal: woonarken and old tjalks moored on the far side, a rondvaartboot, a sloep with friends, and ducks (js/boats.js)
 // Lanes across the 7.5 m canal: tour boat CZ-2.15, sloep CZ-0.1, houseboats CZ+2.3 against the far quay.
 const boats = [];
-const moor = (b, x) => { b.position.set(x, -1.1, CZ + 2.3); scene.add(b); boats.push(b); return b; };
-moor(makeArk({ wall: clapMat(PAL.cardamom), roof: 'flat', winMat, frameMat, trim: PAL.paprika, phase: 0.4 }), -46);
-moor(makeBarge({ hull: 0x24382c, band: PAL.saffron, phase: 1.7 }), -30);
-moor(makeArk({ wall: clapMat(PAL.saffron), roof: 'pitch', roofMat, winMat, frameMat, trim: PAL.clove, door: 0x5a2a1e, bikeCol: 0x2f5f8a, phase: 2.9 }), -2);
-moor(makeBarge({ hull: 0x3b2418, band: PAL.paprika, cabin: 0xefe2c4, leeboard: 0xc88a50, phase: 4.2 }), 26);
-moor(makeArk({ wall: clapMat(PAL.cream), roof: 'flat', winMat, frameMat, trim: PAL.paprika, door: 0x2f4a3a, phase: 5.5 }), 42);
+const FLOAT = -1.04; // the boats ride a hand higher than the water plane, so the boot-top shows and they sit on the canal, not in it
+const moor = (b, x) => { b.position.set(x, FLOAT, CZ + 2.3); scene.add(b); boats.push(b); return b; };
+moor(makeArk({ wall: clapMat(0x2f6a8a), roof: 'flat', winMat, frameMat, trim: 0xf3e6c8, chairA: '#2f6a8a', phase: 0.4 }), -46);
+moor(makeBarge({ hull: 0x16181a, band: 0xf6f2e8, cabin: 0xf3e6c8, hatchA: 0x1f6a44, hatchB: 0xf3e6c8, phase: 1.7 }), -30);
+moor(makeArk({ wall: clapMat(PAL.saffron), roof: 'pitch', roofCol: 0x3a4a5a, winMat, frameMat, trim: 0x1f3a2c, door: 0x5a2a1e, bikeCol: 0x2f5f8a, phase: 2.9 }), -2);
+moor(makeBarge({ hull: 0x5a1a1a, band: 0xf2c14e, cabin: 0xefe2c4, leeboard: 0xc88a50, hatchA: 0xb5442a, hatchB: 0xf3e6c8, phase: 4.2 }), 26);
+moor(makeArk({ wall: clapMat(0xc8402e), roof: 'flat', winMat, frameMat, trim: 0xf3e6c8, door: 0x2f4a3a, chairA: '#c8402e', phase: 5.5 }), 42);
 // rondvaartboot: sails east to the landing stage by the bridge, waits, backs out west, and turns round out of sight
 const tourCrew = Array.from({ length: 7 }, (_, i) => { const p = passerBy(200 + i); p.scale.setScalar(0.9); return p; });
 const tour = makeTourBoat({ sign: lam({ map: signTex([{ t: 'RONDVAART KAASLAND', size: 40 }], '#24303a', '#f2c14e') }), crew: tourCrew, sit, phase: 0.8 });
-tour.position.set(-30, -1.1, CZ - 2.15); scene.add(tour);
+tour.position.set(-30, FLOAT, CZ - 2.15); scene.add(tour);
 tour.userData.move = { mode: 'fwd', v: 0, wait: 0 };
 // sloep: three friends, a skipper and a crate of beer; west out of sight and back, turning round at the wide bit between the houseboats
 const sloep = makeSloep({ crew: Array.from({ length: 4 }, (_, i) => passerBy(300 + i)), sit, hull: PAL.cardamom, moving: true, phase: 2.2 });
-sloep.position.set(-12, -1.1, CZ - 0.1); sloep.rotation.y = Math.PI; scene.add(sloep);
+sloep.position.set(-12, FLOAT, CZ - 0.1); sloep.rotation.y = Math.PI; scene.add(sloep);
 sloep.userData.move = { dir: -1, v: 2.2, turn: 0 };
 const ducks = [];
 for (let i = 0; i < 18; i++) {

@@ -24,7 +24,7 @@ const woodTex = () => tex('wood', 256, 64, (g, w, h) => { // teak / varnished pl
   for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(255,220,170,${0.04 + Math.random() * 0.06})`; g.fillRect(Math.random() * w, Math.random() * h, 20 + Math.random() * 40, 1); }
 }, true);
 const woodMat = (c = 0xffffff) => once('W' + c, () => new THREE.MeshStandardMaterial({ map: woodTex(), color: c, roughness: 0.45 }));
-const glassMat = () => once('glass', () => new THREE.MeshStandardMaterial({ color: 0x6f9aa8, roughness: 0.08, metalness: 0.5, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
+const glassMat = () => once('glass', () => new THREE.MeshStandardMaterial({ color: 0xcfe8f0, roughness: 0.06, metalness: 0.25, envMapIntensity: 0.6, transparent: true, opacity: 0.24, side: THREE.DoubleSide, depthWrite: false }));
 const winMat = () => once('win', () => new THREE.MeshStandardMaterial({ color: 0x2c3e48, roughness: 0.1, metalness: 0.6 }));
 const ropeMat = () => lam(0xd8c08a);
 const steel = () => std(0xb8bec4, 0.35, 0.7);
@@ -119,7 +119,7 @@ function deck(body, h, m, dy = 0, u0 = 0, u1 = 1, inset = 0.02, n = 16) {
   const sh = new THREE.Shape(), pts = [];
   for (let i = 0; i <= n; i++) { const s = h.top(u0 + (u1 - u0) * i / n); pts.push([s.x, Math.max(0.001, s.hb - inset)]); }
   pts.forEach(([x, z], i) => (i ? sh.lineTo(x, z) : sh.moveTo(x, z))); for (let i = pts.length - 1; i >= 0; i--) sh.lineTo(pts[i][0], -pts[i][1]);
-  const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); // shape y → world z
+  const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); // lay it flat, facing up (it used to face down, so from above you looked straight through every deck into the canal)
   const mesh = new THREE.Mesh(g, m); const s0 = h.top(u0); mesh.position.y = s0.top + dy; mesh.receiveShadow = true; body.add(mesh);
   // map planks along the length
   const p = g.attributes.position, uvA = []; for (let i = 0; i < p.count; i++) uvA.push(p.getX(i) / 2.5, p.getZ(i) / 0.6); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
@@ -152,6 +152,26 @@ const bowTex = () => tex('bow', 128, 128, (g, w, h) => { // the bow at the right
   g.globalCompositeOperation = 'destination-in'; g.fillStyle = f; g.fillRect(0, 0, w, h);
 });
 const shadowTex = () => tex('hullshadow', 64, 32, (g, w, h) => { const r = g.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2); r.addColorStop(0, 'rgba(8,20,24,.55)'); r.addColorStop(1, 'rgba(8,20,24,0)'); g.fillStyle = r; g.save(); g.scale(1, h / w); g.fillRect(0, 0, w, w); g.restore(); });
+// An open boat's floor lies below the waterline, and the canal is one flat plane, so the water used to show inside the hull:
+// the boat looked flooded. dryWell() lays an invisible lid over the well at the waterline that only writes depth. A scene
+// whose water draws after it (water.renderOrder above DRY_ORDER, as the hub canal does) then leaves the inside of the boat dry.
+export const DRY_ORDER = 9;
+const dryMat = () => once('dry', () => new THREE.MeshBasicMaterial({ colorWrite: false }));
+function dryWell(body, h, u0 = 0.03, u1 = 0.97, inset = 0.07) {
+  const m = deck(body, h, dryMat(), 0, u0, u1, inset, 20); m.position.y = 0.045; m.renderOrder = DRY_ORDER; m.receiveShadow = false; return m;
+}
+const stripeTex = (a, b, n = 8) => tex('stripe' + a + b + n, 64, 64, (g, w, hh) => { for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? b : a; g.fillRect(i * w / n, 0, w / n + 1, hh); } });
+const panelTex = () => tex('solar', 64, 64, (g, w, hh) => { g.fillStyle = '#16243c'; g.fillRect(0, 0, w, hh); g.strokeStyle = '#6a86b0'; g.lineWidth = 1.5; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 16, 0); g.lineTo(i * 16, hh); g.moveTo(0, i * 16); g.lineTo(w, i * 16); g.stroke(); } g.strokeStyle = '#c8d0d8'; g.lineWidth = 3; g.strokeRect(1, 1, w - 2, hh - 2); });
+function deckChair(p, x, y, z, ry, colA, colB) { // a folding strandstoel with a striped sling
+  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; p.add(g);
+  const sl = new THREE.MeshLambertMaterial({ map: stripeTex(colA, colB), side: THREE.DoubleSide }), wd = woodMat(0xd8b080);
+  const seat = bx(g, 0.75, 0.03, 0.5, sl, 0.1, 0.22, 0); seat.rotation.z = 0.25; const back = bx(g, 0.7, 0.03, 0.5, sl, -0.42, 0.48, 0); back.rotation.z = 1.05;
+  for (const s of [-1, 1]) { bx(g, 1.1, 0.04, 0.04, wd, -0.05, 0.3, s * 0.27).rotation.z = 0.42; bx(g, 0.9, 0.04, 0.04, wd, 0.0, 0.2, s * 0.27).rotation.z = -0.4; }
+  return g;
+}
+function skylight(p, x, y, z, w = 0.9, d = 0.7, rx = 0) { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.x = rx; p.add(g); bx(g, w + 0.12, 0.1, d + 0.12, lam(PAL.white)); bx(g, w, 0.11, d, winMat(), 0, 0.01, 0); bx(g, 0.04, 0.12, d, lam(PAL.white), 0, 0.01, 0); return g; }
+function solar(p, x, y, z, w = 1.0, d = 0.6, rx = 0) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), new THREE.MeshStandardMaterial({ map: panelTex(), roughness: 0.25, metalness: 0.4 })); m.position.set(x, y, z); m.rotation.x = rx; p.add(m); return m; }
+function coil(p, x, y, z, r = 0.22) { for (let i = 0; i < 3; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(r - i * 0.06, 0.03, 5, 16), lam(0xd8c8a0)); t.rotation.x = Math.PI / 2; t.position.set(x, y + 0.03, z); p.add(t); } }
 function waterBits(g, L, B, moving) {
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(L * 1.25, B * 1.9), new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, depthWrite: false }));
   sh.rotation.x = -Math.PI / 2; sh.position.y = 0.012; sh.renderOrder = 1; g.add(sh);
@@ -214,6 +234,7 @@ export function makeSloep(opts = {}) {
   tube(body, gunwale(h, 14, 0.01), 0.04, woodMat(0xc88a50), true, 60); // the rubbing strake
   // floorboards and the bench round the back
   deck(body, h, woodMat(0xb07848), 0, 0.05, 0.9, 0.2).position.y = -0.12; // floorboards
+  dryWell(body, h); // keep the canal out of the boat
   const seatM = lam(opts.cargo ? 0x6a4a2a : (opts.cushion ?? PAL.saffron));
   const sb = (x0, x1, s) => { // a side bench with its cushion
     const z = s * (Math.min(h.top((x0 + L / 2) / L).hb, h.top((x1 + L / 2) / L).hb) - 0.22);
@@ -264,6 +285,7 @@ export function makeTourBoat(opts = {}) {
   // the curved glass roof and its ribs
   const roof = new THREE.Mesh(new THREE.CylinderGeometry(hw, hw, cl, 18, 1, true, -Math.PI / 2, Math.PI), glassMat());
   roof.rotation.z = Math.PI / 2; roof.scale.set(1, 1, 0.42); roof.position.set(cxm, yb + 0.99, 0); roof.renderOrder = 3; body.add(roof);
+  bx(body, cl, 0.03, 0.46, lam(PAL.saffron), cxm, yb + 0.99 + hw * 0.42, 0); // the canvas sun strip along the ridge
   const ribs = 11;
   for (let i = 0; i <= ribs; i++) {
     const x = x0 + cl * i / ribs;
@@ -326,10 +348,22 @@ export function makeArk(opts = {}) {
   if (opts.roof === 'pitch') {
     const rs = new THREE.Shape(); rs.moveTo(-cw / 2 - 0.25, 0); rs.lineTo(0, 0.95); rs.lineTo(cw / 2 + 0.25, 0); rs.lineTo(-cw / 2 - 0.25, 0);
     const rg = new THREE.ExtrudeGeometry(rs, { depth: cl + 0.4, bevelEnabled: false }); rg.translate(0, 0, -(cl + 0.4) / 2);
-    const r = new THREE.Mesh(rg, opts.roofMat || lam(PAL.clove)); r.rotation.y = Math.PI / 2; r.position.set(cx, y0 + chh, 0); r.castShadow = true; body.add(r);
+    const r = new THREE.Mesh(rg, lam(opts.roofCol ?? 0x9a3e26)); r.rotation.y = Math.PI / 2; r.position.set(cx, y0 + chh, 0); r.castShadow = true; body.add(r);
+    const hwR = cw / 2 + 0.25, th = Math.atan2(0.95, hwR), onSlope = (z) => y0 + chh + 0.95 * (1 - Math.abs(z) / hwR) + 0.04;
+    bx(body, cl + 0.5, 0.1, 0.16, lam(PAL.white), cx, y0 + chh + 0.98, 0); // ridge cap
+    for (const s of [-1, 1]) { // white bargeboards at both ends, skylights on one slope, solar panels on the other
+      for (const e of [-1, 1]) { const bb = bx(body, 0.08, 0.14, Math.hypot(hwR, 0.95) + 0.1, lam(PAL.white), cx + e * (cl / 2 + 0.2), y0 + chh + 0.5, s * hwR / 2); bb.rotation.x = s * th; }
+      bx(body, cl + 0.44, 0.08, 0.1, lam(PAL.white), cx, y0 + chh - 0.02, s * (hwR + 0.02)); // gutter
+    }
+    for (const fx of [-0.28, 0.02, 0.3]) skylight(body, cx + cl * fx, onSlope(0.75), 0.75, 0.8, 0.7, th);
+    for (let i = 0; i < 4; i++) solar(body, cx - cl * 0.3 + i * 1.08, onSlope(-0.75), -0.75, 1.0, 0.75, -th);
   } else {
-    bx(body, cl + 0.2, 0.14, cw + 0.2, lam(PAL.cream), cx, y0 + chh + 0.07, 0, true);
+    bx(body, cl + 0.2, 0.14, cw + 0.2, lam(PAL.white), cx, y0 + chh + 0.07, 0, true);
     const yt = y0 + chh + 0.14, xa = cx - cl / 2, xb = cx + cl / 2, zz = cw / 2;
+    { const tm = woodMat(0xc49a66), td = bx(body, cl - 0.5, 0.03, cw - 0.4, tm, cx, yt + 0.015, 0); td.receiveShadow = true; } // teak boards on the roof terrace
+    deckChair(body, xa + cl * 0.68, yt + 0.03, -0.45, 0.2, opts.chairA ?? '#e8a33d', '#fbf6ea'); deckChair(body, xa + cl * 0.68, yt + 0.03, 0.5, -0.15, opts.chairA ?? '#e8a33d', '#fbf6ea');
+    skylight(body, xa + cl * 0.2, yt + 0.08, 0, 1.1, 0.8); solar(body, xb - 1.0, yt + 0.12, -zz + 0.55, 1.2, 0.7, -0.2); solar(body, xb - 1.0, yt + 0.12, zz - 0.55, 1.2, 0.7, -0.2);
+    bx(body, 0.9, 0.04, 0.5, lam(0x5f8a4a), xa + 0.9, yt + 0.05, 0); // a strip of sedum
     rail(body, [[xa, yt, -zz], [xb, yt, -zz], [xb, yt, zz], [xa, yt, zz]], 0.75, 0.022, lam(PAL.clove));
     for (let i = 0; i < 5; i++) { const pl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28 + (i % 3) * 0.06, 0), lam([0x5f7a40, PAL.paprika, 0x6f8a4a][i % 3], { flatShading: true })); pl.position.set(xa + 0.8 + i * (cl - 1.6) / 4, yt + 0.35, (i % 2 - 0.5) * cw * 0.7); body.add(pl); bx(body, 0.5, 0.3, 0.5, lam(PAL.cumin), pl.position.x, yt + 0.15, pl.position.z); }
     bx(body, 0.8, 0.05, 0.8, woodMat(0xc09060), xa + cl * 0.5, yt + 0.42, 0); cy(body, 0.03, 0.03, 0.4, lam(PAL.clove), xa + cl * 0.5, yt + 0.2, 0, 5); // a terrace table
@@ -342,6 +376,8 @@ export function makeArk(opts = {}) {
   for (const z of [-0.45, 0.45]) { bx(body, 0.45, 0.06, 0.45, woodMat(0xc8a070), L / 2 - 1.3, y0 + 0.42, z); bx(body, 0.06, 0.45, 0.45, woodMat(0xc8a070), L / 2 - 1.55, y0 + 0.65, z); for (const dx of [-0.18, 0.18]) for (const dz of [-0.18, 0.18]) cy(body, 0.02, 0.02, 0.42, lam(PAL.clove), L / 2 - 1.3 + dx, y0 + 0.21, z + dz, 4); }
   if (opts.bike !== false) { const bk = new THREE.Group(); bk.position.set(-L / 2 + 0.6, y0 + 0.36, -B / 2 + 0.3); body.add(bk); for (const x of [-0.5, 0.5]) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.025, 4, 14), black()); w.position.x = x; bk.add(w); } bx(bk, 0.9, 0.05, 0.04, lam(opts.bikeCol ?? PAL.paprika), 0, 0.25, 0).rotation.z = 0.15; bx(bk, 0.05, 0.4, 0.04, lam(opts.bikeCol ?? PAL.paprika), 0.42, 0.25, 0); }
   lifebuoy(body, cx + cl / 2 - 0.6, y0 + 1.3, -(cw / 2 + 0.09));
+  { const aw = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, cw * 0.9), new THREE.MeshLambertMaterial({ map: stripeTex(hex(opts.trim ?? PAL.paprika), '#fbf6ea') })); aw.position.set(fx + 0.42, y0 + 1.95, 0); aw.rotation.z = -0.32; body.add(aw); } // markies over the door
+  tube(body, gunwale(h, 4, 0.03), 0.045, lam(PAL.white), true, 24); // a white rubbing strake round the pontoon
   // a hose and an electricity cable to the quay, and the gangplank
   if (opts.plank !== false) bx(body, 1.0, 0.07, 1.4, woodMat(0xb08860), cx + cl * 0.3, y0 + 0.45, B / 2 + 0.55).rotation.x = -0.25;
   return g;
@@ -361,11 +397,13 @@ export function makeBarge(opts = {}) {
   // the roof over the hold, with portholes, and the wheelhouse aft
   const rx0 = -L * 0.22, rx1 = L * 0.3, rw = B - 0.7, ry = F;
   bx(body, rx1 - rx0, 0.75, rw, lam(opts.cabin ?? PAL.cream), (rx0 + rx1) / 2, ry + 0.37, 0, true);
-  bx(body, rx1 - rx0 + 0.1, 0.08, rw + 0.12, lam(PAL.cumin), (rx0 + rx1) / 2, ry + 0.78, 0, true);
+  { const ht = stripeTex(hex(opts.hatchA ?? 0x1f6a44), hex(opts.hatchB ?? 0xf3e6c8), 8).clone(); ht.wrapS = THREE.RepeatWrapping; ht.repeat.set(2, 1); ht.needsUpdate = true;
+    const hm = new THREE.MeshLambertMaterial({ map: ht }), top = bx(body, rx1 - rx0 + 0.1, 0.08, rw + 0.12, [lam(PAL.cumin), lam(PAL.cumin), hm, lam(PAL.cumin), lam(PAL.cumin), lam(PAL.cumin)], (rx0 + rx1) / 2, ry + 0.78, 0, true); top.receiveShadow = true; } // the luiken: painted hatch boards
+  skylight(body, rx0 + (rx1 - rx0) * 0.3, ry + 0.86, 0, 0.7, 0.6); skylight(body, rx0 + (rx1 - rx0) * 0.72, ry + 0.86, 0, 0.7, 0.6);
   for (let x = rx0 + 0.6; x < rx1 - 0.3; x += 1.1) for (const s of [-1, 1]) { const pw = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.04, 12), lam(0xc8a860)); pw.rotation.x = Math.PI / 2; pw.position.set(x, ry + 0.42, s * (rw / 2 + 0.01)); body.add(pw); const pg = new THREE.Mesh(new THREE.CircleGeometry(0.11, 12), winMat()); pg.position.set(x, ry + 0.42, s * (rw / 2 + 0.035)); pg.rotation.y = s > 0 ? 0 : Math.PI; body.add(pg); }
   const wx = -L * 0.33;
   bx(body, 1.3, 1.25, rw, lam(PAL.cumin), wx, ry + 0.62, 0, true);
-  bx(body, 1.42, 0.08, rw + 0.14, lam(PAL.cream), wx, ry + 1.28, 0, true);
+  bx(body, 1.42, 0.08, rw + 0.14, lam(PAL.white), wx, ry + 1.28, 0, true); solar(body, wx, ry + 1.34, 0, 0.9, 0.9);
   for (const s of [-1, 1]) { bx(body, 1.0, 0.5, 0.03, winMat(), wx, ry + 0.95, s * (rw / 2 + 0.01)); }
   bx(body, 0.03, 0.5, rw * 0.8, winMat(), wx + 0.66, ry + 0.95, 0);
   // the lowered mast on its crutch, with the furled sail
@@ -385,6 +423,7 @@ export function makeBarge(opts = {}) {
   const til = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 1.4, 6), woodMat(0xc89060)); til.rotation.z = Math.PI / 2 + 0.25; til.position.set(rs.x + 0.55, F + 0.82, 0); body.add(til);
   // the bow: anchor winch, a name board, flowers and a bike on deck
   const bs = h.top(0.93); bx(body, 0.5, 0.3, 0.6, lam(PAL.clove), bs.x - 0.2, bs.top + 0.12, 0);
+  coil(body, bs.x - 0.95, F, 0.45); flag(body, rs.x + 0.25, F + 0.1, 0.5, 'nl', 1.3); tube(body, gunwale(h, 20, -0.16), 0.03, lam(PAL.white), true, 90); // rope, the flag at the stern, a white strake
   for (let i = 0; i < 3; i++) { const pz = (i - 1) * 0.55; bx(body, 0.35, 0.3, 0.35, lam(PAL.paprika), rx1 + 0.7, F + 0.15, pz); const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), lam([0x5f7a40, PAL.turmeric, 0x6f8a4a][i], { flatShading: true })); fl.position.set(rx1 + 0.7, F + 0.45, pz); body.add(fl); }
   if (opts.name) for (const s of [-1, 1]) { const n = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.24), opts.name); const ns = h.top(0.86); n.position.set(ns.x, ns.top - 0.18, s * (ns.hb + 0.015)); n.rotation.y = s < 0 ? Math.PI : 0; n.rotation.y += s * -0.18; body.add(n); }
   if (opts.plank !== false) bx(body, 1.0, 0.07, 1.4, woodMat(0xb08860), 0, F + 0.4, B / 2 + 0.55).rotation.x = -0.25;
@@ -400,7 +439,7 @@ export function makeCruiser(opts = {}) {
   const { g, body } = shell(L, B, { moving: opts.moving, phase: opts.phase, heavy: speed ? 1 : 1.4 });
   const o = { L, B, D: 0.4, F, bow: 'point', stern: 0.85, sheer: speed ? 0.12 : 0.22, p: 0.85, flare: 0.22, nL: 22, nS: 6, rough: 0.3 };
   const h = hull(body, o, [[0.04, PAL.navy], [0.12, opts.stripe ?? PAL.saffron], [F - 0.12, opts.hull ?? PAL.white], [F - 0.06, opts.stripe ?? PAL.saffron], [9, opts.hull ?? PAL.white]], { key: 'c' + speed + (opts.stripe || '') + (opts.hull || '') });
-  deck(body, h, woodMat(0xc8a070), -0.01, 0.02, 0.98);
+  deck(body, h, woodMat(0xc8a070), -0.01, 0.02, 0.98); dryWell(body, h);
   tube(body, gunwale(h, 16, 0.02), 0.035, lam(0xdcdcdc), true, 70);
   const white = lam(opts.hull ?? PAL.white);
   if (speed) {
