@@ -76,8 +76,12 @@ export function createBuurtFolk(deps) {
     if (f.knows === 'kaneel') { const s = W.cal().season.id; return s === 'winter' ? 'It\'s speculaas season. Everybody wants kaneel, so the price goes up. If you have some on the shelf, now is the time.' : 'Come winter the whole street smells of speculaas. Buy your kaneel before that, it only gets dearer.'; }
     return null;
   }
-  function talk(f) {
+  function talk(f) { // business first (js/winkels.js: a klusje, or their weekly order), small talk from the menu
     f.p.rotation.y = Math.atan2(player.position.x - f.p.position.x, player.position.z - f.p.position.z);
+    if (deps.serve && deps.serve(f)) return;
+    chat(f);
+  }
+  function chat(f) {
     const ex = (!f.met || f.n % 3 === 2) ? extra(f) : null, line = f.lines[f.n % f.lines.length]; f.n++; f.met = true;
     deps.dialogue(ex ? [[f.name, line], [f.name, ex]] : [[f.name, line]]);
   }
@@ -95,5 +99,5 @@ export function createBuurtFolk(deps) {
       deps.animate(f.p, dt);
     }
   }
-  return { folk, update, talk };
+  return { folk, update, talk, chat };
 }
