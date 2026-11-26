@@ -52,7 +52,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
   function hud() {
     const o = R.opts, rt = R.route, kmh = Math.round(Math.abs(veh.B.v) * 3.6);
     const where = R.phase === 'street' ? `oprit <span class="an">A10</span> ${Math.max(0, Math.round(deps.exit.x - veh.B.x))} m`
-      : veh.B.x < X0 + LEN * 0.4 && rt.a !== 'A10' ? `<span class="an">A10</span> ring → <span class="an">${rt.a}</span>` : `<span class="an">${rt.a}</span> afrit ${rt.afrit} ${o.to} ${Math.max(0, Math.round(X0 + EXIT0 - veh.B.x))} m`;
+      : veh.B.x < X0 + 170 && rt.a !== 'A10' ? `<span class="an">A10</span> ring → <span class="an">${rt.a}</span>` : `<span class="an">${rt.a}</span> afrit ${rt.afrit} ${o.to} ${Math.max(0, Math.round(X0 + EXIT0 - veh.B.x))} m`;
     const h = `<b>${o.from} → ${o.to}</b><br>${fmtT(R.t)} <small>(par ${fmtT(PAR)})</small> · <b>${kmh} km/u</b> · ${where}<div class="bar"><i style="width:${R.hp}%;background:${R.hp > 60 ? '#6ed36e' : R.hp > 30 ? '#ffd36b' : '#ff4a4a'}"></i></div><small>Oofmobiel ${Math.round(R.hp)}%${R.smart ? ` · boetes W ${R.smart}` : ''}${R.bonus ? ` · claxon +W ${R.bonus}` : ''}${R.wrecked ? ` · ${R.wrecked} wrecked` : ''}</small><br><button>Omkeren (give up)</button>`;
     if (h !== hudKey) { hudEl.innerHTML = h; hudKey = h; }
   }
@@ -125,10 +125,10 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
   // vluchtstrook. Eddy can't see one without saying something, in Dutch or in Hebrew. Past one faster than 120 and it
   // flashes (a fine); sound the claxon at one and it is bonus Wilders on the trip.
   const RLI = '⁧', PDI = '⁩';
-  const RANT_NL = ['Een flitspaal! Dieven met een camera!', 'Daar staat de staat weer te hengelen.', 'Honderdtwintig? Mijn oma rijdt harder. Op de fiets.', 'Ik betaal al erfpacht, wat willen jullie nog meer?!', 'Flitsers. Het enige in Kaasland dat nooit stuk is.', 'Kijk ze staan. Zakkenvullers langs de vluchtstrook.', 'Lach maar naar het vogeltje, Eddy. Nee. NEE.'];
-  const RANT_HE = [['עוד מצלמה! גנבים עם רישיון!', 'od matslema! ganavim im rishayon!', 'nog een camera! dieven met een vergunning!'], ['מה אתם רוצים מהחיים שלי?!', 'ma atem rotsim mehachayim sheli?!', 'wat willen jullie van mijn leven?!'], ['לכו תעבדו בעבודה אמיתית!', 'lechu ta\'avdu ba\'avoda amitit!', 'ga echt werk zoeken!'], ['חצופים! אני רק נוסע עם פפריקה!', 'chatsufim! ani rak nose\'a im paprika!', 'brutalen! ik rij alleen maar met paprika!'], ['אוי ואבוי, עוד קנס.', 'oy va\'avoy, od knas.', 'oei oei, weer een boete.']];
-  const HONK_NL = ['TOET! Fijne dag nog, flitsmeneer!', 'TOEEET! Koffie gemorst? Mooi zo!', 'TOET TOET! Groeten van Eddy & Zn!', 'TOEEET! Zet dat maar op de foto!'];
-  const HONK_HE = [['תתעוררו שם!', 'tit\'oreru sham!', 'wakker worden daar!'], ['שלום שלום, ביי ביי!', 'shalom shalom, bye bye!', 'hallo hallo, doei doei!']];
+  const RANT_NL = ['Godverdomme, wéér een flitspaal!', 'Kutflitsers! Dieven met een camera!', 'Klootzakken! Ik betaal al erfpacht!', 'Rot op met je kastje, eikel!', 'Stelletje zakkenvullende lulhannesen!', 'Honderdtwintig is voor bejaarden, sukkels!', 'Flits je moeder, lul!', 'Kijk ze staan, die hufters. Langs de vluchtstrook nog wel.'];
+  const RANT_HE = [['בן זונה!', 'ben zona!', 'klootzak!'], ['כוס אמק, עוד מצלמה!', 'kus emek, od matslema!', 'godverdomme, nog een camera!'], ['לך תזדיין עם המצלמה שלך!', 'lech tizdayen im hamatslema shelcha!', 'rot op met je camera!'], ['יא מניאק, אני רק נוסע עם פפריקה!', "ya manyak, ani rak nose'a im paprika!", 'klootzak, ik rij alleen maar met paprika!'], ['בני זונות, גנבים עם רישיון!', 'bnei zonot, ganavim im rishayon!', 'klootzakken, dieven met een vergunning!'], ['חרא של מדינה!', 'chara shel medina!', 'kutland!'], ['מה אתם רוצים מהחיים שלי, יא זבל?!', 'ma atem rotsim mehachayim sheli, ya zevel?!', 'wat willen jullie van mijn leven, stuk vuil?!']];
+  const HONK_NL = ['TOEEET! Krijg de klere, flitsmeneer!', 'TOET! Flits dit, klootzak!', 'TOET TOET! Groeten van Eddy, lul!', 'TOEEET! Koffie over je broek? Mooi zo, eikel!'];
+  const HONK_HE = [['תאכל חרא, בן זונה!', 'tochal chara, ben zona!', 'vreet stront, klootzak!'], ['יאללה ביי, יא מניאק!', 'yalla bye, ya manyak!', 'doei doei, eikel!'], ['כוס אמק, תתעוררו שם!', "kus emek, tit'oreru sham!", 'godverdomme, wakker worden daar!']];
   const cams = []; let rantT = 0;
   const rantEl = document.createElement('div'); rantEl.id = 'ritRant'; document.body.appendChild(rantEl);
   { const st = document.createElement('style'); st.textContent = `#ritRant{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:10;display:none;max-width:min(520px,88vw);padding:8px 16px 9px;border-radius:16px 16px 16px 4px;text-align:center;color:#07304f;font:700 15px/1.3 "Segoe UI",Tahoma,Rubik,Arial,sans-serif;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(226,244,255,.94) 50%,rgba(204,236,255,.94) 52%,rgba(232,248,255,.96));box-shadow:0 0 0 2px rgba(80,170,230,.6),0 8px 22px rgba(0,40,80,.4);pointer-events:none}
@@ -146,6 +146,72 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     for (const a of [0, 2.1, 4.2]) K.cyl(0.025, 0.025, 1.3, 0x2a2c30, -3.4 + Math.cos(a) * 0.28, 0.6, 1.5 + Math.sin(a) * 0.28, 5, Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4); K.box(0.4, 0.3, 0.3, 0x3a3e44, -3.4, 1.35, 1.5); K.cyl(0.1, 0.1, 0.1, 0x16161a, -3.62, 1.35, 1.5, 10, 0, 0, Math.PI / 2); // the radar on its tripod
     K.cyl(0.05, 0.22, 0.6, 0xff6a1a, -4.6, 0.3, 0.9, 8); K.cyl(0.05, 0.22, 0.6, 0xff6a1a, -6.2, 0.3, 0.4, 8); // two cones, for form's sake
     const m = K.build(); m.castShadow = true; g.add(m); return g; }
+  // ---- matrix signs and wegwerkzaamheden, the Dutch way (Tristan 2026-11-26): LED boards over each lane that count the
+  // speed down (90, 70 in a red ring), then the white arrow that sends the lane left, then the red cross over the closed
+  // lane, and "einde" after the works; amber lights flash in the corners. On the road: yellow warning signs on the
+  // verge, a taper of bakens, the pijlwagen with its lit arrow and crash cushion, schrikhekken, a digger, men in orange.
+  const LED = {}, blinkA = [], blinkB = [];
+  function led(key) {
+    if (LED[key]) return LED[key];
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
+    c.fillStyle = '#060606'; c.fillRect(0, 0, 128, 128); c.lineCap = c.lineJoin = 'round'; c.shadowBlur = 7;
+    const stroke = (col, w, pts) => { c.strokeStyle = col; c.shadowColor = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.stroke(); };
+    if (/^\d+$/.test(key)) { c.strokeStyle = '#ff2a1a'; c.shadowColor = '#ff2a1a'; c.lineWidth = 11; c.beginPath(); c.arc(64, 64, 50, 0, 7); c.stroke(); c.fillStyle = '#ffffff'; c.shadowColor = '#ffffff'; c.font = `900 ${key.length > 2 ? 50 : 62}px Arial, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(key, 64, 68); }
+    else if (key === 'arrow') { stroke('#ffffff', 15, [[100, 26], [34, 96]]); stroke('#ffffff', 15, [[30, 52], [30, 100], [78, 100]]); } // the lane ends: move over to the left
+    else if (key === 'cross') { stroke('#ff2a1a', 17, [[26, 26], [102, 102]]); stroke('#ff2a1a', 17, [[102, 26], [26, 102]]); }
+    else if (key === 'green') { stroke('#3aff5a', 15, [[64, 20], [64, 100]]); stroke('#3aff5a', 15, [[34, 70], [64, 104], [94, 70]]); }
+    else if (key === 'end') { c.strokeStyle = '#ffffff'; c.shadowColor = '#ffffff'; c.lineWidth = 8; c.beginPath(); c.arc(64, 64, 48, 0, 7); c.stroke(); for (const d of [-9, 0, 9]) stroke('#ffffff', 4, [[98 + d, 30 + d], [30 + d, 98 + d]]); }
+    c.shadowBlur = 0; c.fillStyle = '#060606'; for (let i = 0; i < 128; i += 6) { c.fillRect(i, 0, 1.6, 128); c.fillRect(0, i, 128, 1.6); } // the dots of an LED board
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return (LED[key] = new THREE.MeshBasicMaterial({ map: t, fog: false }));
+  }
+  const amber = new THREE.MeshBasicMaterial({ color: 0xffb41a, fog: false });
+  // one board over a lane: the black housing (kit), the LED face, and the four flashers when it warns
+  function matrixBoard(parent, K, key, x, y, z, flash, S = 1.7) {
+    const F = S - 0.2, e = S / 2 - 0.23;
+    K.box(0.34, S, S, 0x121214, x, y, z); K.box(0.5, 0.08, S + 0.1, 0x121214, x - 0.2, y + S / 2 + 0.04, z); K.box(0.2, 0.5, 0.2, 0x8a8e94, x + 0.05, y + S / 2 + 0.2, z); // housing, sun hood, hanger
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(F, F), led(key)); f.position.set(x - 0.18, y, z); f.rotation.y = -Math.PI / 2; parent.add(f);
+    if (flash) [[e, e], [-e, -e], [e, -e], [-e, e]].forEach(([dy, dz], i) => { const q = new THREE.Mesh(new THREE.CircleGeometry(S * 0.07, 10), amber); q.position.set(x - 0.185, y + dy, z + dz); q.rotation.y = -Math.PI / 2; parent.add(q); (i < 2 ? blinkA : blinkB).push(q); });
+  }
+  // a signaalportaal: two posts and a beam across the three lanes (zc: the middle lane, in the parent's own coordinates)
+  function portal(parent, K, x, zc, keys, flash) {
+    const zA = zc - LW * 1.5 - 1.4, zB = zc + LW * 1.5 + 3.4, c = 0x9a9ea6;
+    for (const z of [zA, zB]) { K.box(0.3, 8.0, 0.3, c, x, 4.0, z); K.box(1.0, 0.3, 1.0, 0x8a8680, x, 0.15, z); }
+    for (const y of [7.0, 7.9]) K.box(0.16, 0.16, zB - zA, c, x, y, (zA + zB) / 2); for (let z = zA + 0.6; z < zB; z += 1.2) K.box(0.08, 1.0, 0.08, c, x, 7.45, z, 0, Math.round(z) % 2 ? 0.7 : -0.7, 0);
+    keys.forEach((k, i) => matrixBoard(parent, K, k, x - 0.3, 6.35, zc + (i - 1) * LW, flash, 2.7)); // big and low enough to read from the driving seat
+  }
+  const canvasSign = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = 128; cv.height = Math.round(128 * h / w); draw(cv.getContext('2d'), cv.width, cv.height); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return deps.lam({ map: t, transparent: true }); };
+  let signWerk = null, signLane = null, sign70 = null;
+  function roadSign(parent, K, mat, w, h, x, y, z) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x - 0.04, y, z); m.rotation.y = -Math.PI / 2; parent.add(m); K.box(0.1, y + h / 2, 0.1, 0x8a8e94, x + 0.04, (y + h / 2) / 2, z); }
+  function worker(K, x, z, ry) { K.box(0.2, 0.75, 0.3, 0x2a3040, x, 0.38, z, ry); K.box(0.26, 0.6, 0.42, 0xff7a1a, x, 1.05, z, ry); K.box(0.27, 0.1, 0.43, 0xf2e86a, x, 1.0, z, ry); K.box(0.27, 0.1, 0.43, 0xf2e86a, x, 1.2, z, ry); K.geo(new THREE.SphereGeometry(0.14, 8, 6), 0xe8b890, x, 1.52, z); K.cyl(0.16, 0.17, 0.1, 0xf4f2ec, x, 1.62, z, 8); }
+  // the whole closure as one group, standing on the right lane: x = 0 is the pijlwagen, the taper runs back to -46, the works on to +30
+  function makeWorks() {
+    const g = new THREE.Group(), K = deps.kit(), zc = -LW, zv = LW * 0.5 + 3.6; // zc: the middle lane, zv: the verge, seen from the right lane
+    signWerk = signWerk || canvasSign(1, 0.9, (c, w, h) => { c.fillStyle = '#d8202a'; c.beginPath(); c.moveTo(w / 2, 2); c.lineTo(w - 2, h - 2); c.lineTo(2, h - 2); c.closePath(); c.fill(); c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(w / 2, 22); c.lineTo(w - 22, h - 13); c.lineTo(22, h - 13); c.closePath(); c.fill();
+      c.fillStyle = '#111'; c.beginPath(); c.arc(60, 58, 6, 0, 7); c.fill(); c.fillRect(54, 64, 11, 22); c.fillRect(52, 84, 5, 16); c.fillRect(62, 84, 5, 16); c.save(); c.translate(70, 70); c.rotate(0.7); c.fillRect(0, -2, 26, 4); c.restore(); c.beginPath(); c.moveTo(84, 96); c.lineTo(100, 96); c.lineTo(92, 84); c.closePath(); c.fill(); }); // a man with a shovel and his heap
+    signLane = signLane || canvasSign(1, 1.2, (c, w, h) => { c.fillStyle = '#f2c31a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#111'; c.lineWidth = 4; c.strokeRect(3, 3, w - 6, h - 6); c.fillStyle = '#111'; for (const x of [30, 62]) { c.fillRect(x - 5, 40, 10, 90); c.beginPath(); c.moveTo(x, 18); c.lineTo(x + 15, 44); c.lineTo(x - 15, 44); c.closePath(); c.fill(); } c.fillRect(89, 74, 10, 56); c.fillStyle = '#d8202a'; c.fillRect(78, 62, 32, 12); }); // two lanes go on, the right one ends
+    sign70 = sign70 || canvasSign(1, 1, (c, w, h) => { c.fillStyle = '#f2c31a'; c.fillRect(0, 0, w, h); c.fillStyle = '#ffffff'; c.beginPath(); c.arc(64, 64, 54, 0, 7); c.fill(); c.strokeStyle = '#d8202a'; c.lineWidth = 13; c.beginPath(); c.arc(64, 64, 47, 0, 7); c.stroke(); c.fillStyle = '#111'; c.font = '900 56px Arial'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('70', 64, 68); });
+    // the countdown over the road, and the yellow signs on the verge
+    portal(g, K, -330, zc, ['90', '90', '90'], true); portal(g, K, -190, zc, ['70', '70', 'arrow'], true); portal(g, K, -70, zc, ['70', '70', 'cross'], true); portal(g, K, 64, zc, ['end', 'end', 'end'], false);
+    roadSign(g, K, signWerk, 1.9, 1.7, -400, 2.3, zv); roadSign(g, K, signLane, 1.5, 1.8, -260, 2.3, zv); roadSign(g, K, sign70, 1.3, 1.3, -150, 2.2, zv); roadSign(g, K, sign70, 1.3, 1.3, -150, 2.2, zc - LW * 1.5 - 1.6);
+    // the taper: geleidebakens (red and white, a lamp on top) from the edge line across the lane, then along the works
+    for (let i = 0; i < 20; i++) { const x = -46 + i * 2.3, z = i < 12 ? LW * 0.5 - (i / 11) * (LW - 0.3) : -LW * 0.5 + 0.3; K.box(0.5, 0.12, 0.5, 0x2a2c30, x, 0.06, z); K.box(0.06, 0.95, 0.26, 0xf4f2ec, x, 0.6, z);
+      for (let s = 0; s < 3; s++) K.box(0.07, 0.16, 0.27, 0xd8202a, x, 0.3 + s * 0.3, z, 0, 0.5, 0); const l = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), amber); l.position.set(x, 1.14, z); g.add(l); (i % 2 ? blinkA : blinkB).push(l); }
+    for (let x = 4; x < 32; x += 3.4) { K.cyl(0.05, 0.2, 0.55, 0xff6a1a, x, 0.28, -LW * 0.5 + 0.3, 8); K.cyl(0.11, 0.15, 0.1, 0xf4f2ec, x, 0.36, -LW * 0.5 + 0.3, 8); }
+    // the pijlwagen: a yellow truck, back to the traffic, with the red and white crash cushion and the lit arrow board
+    K.box(4.6, 1.5, 2.3, 0xf2a01a, 0.6, 1.25, 0); K.box(1.7, 1.9, 2.3, 0xf2a01a, 3.6, 1.45, 0); K.box(0.06, 0.7, 2.0, GL, 4.47, 1.95, 0); K.box(5.6, 0.3, 2.1, 0x2a2c30, 1.4, 0.55, 0); wheelSet(K, [3.4, -0.6], 1.02, 0.46);
+    K.box(1.9, 0.9, 2.2, 0xe8e4dc, -2.7, 0.75, 0); for (let s = 0; s < 6; s++) K.box(0.06, 0.92, 0.37, s % 2 ? 0xd8202a : 0xf4f2ec, -3.66, 0.75, -0.92 + s * 0.37); K.box(0.9, 0.16, 0.16, 0x2a2c30, -1.5, 0.6, 0.7); K.box(0.9, 0.16, 0.16, 0x2a2c30, -1.5, 0.6, -0.7);
+    K.box(0.16, 1.4, 0.16, 0x2a2c30, -1.6, 2.6, 0.9); K.box(0.16, 1.4, 0.16, 0x2a2c30, -1.6, 2.6, -0.9); K.box(0.22, 2.6, 2.6, 0x121214, -1.72, 4.0, 0);
+    { const f = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), led('arrow')); f.position.set(-1.84, 4.0, 0); f.rotation.y = -Math.PI / 2; g.add(f); blinkA.push(f);
+      for (const dz of [1.08, -1.08]) { const q = new THREE.Mesh(new THREE.CircleGeometry(0.15, 10), amber); q.position.set(-1.845, 5.08, dz); q.rotation.y = -Math.PI / 2; g.add(q); blinkB.push(q); }
+      for (const dz of [0.55, -0.55]) { const q = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), amber); q.position.set(3.6, 2.52, dz); g.add(q); (dz > 0 ? blinkA : blinkB).push(q); } }
+    // the works themselves: a schrikhek at each end, milled tarmac, a digger, a roller, a heap of sand, three men in orange
+    for (const x of [7.5, 31]) { for (let s = 0; s < 5; s++) K.box(0.08, 0.3, 0.44, s % 2 ? 0xd8202a : 0xf4f2ec, x, 1.0, -0.88 + s * 0.44); K.box(0.08, 1.2, 0.08, 0x8a8e94, x, 0.6, 0.95); K.box(0.08, 1.2, 0.08, 0x8a8e94, x, 0.6, -0.95); }
+    K.box(22, 0.012, LW - 0.5, 0x2e2f33, 19.5, 0.03, 0); K.box(4.5, 0.6, 2.0, 0xc8a878, 12, 0.3, 0.1); K.geo(new THREE.SphereGeometry(1, 8, 5), 0xc8a878, 12, 0.5, 0.1, 0, 0, 0, 2.0, 0.7, 0.9);
+    K.box(3.0, 0.8, 2.0, 0x2a2c30, 19, 0.5, 0); K.box(2.2, 1.3, 1.8, 0xf2c31a, 18.8, 1.5, 0); K.box(1.2, 1.2, 1.2, GL, 19.6, 2.0, 0.2); K.box(3.2, 0.3, 0.3, 0xf2c31a, 21.3, 2.6, -0.4, 0, 0, 0.5); K.box(2.4, 0.26, 0.26, 0xf2c31a, 23.2, 2.3, -0.4, 0, 0, -0.9); K.box(0.7, 0.6, 0.7, 0x3a3c40, 24.0, 1.1, -0.4); // the digger
+    K.cyl(0.6, 0.6, 1.7, 0x5a5e62, 27.2, 0.6, 0, 14, Math.PI / 2); K.cyl(0.5, 0.5, 1.7, 0x5a5e62, 29.3, 0.5, 0, 14, Math.PI / 2); K.box(1.9, 1.0, 1.5, 0xf2a01a, 28.3, 1.3, 0); K.box(0.9, 0.9, 1.2, GL, 28.6, 2.1, 0); // the wals
+    worker(K, 14.6, 0.9, 0.4); worker(K, 16.2, -0.7, -0.8); worker(K, 25.6, 0.8, 1.9);
+    const m = K.build(); m.castShadow = true; g.add(m); return g;
+  }
   // ---- the motorway: built once, signed and dressed per trip
   function buildStrip() {
     strip = new THREE.Group(); scene.add(strip);
@@ -188,11 +254,8 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       for (let i = 0; i < n; i++) { m4.makeTranslation(X0 + 20 + i * 45, 0.07, Z0 - 0.5); lampPool.setMatrixAt(i, m4); } lampPool.visible = false; lampPool.renderOrder = 3; strip.add(lampPool);
       headPool = new THREE.Mesh(new THREE.PlaneGeometry(16, 7).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glow, color: 0xfff2d0, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); headPool.visible = false; headPool.renderOrder = 3; scene.add(headPool); }
     for (const kind of ['paal', 'paal', 'bus', 'bus']) { const g = kind === 'paal' ? makeFlitspaal() : makeFlitsbus(); strip.add(g); cams.push({ g, kind, x: 0, sol: kind === 'bus' ? deps.solid(0, 0, 0, 0) : null }); }
-    // wegwerkzaamheden: a pijlwagen, a row of cones and a closed right lane (two of them)
-    for (let i = 0; i < 2; i++) { const g = new THREE.Group(), kk = deps.kit(); kk.box(4.2, 1.6, 2.2, 0xf2a01a, 0, 1.1, 0); kk.box(0.2, 2.4, 2.4, 0x1a1a1a, -2.1, 2.5, 0); for (let a = 0; a < 5; a++) kk.box(0.22, 0.3, 0.3, 0xffe14a, -2.22, 2.0 + (a < 3 ? a * 0.45 : (4 - a) * 0.45 + 0.45), -0.6 + a * 0.3 - (a > 2 ? 0.6 : 0)); for (const wx of [-1.3, 1.3]) kk.cyl(0.4, 0.4, 2.3, 0x1a1a1a, wx, 0.4, 0, 10, Math.PI / 2);
-      for (let c = 0; c < 14; c++) { const x = -34 + c * 2.4, z = c < 6 ? (LW * 0.5) - c * (LW / 6) + 0.2 : -LW / 2 + 0.25; kk.cyl(0.05, 0.22, 0.6, 0xff6a1a, x, 0.3, z, 8); kk.cyl(0.12, 0.16, 0.12, W_, x, 0.38, z, 8); }
-      kk.box(5, 0.5, 2.0, 0x8a6a4a, 12, 0.25, 0); kk.box(2.6, 1.3, 1.6, 0xf2c31a, 20, 0.8, 0.1); kk.box(0.3, 1.6, 0.3, 0xf2c31a, 21.3, 1.9, 0.1); // a heap of sand and a little digger
-      const m = kk.build(); m.castShadow = true; g.add(m); strip.add(g); works.push({ g, sol: deps.solid(0, 0, 0, 0), sol2: deps.solid(0, 0, 0, 0) }); }
+    // wegwerkzaamheden: one long closure of the right lane, with everything that leads up to it (makeWorks)
+    { const g = makeWorks(); strip.add(g); works.push({ g, sol: deps.solid(0, 0, 0, 0), sol2: deps.solid(0, 0, 0, 0) }); }
     for (let i = 0; i < 2; i++) { const g = deps.makeCar({ paint: 0xff7a1a, lampas: true, model: 0 }); strip.add(g); gang.push({ g, on: false, dead: false, v: 0, cool: 0 }); }
     // what the van can't drive through: the guard rail, the grass beyond the vluchtstrook (up to the afrit), the back of the car park, both ends
     for (const s of [deps.solid(X0 - 60, X0 + LEN + 60, NEDGE - 1, NEDGE + 0.2), deps.solid(X0 - 60, X0 + EXIT0, SEDGE, SEDGE + 30), deps.solid(X0 + EXIT0, X0 + LEN + 60, SEDGE + 26, SEDGE + 27),
@@ -207,7 +270,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     for (const z of [zA, zB]) { for (const dx of [-0.45, 0.45]) K.box(0.16, 7.6, 0.16, c, x + dx, 3.8, z); for (let y = 0.6; y < 7; y += 1.3) K.box(1.0, 0.08, 0.08, c, x, y, z, 0, 0, y % 2.6 < 1.3 ? 0.9 : -0.9); K.box(1.3, 0.3, 0.7, 0x8a8680, x, 0.15, z); }
     for (const y of [6.2, 7.5]) for (const dx of [-0.45, 0.45]) K.box(0.14, 0.14, span, c, x + dx, y, zc); for (let z = zA; z < zB; z += 1.3) K.box(0.08, 1.4, 0.08, c, x - 0.45, 6.85, z, 0, (z / 1.3) % 2 < 1 ? 0.75 : -0.75, 0);
     lines.forEach((ln, i) => { const z = Z0 - LW + i * LW * 1.75; sign(ln, 5.6, 2.2, x - 0.62, 6.5, z); K.box(0.1, 2.3, 5.7, 0x6a6e74, x - 0.55, 6.5, z); });
-    (matrix || ['100', '100', '100']).forEach((t, i) => { const z = Z0 + (i - 1) * LW; K.box(0.3, 1.5, 1.5, 0x16161a, x - 0.5, 8.7, z); sign([[t, t.length > 2 ? 150 : 200, t === '✕' ? '#ff3a2a' : t === '↖' ? '#ffffff' : '#ffffff']], 1.3, 1.3, x - 0.67, 8.7, z, -Math.PI / 2, '#0a0a0a'); if (/^\d/.test(t)) for (const [dy, dz, w, h] of [[0.6, 0, 1.3, 0.08], [-0.6, 0, 1.3, 0.08]]) K.box(0.05, h, w, 0xd8202a, x - 0.68, 8.7 + dy, z + dz); });
+    (matrix || ['100', '100', '100']).forEach((t, i) => matrixBoard(scenery, K, t, x - 0.55, 8.8, Z0 + (i - 1) * LW, false));
   }
   function turbine(x, z) { const K2 = deps.kit(); K2.cyl(0.7, 1.4, 44, 0xf4f4f0, x, 22, z, 12); K2.box(4.2, 1.8, 1.8, 0xf4f4f0, x + 0.6, 44.6, z); const m = K2.build(); scenery.add(m);
     const hub = new THREE.Group(), kb = deps.kit(); kb.cyl(0.9, 0.9, 1.2, 0xe8e8e4, 0, 0, 0, 10, 0, 0, Math.PI / 2); for (let a = 0; a < 3; a++) { const an = a * Math.PI * 2 / 3; kb.box(0.3, 17, 1.3, 0xf4f4f0, -0.2, Math.cos(an) * 8.5, Math.sin(an) * 8.5, 0, an, 0); }
@@ -218,9 +281,9 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     const T = R.route, o = R.opts, K = deps.kit(), to = String(o.to); let s = 11 + key.length * 17; const rnd = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
     const gr = new THREE.Mesh(new THREE.PlaneGeometry(LEN + 300, 220), deps.lam({ color: T.ground })); gr.rotation.x = -Math.PI / 2; gr.position.set(X0 + LEN / 2, 0, Z0); gr.receiveShadow = true; scenery.add(gr);
     // the signs: the ring, the knooppunt, the afrit
-    gantry(K, X0 + 70, [[['A10', 44, '#ff5a6a'], ['Ring Kaasland', 34]], [[T.a, 44, '#ff5a6a'], [T.via, 34], [to, 30, '#ffe14a']]], ['100', '100', '90']);
-    gantry(K, X0 + LEN * 0.4, [[[T.other[0], 44, '#ff5a6a'], [T.other[1], 34], ['↖', 40]], [[T.a, 44, '#ff5a6a'], [`${T.via} · ${to}`, 30], ['↑', 40]]], ['90', '90', '70']);
-    gantry(K, X0 + EXIT0 - 150, [[[T.a, 44, '#ff5a6a'], [T.via, 34], ['↑', 40]], [[`afrit ${T.afrit}`, 30, '#ffe14a'], [to, 38], ['600 m ↗', 34]]], ['120', '120', '100']);
+    gantry(K, X0 + 70, [[['A10', 44, '#ff5a6a'], ['Ring Kaasland', 34]], [[T.a, 44, '#ff5a6a'], [T.via, 34], [to, 30, '#ffe14a']]], ['100', '100', '100']);
+    gantry(K, X0 + 170, [[[T.other[0], 44, '#ff5a6a'], [T.other[1], 34], ['↖', 40]], [[T.a, 44, '#ff5a6a'], [`${T.via} · ${to}`, 30], ['↑', 40]]], ['100', '100', '100']);
+    gantry(K, X0 + EXIT0 - 150, [[[T.a, 44, '#ff5a6a'], [T.via, 34], ['↑', 40]], [[`afrit ${T.afrit}`, 30, '#ffe14a'], [to, 38], ['600 m ↗', 34]]], ['green', 'green', 'green']);
     sign([[`${T.afrit}`, 30, '#ffe14a'], [to, 40], ['↗', 44]], 4.6, 2.6, X0 + EXIT0 + 6, 3.2, SEDGE + 1.6); for (const dz of [0.6, 2.6]) K.box(0.16, 2.2, 0.16, 0x8a8e94, X0 + EXIT0 + 6.1, 1.1, SEDGE + dz);
     sign([['UIT', 60]], 1.6, 1.0, X0 + EXIT1 + 2, 1.5, Z0 + LW * 1.5 + 1.2); K.box(0.12, 1.2, 0.12, 0x8a8e94, X0 + EXIT1 + 2.1, 0.6, Z0 + LW * 1.5 + 1.2);
     sign([['P', 70], [o.airport ? 'Kiss & Ride' : to, 30]], 3, 2.2, PARK.x - 22, 2.6, SEDGE + 25.5, Math.PI); K.box(0.14, 1.6, 0.14, 0x8a8e94, PARK.x - 22, 0.8, SEDGE + 25.6);
@@ -247,7 +310,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     for (const [bx, n] of [[X0 + EXIT0 - 300, 3], [X0 + EXIT0 - 200, 2], [X0 + EXIT0 - 100, 1]]) { // afritbakens: three, two, one blue stripe
       K.box(0.1, 1.5, 0.1, 0x8a8e94, bx, 0.75, SEDGE + 1.1); K.box(0.06, 1.5, 0.46, W_, bx - 0.06, 1.9, SEDGE + 1.1); for (let i = 0; i < n; i++) K.box(0.07, 0.2, 0.5, 0x1a4ab8, bx - 0.08, 2.35 - i * 0.42, SEDGE + 1.1, 0, 0.5, 0); }
     for (let x = X0 + 110; x < X0 + EXIT0 - 60; x += 260) { K.box(0.34, 1.5, 0.34, 0xf2c31a, x, 0.75, SEDGE + 1.3); K.box(0.4, 0.3, 0.4, 0x1a4a9a, x, 1.62, SEDGE + 1.3); K.box(0.9, 0.05, 0.9, 0x9a9690, x, 0.03, SEDGE + 1.3); } // praatpalen
-    for (const vx of [X0 + 352, X0 + EXIT0 - 60]) { // two viaducts: a deck high over the road, columns in the middenberm and the verge, the embankments, a railing
+    for (const vx of [X0 + 215, X0 + EXIT0 - 60]) { // two viaducts: a deck high over the road, columns in the middenberm and the verge, the embankments, a railing
       const z0 = NEDGE - 20, z1 = SEDGE + 20, zc = (z0 + z1) / 2, zl = z1 - z0;
       K.box(11, 1.1, zl, 0xbdb8ae, vx, 11.3, zc); K.box(11.4, 0.3, zl, 0x9a968e, vx, 11.95, zc); K.box(9, 0.04, zl, 0x4a4c52, vx, 12.12, zc);
       for (const dx of [-5.5, 5.5]) { K.box(0.14, 0.9, zl, 0x6a8a9a, vx + dx, 12.6, zc); for (let z = z0 + 2; z < z1; z += 4) K.box(0.16, 1.0, 0.16, 0x5a6a74, vx + dx, 12.6, z); }
@@ -264,7 +327,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       sign([['KAASOLIE', 80, '#ffffff']], 9, 1.4, gx, 4.75, gz - 5.12, Math.PI, '#ff8a1c'); sign([['Tanken · Shop · WC', 40]], 5, 0.9, gx - 30, 2.4, SEDGE + 3.2); K.box(0.14, 2.0, 0.14, 0x8a8e94, gx - 29.9, 1.0, SEDGE + 3.2); }
     // the verge on the right: a sloot, and a row of trees that suits the land
     K.box(EXIT0 + 20, 0.03, 1.5, 0x35606a, X0 + EXIT0 / 2 - 20, 0.02, SEDGE + 3.6); K.box(EXIT0 + 20, 0.02, 0.5, 0x5a7a44, X0 + EXIT0 / 2 - 20, 0.04, SEDGE + 2.7);
-    if (T.props !== 'sand' && T.props !== 'docks') for (let x = X0 - 20, i = 0; x < X0 + EXIT0 - 20; x += 13, i++) { if (Math.abs(x - (X0 + 150)) < 30 || Math.abs(x - (X0 + 352)) < 9) continue; const h = 9 + (i % 3) * 1.5, z = SEDGE + 5.6; K.cyl(0.16, 0.24, h * 0.45, 0x5e4a36, x, h * 0.22, z, 7);
+    if (T.props !== 'sand' && T.props !== 'docks') for (let x = X0 - 20, i = 0; x < X0 + EXIT0 - 20; x += 13, i++) { if (Math.abs(x - (X0 + 150)) < 30 || Math.abs(x - (X0 + 215)) < 9) continue; const h = 9 + (i % 3) * 1.5, z = SEDGE + 5.6; K.cyl(0.16, 0.24, h * 0.45, 0x5e4a36, x, h * 0.22, z, 7);
       if (T.props === 'air') K.cyl(0.25, 1.25, h, [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 8); else K.geo(new THREE.SphereGeometry(1, 8, 6), [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 0, i, 0, 2.6, h * 0.36, 2.6); } // poplars by the polder, plane trees in town
     // far away: what tells you where you are
     if (T.props === 'brick' || T.props === 'hip') for (let x = X0 - 60, i = 0; x < X0 + LEN + 80; x += 22 + rnd() * 16, i++) { const h = 16 + rnd() * 30, w = 12 + rnd() * 10, z = SEDGE + 78 + rnd() * 24, c = T.props === 'hip' ? [0xe8d8c8, 0xd8c8e0, 0xc8e0d8, 0xf0d8a8][i % 4] : [0x8a7a70, 0x9a8a7a, 0x6a6a72, 0xa89a88][i % 4]; K.box(w, h, 12, c, x, h / 2, z); for (let wy = 3; wy < h - 2; wy += 3.4) K.box(w - 2, 1.3, 0.1, 0xf2e6c0, x, wy, z - 6.03); }
@@ -278,11 +341,11 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
   }
   function layout() { // a different motorway every trip: where the works are and how the traffic is spread
     const o = R.opts; let s = ((state.raids | 0) * 7 + (deps.day ? deps.day() : 1) * 13 + String(o.to).length) % 2147483647 || 3; const rnd = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
-    works.forEach((w, i) => { const x = X0 + 230 + i * 300 + rnd() * 60, z = Z0 + LW; w.g.position.set(x, 0, z); box2(w.sol, x + 9, z, 13.5, 1.5); box2(w.sol2, x - 2.1, z, 2.3, 1.2); w.sol.off = w.sol2.off = false; });
+    works.forEach((w) => { const x = X0 + 470 + rnd() * 16, z = Z0 + LW; w.g.position.set(x, 0, z); box2(w.sol, x + 18.5, z, 14.5, 1.5); box2(w.sol2, x + 0.4, z, 4.2, 1.2); w.sol.off = w.sol2.off = false; });
     cars.forEach((c) => { c.g.position.set(X0 + 60 + rnd() * (LEN - 200), 0, Z0 + c.lane * LW); c.g.rotation.y = 0; c.wreck = false; c.vv = c.v; });
     gang.forEach((g) => { g.on = false; g.dead = false; g.g.visible = false; if (g.g.userData.paint) g.g.userData.paint.color.setHex(0xff7a1a); });
     flash.material.opacity = 0;
-    const cx = [X0 + 300 + rnd() * 40, X0 + 470 + rnd() * 50, X0 + 90 + rnd() * 30, X0 + 590 + rnd() * 50]; // two palen, two flitsbussen
+    const cx = [X0 + 270 + rnd() * 30, X0 + 560 + rnd() * 30, X0 + 90 + rnd() * 30, X0 + 640 + rnd() * 40]; // two palen, two flitsbussen
     cams.forEach((c, i) => { c.x = cx[i]; c.seen = c.done = c.honked = false; if (c.kind === 'paal') c.g.position.set(c.x, 0, SEDGE + 1.0); else { c.g.position.set(c.x, 0, SEDGE - 1.25); box2(c.sol, c.x - 0.6, SEDGE - 1.25, 3.4, 1.0); c.sol.off = false; } });
     far.forEach((f, i) => { f.g.position.x = X0 + i * 130 + rnd() * 60; });
   }
@@ -362,7 +425,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       const p = c.g.position; if (c.wreck) { if (p.x < B.x - 140) { c.wreck = false; p.x = B.x + 230; } continue; }
       let want = c.v;
       for (const q of cars) if (q !== c && Math.abs(q.g.position.z - p.z) < 1.5 && q.g.position.x > p.x && q.g.position.x - p.x < c.half + q.half + 12) want = Math.min(want, (q.wreck ? 0 : q.vv) - 1);
-      if (c.lane === 1) { let tz = Z0 + LW; for (const w of works) { const d = w.g.position.x - p.x; if (d > -26 && d < 84) tz = Z0; } p.z += (tz - p.z) * Math.min(1, dt * 1.5); } // round the works and back
+      if (c.lane === 1) { let tz = Z0 + LW; for (const w of works) { const d = w.g.position.x - p.x; if (d > -40 && d < 110) tz = Z0; } p.z += (tz - p.z) * Math.min(1, dt * 1.5); } // round the works and back
       if (Math.abs(B.z - p.z) < 1.6 && B.x > p.x && B.x - p.x < c.half + 2.6 + 10) want = Math.min(want, B.v - 1); // and for Eddy
       c.vv += Math.max(-14 * dt, Math.min(4 * dt, Math.max(0, want) - c.vv)); p.x += c.vv * dt;
       if (p.x < B.x - 150) { p.x = B.x + 210 + Math.random() * 60; p.z = Z0 + c.lane * LW; } else if (p.x > B.x + 290) { p.x = B.x - 120 - Math.random() * 20; p.z = Z0 + c.lane * LW; }
@@ -380,6 +443,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     if (rantT > 0 && (rantT -= dt) <= 0) rantEl.style.display = 'none';
     for (const f of far) { f.g.position.x -= f.v * dt; if (f.g.position.x < B.x - 160) f.g.position.x = B.x + 330 + Math.random() * 120; else if (f.g.position.x > B.x + 520) f.g.position.x = B.x + 300; }
     for (const h of spinners) h.rotation.x += dt * 1.1;
+    { const on = Math.floor(R.t * 2.2) % 2 === 0; for (const q of blinkA) q.visible = on; for (const q of blinkB) q.visible = !on; } // amber, left right left right
     { const n = deps.nightK ? deps.nightK() : 0; lampPool.visible = n > 0.05; lampPool.material.opacity = 0.5 * n; }
     // the gang: past half-way two of their cars come up from behind and ram
     const o = R.opts;
@@ -392,7 +456,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       if (!g.on || g.dead) continue; const p = g.g.position;
       if (g.cool > 0) { g.cool -= dt; g.v += (Math.max(6, sp - 5) - g.v) * Math.min(1, dt * 2); } else g.v += (Math.min(veh.k.vmax + 3, sp + 7) - g.v) * Math.min(1, dt * 1.5);
       p.x += g.v * dt; p.z += (B.z - p.z) * Math.min(1, dt * 0.9);
-      const hitWork = works.some((w) => hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x + 9, w.g.position.z, 13.5, 1.4) || hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x - 2.1, w.g.position.z, 2.3, 1.2)), hitCar = cars.find((c) => !c.wreck && hitBox(p.x, p.z, 2.1, 0.9, c.g.position.x, c.g.position.z, c.half, 1.0) && g.v - c.vv > 4);
+      const hitWork = works.some((w) => hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x + 18.5, w.g.position.z, 14.5, 1.4) || hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x + 0.4, w.g.position.z, 4.2, 1.2)), hitCar = cars.find((c) => !c.wreck && hitBox(p.x, p.z, 2.1, 0.9, c.g.position.x, c.g.position.z, c.half, 1.0) && g.v - c.vv > 4);
       if (hitWork || hitCar) { g.dead = true; if (g.g.userData.paint) g.g.userData.paint.color.setHex(0x3a2a20); R.wrecked++; ev('wreck'); deps.toast('WRAK!', `One of theirs is done. +W ${BOUNTY}.`, 1.8); deps.beep(90, 0.3, 'sawtooth', 0.07); continue; }
       if (hitBox(p.x, p.z, 2.1, 0.9, B.x, B.z, 2.3, 1.0)) { damage(8); ev('crash'); B.v = Math.min(veh.k.vmax, B.v + 2.5); g.cool = 2.4; p.x -= 5; deps.beep(70, 0.16, 'sawtooth', 0.06); }
       if (p.x < B.x - 90) p.x = B.x - 50;
