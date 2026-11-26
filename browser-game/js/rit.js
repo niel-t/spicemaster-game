@@ -365,14 +365,15 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       deps.fiets.mount(veh); document.body.classList.add('ritting'); hudEl.style.display = 'block'; crashT = 0;
       { const hint = document.querySelector('#fts .hint'); if (hint) hint.innerHTML = '<b>W</b> gas · <b>S</b> remmen / achteruit · <b>A</b><b>D</b> sturen · <b>H</b> claxon'; }
       const B = deps.buurt(); if (B) B.setPoint(deps.exit.x, deps.exit.z, 'oprit A10');
-      deps.toast(`${o.from} → ${o.to}`, `Pull out and drive <b>east</b> down the street to the oprit of the <b>A10</b>, ${R.route.a === 'A10' ? '' : `then the <b>${R.route.a}</b>, `}afrit ${R.route.afrit}.${o.mission ? ' ' + o.mission : ''}`, 4.8);
+      if (!o.skipStreet) deps.toast(`${o.from} → ${o.to}`, `Pull out and drive <b>east</b> down the street to the oprit of the <b>A10</b>, ${R.route.a === 'A10' ? '' : `then the <b>${R.route.a}</b>, `}afrit ${R.route.afrit}.${o.mission ? ' ' + o.mission : ''}`, 4.8);
       deps.snapCam(); ev('start', { to: o.to });
+      if (o.skipStreet) enterRing(); // from another district: straight onto the snelweg (js/wijk.js)
     });
     return true;
   }
-  function toRing() {
-    R.phase = 'fade';
-    fadeTo(() => {
+  function toRing() { R.phase = 'fade'; fadeTo(enterRing); }
+  function enterRing() {
+    {
       const o = R.opts; dress(o.airport ? 'air' : o.theme || 'lampas'); layout(); strip.visible = true; solidsOff(false);
       Object.assign(veh.k, { vmax: vBase * 1.6, acc: 9, turn: 0.95, grip: 9 }); // the motorway: top gear, and steering that changes lanes instead of spinning the van
       veh.B.x = X0 + 4; veh.B.z = Z0 + LW; veh.B.h = Math.PI / 2; veh.B.v = 18; van.position.set(veh.B.x, 0, veh.B.z);
@@ -380,7 +381,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       const B = deps.buurt(); if (B) B.setPoint(PARK.x, PARK.z, o.to);
       R.phase = 'ring'; deps.snapCam();
       deps.toast(R.route.a === 'A10' ? 'A10 RING' : `A10 → ${R.route.a}`, `${o.to}: afrit ${R.route.afrit}, on the right at the end. Trucks keep right, the works close a lane, and there is a flitspaal at 120.`, 4);
-    });
+    }
   }
   function damage(n) { if (R.over) return; n *= (R.opts.van && R.opts.van.dmg) || 1; R.hp = Math.max(0, R.hp - n); if (R.hp <= 0) finish(false, 'OOFMOBIEL KAPOT', 'The van gave up. Freddy Sr. would have had words.'); }
   function crash(speed) { if (!R.active || R.over || R.t - crashT < 0.7) return; crashT = R.t; if (speed > 9) ev('crash'); damage(Math.max(0, speed - 5) * (R.phase === 'ring' ? 0.9 : 1.3)); } // a scrape costs little, a wall at speed a lot
