@@ -233,8 +233,8 @@ export function createFiets(deps) {
     cur = v; B = v.B; seat = v.seat;
     if (v !== own) { const o = v.obj; B.x = o.position.x; B.z = o.position.z; B.h = o.rotation.y + Math.PI / 2; if (v.solid) v.solid.off = true; }
     B.on = true; B.v = 0; B.t0 = performance.now(); hud.style.display = 'block'; document.body.classList.add('riding'); hud.classList.toggle('car', v.kind === 'car');
-    { const c2 = v.kind === 'car'; $('ftsGas').innerHTML = c2 ? '▲<br>GAS' : '▲<br>TRAP'; $('ftsOff').textContent = c2 ? 'UITSTAPPEN' : 'AFSTAPPEN'; $('ftsBell').textContent = c2 ? '📣 TOETER' : '🔔 BEL';
-      hud.querySelector('.hint').innerHTML = c2 ? '<b>W</b> gas · <b>S</b> remmen / achteruit · <b>A</b><b>D</b> sturen · <b>H</b> toeter · <b>E</b> uitstappen' : '<b>W</b> trappen · <b>S</b> remmen · <b>A</b><b>D</b> sturen · <b>Shift</b> staan op de trappers · <b>H</b> bel · <b>E</b> afstappen'; }
+    { const c2 = v.kind === 'car'; $('ftsGas').innerHTML = c2 ? '▲<br>GAS' : '▲<br>TRAP'; $('ftsOff').textContent = c2 ? 'UITSTAPPEN' : 'AFSTAPPEN'; $('ftsBell').textContent = c2 ? '📣 CLAXON' : '🔔 BEL';
+      hud.querySelector('.hint').innerHTML = c2 ? '<b>W</b> gas · <b>S</b> remmen / achteruit · <b>A</b><b>D</b> sturen · <b>H</b> claxon · <b>E</b> uitstappen' : '<b>W</b> trappen · <b>S</b> remmen · <b>A</b><b>D</b> sturen · <b>Shift</b> staan op de trappers · <b>H</b> bel · <b>E</b> afstappen'; }
     if (v.kind === 'car') player.visible = false;
     const touch = document.body.classList.contains('touch');
     if (deps.toast && !v.quiet) deps.toast(v.kind === 'car' ? `IN DE ${String(v.name || 'auto').toUpperCase()}` : 'OP DE FIETS', v.kind === 'car' ? (touch ? 'GAS, REM and the bar to steer. UITSTAPPEN to get out. It is not yours: people notice.' : 'W gas · S brake / reverse · A/D steer · H horn · E get out. It is not yours: people notice.') : touch ? 'TRAP to pedal, REM to brake, slide on the bar to steer. AFSTAPPEN to get off.' : 'W pedal · S brake · A/D steer · H bell · E get off.', 3);

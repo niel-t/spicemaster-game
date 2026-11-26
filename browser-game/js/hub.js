@@ -176,7 +176,8 @@ body.riding #dstrip{display:none!important}
     const B = deps.buurt(), r = B && B.route;
     const trip = deps.arrowOk && deps.arrowOk(); // on a drive (js/rit.js) the arrow is the sat-nav
     if (!r || state.inPC || (!trip && (deps.blocked() || deps.indoors()))) { if (wa.style.display !== 'none') wa.style.display = 'none'; return; }
-    V.set(r.x, 1, r.z).project(deps.camera); let x = (V.x + 1) / 2 * innerWidth, y = (1 - V.y) / 2 * innerHeight; const behind = V.z > 1;
+    const behind = V.set(r.x, 1, r.z).applyMatrix4(deps.camera.matrixWorldInverse).z > 0; // behind the camera (a point past the far plane is still ahead)
+    V.set(r.x, 1, r.z).project(deps.camera); let x = (V.x + 1) / 2 * innerWidth, y = (1 - V.y) / 2 * innerHeight;
     const onScreen = !behind && x > 30 && x < innerWidth - 30 && y > 30 && y < innerHeight - 30;
     if (onScreen) { wa.style.display = 'none'; return; }
     const cx = innerWidth / 2, cy = innerHeight / 2; let dx = x - cx, dy = y - cy; if (behind) { dx = -dx; dy = -dy; }
