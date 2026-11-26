@@ -129,6 +129,8 @@ sun.castShadow = true;
 sun.shadow.mapSize.set(shadowSize(), shadowSize());
 { const r = IS_PHONE ? 24 : 40; Object.assign(sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 1, far: 90 }); } // phones see ~20 m of street: a tighter box draws far fewer casters (and sharper)
 sun.shadow.bias = -0.0008;
+if (IS_PHONE) sun.shadow.autoUpdate = false; // phones redraw the shadow map every other frame (the tick sets needsUpdate): half the shadow draw calls
+let shadowTick = 0;
 scene.add(sun, sun.target);
 
 // ------------------------------------------------------------------ helpers
@@ -915,6 +917,8 @@ const crand = () => { carSeed = (carSeed * 16807) % 2147483647; return (carSeed 
 // at night every street lamp throws a soft pool of light on the pavement: one instanced, additive quad per lamp (no real lights)
 const lampPools = new THREE.InstancedMesh(new THREE.PlaneGeometry(9, 9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }), color: 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), LAMPS.length);
 { const m4 = new THREE.Matrix4(); LAMPS.forEach(([x, z], i) => { m4.makeTranslation(x, 0.06, z + (z < 0 ? 0.95 : -0.95)); lampPools.setMatrixAt(i, m4); }); lampPools.visible = false; lampPools.renderOrder = 3; scene.add(lampPools); }
+const morePools = []; // the same pools of lamp light on the streets built later (js/roam.js, js/wijk.js)
+function lampPool(points, parent) { if (!points.length) return null; const q = new THREE.InstancedMesh(lampPools.geometry, lampPools.material, points.length), m4 = new THREE.Matrix4(); points.forEach(([x, z], i) => { m4.makeTranslation(x, 0.06, z); q.setMatrixAt(i, m4); }); q.visible = lampPools.visible; q.renderOrder = 3; parent.add(q); morePools.push(q); return q; }
 const lendQ = []; // parked cars and rack bikes wait here until the ride system exists
 function lendable(g, kind) { if (fiets) adoptRide(g, kind); else lendQ.push([g, kind]); }
 function adoptRide(g, kind) { fiets.adopt(g, kind === 'car' ? { kind: 'car', name: g.userData.model || 'auto', solid: g.userData.solid, half: g.userData.half, width: g.userData.width } : { kind: 'bike', name: 'Fiets' }); }
@@ -2373,7 +2377,7 @@ for (let i = 0; i < 20; i++) {
 world = createKaasweer({ ad: (d) => (buurt ? buurt.paperAd(d) : ''), THREE, state, scene, hemi, sun, walkers, wetMats, econ, day: () => econ.ensure().day, rank: () => rankNow(), active: () => state.step === 'free',
   busy: () => !!mission.active, thunder: () => { beep(42, 1.1, 'sawtooth', 0.035); setTimeout(() => beep(31, 1.4, 'triangle', 0.05), 120); },
   onApply: (w, c, tod) => { if (state.step === 'free' && !['zon', 'bewolkt'].includes(w.id)) tips.show('weer');
-    const n = tod ? tod.n : 0; lampHeadMat.emissive.setHex(0x806a30).multiplyScalar(1 + 3.2 * n); lampPools.visible = n > 0.05; lampPools.material.opacity = 0.42 * n; oldGlassLit.emissiveIntensity = 0.3 + 1.0 * n; shopLit.emissiveIntensity = 0.16 + 0.9 * n; } }); // lamps and windows come on at dusk (js/klok.js)
+    const n = tod ? tod.n : 0; lampHeadMat.emissive.setHex(0x806a30).multiplyScalar(1 + 3.2 * n); lampPools.visible = n > 0.05; for (const q of morePools) q.visible = n > 0.05; lampPools.material.opacity = 0.42 * n; oldGlassLit.emissiveIntensity = 0.3 + 1.0 * n; shopLit.emissiveIntensity = 0.16 + 0.9 * n; } }); // lamps and windows come on at dusk (js/klok.js)
 buurt = createBuurt({ far: FAR, bridges: BRIDGES, canal: [CZ - 3.75, CZ + 3.75], THREE, scene, state, player, world: () => world, z: ROAD.walk1 - 0.6, rc: RC, walk: WALK, houses: () => streetHouses, solid, addInteract, choice, toast, beep, tip: (k) => tips.show(k),
   busy: () => !!mission.active, indoors: () => isInside(player.position) || !!(winkels && winkels.inside()) || !!(woning && woning.inside()) || !!(venues && venues.inside()) });
 bfolk = createBuurtFolk({ openNow: (id, days, wd) => (klok ? klok.openNow(id, days, wd) : true), serve: (f) => { if (vandaag) vandaag.note('talk'); return winkels ? winkels.serve(f) : false; }, scene, player, far: FAR, world: () => world, addInteract, dialogue, makePerson: (look, scale) => makePerson({ ps2: look, scale }), animate: (p, dt) => animate(p, 0, dt), busy: () => !!(mission.active || tripOn()) });
@@ -3283,7 +3287,7 @@ function tick() {
   else if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
   else camLook.lerp(lookAt, Math.min(1, dt * 6));
   camera.position.copy(camPos); camera.lookAt(camLook);
-  sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position);
+  if (sun.shadow.autoUpdate || (++shadowTick & 1)) { sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position); sun.shadow.needsUpdate = true; } // (the light only moves when its map is redrawn, so shadows never swim)
   if (aeroWorld) aeroWorld.tick(dt);
   clutter.visible = post.mode !== 'simple'; // Simpel: no street clutter (js/richtex.js)
   if (post.mode === 'enhanced') { waterRip.offset.x = (waterRip.offset.x + dt * 0.01) % 1; waterRip.offset.y = (waterRip.offset.y + dt * 0.017) % 1; }
@@ -3499,12 +3503,12 @@ politie = createPolitie({ THREE, scene, player, state, lam, RC, lifeWin, toast, 
   paused: () => state.inDialogue || choiceOpen || state.inPC || isPaused(), busy: () => !!(mission.active || tripOn()) || state.step !== 'free', riding: () => fiets.current, dismount: () => fiets.dismount(), speedOf: () => (fiets.current ? Math.abs(fiets.state.v) : 0),
   near: (x, z, r) => walkers.some((w) => w.visible && !(w.userData.walk && w.userData.walk.home) && Math.hypot(w.position.x - x, w.position.z - z) < r),
   onChase: () => stats.add('chases'), onEscape: () => stats.add('escapes'), onArrest: (paid) => { stats.add('arrests'); stats.add('fines', paid); brep.add('kade', -4, 'arrested on the street'); }, passTime: (h) => klok.pass(h) });
-roam = createRoam({ THREE, scene, player, state, streetPiece, ST, kerbMat, groundMat, lamp, tree, bollard, house, spanWidths, solid, solids, fadeables, car, kit, box, lam, signTex, addInteract, dialogue, choice, toast,
+roam = createRoam({ lampPool, THREE, scene, player, state, streetPiece, ST, kerbMat, groundMat, lamp, tree, bollard, house, spanWidths, solid, solids, fadeables, car, kit, box, lam, signTex, addInteract, dialogue, choice, toast,
   busy: () => !!(mission.active || tripOn()) || state.inDialogue || choiceOpen, SROW, RC, FAR, WALK, HOME: { x0: -70, x1: 84 }, low: IS_PHONE, snapCam: () => window.__sme.snapCam(),
   owns: (id) => owns(id), retaken: (id) => econ.isRetaken(id), canRoam: () => state.step === 'free' && !tutorial.active(), setArea: (t) => { $('area').textContent = t; },
   raid: (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); },
   clientLine: (cid) => { const c = CLIENTS.find((x) => x.id === cid); if (!c) return null; const b = BLENDS.find((x) => x.id === c.blend), have = Math.floor((econ.ensure().blends[c.blend] || { kg: 0 }).kg), st = brep ? brep.tierOf(brep.get(cid)).name : ''; return [c.who, `${c.kg} kg ${b ? b.name : c.blend} every market day, Eddy. ${have >= c.kg ? 'I see you have it on the shelf. Good.' : `You have ${have} kg. Don\u2019t make me call the Lampas.`}${st ? ` (The buurt: ${st}.)` : ''}`]; } });
-wijk = createWijk({ THREE, scene, player, state, house, spanWidths, solid, solids, fadeables, car, kit, lam, lamp, tree, bollard, ST, kerbMat, groundMat, signTex, addInteract, toast, dialogue, choice,
+wijk = createWijk({ lampPool, THREE, scene, player, state, house, spanWidths, solid, solids, fadeables, car, kit, lam, lamp, tree, bollard, ST, kerbMat, groundMat, signTex, addInteract, toast, dialogue, choice,
   setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), setArea: (t) => { $('area').textContent = t; }, makeVan: () => oof.clone(true), low: IS_PHONE,
   fadeTo: (fn, hold = 120) => { const f = $('wijkFade') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'wijkFade' }); f.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:1;pointer-events:none;transition:opacity .35s;z-index:40'; setTimeout(() => { try { fn(); } finally { setTimeout(() => { f.style.opacity = '0'; }, hold); } }, 380); },
   route: (x, z, label) => { if (!buurt) return; if (x == null) buurt.clearRoute(); else buurt.setPoint(x, z, label); },

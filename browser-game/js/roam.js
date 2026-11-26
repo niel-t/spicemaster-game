@@ -55,6 +55,7 @@ export function createRoam(deps) {
       K.box(L, 0.01, 0.1, W, cx, 0.032, BZ.road);
       for (let x = a + 2.8; x < b; x += 5.6) K.box(0.1, 0.01, 1.9, W, x, 0.032, (BZ.bay + BZ.road) / 2);
       const km = K.build(); if (km) g.add(km);
+      { const pts = []; for (let x = a + 9; x < b; x += 18) pts.push([x, BZ.bay + 0.6]); deps.lampPool(pts, g); } // light under the lamps at night
       scene.add(g);
     });
     for (let sa = a; sa < b; sa += 40) S.push(() => { // lamps, lindens and Amsterdammertjes, a stretch at a time (so what is off screen is not drawn)

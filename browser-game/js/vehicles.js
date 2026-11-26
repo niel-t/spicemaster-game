@@ -371,6 +371,8 @@ function vanBody(THREE, g, S, T, paint) {
 }
 
 // ---------------------------------------------------------------- the Oofmobiel: Dad's blue T5-style panel van
+// a van collapses to one mesh per material. Kept apart: the printed livery (its texture is swapped on a rebrand)
+function mergeVan(g) { const live = new Set(); g.traverse((o) => { const L = o.userData && o.userData.livery; if (L) for (const m of L.sides) live.add(m); }); mergeStatic(g, (o) => live.has(o) || !!(o.userData && o.userData.cargo)); }
 export function makeOofmobiel(THREE, canvasTex) {
   kit(THREE, canvasTex); const V = vanKit(THREE);
   const g = new THREE.Group();
@@ -452,6 +454,7 @@ export function makeOofmobiel(THREE, canvasTex) {
   { const rd = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.42), roofM); rd.rotation.x = -Math.PI / 2; rd.rotation.z = -Math.PI / 2; rd.position.set(0, 1.95 + bs + 0.03, -0.85); T.skin(add(rd)); }
   g.userData.paint = blue; g.userData.livery = { sides, roof: roofM, id: 'zn', toJSON: () => null }; // toJSON: clone() copies userData through JSON
   g.userData.half = 2.55; g.userData.width = S.W;
+  mergeVan(g);
   return g;
 }
 
@@ -528,6 +531,7 @@ export function makeKangoo(THREE, canvasTex, opts = {}) {
   body.rotation.y = Math.PI / 2; // nose +x
   g.userData.paint = white; g.userData.livery = { sides, roof: roofM, id: opts.livery || 'shooki', toJSON: () => null };
   g.userData.half = 2.18; g.userData.width = S.W; g.userData.model = 'Kangoo';
+  mergeVan(g);
   return g;
 }
 // swap the livery on every van inside a group ('zn' before the rebrand, 'eddys' after); Shooki's Kangoo keeps its own

@@ -57,6 +57,9 @@ export function createWijk(deps) {
     // the dwarsstraten: klinkers from the Lange straat to the Achterstraat
     for (let si = 0; si < SZ.length - 1; si++) for (const X of XS) { flat(X - 3, X + 3, SZ[si] + RW, SZ[si + 1] - RW, ST.bay, 0.024, true); for (const s of [-1, 1]) flat(X + s * 4.5 - 1.5, X + s * 4.5 + 1.5, SZ[si] + RW + PV, SZ[si + 1] - RW - PV, ST.paveN, 0.014, true); }
     { const km = K.build(); if (km) g.add(km); }
+    { const pts = []; for (const zs of SZ) for (let x = X0 + 9; x < X1; x += 18) pts.push([O.x + x, O.z + zs - RW + 0.6]); deps.lampPool(pts, g); } // light under the lamps at night
+    // zebras where a dwarsstraat meets a long street
+    { const KZ = deps.kit(); for (const zs of SZ) for (const X of XS) for (const s of [-1, 1]) for (let q = -3; q <= 3; q++) KZ.box(1.6, 0.012, 0.42, WH, O.x + X + s * 7.2, 0.034, O.z + zs + q * 0.95 + 0.5); const km = KZ.build(); if (km) g.add(km); }
     scene.add(g);
     // lamps, trees and Amsterdammertjes, a stretch at a time so what is off screen is not drawn
     for (let sa = X0; sa < X1; sa += 40) {

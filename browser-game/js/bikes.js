@@ -10,6 +10,7 @@
 //    van drive, a BEL and AFSTAPPEN; controller: RT / LT and the left stick. E (or AFSTAPPEN) gets off, H (or BEL) rings.
 //    The HUD follows the Lettertype setting: glass and gel under Aero, the brown van-drive pedals under Klassiek.
 import { IS_PHONE } from './mobile.js';
+import { mergeStatic } from './richtex.js';
 
 // spice palette frames: saffron, paprika, cumin, cardamom, cream, turmeric, cinnamon, clove, nigella black
 export const BIKE_PAINT = [0x1c1a18, 0xc8402a, 0xe8a33d, 0x6f8f4a, 0xefe3c8, 0xd8a420, 0x9a5a32, 0x5a2a1e, 0x2f4a5a];
@@ -150,6 +151,8 @@ export function makeBikeModel(THREE, kind = 0, color = 0x1c1a18, opt = {}) {
     if (opt.basket !== false) basket(0.66, 0.84, 0.3, opt.crate ? 'crate' : 'wicker');
   }
   b.userData.seats = seats; b.userData.wheels = wheels;
+  { const turning = (o) => { for (let q = o; q && q !== b; q = q.parent) if (q.userData.r || q.userData.crank === true) return true; return false; };
+    b.traverse((o) => { if (o !== b && o.isGroup && (o.userData.r || o.userData.crank === true)) mergeStatic(o); }); mergeStatic(b, turning); }
   b.userData.len = kind === 2 ? 2.2 : kind === 4 ? 1.6 : kind === 6 || kind === 7 || kind === 8 ? 1.3 : kind === 9 ? 1.2 : kind === 11 ? 1.05 : 0.95;
   return b;
 }

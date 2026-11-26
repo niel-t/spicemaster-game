@@ -146,7 +146,7 @@ export function createVenues(deps) {
       K.ball = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), new THREE.MeshPhongMaterial({ map: facets, shininess: 120, specular: 0xffffff, emissive: 0x202028 })); K.ball.position.set(K.stage.x, 3.9, K.stage.z); club.add(K.ball);
       cyl(0.01, 0.01, K.h - 4.3, lam({ color: 0x888888 }), K.stage.x, 4.3 + (K.h - 4.3) / 2 - 0.1, K.stage.z, club);
       const dotGeo = new THREE.CircleGeometry(0.2, 10), cols = [0xff2a4a, 0x2aff6a, 0x3a6aff, 0xb03aff, 0x2ad8ff];
-      K.dots = []; for (let k = 0; k < 90; k++) { const m = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: cols[k % cols.length], transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.scale.setScalar(0.45 + Math.random() * 0.5); club.add(m); K.dots.push({ m, r: 0.8 + Math.sqrt(Math.random()) * 7.5, a: Math.random() * Math.PI * 2, sp: 0.25 + (k % 3) * 0.08 }); }
+      K.dots = []; for (let k = 0; k < 90; k++) { const m = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: cols[k % cols.length], transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.scale.setScalar(0.45 + Math.random() * 0.5); m.visible = false; club.add(m); K.dots.push({ m, r: 0.8 + Math.sqrt(Math.random()) * 7.5, a: Math.random() * Math.PI * 2, sp: 0.25 + (k % 3) * 0.08 }); }
       const fairy = new THREE.MeshBasicMaterial({ color: 0xffd890 }), fGeo = new THREE.SphereGeometry(0.035, 5, 4);
       const string = (x0, z0, x1, z1, y0, y1, n) => { for (let k = 0; k <= n; k++) { const t = k / n, b = new THREE.Mesh(fGeo, fairy); b.position.set(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t); club.add(b); } };
       string(K.x0 + 0.2, K.z0 + 0.2, K.x1 - 0.2, K.z0 + 0.2, 3.0, 3.0, 64); string(K.x1 - 0.2, K.z0 + 0.2, K.x1 - 0.2, K.part - 0.2, 3.0, 3.0, 40); string(K.x0 + 0.2, K.z0 + 0.2, K.x0 + 0.2, K.part - 0.2, 3.2, 3.2, 40);
@@ -314,7 +314,8 @@ export function createVenues(deps) {
     // dancers sway round their poles; Jossi leans forward and back
     for (const d of dancers) { const u = d.userData.dancer, a = t * 0.8 + u.ph; d.position.set(u.pole.x + Math.sin(a) * 0.38, 0.5 + Math.abs(Math.sin(t * 2.2 + u.ph)) * 0.05, u.pole.z + Math.cos(a) * 0.38); d.rotation.y = a + Math.PI / 2 + Math.sin(t * 3 + u.ph) * 0.3; if (deps.animate) deps.animate(d, dt); }
     jossi.rotation.x = Math.sin(t * 1.3) * 0.06;
-    if (ic) { // the disco: the mirror ball turns, the spots sweep the floor, the lights cycle through colours
+    if (!ic && K.dotsOn) { K.dotsOn = false; for (const d of K.dots) d.m.visible = false; } // nobody inside: nothing to draw
+    if (ic) { K.dotsOn = true; // the disco: the mirror ball turns, the spots sweep the floor, the lights cycle through colours
       K.ball.rotation.y += dt * 0.9;
       for (const d of K.dots) { const a = d.a + t * d.sp, x = K.stage.x + Math.sin(a) * d.r, z = K.stage.z + Math.cos(a) * d.r * 0.9; const ok = x > K.x0 + 0.2 && x < K.x1 - 0.2 && z > K.z0 + 0.2 && z < K.part - 0.2; d.m.visible = ok; if (ok) d.m.position.set(x, 0.035, z); }
       K.lights[0].color.setHSL((t * 0.08) % 1, 1, 0.55); K.lights[1].color.setHSL((t * 0.08 + 0.5) % 1, 1, 0.55);
