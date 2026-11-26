@@ -39,6 +39,7 @@ import { createProductie } from './productie.js'; // the production line: pallet
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { createMedia } from './kaasmedia.js'; // Kaasdows Mediaspeler: original live-generated desktop music
 import { createKaasweer } from './kaasweer.js';
+import { createBuurtFolk } from './buurtfolk.js'; // the shopkeepers of the block
 import { createBuurt, bizSign, bizBySign, place as placeBiz } from './buurt.js'; // every business on the block, their ads and the buurtkaart // the week, the seasons, the weather and Krant voor het Kaasvolk
 import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
 import { createActivists } from './activists.js'; // the protesters' picket on the pavement, and what Pa, Shooki and Razim think of it
@@ -54,7 +55,7 @@ let johan = null; // js/johan.js, set up after De Loods
 let venues = null; // js/venues.js: Club Monique and Tryshtahn Auto
 let prod = null, solli = null; // js/productie.js, js/sollicitanten.js
 let work = null; // js/naknikwork.js, set up after De Loods
-let buurt = null; // js/buurt.js
+let buurt = null, bfolk = null; // js/buurt.js, js/buurtfolk.js
 const streetHouses = []; // the houses on the street rows, for the buurtkaart
 let world = null; // js/kaasweer.js: calendar, weather, the daily paper (set up once the walkers exist)
 let woning = null; // js/woning.js, set up once the street, the economy and the phone exist
@@ -2226,7 +2227,7 @@ BIKE_KINDS.forEach((kind, i) => {
   cyclists.push(bike);
 });
 const walkers = [];
-const LANES = { N: [-4.5, -5.6], S: [RC + 8.55, RC + 9.45], F: FAR.lane }; // F: the quay across the canal
+const LANES = { N: [-4.5, -5.25], S: [RC + 8.55, RC + 9.45], F: FAR.lane }; // F: the quay across the canal
 const folk = createStreetFolk({ scene, lam, mat, box, beep });
 for (let i = 0; i < 20; i++) {
   const side = i >= 16 ? 'F' : i % 2 ? 'S' : 'N', dir = (i >> 1) % 2 ? 1 : -1;
@@ -2247,6 +2248,7 @@ world = createKaasweer({ ad: (d) => (buurt ? buurt.paperAd(d) : ''), THREE, stat
   onApply: (w) => { if (state.step === 'free' && !['zon', 'bewolkt'].includes(w.id)) tips.show('weer'); } });
 buurt = createBuurt({ far: FAR, bridges: BRIDGES, canal: [CZ - 3.75, CZ + 3.75], THREE, scene, state, player, world: () => world, z: ROAD.walk1 - 0.6, rc: RC, walk: WALK, houses: () => streetHouses, solid, addInteract, choice, toast, beep, tip: (k) => tips.show(k),
   busy: () => !!(mission.active || oofDrive.active), indoors: () => isInside(player.position) || !!(woning && woning.inside()) || !!(venues && venues.inside()) });
+bfolk = createBuurtFolk({ scene, player, far: FAR, world: () => world, addInteract, dialogue, makePerson: (look, scale) => makePerson({ ps2: look, scale }), animate: (p, dt) => animate(p, 0, dt), busy: () => !!(mission.active || oofDrive.active) });
 const LINES_POLICE = ['Alles in orde hier, meneer?', 'No loitering near the canal.', 'We are watching the Lampas boys. And you.', 'Nice van. Is it registered?'];
 // Everyday Kaasland grumbling: the weather, Den Haag, petrol, groceries, rent. Generic parody, nobody real named.
 // GRIPES are the longer "Say hi" answers; MUTTERS are short enough for a speech bubble when Eddy walks past.
@@ -3088,7 +3090,7 @@ function tick() {
   if (loods && !mOn) loods.update(dt);
   if (johan && !mOn) johan.update(dt);
   if (venues && !mOn) venues.update(dt);
-  buurt.update(dt);
+  buurt.update(dt); bfolk.update(dt);
   world.update(dt, player.position, state.step !== 'title' && !mOn && !(woning && woning.inside()) && !isInside(player.position) && !(venues && venues.inside())); // rain, snow and lightning on the street (js/kaasweer.js)
   { const P_ = player.position; // the song restyles inside some buildings (js/music.js setStyle), and goes back to the street version outside
     music.setStyle(mOn || oofDrive.active ? null : venues && venues.inClub(P_) ? 'disco' : venues && venues.inShow(P_) ? 'bollywood' : isInShop(P_) ? 'russian' : isInJoint(P_) ? 'arabic' : null); }
@@ -3282,7 +3284,7 @@ activists = createActivists({ scene, lam, box, passerBy, personBubble, animate, 
 // test hooks: __sme.startLevel('kroketkade') jumps into a mission (skips Chapter 0), __sme.own('spekbuurt', 'kroketkade') marks territories owned
 const startLevel = (id) => { if (!['russian', 'free'].includes(state.step)) state.step = 'free'; if (!state.kit.includes('maboota')) giveMaboota(); closePC(); mission.enter(id); };
 const ownTerritories = (...ids) => { for (const id of ids) mission.setOwned(id); updateObjective(); writeSave(); };
-window.__sme = { get buurt() { return buurt; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+window.__sme = { get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
 fiets = createFiets({ THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
   busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });
