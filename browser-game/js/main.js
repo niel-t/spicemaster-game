@@ -18,13 +18,14 @@ import { makeOofmobiel, makeKangoo, makeCar, setLivery } from './vehicles.js';
 import { makeSloep, makeTourBoat, makeArk, makeBarge, rockBoat, PAL } from './boats.js'; // canal boats: sloep, rondvaartboot, woonark, tjalk
 import { signFace } from './livery.js'; // the warehouse sign follows the van's brand // shared van and street cars
 import { initDrive } from './drive.js'; // top-down Oofmobiel drive between districts
-import { createEconomy, rankOf } from './economy.js';
+import { createEconomy, rankOf, CLIENTS, BLENDS } from './economy.js';
 import { createHeists } from './heist.js'; // Nachtklussen: the Plannenbord, tools and the fence
 import { createCrew } from './crew.js'; // the Naknikim as people: names, mood, errands
 import { createKaasMap } from './kaasmap.js'; // the Map of Kaasland: aerial view + place list (PC + Oofmobiel)
 import { createJohan } from './johan.js';
 import { createVenues } from './venues.js'; // the street's two new ends: Club Monique (west) and Tryshtahn Auto (east) // Johan, the childhood friend with The Letter: a Miata on the road, a forklift in the hall
 import { createMabootaLaw } from './maboota.js'; // the Maboota in public: witnesses, Wijkagent Bakker at the door
+import { createRoam } from './roam.js'; // free roaming, step 1: the street runs on into Spekbuurt, Uitjesbuurt and Kroketkade
 import { createHub } from './hub.js'; // Overzicht (Tab), the day strip, where the Wilders went, NEW cards, route arrow
 import { createVandaag } from './vandaag.js'; // Shooki's three goals for today
 import { createBuurtRep } from './buurtrep.js'; // what each neighbourhood thinks of Eddy
@@ -62,6 +63,7 @@ let prod = null, solli = null; // js/productie.js, js/sollicitanten.js
 let work = null; // js/naknikwork.js, set up after De Loods
 let buurt = null, bfolk = null; // js/buurt.js, js/buurtfolk.js
 const streetHouses = []; // the houses on the street rows, for the buurtkaart
+let roam = null; // js/roam.js, set up after the street and the economy
 let hub = null; // js/hub.js, set up after Vandaag
 let vandaag = null; // js/vandaag.js, set up last (it reads every system)
 let brep = null; // js/buurtrep.js, set up right after the economy
@@ -231,7 +233,8 @@ function collide(p, r) {
 const RC = 1.6;
 // the street runs east-west from -SX to SX (was ±70; made longer 2026-11-24 for Club Monique in the west and Tryshtahn's showroom in the east)
 const SX = 100, SXK = SX / 70; // half length, and how much longer the tiled textures repeat
-const WALK = { x0: -70, x1: 84 }; // how far Eddy can walk along it
+const WALK = { x0: -70, x1: 84 }; // how far Eddy can walk along it (js/roam.js stretches it once the buurten open)
+const lifeWin = (m = 100) => { const lo = Math.max(WALK.x0 - 4, player.position.x - m), hi = Math.min(WALK.x1 + 4, player.position.x + m); return WALK.x0 > -80 ? [-(SX - 2), SX - 2] : [lo, hi]; }; // traffic, bikes and walkers stay within ~100 m of Eddy; on the home street alone it is the old ±SX
 const ROAD = { pN: RC - 5.0, lane: 3.0, pS: RC + 5.0, bike0: RC + 5.2, bike1: RC + 7.6, walk1: RC + 10.9 };
 const CZ = 15 + RC;
 // across the canal: the even side of the Kipkruidengracht. The houses stand back from the water, a klinker quay runs in front of them,
@@ -281,7 +284,8 @@ water.rotation.x = -Math.PI / 2; water.position.set(0, -1.1, CZ); water.renderOr
 const quayMat = macro(pbr('brick_red.jpg', 60 * SXK, 1, 0x9a7a6a, 0.9, 1.0), 0.2, 0.15);
 const q1 = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 1.2), quayMat); q1.position.set(0, -0.55, CZ - 3.74); scene.add(q1);
 const q2 = new THREE.Mesh(new THREE.PlaneGeometry(SX * 2, 1.2), quayMat); q2.position.set(0, -0.55, CZ + 3.74); q2.rotation.y = Math.PI; scene.add(q2);
-box(SX * 2, 0.14, 0.4, surface(hardsteen(), 80 * SXK, 0.5, { color: 0xc8c4bc, rough: 0.8 }), 0, 0.07, CZ - 3.9, scene, false); // bluestone quay coping
+const copingMat = surface(hardsteen(), 80 * SXK, 0.5, { color: 0xc8c4bc, rough: 0.8 });
+box(SX * 2, 0.14, 0.4, copingMat, 0, 0.07, CZ - 3.9, scene, false); // bluestone quay coping
 // bridge over the canal
 box(5, 0.4, 7.8, lam({ map: tex('paving.jpg', 2, 3) }), 14, -0.15, CZ);
 { const K = kit(); // bridge: bluestone kerbs, a dark green iron railing with posts, a top rail and a mid rail, brick arch faces
@@ -295,19 +299,19 @@ box(5, 0.4, 7.8, lam({ map: tex('paving.jpg', 2, 3) }), 14, -0.15, CZ);
   scene.add(K.build()); }
 // trees between the fietspad and the pavement: Dutch lindens and the odd Vice palm, half-way between the lamps
 const treeKit = kit(), decals = []; // all lindens in one mesh; flat ground decals collected and batched per texture below
-function tree(x, z, s = 1) { // Dutch linden: tapered trunk, a fork, and a lumpy canopy of overlapping blobs in a few greens
+function tree(x, z, s = 1, TK = treeKit) { // TK: another kit for a free-roaming street piece // Dutch linden: tapered trunk, a fork, and a lumpy canopy of overlapping blobs in a few greens
   const r = rng(Math.round(x * 13 + 1000)), bark = 0x5e4636;
-  treeKit.cyl(0.11 * s, 0.19 * s, 2.3 * s, bark, x, 1.15 * s, z, 9);
-  treeKit.cyl(0.24 * s, 0.26 * s, 0.12, 0x4a3a2c, x, 0.06, z, 9); // root flare
-  for (const a of [0.5, 2.6, 4.4]) treeKit.cyl(0.05 * s, 0.08 * s, 1.3 * s, bark, x + Math.cos(a) * 0.3 * s, 2.6 * s, z + Math.sin(a) * 0.3 * s, 6, Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+  TK.cyl(0.11 * s, 0.19 * s, 2.3 * s, bark, x, 1.15 * s, z, 9);
+  TK.cyl(0.24 * s, 0.26 * s, 0.12, 0x4a3a2c, x, 0.06, z, 9); // root flare
+  for (const a of [0.5, 2.6, 4.4]) TK.cyl(0.05 * s, 0.08 * s, 1.3 * s, bark, x + Math.cos(a) * 0.3 * s, 2.6 * s, z + Math.sin(a) * 0.3 * s, 6, Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
   const greens = [0x4f7a34, 0x5f8a3c, 0x46703a, 0x6a9442, 0x3e6230], autumn = Math.abs(Math.round(x)) % 4 === 2; // the odd tree already turning turmeric
   const blobs = [[0, 3.35, 0, 1.35], [0.85, 3.05, 0.3, 0.95], [-0.8, 3.1, -0.25, 1.0], [0.2, 3.0, -0.85, 0.9], [-0.25, 3.15, 0.85, 0.92], [0.1, 4.05, 0.1, 0.9], [0.6, 3.75, -0.5, 0.7]];
   blobs.forEach(([bx, by, bz, br], i) => {
     const c = autumn && i === 4 ? 0xa89a3a : greens[Math.floor(r() * greens.length)];
-    treeKit.geo(blobGeo(1 + (i % 4), 2), c, x + bx * s * 0.8, by * s * 0.95, z + bz * s * 0.8, r() * 3, r() * 3, 0, br * s * 0.82, br * s * 0.74, br * s * 0.82);
+    TK.geo(blobGeo(1 + (i % 4), 2), c, x + bx * s * 0.8, by * s * 0.95, z + bz * s * 0.8, r() * 3, r() * 3, 0, br * s * 0.82, br * s * 0.74, br * s * 0.82);
   });
-  decals.push(['grate', x, z, 1.5, r() * 6]);
-  if (r() < 0.7) decals.push(['leaves', x + (r() - 0.5) * 1.6, z + (r() - 0.5) * 0.6, 1.8 + r(), r() * 6]);
+  if (TK === treeKit) decals.push(['grate', x, z, 1.5, r() * 6]);
+  if (TK === treeKit && r() < 0.7) decals.push(['leaves', x + (r() - 0.5) * 1.6, z + (r() - 0.5) * 0.6, 1.8 + r(), r() * 6]);
   solid(x - 0.2, x + 0.2, z - 0.2, z + 0.2);
 }
 const frondTex = canvasTex(64, 256, (g, w, h) => {
@@ -819,13 +823,13 @@ const isInside = (p) => p.x > WH.x0 && p.x < WH.x1 && p.z > WH.z0 && p.z < WH.z1
 // street furniture is built into vertex-coloured kits (one draw call each); "clutter" is the optional layer that Simpel hides
 const streetKit = kit(), clutterKit = kit(), clutter = new THREE.Group(); scene.add(clutter);
 const lampHeadMat = lam({ color: 0xfff4d0, emissive: 0x806a30 }), LAMPS = [];
-function lamp(x, z) { // Amsterdam-style mast: stepped foot, collar rings, a curved arm and a lantern hood
-  const dir = z < 0 ? 1 : -1, K = streetKit, c = 0x26282c;
+function lamp(x, z, K = streetKit) { // Amsterdam-style mast: stepped foot, collar rings, a curved arm and a lantern hood
+  const dir = z < 0 ? 1 : -1, c = 0x26282c;
   K.cyl(0.16, 0.2, 0.5, c, x, 0.25, z, 10); K.cyl(0.13, 0.13, 0.08, 0x3a3c40, x, 0.54, z, 10);
   K.cyl(0.065, 0.09, 4.2, c, x, 2.65, z, 10); for (const y of [1.6, 3.2]) K.cyl(0.095, 0.095, 0.06, 0x3a3c40, x, y, z, 10);
   K.cyl(0.04, 0.05, 0.75, c, x, 4.85, z + dir * 0.18, 8, -dir * 0.75); K.cyl(0.04, 0.04, 0.55, c, x, 5.06, z + dir * 0.62, 8, -dir * 1.45);
   K.box(0.4, 0.08, 0.5, c, x, 4.98, z + dir * 0.95); K.cyl(0.05, 0.12, 0.16, c, x, 4.88, z + dir * 0.95, 8);
-  box(0.34, 0.1, 0.4, lampHeadMat, x, 4.86, z + dir * 0.95, scene, false); LAMPS.push([x, z]);
+  if (K === streetKit) { box(0.34, 0.1, 0.4, lampHeadMat, x, 4.86, z + dir * 0.95, scene, false); LAMPS.push([x, z]); } else K.box(0.34, 0.1, 0.4, 0xfff4d0, x, 4.86, z + dir * 0.95);
 }
 for (let x = -66; x <= 78; x += 12) { if (x > DEALER.x0 && x < DEALER.x1) { lamp(x + 6, ROAD.bike1 + 0.2); continue; } lamp(x === 6 ? 10.6 : x, RC - 5.3); lamp(x + 6, ROAD.bike1 + 0.2); }
 function bollard(x, z, K = streetKit) { // Amsterdammertje: dark paprika cast iron, three white-cross rings, a domed top
@@ -866,6 +870,34 @@ function flushDecals() { // one merged quad mesh per decal texture
 if (!RICH_LOW) for (let x = -60; x <= 60; x += 9) if (offBridge(x, 4)) { const K = clutterKit, z = CZ - 3.85; K.cyl(0.13, 0.15, 0.42, 0x26282c, x, 0.35, z, 10); K.cyl(0.19, 0.19, 0.07, 0x26282c, x, 0.58, z, 10); K.geo(new THREE.TorusGeometry(0.12, 0.025, 6, 12), 0x3a3c40, x, -0.25, CZ - 3.73, 0, 0, 0); } // iron mooring posts, a ring in the quay wall
 flushDecals();
 { const m = streetKit.build(); if (m) scene.add(m); const c = clutterKit.build(); if (c) clutter.add(c); }
+const ST = { road: wetMats[0], bay: bayMat, paveN: wetMats[3], paveS: wetMats[4], bike: wetMats[5], far: wetMats[6], coping: copingMat };
+// ---- free roaming (js/roam.js): one more stretch of the same street, from x = a to b, as a single group.
+// Same materials as the home street (so rain, snow and the Graphics setting follow), with the UVs scaled to the piece's
+// length; lines, bollards, lamps and lindens go into two kits, so a whole piece is about twenty draw calls.
+function streetPiece(a, b) {
+  const g = new THREE.Group(), L = b - a, cx = (a + b) / 2, k = L / (SX * 2);
+  const scaleU = (geo) => { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * k); return geo; };
+  const pl = (z0, z1, m, y) => { const p = new THREE.Mesh(scaleU(new THREE.PlaneGeometry(L, z1 - z0)), m); p.rotation.x = -Math.PI / 2; p.position.set(cx, y, (z0 + z1) / 2); p.receiveShadow = true; g.add(p); return p; };
+  const bx = (w, h, d, m, y, z) => { const q = new THREE.Mesh(scaleU(new THREE.BoxGeometry(w, h, d)), m); q.position.set(cx, y, z); q.receiveShadow = true; g.add(q); };
+  pl(-70, CZ - 3.75, groundMat, 0); pl(CZ + 3.75, 70, groundMat, 0);
+  pl(RC - ROAD.lane, RC + ROAD.lane, ST.road, 0.02); pl(ROAD.pN, RC - ROAD.lane, ST.bay, 0.022); pl(RC + ROAD.lane, ROAD.pS, ST.bay, 0.022);
+  pl(-7, RC - 5.2, ST.paveN, 0.012); pl(ROAD.bike1, ROAD.walk1, ST.paveS, 0.012); pl(ROAD.bike0, ROAD.bike1, ST.bike, 0.016); pl(FAR.edge, FAR.front, ST.far, 0.022);
+  for (const z of [RC - 5.1, RC + 5.1]) bx(L, 0.16, 0.18, kerbMat, 0.08, z);
+  bx(L, 0.08, 0.12, kerbMat, 0.04, ROAD.bike1); bx(L, 0.14, 0.4, ST.coping, 0.07, CZ - 3.9); bx(L, 0.14, 0.4, kerbMat, 0.07, FAR.edge + 0.15);
+  const w = new THREE.Mesh(scaleU(new THREE.PlaneGeometry(L, 7.5)), water.material); w.rotation.x = -Math.PI / 2; w.position.set(cx, -1.1, CZ); w.renderOrder = 10; g.add(w);
+  for (const [z, ry] of [[CZ - 3.74, 0], [CZ + 3.74, Math.PI]]) { const q = new THREE.Mesh(scaleU(new THREE.PlaneGeometry(L, 1.2)), quayMat); q.position.set(cx, -0.55, z); q.rotation.y = ry; g.add(q); }
+  const K = kit(), T = kit(), W = 0xf4f2ec;
+  for (let x = a + 2.8; x < b; x += 5.6) for (const z of [RC - 4, RC + 4]) K.box(0.1, 0.01, 1.9, W, x, 0.032, z);
+  for (const z of [RC - ROAD.lane, RC + ROAD.lane]) K.box(L, 0.01, 0.1, W, cx, 0.032, z);
+  for (let x = a + 2; x < b; x += 4) K.box(2, 0.01, 0.14, W, x, 0.035, RC);
+  for (let x = a + 1.5; x < b; x += 3) K.box(1.2, 0.01, 0.1, W, x, 0.03, (ROAD.bike0 + ROAD.bike1) / 2);
+  for (let x = a + 1.3; x < b; x += 2.6) { bollard(x, ROAD.walk1 + 0.05, K); bollard(x, FAR.edge + 0.6, K); }
+  for (let x = a + 6; x < b; x += 12) { lamp(x, RC - 5.3, K); lamp(x + 6 < b ? x + 6 : x, ROAD.bike1 + 0.2, K); }
+  for (let x = a + 12; x < b; x += 24) { lamp(x, FAR.edge + 0.9, K); tree(x + 11 < b ? x + 11 : x - 5, FAR.edge + 1.5, 0.9, T); }
+  for (let x = a + 3; x < b; x += 12) tree(x, ROAD.bike1 + 0.45, 0.9, T);
+  const km = K.build(), tm = T.build(); if (km) g.add(km); if (tm) { tm.castShadow = true; g.add(tm); }
+  return g;
+}
 // 80s Kaasland cars: side profiles with rounded corners, extruded with a bevel, glass greenhouses, chrome bits
 const CAR_PAINT = [0xc8102e, 0xf2e8c8, 0x1f4fa0, 0x2f6a3a, 0xe8b020, 0x7a2a5a, 0xd8d8d8, 0x1a1a1a, 0xff7a3a, 0x5ac8c0, 0xff8fb8, 0x8a6a4a, 0x3a3a6a];
 let carSeed = 7;
@@ -2985,7 +3017,7 @@ function updateStreet(dt) {
     const want = free < 2.5 ? 0 : free < 9 ? u.vmax * (free - 2.5) / 6.5 : u.vmax;
     u.v += Math.max(-12 * dt, Math.min(4 * dt, want - u.v));
     c.position.x += u.v * u.dir * dt;
-    if (c.position.x * u.dir > SX - 2) c.position.x = -(SX - 2) * u.dir;
+    { const [lo, hi] = lifeWin(); if (u.dir > 0 ? c.position.x > hi : c.position.x < lo) c.position.x = u.dir > 0 ? lo : hi; else if (u.dir > 0 ? c.position.x < lo - 30 : c.position.x > hi + 30) c.position.x = u.dir > 0 ? lo : hi; }
     const bu = u.bubble.userData; if (bu.life > 0) { bu.life -= dt; if (bu.life <= 0) u.bubble.visible = false; }
     const sd = u.solid; sd.off = knock.t > 0; sd.minx = c.position.x - u.half; sd.maxx = c.position.x + u.half; sd.minz = c.position.z - 0.95; sd.maxz = c.position.z + 0.95;
   }
@@ -2999,7 +3031,7 @@ function updateStreet(dt) {
     if (byPlayer && u.v < 0.6) { u.shoutT -= dt; if (u.shoutT <= 0) { bell(); say(u.bubble, BIKE_SHOUTS[Math.floor(Math.random() * BIKE_SHOUTS.length)], '#2fb8a8'); u.shoutT = 3; } }
     if (u.v > 2 && Math.abs(P.z - b.position.z) < 0.6 && Math.abs(P.x - b.position.x) < u.len + 0.3 && P.y < 0.3) bump(u.dir * 4, Math.sign(P.z - b.position.z || 1) * 3, 4, 'Run over by a ' + ['bike', 'vierfiets', 'tricycle', 'tall bike', 'bakfiets full of Gouda', 'mini bike', 'penny-farthing', 'double-decker bike', 'extra-tall bike', 'four-man tower bike', 'opafiets', 'transportfiets'][u.kind] + '.');
     b.position.x += u.v * u.dir * dt;
-    if (b.position.x * u.dir > SX - 4) b.position.x = -(SX - 4) * u.dir;
+    { const [lo, hi] = lifeWin(96); if (u.dir > 0 ? b.position.x > hi : b.position.x < lo) b.position.x = u.dir > 0 ? lo : hi; else if (u.dir > 0 ? b.position.x < lo - 30 : b.position.x > hi + 30) b.position.x = u.dir > 0 ? lo : hi; }
     for (const w of b.children) if (w.userData.r) w.rotation.z -= u.v * dt / w.userData.r; else if (w.userData.crank) w.rotation.z -= u.v * dt * 1.6;
     u.phase += u.v * dt * 1.6;
     u.riders.forEach((r, k) => { const ru = r.userData, ph = u.phase + k * 0.7; const base = ru.squat ? -1.55 : -0.9, amp = ru.squat ? 0.25 : 0.5; ru.legs[0].rotation.x = base + Math.sin(ph * (ru.squat ? 2 : 1)) * amp; ru.legs[1].rotation.x = base - Math.sin(ph * (ru.squat ? 2 : 1)) * amp; });
@@ -3017,7 +3049,7 @@ function updateStreet(dt) {
     }
     if (u.flee) { // running off the map; comes back later as an ordinary passer-by
       w.position.x += u.dir * 4.6 * dt; w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2; animate(w, 4.6, dt);
-      if (Math.abs(w.position.x) > SX - 8) { u.flee = false; w.position.x = -Math.sign(w.position.x) * (SX - 12); u.wait = 20 + Math.random() * 30; }
+      { const [lo, hi] = lifeWin(90); if (w.position.x > hi || w.position.x < lo) { u.flee = false; w.position.x = w.position.x > hi ? lo + 4 : hi - 4; u.wait = 20 + Math.random() * 30; } }
       if (cp) { cp.obj.position.x += (w.position.x + u.dir * cp.ahead - cp.obj.position.x) * Math.min(1, dt * 6); cp.obj.rotation.y = cp.type === 'kid' ? w.rotation.y : (u.dir > 0 ? 0 : Math.PI); if (cp.type === 'kid') animate(cp.obj, 4.6, dt); if (cp.type === 'dog' && cp.line) { const a = cp.line.geometry.attributes.position, hand = w.userData.arms[0].localToWorld(new THREE.Vector3(0, -0.66, 0.03)); a.setXYZ(0, hand.x, hand.y, hand.z); a.setXYZ(1, cp.obj.position.x, 0.45 * cp.obj.scale.x, cp.obj.position.z); a.needsUpdate = true; } }
       continue;
     }
@@ -3034,7 +3066,8 @@ function updateStreet(dt) {
         u.blocked = 0; moving = true;
         w.position.x += u.v * u.dir * dt; w.position.z += (lane - w.position.z) * Math.min(1, dt * 2);
         w.rotation.y = u.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-        if (w.position.x * u.dir > (u.dir > 0 ? WALK.x1 - 6 : -WALK.x0 - 6)) { u.dir *= -1; u.wait = 0.5 + Math.random(); }
+        { const lo = Math.max(WALK.x0 + 6, P.x - 84), hi = Math.min(WALK.x1 - 6, P.x + 84); // they turn at the ends of the street, or 84 m from Eddy, and catch up when he has walked on
+          if (u.dir > 0 ? w.position.x > hi : w.position.x < lo) { if (w.position.x > hi + 30 || w.position.x < lo - 30) w.position.x = w.position.x > hi ? hi - 2 : lo + 2; u.dir *= -1; u.wait = 0.5 + Math.random(); } }
       }
     }
     if (u.inPlace > 0) { u.inPlace -= dt; w.userData.inPlace = u.inPlace > 0; animate(w, u.v, dt); } // the jogger keeps jogging on the spot
@@ -3153,7 +3186,7 @@ function tick() {
   if (loods && !mOn) loods.update(dt);
   if (johan && !mOn) johan.update(dt);
   if (venues && !mOn) venues.update(dt);
-  buurt.update(dt); bfolk.update(dt); if (vandaag) vandaag.update(dt); if (hub) { hub.update(dt); checkUnlocks(dt); }
+  buurt.update(dt); bfolk.update(dt); if (vandaag) vandaag.update(dt); if (hub) { hub.update(dt); checkUnlocks(dt); } if (roam) roam.update(dt, mOn);
   world.update(dt, player.position, state.step !== 'title' && !mOn && !(woning && woning.inside()) && !(winkels && winkels.inside()) && !isInside(player.position) && !(venues && venues.inside())); // rain, snow and lightning on the street (js/kaasweer.js)
   { const P_ = player.position; // the song restyles inside some buildings (js/music.js setStyle), and goes back to the street version outside
     music.setStyle(mOn || oofDrive.active ? null : venues && venues.inClub(P_) ? 'disco' : venues && venues.inShow(P_) ? 'bollywood' : isInShop(P_) ? 'russian' : isInJoint(P_) ? 'arabic' : null); }
@@ -3401,7 +3434,12 @@ hub = createHub({ THREE, state, econ, world: () => world, bills: () => bills, br
   goalSpot, dueToday, tabLabel: (id) => (icons.find(([i]) => i === id) || [, , id])[2], isTouch: () => document.body.classList.contains('touch'),
   inPCTab: () => (state.inPC && pcTab ? (icons.find(([id]) => id === pcTab) || [, , ''])[2] : '') });
 ui.money.addEventListener('click', (e) => { e.stopPropagation(); if (hub.show('geld')) beep(700, 0.03, 'triangle', 0.02); });
-window.__sme = { get hub() { return hub; }, get vandaag() { return vandaag; }, get brep() { return brep; }, get winkels() { return winkels; }, get bills() { return bills; }, get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+roam = createRoam({ THREE, scene, player, state, streetPiece, house, spanWidths, solid, solids, fadeables, car, kit, box, lam, signTex, addInteract, dialogue, choice, toast,
+  busy: () => !!(mission.active || oofDrive.active) || state.inDialogue || choiceOpen, SROW, RC, FAR, WALK, HOME: { x0: -70, x1: 84 }, low: IS_PHONE, snapCam: () => window.__sme.snapCam(),
+  owns: (id) => owns(id), retaken: (id) => econ.isRetaken(id), canRoam: () => state.step === 'free' && !tutorial.active(), setArea: (t) => { $('area').textContent = t; },
+  raid: (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); },
+  clientLine: (cid) => { const c = CLIENTS.find((x) => x.id === cid); if (!c) return null; const b = BLENDS.find((x) => x.id === c.blend), have = Math.floor((econ.ensure().blends[c.blend] || { kg: 0 }).kg), st = brep ? brep.tierOf(brep.get(cid)).name : ''; return [c.who, `${c.kg} kg ${b ? b.name : c.blend} every market day, Eddy. ${have >= c.kg ? 'I see you have it on the shelf. Good.' : `You have ${have} kg. Don\u2019t make me call the Lampas.`}${st ? ` (The buurt: ${st}.)` : ''}`]; } });
+window.__sme = { get roam() { return roam; }, get hub() { return hub; }, get vandaag() { return vandaag; }, get brep() { return brep; }, get winkels() { return winkels; }, get bills() { return bills; }, get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
 fiets = createFiets({ THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
   busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });
