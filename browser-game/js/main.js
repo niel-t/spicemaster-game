@@ -2019,6 +2019,23 @@ function talkDad() {
   }
 }
 let shutterOpen = 0, shutterTarget = 0;
+// What stands inside the warehouse is not drawn while the roof is on (Eddy outside, or away): the mixers, the racks and the
+// production line were a quarter of the home street's draw calls and nobody could see them. Things in view of the open
+// shutter stay. Done with layers, not .visible, so it never fights the game's own show/hide of a machine or a pallet.
+const whIn = []; let whScan = 0, whHidden = false; const whBox = new THREE.Box3();
+function whLayer(o, hide) { o.traverse((c) => { c.layers.set(hide ? 1 : 0); }); }
+function whCull(inside) {
+  for (let k = 0; k < 30 && whScan < scene.children.length; k++, whScan++) { // sort the scene out a few objects a frame (and whatever is added later)
+    const o = scene.children[whScan]; if (o.isLight || o.isCamera || o === player || o === dad) continue;
+    let skinned = false; o.traverse((c) => { if (c.isSkinnedMesh || c.isInstancedMesh) skinned = true; }); if (skinned) continue;
+    whBox.setFromObject(o); if (whBox.isEmpty()) continue;
+    const b = whBox, within = b.min.x > WH.x0 + 0.15 && b.max.x < WH.x1 - 0.15 && b.min.z > WH.z0 + 0.15 && b.max.z < WH.z1 - 0.3 && b.max.y < WH.h - 0.15;
+    const inDoorView = b.max.x > WH.doorX0 - 0.8 && b.min.x < WH.doorX1 + 0.8 && b.max.z > WH.z1 - 4.5;
+    if (within && !inDoorView) { whIn.push(o); if (whHidden) whLayer(o, true); }
+  }
+  const hide = !inside;
+  if (hide !== whHidden) { whHidden = hide; for (const o of whIn) whLayer(o, hide); }
+}
 function openShutter() { shutterTarget = 1; shutterSolid.off = true; beep(180, 0.5, 'sawtooth', 0.03); }
 
 function updateObjective() {
@@ -3248,6 +3265,7 @@ function tick() {
   // inside the warehouse: hide roof + front wall, switch on lights
   const inside = isInside(player.position) && state.step !== 'title'; // the title backdrop shows the street with the roof on
   roof.visible = !inside; frontHigh.visible = !inside; shutter.visible = !inside || shutterOpen < 0.5;
+  whCull(inside);
   const li = inside ? 2.2 : 0; inLight1.intensity += (li - inLight1.intensity) * dt * 4; inLight2.intensity = inLight1.intensity;
   // pawnshop: door swings open, roof + façade hide while you're inside, bunker lights come on
   shopDoorOpen += (shopDoorTarget - shopDoorOpen) * Math.min(1, dt * 3); shopDoor.rotation.y = shopDoorOpen * 1.7;

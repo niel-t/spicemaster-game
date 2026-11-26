@@ -90,7 +90,7 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
 
   // ------------------------------------------------------------------ the call from Costa del Kaas, and the pick-up
   let callWait = 25;
-  function canCall() { return state.step === 'free' && !!state.district1 && !F().called && !(state.tut && !state.tut.done) && !d.busy(); }
+  function canCall() { return state.step === 'free' && !!state.district1 && !F().called && !F().away && !(F().trips | 0) && !(state.tut && !state.tut.done) && !d.busy(); } // (the first call only: after a weekend away Pa rings through landed())
   function onCall() {
     dialogue([
       ['Freddy Sr. (telefoon)', 'Eddy? EDDY. It is your father. Can you hear me? I am calling from the hotel, it costs four Wilders a minute.'],
@@ -114,21 +114,49 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
     ['Freddy Sr.', 'Back to help. Not to boss you around. Mostly not. I ride with you: every job, every drive, every meeting. And I tell you when you do it wrong.'],
     ['Freddy Sr.', 'Also when you do it right. Less often, probably. Now show me the loods. And do not sit on the suede.'],
   ];
-  const airJob = () => (due() ? { kind: 'pickup', who: 'Freddy Sr.', onHome: home, lines: [
+  const airJob = () => (due() ? { kind: 'pickup', who: 'Freddy Sr.', onHome: home, lines: (F().trips | 0) > 0 ? [
+    ['Freddy Sr.', 'There he is! My chauffeur! Look at this tan, Eddy. LOOK at it.'],
+    ['Eddy Jr.', 'Pa, you are peeling.'],
+    ['Freddy Sr.', 'That is the old Freddy coming off. Suitcases in the back. The clinking one goes on my lap.'],
+  ] : [
     ['Freddy Sr.', 'Eddy! JONGEN! You came! In the Oofmobiel! With YOUR name on it!'],
     ['Eddy Jr.', 'Pa. What is on your head.'],
     ['Freddy Sr.', 'A sombrero. It was a long three years. Put the suitcases in the back, careful with the red one, it is all duty-free.'],
     ['Freddy Sr.', 'And drive past my house first. Komijnstraat. I want to see if it still turns.'],
   ] } : null);
   function home() { // the Oofmobiel is back on its parking, with Pa in it
-    d.afterDrive(); F().back = true; F().follow = true; F().day = d.econ.ensure().day; F().welcome = true;
+    const again = (F().trips | 0) > 0 && F().housed;
+    d.afterDrive(); F().back = true; F().follow = true; F().day = d.econ.ensure().day; F().welcome = !again;
+    if (again) { appear(true); d.addMoney(200); d.save(); d.objective(); dialogue([['Freddy Sr.', rnd(['Duty-free, jongen. Two hundred florins of it. Do not ask what, sell it.', 'I brought you a fridge magnet and W 200 I won at the hotel bingo. The magnet is the valuable one.', 'Costa del Kaas was the same as always. Warm, loud, and nobody can cook. Here: your share of the buffet money.'])], ['Freddy Sr.', 'Now drive past the house. I have to check the bed.']], () => toast('PA IS HOME', '+W 200 from his suitcase. He rides along again.', 4)); return; }
     appear(true); d.save(); d.objective();
     if (d.paHouse) { d.paHouse(); toast('PA IS HOME', 'First stop: his own house on the <b>Komijnstraat</b>, one street behind the kade. Follow the arrow and go in with him.', 6.5); }
     else welcome();
   }
   function welcome() { // the first time through his front door (or at once, where there is no house)
-    if (!F().welcome) return; F().welcome = false; d.save();
+    if (!F().welcome) return; F().welcome = false; F().housed = true; d.save();
     dialogue(WELCOME, () => toast('FREDDY SR. RIDES ALONG', 'Pa walks with you, rides in the van and has an opinion on everything. Talk to him to send him home or bring him along.', 5));
+  }
+  // ---- Pa's weekendje weg: the Vertrek bay (js/wijk.js). A few days after he came home Pa has a ticket to Costa del Kaas.
+  // Eddy drives him to Vertrek, the house and the van are quiet for three days, then Pa lands again with duty-free and has
+  // to be fetched at Aankomst. And so on, every week or so, for as long as the bed keeps turning.
+  const today = () => d.econ.ensure().day;
+  const canFly = () => back() && !F().welcome && today() - (F().day || 0) >= 3;
+  const dropJob = () => ({ kind: 'drop', who: 'Freddy Sr.', onDone: gone, lines: [
+    ['Freddy Sr.', 'Vertrek. Here. Stop. STOP. Good. Do not come in, they charge for parking after one minute.'],
+    ['Eddy Jr.', 'Three nights, Pa. Do you have everything?'],
+    ['Freddy Sr.', 'Passport, swimming trunks, the sombrero. A man needs nothing else. Feed nobody, water nothing, and do NOT switch off the bed.'],
+    ['Freddy Sr.', 'I call you when I land. Bring the Oofmobiel. And a broodje.'],
+  ] });
+  function gone() { const f = F(); f.back = false; f.called = false; f.follow = true; f.away = today() + 3; f.trips = (f.trips | 0) + 1; dad.visible = false; dadSolid.off = true; d.save(); d.objective(); }
+  function fly() { // from the talk menu: the drive to Schiptagat with Pa in the van, then the forecourt up to Vertrek
+    if (!canFly() || d.drive().active) return;
+    d.drive().start({ van: d.van(), from: 'Kipkruidenkwartier', to: 'Schiptagat', target: [5, 3], airport: true, noPay: true, arrived: 'Now the forecourt: Pa has to be at Vertrek.', doneLabel: 'To the terminal',
+      onDone: (res) => { d.afterDrive(); if (!res.arrived) { toast('NO FLIGHT', 'The Oofmobiel never made it to Schiptagat. Pa will rebook. Loudly.', 4); return; } if (!(d.airport && d.airport(dropJob()))) gone(); } });
+  }
+  function landed() { // three days later
+    const f = F(); if (!f.away || f.back || f.called || today() < f.away || d.busy()) return;
+    f.away = 0; f.called = true; f.day = today(); d.save(); d.objective();
+    dialogue([['Freddy Sr. (telefoon)', 'Eddy! I am at Schiptagat. Aankomst. I am the colour of a kroket and I have bought too much. Come and get me.']], () => toast('PICK UP PA', 'Freddy Sr. is back at Schiptagat, at <b>Aankomst</b>. Pick the airport on the PC map, or drive there over the A4.', 5.5));
   }
   function pickup() {
     if (!due() || d.drive().active) return;
@@ -158,7 +186,8 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
   function update(dt) {
     tick(dt);
     if (canCall() && !(d.phone() && d.phone().ringing)) { callWait -= dt; if (callWait <= 0) { callWait = 40; if (d.phone() && d.phone().ring('freddy')) { /* ringing */ } else onCall(); } }
-    if (!back()) return false;
+    if (!back()) { landed(); return false; }
+    if (canFly() && !F().flyHint) { F().flyHint = true; toast('PA WANTS A WEEKEND AWAY', 'Talk to Pa: he has a ticket to Costa del Kaas and needs a lift to <b>Vertrek</b> at Schiptagat.', 5.5); } else if (!canFly() && F().flyHint && today() - (F().day || 0) < 3) F().flyHint = false;
     const off = hidden();
     dad.visible = !off; dad.userData.leaving = false; dad.userData.walkTo = null;
     if (off) { seen = false; dadSolid.off = true; return true; }
@@ -210,7 +239,9 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
   function talk() {
     if (!back()) return false;
     const f = F();
-    choice('Freddy Sr.', rnd(['Ja, jongen?', 'What is it? I was counting Naknikim.', 'Eddy. My boy. What do you need?']), [f.follow ? 'Wait here, Pa' : 'Come along, Pa', 'How am I doing?', 'Nothing'], (i) => {
+    const flyOk = canFly();
+    choice('Freddy Sr.', flyOk ? rnd(['Jongen. I have a ticket. Costa del Kaas, three nights. You drive me to Schiptagat.', 'Eddy. My knees need sun. There is a flight, and you have a van.']) : rnd(['Ja, jongen?', 'What is it? I was counting Naknikim.', 'Eddy. My boy. What do you need?']), [f.follow ? 'Wait here, Pa' : 'Come along, Pa', 'How am I doing?', ...(flyOk ? ['Drive Pa to Schiptagat (Vertrek)'] : []), 'Nothing'], (i) => {
+      if (flyOk && i === 2) { fly(); return; }
       if (i === 0) {
         f.follow = !f.follow; d.save();
         dialogue([['Freddy Sr.', f.follow ? rnd(['Finally. I was getting roots.', 'Coming! Not so fast, my knees are from 1958.']) : rnd(['Fine. I stand here. Like a lamppost. A proud lamppost.', 'Go, go. I wait. I am good at waiting, I was married thirty years.'])]]);
@@ -257,5 +288,5 @@ body.driving #freddyline.fl-top{top:calc(138px + env(safe-area-inset-top))}
     const f = F(); f.met = f.met || {}; if (f.met[who]) return null;
     f.met[who] = true; d.save(); chimeT = performance.now(); return m.first;
   }
-  return { airJob, welcome, preChoice, update, tick, say, talk, talkable, chat, pickup, onCall, onMissed, objective, due, back, driveEvent, onMission, hit, chime, appear, owns: back, mapState: () => (due() ? 'due' : 'air'), SAY, MEET };
+  return { airJob, welcome, fly, canFly, landed, preChoice, update, tick, say, talk, talkable, chat, pickup, onCall, onMissed, objective, due, back, driveEvent, onMission, hit, chime, appear, owns: back, mapState: () => (due() ? 'due' : 'air'), SAY, MEET };
 }
