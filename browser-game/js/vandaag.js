@@ -103,7 +103,7 @@ body.touch #vandaag{top:auto;bottom:auto;top:calc(150px + env(safe-area-inset-to
       <div class="vd-f">${v.bonus ? `All three done${v.streak > 1 ? `, ${v.streak} days in a row` : ''}. New goals tomorrow.` : `All three: +${fmt(w * 2)} bonus. New ones every market day.`}</div>`;
     if (el.style.display !== 'block') el.style.display = 'block';
     if (innerWidth <= 600 && innerHeight > innerWidth) { // a phone held upright: under the objective box, clear of SHMOKIA
-      const ob = document.getElementById('objective'); let bot = 0; if (ob && ob.style.opacity !== '0') for (const e of [ob, ...ob.querySelectorAll('*')]) { const r = e.getBoundingClientRect(); if (r.height) bot = Math.max(bot, r.bottom); } const y = Math.round(bot ? bot + 14 : 110) + 'px';
+      const ob = document.getElementById('objective'); let bot = 0; if (ob && ob.style.opacity !== '0') for (const e of [ob, ...ob.querySelectorAll('*')]) { const r = e.getBoundingClientRect(); if (r.height) bot = Math.max(bot, r.bottom); } const dsE = document.getElementById('dstrip'); if (dsE && dsE.style.display === 'block') bot = Math.max(bot, dsE.getBoundingClientRect().bottom); const y = Math.round(bot ? bot + 14 : 110) + 'px';
       if (el.style.top !== y) { el.style.top = y; el.style.left = 'calc(10px + env(safe-area-inset-left))'; el.style.right = 'auto'; }
     } else if (el.style.top) { el.style.top = el.style.left = el.style.right = ''; }
     el.classList.toggle('fold', isFolded());

@@ -55,7 +55,7 @@ function overlay() {
   if (!ctx) return null;
   const st = ctx.state;
   if (st.step === 'title' && shown($('title'))) return $('title');
-  for (const id of ['nvInv', 'shop', 'pc', 'shmokia']) if (shown($(id))) return $(id);
+  for (const id of ['nieuwcard', 'ovz', 'bzov', 'nvInv', 'shop', 'pc', 'shmokia']) if (shown($(id))) return $(id);
   const dl = $('dialogue'); if (shown(dl) && dl.querySelector('button')) return dl; // a choice box
   return null;
 }
@@ -228,7 +228,7 @@ ui.innerHTML = `
   <div class="tb" id="tbG" data-k="nade">GRANAAT<small></small></div>
   <div class="tb" id="tbQ" data-k="KeyQ">&#9656;</div>
   <div class="tb" id="tbH" data-k="KeyH">PLAAT</div>
-  <div class="tpills"><div class="tp" data-k="pause">II</div><div class="tp" data-k="KeyM">KAART</div><div class="tp" data-k="KeyI">INV</div><div class="tp" id="tpRestart" data-k="Backspace">OPNIEUW</div><div class="tp" id="tbS" data-k="sprint">SPRINT</div></div>`;
+  <div class="tpills"><div class="tp" data-k="pause">II</div><div class="tp tpovz" data-k="Tab">OVERZICHT</div><div class="tp" data-k="KeyM">KAART</div><div class="tp" data-k="KeyI">INV</div><div class="tp" id="tpRestart" data-k="Backspace">OPNIEUW</div><div class="tp" id="tbS" data-k="sprint">SPRINT</div></div>`;
 function makeStick(zone, onMove, onEnd) {
   const base = zone.querySelector('.tbase'), knob = zone.querySelector('.tknob'), R = 56;
   const s = { id: null, ox: 0, oy: 0, x0: 0, y0: 0, t0: 0, moved: 0 };

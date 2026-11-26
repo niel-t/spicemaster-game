@@ -18,6 +18,11 @@
   #objective { top: 42px; left: 24px; max-width: 420px; font: 700 19px "Rubik", Arial, sans-serif; }
   #dayplan { margin-top: 5px; font: 400 13px "Rubik", Arial, sans-serif; color: #cfe8cf; } #dayplan b { color: #6ed36e; }
   #prompt { bottom: 120px; left: 50%; transform: translateX(-50%); font: 700 20px "Rubik", Arial, sans-serif; background: rgba(0,0,0,.55); padding: 8px 16px; border-radius: 6px; display: none; }
+  #prompt { pointer-events: auto; cursor: pointer; } #prompt.float { overflow: visible; max-width: none; }
+  #prompt.float { bottom: auto; transform: translate(-50%, calc(-100% - 12px)); font-size: 16px; padding: 6px 13px; white-space: nowrap; transition: none; }
+  #prompt.float::after { content: ""; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-bottom: 0; border-top-color: rgba(0,0,0,.55); }
+  html.aero #prompt.float { padding: 6px 15px; } html.aero #prompt.float::after { border-top-color: rgba(70,42,22,.8); }
+  body.touch #prompt.float { bottom: auto; }
   #toast { top: 40%; left: 50%; transform: translate(-50%,-50%); font: 900 44px "Bungee", "Arial Black", Impact, sans-serif; color: #ffd36b; display: none; text-align: center; }
   #toast small { display: block; font: 700 18px "Rubik", Arial, sans-serif; color: #fff; margin-top: 6px; }
   /* the portrait sits inside the bar: min-height = top 12 + 104 tall + 12; long text scrolls instead of leaving the screen */
@@ -360,7 +365,7 @@
   #touchUI { position: fixed; inset: 0; z-index: 8; pointer-events: none; display: none; }
   #touchUI .tzone { position: absolute; bottom: 0; height: 58%; pointer-events: auto; touch-action: none; }
   #tzL { left: 0; width: 50%; } #tzR { right: 0; width: 50%; display: none; }
-  #touchUI.mission #tzR { display: block; }
+  #touchUI.mission #tzR { display: block; } #touchUI.mission .tpovz { display: none; }
   .tbase { position: absolute; left: calc(96px + env(safe-area-inset-left)); top: calc(100% - 100px - env(safe-area-inset-bottom)); width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(255,255,255,.08); opacity: .5; }
   #tzR .tbase { left: auto; right: calc(36px + env(safe-area-inset-right)); margin: -60px -60px 0 0; }
   #tzR .tbase.on { right: auto; margin: -60px 0 0 -60px; }
@@ -439,7 +444,7 @@
     #area { top: calc(8px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); font-size: 11px; }
     #objective { top: calc(26px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); max-width: 52vw; font-size: 13px; }
     #money { top: calc(8px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); font-size: 22px; }
-    #income { top: calc(36px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); font-size: 11px; }
+    #income { top: calc(36px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); font-size: 11px; max-width: 40vw; text-align: right; line-height: 1.2; } /* it ran over the objective box on an upright phone */
     #kit { top: calc(52px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); font-size: 11px; max-width: 44vw; text-align: right; }
     #weapon { font-size: 12px; padding: 5px 8px; bottom: calc(10px + env(safe-area-inset-bottom)); right: calc(12px + env(safe-area-inset-right)); }
     body.touch #weapon { display: none !important; }

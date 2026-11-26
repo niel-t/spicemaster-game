@@ -352,7 +352,10 @@ export function initPhone(d) {
   let ringing = 0, who = null, buzz = 0, wait = 60 + Math.random() * 90, henkDue = false, henkWait = 0, rasDue = false, rasWait = 0;
   const randomOk = () => state.step === 'free' && met('shooki') && !(state.tut && !state.tut.done) && econ.ensure().callDay !== econ.ensure().day;
 
+  let laterGap = 1.5, smsHeld = 0;
+  const later = []; // calls that came in during a fight, a menu or a conversation ring once Eddy is free (2026-11-26)
   function ring(id = 'hakan') {
+    if (busy()) { if (!later.includes(id)) later.push(id); return true; }
     if (ringing || isOpen) return false;
     const c = CALLERS[id]; who = id; ringing = id === 'henk' || id === 'ras' ? 20 : 12; buzz = 0;
     el.querySelector('.ph-name').innerHTML = c.name;
@@ -379,7 +382,8 @@ export function initPhone(d) {
   // Razim's texts run alongside everything else in the hub: bursts every few minutes, at most three a market day
   function updateSms(dt) {
     if (smsShow > 0 && (smsShow -= dt) <= 0) smsEl.style.display = 'none';
-    if (busy()) { smsEl.style.display = 'none'; smsShow = 0; return; }
+    if (busy()) { if (smsEl.style.display !== 'none') { smsEl.style.display = 'none'; smsHeld = Math.max(smsShow, 2.5); } smsShow = 0; return; } // a text that came in mid-fight shows again afterwards
+    if (smsHeld > 0) { smsShow = smsHeld; smsHeld = 0; smsEl.style.display = 'flex'; }
     if (ringing || isOpen || !usable()) return;
     if (smsQueue.length) { if ((smsGap -= dt) <= 0) popSms(); return; }
     if (state.step !== 'free' || !met('shooki') || (state.tut && !state.tut.done)) return;
@@ -395,6 +399,8 @@ export function initPhone(d) {
     tbtn.classList.toggle('on', usable() && !busy() && !isOpen && !ringing);
     if (isOpen && (busy() || !usable())) close();
     if (isOpen) return; // no calls while Eddy is on his own phone
+    if (ringing && busy()) { el.style.display = 'none'; return; } // on hold: it keeps ringing after the fight or the menu
+    if (ringing && el.style.display === 'none') el.style.display = 'flex';
     if (ringing) {
       ringing -= dt; buzz -= dt;
       if (buzz <= 0) { buzz = 1.6; beep(1180, 0.12, 'sine', 0.05); setTimeout(() => beep(940, 0.12, 'sine', 0.05), 140); setTimeout(() => beep(1180, 0.12, 'sine', 0.05), 280); }
@@ -402,6 +408,7 @@ export function initPhone(d) {
       return;
     }
     if (busy()) return;
+    if (later.length) { if ((laterGap -= dt) <= 0) { laterGap = 2.5; ring(later.shift()); } return; }
     if (henkDue) { henkWait -= dt; if (henkWait <= 0 && ring('henk')) henkDue = false; return; }
     if (rasDue) { rasWait -= dt; if (rasWait <= 0 && ring('ras')) rasDue = false; return; }
     if (!randomOk()) return;

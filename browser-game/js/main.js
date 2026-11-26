@@ -25,6 +25,7 @@ import { createKaasMap } from './kaasmap.js'; // the Map of Kaasland: aerial vie
 import { createJohan } from './johan.js';
 import { createVenues } from './venues.js'; // the street's two new ends: Club Monique (west) and Tryshtahn Auto (east) // Johan, the childhood friend with The Letter: a Miata on the road, a forklift in the hall
 import { createMabootaLaw } from './maboota.js'; // the Maboota in public: witnesses, Wijkagent Bakker at the door
+import { createHub } from './hub.js'; // Overzicht (Tab), the day strip, where the Wilders went, NEW cards, route arrow
 import { createVandaag } from './vandaag.js'; // Shooki's three goals for today
 import { createBuurtRep } from './buurtrep.js'; // what each neighbourhood thinks of Eddy
 import { createWinkels } from './winkels.js'; // walk into the Kipkruidenkade shops; klusjes and vaste klanten
@@ -61,6 +62,7 @@ let prod = null, solli = null; // js/productie.js, js/sollicitanten.js
 let work = null; // js/naknikwork.js, set up after De Loods
 let buurt = null, bfolk = null; // js/buurt.js, js/buurtfolk.js
 const streetHouses = []; // the houses on the street rows, for the buurtkaart
+let hub = null; // js/hub.js, set up after Vandaag
 let vandaag = null; // js/vandaag.js, set up last (it reads every system)
 let brep = null; // js/buurtrep.js, set up right after the economy
 let winkels = null; // js/winkels.js, set up after the shopkeepers
@@ -1394,8 +1396,9 @@ const state = { step: 'title', money: 0, shown: 0, listed: new Set(), sold: new 
   raids: 0, loan: { amount: 1000, out: false, at: 0 }, metNabil: false, metSchmatzel: false, armed: false };
 function setObjective(t) { ui.obj.innerHTML = t; }
 let toastT = 0;
-function toast(big, small = '', t = 2.6) { ui.toast.innerHTML = big + (small ? `<small>${small}</small>` : ''); ui.toast.style.display = 'block'; toastT = t; }
+function toast(big, small = '', t = 2.6) { if (hub) hub.noteToast(big); ui.toast.innerHTML = big + (small ? `<small>${small}</small>` : ''); ui.toast.style.display = 'block'; toastT = t; }
 function addMoney(n, fromEl) {
+  if (hub) hub.noteMoney(n, fromEl && fromEl.textContent ? fromEl.textContent.replace(/\s+/g, ' ').replace(/\(.*$/, '').trim().slice(0, 40) : (state.inPC && pcTab && $('pc').style.display === 'block' ? (icons.find(([id]) => id === pcTab) || [, , ''])[2] : ''));
   state.money += n; beep(880, 0.08); setTimeout(() => beep(1320, 0.1), 90);
   const f = document.createElement('div'); f.className = 'fly'; f.textContent = (n >= 0 ? '+W ' : '-W ') + Math.abs(n);
   const r = fromEl ? fromEl.getBoundingClientRect() : { left: innerWidth - 220, top: 70 };
@@ -1978,7 +1981,7 @@ function updateObjective() {
   if (owns('spekbuurt')) tutorial.owned('spekbuurt');
   if (state.district1 && tutorial.active()) tutorial.skip(); // never got round to Shooki's tour: it stops nagging once the district is Eddy's
   updateKangoo();
-  setObjective((tutorial.objective() || (freddy && freddy.objective()) || t || '') + (state.step === 'free' && !mission.active ? `<div id="dayplan">${world.hud()}${econ.planLine()}</div>` : ''));
+  setObjective((tutorial.objective() || (freddy && freddy.objective()) || t || '') + (state.step === 'free' && !mission.active ? `<div id="dayplan">${econ.planLine()}</div>` : ''));
   if (state.step === 'free' && !tutorial.active()) tips.show('day');
   if (['list', 'sell', 'hire', 'russian', 'free'].includes(state.step)) tips.show('step:' + state.step);
   if (state.step === 'free' && checkDistrict()) updateObjective();
@@ -1992,6 +1995,25 @@ function updateObjective() {
 // phones (2026-11-26): three.js walked ~13.000 objects every frame to update matrices, most of them inside big hidden groups
 // (interiors, the mission level, homes). A hidden group with many parts skips that walk; it is brought up to date the moment
 // it hides and catches up by itself the frame it shows again.
+// one E for everything (2026-11-26): the [E] label floats over the thing it belongs to (a person, a door, a crate),
+// so it's always clear what E does; tap or click the label to do it. Off screen it sits at the bottom as before.
+let promptFor = null, promptKey = '';
+const promptV = new THREE.Vector3(), promptBox = new THREE.Box3();
+function promptAnchor(it) {
+  if (it.lift === undefined) { let h = 1.7; if (it.obj) { if (it.obj.userData && it.obj.userData.ps2) h = 2.15; else { promptBox.setFromObject(it.obj); if (isFinite(promptBox.max.y)) h = Math.max(1.1, Math.min(3.2, promptBox.max.y - it.pos().y + 0.35)); } } it.lift = h; }
+  return promptV.copy(it.pos()).setY(it.pos().y + it.lift);
+}
+function showPrompt(it) {
+  const key = `${glyph('E')}|${it.label()}`;
+  if (key !== promptKey || promptFor !== it) { ui.prompt.innerHTML = `<b style="color:#ffd36b">[${glyph('E')}]</b> ${it.label()}`; promptKey = key; promptFor = it; }
+  ui.prompt.style.display = 'block';
+  const v = promptAnchor(it).project(camera), x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight;
+  const ok = v.z < 1 && x > 20 && x < innerWidth - 20 && y > 70 && y < innerHeight - 40;
+  ui.prompt.classList.toggle('float', ok);
+  if (ok) { const w = ui.prompt.offsetWidth, cx = Math.max(w / 2 + 8, Math.min(innerWidth - w / 2 - 8, x)); ui.prompt.style.left = cx + 'px'; ui.prompt.style.top = y + 'px'; ui.prompt.style.setProperty('--tail', (x - cx) + 'px'); }
+  else { ui.prompt.style.left = ui.prompt.style.top = ''; }
+}
+ui.prompt.addEventListener('click', (e) => { e.stopPropagation(); if (current && !state.inDialogue && !state.inPC && !choiceOpen) current.act(); });
 const roomCam = () => (woning && woning.inside() ? woning : winkels && winkels.inside() ? winkels : null); // rooms frame the camera themselves
 function skipHiddenMatrices() {
   for (const c of scene.children) {
@@ -2005,7 +2027,7 @@ function skipHiddenMatrices() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Freddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag',
+const SAVE_FIELDS = ['step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag', 'seenTabs',
   // never saved before 2026-11-26 although their modules said so: gun shop buys, the weather and paper, Johan, the club, the buurt
   'mods', 'upg', 'nades', 'nadeSel', 'spares', 'gear', 'ruStock', 'weer', 'johan', 'club', 'dealer', 'buurt'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
@@ -2108,6 +2130,9 @@ addEventListener('keydown', (e) => {
     if (choiceOpen) return;
     if (!state.inPC && current) current.act();
   }
+  if ((e.code === 'Escape' || e.code === 'Tab') && hub && hub.isOpen()) { e.preventDefault(); hub.escape(); return; } // the top window closes first
+  if (e.code === 'Tab' && !state.inPC && !state.inDialogue && !choiceOpen && !(mission && mission.active) && hub) { e.preventDefault(); hub.show(); return; }
+  if (e.code === 'Escape' && state.inDialogue && !choiceOpen) { nextLine(); return; } // Esc never leaves a line hanging: it moves on like E
   if (e.code === 'Escape' && choiceOpen) { if (choiceCancel !== null) closeChoice(choiceCancel); return; }
   if (e.code === 'Escape' && state.inPC) { if ($('shop').style.display === 'block') closeShop(); else if (!($('pc').style.display === 'block' && kd.escape())) closePC(); }
   if (e.code === 'KeyN') { const on = music.toggle(); toast(on ? 'MUSIC ON' : 'MUSIC OFF', '', 1); writeSave(); }
@@ -3119,7 +3144,7 @@ function tick() {
   if (state.table) spiceInBowl.rotation.y += dt * (state.naknik ? 2 : 0);
   // a finished mission ends the market day (checked back in the hub, so the toast doesn't cover the results screen)
   if (!mission.active && !state.inDialogue && econ.update()) garage.afterMission(); // a mission ended: maybe a wheel clamp
-  if (state.step === 'free' && !mission.active) { const dp = document.getElementById('dayplan'), l = world.hud() + econ.planLine(); if (dp && dp.dataset.l !== l) { dp.dataset.l = l; dp.innerHTML = l; } } // keep today's plan line current
+  if (state.step === 'free' && !mission.active) { const dp = document.getElementById('dayplan'), l = econ.planLine(); if (dp && dp.dataset.l !== l) { dp.dataset.l = l; dp.innerHTML = l; } } // keep today's plan line current
   if (!mission.active) { garage.dayCheck(); const oops = crew.dayCheck(); if (oops) { const here = naknikim.filter((x, k) => x.visible && !crew.napping(k)); const who = here[Math.floor(Math.random() * here.length)]; if (who) { personBubble(who, oops, '#f2c14e'); spiceCloud(who.position); } } }
   if (npcs) npcs.update(dt);
   if (phone) phone.update(dt);
@@ -3128,7 +3153,7 @@ function tick() {
   if (loods && !mOn) loods.update(dt);
   if (johan && !mOn) johan.update(dt);
   if (venues && !mOn) venues.update(dt);
-  buurt.update(dt); bfolk.update(dt); if (vandaag) vandaag.update(dt);
+  buurt.update(dt); bfolk.update(dt); if (vandaag) vandaag.update(dt); if (hub) { hub.update(dt); checkUnlocks(dt); }
   world.update(dt, player.position, state.step !== 'title' && !mOn && !(woning && woning.inside()) && !(winkels && winkels.inside()) && !isInside(player.position) && !(venues && venues.inside())); // rain, snow and lightning on the street (js/kaasweer.js)
   { const P_ = player.position; // the song restyles inside some buildings (js/music.js setStyle), and goes back to the street version outside
     music.setStyle(mOn || oofDrive.active ? null : venues && venues.inClub(P_) ? 'disco' : venues && venues.inShow(P_) ? 'bollywood' : isInShop(P_) ? 'russian' : isInJoint(P_) ? 'arabic' : null); }
@@ -3151,13 +3176,16 @@ function tick() {
   for (const [l, k] of shopLights) l.intensity += ((inShop ? k : 0) - l.intensity) * Math.min(1, dt * 4);
   // interaction prompt
   current = null; let best = 1e9;
+  const fx = Math.sin(player.rotation.y), fz = Math.cos(player.rotation.y);
   for (const it of inter) {
     if (it.enabled && !it.enabled()) continue;
-    const d = it.pos().distanceTo(player.position);
-    if (d < it.r && d < best) { best = d; current = it; }
+    const p = it.pos(), dx = p.x - player.position.x, dz = p.z - player.position.z, d = Math.hypot(dx, dz);
+    if (d >= it.r) continue;
+    const score = d - (d > 0.05 ? (dx * fx + dz * fz) / d : 1) * 0.6; // two things in reach: the one Eddy faces wins
+    if (score < best) { best = score; current = it; }
   }
-  if (current && !state.inDialogue && !state.inPC && state.step !== 'title') { ui.prompt.style.display = 'block'; ui.prompt.innerHTML = `<b style="color:#ffd36b">[${glyph('E')}]</b> ${current.label()}`; }
-  else ui.prompt.style.display = 'none';
+  if (current && !state.inDialogue && !state.inPC && state.step !== 'title') { showPrompt(current); }
+  else { ui.prompt.style.display = 'none'; promptFor = null; }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) ui.toast.style.display = 'none'; }
   // camera: Neon Vice-style high top-down, eased
   const off = new THREE.Vector3(0, 12.5 * zoom, 6 * zoom);
@@ -3334,7 +3362,46 @@ vandaag = createVandaag({ state, econ, rank: () => rankNow(), tutorial: () => tu
   rep: (id) => brep.get(id), wear: () => garage.ensure().wear, owing: () => bills.owing(), addMoney, addRep: (n) => { econ.ensure().rep += n; }, toast, beep, save: () => writeSave(),
   isTouch: () => document.body.classList.contains('touch'),
   hidden: () => state.step === 'title' || state.inDialogue || choiceOpen || state.inPC || mission.active || oofDrive.active || isPaused() || !!(phone && phone.isOpen) || (buurt && buurt.isOpen()) });
-window.__sme = { get vandaag() { return vandaag; }, get brep() { return brep; }, get winkels() { return winkels; }, get bills() { return bills; }, get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+const TAB_NEW = { garage: 'Garage Mo: trade up the Oofmobiel, fit add-ons, and get the wear fixed.', werk: 'The Werkplaats: buy broken machines, fix them up and sell them on.', krant: 'Krant voor het Kaasvolk: the weather, the market and the street, every morning.',
+  plan: 'The Plannenbord: night jobs on rival joints, quiet ones and loud ones.', bills: 'Rekeningen: what Maandag will cost you, and any open bills.', rep: 'Buurten: what each neighbourhood thinks of you, and what that changes.',
+  beurs: 'The Kruidenbeurs: buy spice for the Naknikim to mix. Prices move every day.', meng: 'The Mengkamer: which blend the Naknikim mix.', rapport: 'The Dagrapport: what the clients paid, and how the gangs feel about you.',
+  jobs: 'The Klusbord: delivery jobs for a bit of extra cash.', ideas: 'The Ideeënboek: every trick you learn from the street.', woning: 'Your woning: furniture, outfits and knacks.', loods: 'De Loods: build the warehouse out, step by step.', buurt: 'The Buurtkaart: every shop on the block, and when it is open.' };
+const tabOpen = (id) => (!pcHidden.includes(id) || state.table) && tutorial.showTab(id) && !(UNLOCK[id] && !UNLOCK[id].ok());
+let unlockT = 0;
+function checkUnlocks(dt) { // a PC program that just opened up gets a card with "Laat zien" (js/hub.js)
+  if ((unlockT += dt) < 2 || state.step !== 'free' || tutorial.active()) return; unlockT = 0;
+  const now = Object.keys(TAB_NEW).filter(tabOpen);
+  if (!Array.isArray(state.seenTabs)) { state.seenTabs = now; return; } // an older save: what's open already is not news
+  for (const id of now) if (!state.seenTabs.includes(id)) { state.seenTabs.push(id); hub.unlocked(id, TAB_NEW[id], KD_ICONS[id] || ''); }
+}
+function dueToday() { // what the day strip and Overzicht say is coming
+  const out = [], e = econ.ensure(), d = e.day, c = world ? world.cal() : null;
+  if (winkels && c) { const reg = winkels.regulars().filter((b) => winkels.JOBS[b].wd === (c.wd + 1) % 7); if (reg.length) out.push(`tomorrow ${reg.length} vaste klant${reg.length > 1 ? 'en collect' : ' collects'}`); }
+  const tr = e.inbound.filter((o) => o.day === d + 1).reduce((a, o) => a + o.kg, 0); if (tr) out.push(`truck tomorrow: ${tr} kg`);
+  if (bills) { const owe = bills.owing(); if (owe) out.push(`open bills W ${owe.toLocaleString('nl-NL')}`); else if (c && c.wd === 6 && state.table) out.push(`Maandag: bills ~W ${bills.items().reduce((a, x) => a + x.amt, 0).toLocaleString('nl-NL')}`); }
+  if (garage.ensure().clamp) out.push('wheel clamp on the van'); else if (garage.ensure().wear >= 60) out.push('the van rattles: Garage Mo');
+  if (garage.inspectorDue && garage.inspectorDue()) out.push('the tax inspector is coming');
+  return out;
+}
+function goalSpot(id) { // where a Vandaag goal happens on the street
+  const pc = { x: -8.8, z: -15.4, name: 'the Kaasdows pc' };
+  if (['order', 'krant', 'haggle', 'bills', 'repair'].includes(id)) return pc;
+  if (id === 'rit') return { x: oof.position.x, z: oof.position.z + 2.4, name: 'the Oofmobiel' };
+  if (id === 'rack') return { x: -4.6, z: -18.5, name: 'the racks in De Loods' };
+  if (id === 'naknik' && naknikim[0]) return { x: naknikim[0].position.x, z: naknikim[0].position.z, name: 'a Naknik' };
+  const wd = world ? world.cal().wd : 0, open = bfolk.folk.filter((f) => f.b.open.includes(wd));
+  if (id === 'klus') { const k = open.find((f) => winkels.JOBS[f.biz] && !((state.winkels || {}).jobs || {})[f.biz]); return k ? { biz: k.biz } : null; }
+  if (id === 'talk' && open.length) { const k = open.slice().sort((a, b) => a.p.position.distanceTo(player.position) - b.p.position.distanceTo(player.position))[0]; return { biz: k.biz }; }
+  return null;
+}
+hub = createHub({ THREE, state, econ, world: () => world, bills: () => bills, brep: () => brep, vandaag: () => vandaag, winkels: () => winkels, buurt: () => buurt, openPC: (t) => openPC(t), camera, player, toast, beep, save: () => writeSave(),
+  blocked: () => state.step === 'title' || state.inDialogue || choiceOpen || mission.active || oofDrive.active || isPaused() || (state.inPC && !hub.isOpen()),
+  busy: () => state.inDialogue || choiceOpen || state.inPC || mission.active || oofDrive.active || isPaused() || !!(phone && phone.isOpen),
+  indoors: () => isInside(player.position) || !!(winkels && winkels.inside()) || !!(woning && woning.inside()) || !!(venues && venues.inside()),
+  goalSpot, dueToday, tabLabel: (id) => (icons.find(([i]) => i === id) || [, , id])[2], isTouch: () => document.body.classList.contains('touch'),
+  inPCTab: () => (state.inPC && pcTab ? (icons.find(([id]) => id === pcTab) || [, , ''])[2] : '') });
+ui.money.addEventListener('click', (e) => { e.stopPropagation(); if (hub.show('geld')) beep(700, 0.03, 'triangle', 0.02); });
+window.__sme = { get hub() { return hub; }, get vandaag() { return vandaag; }, get brep() { return brep; }, get winkels() { return winkels; }, get bills() { return bills; }, get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active || oofDrive.active });
 fiets = createFiets({ THREE, scene, player, keys, collide, addInteract, toast, beep, bell, canvasTex, park: { x: 2.2, z: -6.2, h: Math.PI / 2 },
   busy: () => mission.active || oofDrive.active, frozen: () => state.inDialogue || state.inPC || !!(phone && phone.isOpen) || isPaused(), knocked: () => knock.t > 0 });

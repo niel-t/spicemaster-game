@@ -190,15 +190,20 @@ export function createBuurt(deps) {
   function setRoute(id) {
     const b = byId[id]; if (!b || b.x0 == null) return;
     const x = Math.max(deps.walk.x0 + 1, Math.min(deps.walk.x1 - 1, cx(b)));
-    route = { id, x, z: b.side === 'n' ? -5.4 : FZ - 1.3 }; beacon.position.set(route.x, 0, route.z); beacon.visible = true;
+    route = { id, x, z: b.side === 'n' ? -5.4 : FZ - 1.3, name: b.short || b.name }; beacon.position.set(route.x, 0, route.z); beacon.visible = true;
     deps.toast('ROUTE', `${b.name}: follow the yellow light.${b.side === 's' ? ' It is across the canal: take the bridge by your parking or the white ophaalbrug at the east end.' : ''}`, 2.6);
   }
+  function setPoint(x, z, name) { // any spot on the street (js/hub.js: a Vandaag goal): the PC, the van, a Naknik
+    route = { id: null, x, z, name: name || '' }; beacon.position.set(x, 0, z); beacon.visible = true;
+    deps.toast('ROUTE', `${name || 'There'}: follow the yellow light.`, 2.2);
+  }
+  function clearRoute() { route = null; beacon.visible = false; }
   function update(dt) {
     panels();
     if (!route) return;
     const show = !deps.busy() && !deps.indoors(); beacon.visible = show;
     const t = performance.now() / 1000; beacon.userData.arrow.position.y = 2.6 + Math.sin(t * 3) * 0.25; beacon.userData.arrow.rotation.y = t * 1.5;
-    if (show && Math.hypot(player.position.x - route.x, player.position.z - route.z) < 2.2) { const b = byId[route.id]; route = null; beacon.visible = false; deps.toast(b.name.toUpperCase(), openToday(b, wd()) ? `Open today · ${b.hours}` : `Closed today · open ${daysText(b)}`, 2.4); deps.beep(880, 0.08, 'triangle', 0.04); }
+    if (show && Math.hypot(player.position.x - route.x, player.position.z - route.z) < 2.2) { if (!route.id) { deps.toast((route.name || 'HERE').toUpperCase(), 'You’re there.', 1.6); route = null; beacon.visible = false; return; } const b = byId[route.id]; route = null; beacon.visible = false; deps.toast(b.name.toUpperCase(), openToday(b, wd()) ? `Open today · ${b.hours}` : `Closed today · open ${daysText(b)}`, 2.4); deps.beep(880, 0.08, 'triangle', 0.04); }
   }
 
   // ---------------------------------------------------------------- the buurtkaart (HTML + SVG), on the PC and as an overlay on the street
@@ -295,5 +300,5 @@ export function createBuurt(deps) {
     document.head.appendChild(css);
   }
 
-  return { BIZ, html, bind, open, close, isOpen, update, setRoute, paperAd, get route() { return route; } };
+  return { BIZ, html, bind, open, close, isOpen, update, setRoute, setPoint, clearRoute, paperAd, get route() { return route; } };
 }
