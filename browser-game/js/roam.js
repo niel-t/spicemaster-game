@@ -9,6 +9,9 @@
 // the home street without one extra person or car.
 // The top-down drive, the missions and the saves are untouched: this only adds street.
 
+import { buildRotondes, DIMS } from './rotonde.js';
+import { build as buildLandmark, LANDMARKS, KOMIJN_LANDMARKS } from './landmarks.js';
+
 const NZ = -11.0002, SZoff = 0.0002; // a hair off the home rows, so these houses stay off the buurtkaart
 export const CHUNKS = [
   { id: 'uitjesbuurt', name: 'Uitjesbuurt', a: -340, b: -220, seed: 61, joint: 'uitjesbuurt', jointSign: 'DE ZURE UI', jointAt: 8, end: -1, client: 'uitjesbuurt',
@@ -23,6 +26,9 @@ const NEAR = 95, FAR_HIDE = 150;
 // and the dwarsstraten that join them (x of their centre lines; each is 8 m between the house fronts)
 export const BZ = { wall: -47.5, pS: -50, road: -56, bay: -58, pN: -60.5, house: -65 };
 export const CROSS = [-330, -224, -104, 104, 210];
+// where the dwarsstraten meet the Komijnstraat: a rotonde each (js/rotonde.js), the north row open on a plein with a landmark
+export const ROT_Z = -54, ROT_GAP = 13.5;
+export const KOMIJN_RING = { car: (DIMS.komijn.ra + DIMS.komijn.ro) / 2 + 0.2, walk: (DIMS.komijn.rf + DIMS.komijn.rw) / 2, L: 8, Lw: 11, southTurn: true };
 const CW = 4;
 
 // deps: THREE, scene, player, state, streetPiece(a, b), house(...), spanWidths(len, k), solid(...), solids, fadeables, car(x, z, col, rot, solid),
@@ -50,23 +56,23 @@ export function createRoam(deps) {
       const g = new THREE.Group(), K = deps.kit(), T = deps.kit();
       flat(g, a, b, -130, -70, deps.groundMat, 0);
       flat(g, a, b, BZ.road, BZ.pS, ST.road, 0.02); flat(g, a, b, BZ.bay, BZ.road, ST.bay, 0.022); flat(g, a, b, BZ.pN, BZ.bay, ST.paveN, 0.012); flat(g, a, b, BZ.pS, BZ.wall, ST.paveN, 0.012);
-      for (const z of [BZ.bay - 0.1, BZ.pS + 0.1]) { const q = new THREE.Mesh(new THREE.BoxGeometry(L, 0.16, 0.18), deps.kerbMat); q.position.set(cx, 0.08, z); q.receiveShadow = true; g.add(q); }
-      for (let x = a + 2; x < b; x += 4) K.box(2, 0.01, 0.12, W, x, 0.035, (BZ.road + BZ.pS) / 2);
-      K.box(L, 0.01, 0.1, W, cx, 0.032, BZ.road);
-      for (let x = a + 2.8; x < b; x += 5.6) K.box(0.1, 0.01, 1.9, W, x, 0.032, (BZ.bay + BZ.road) / 2);
+      for (const z of [BZ.bay - 0.1, BZ.pS + 0.1]) for (const [p, q2] of cut(a, b, DIMS.komijn.rf, 0.5)) { const q = new THREE.Mesh(new THREE.BoxGeometry(q2 - p, 0.16, 0.18), deps.kerbMat); q.position.set((p + q2) / 2, 0.08, z); q.receiveShadow = true; g.add(q); }
+      for (let x = a + 2; x < b; x += 4) if (CROSS.every((X) => Math.abs(x - X) > DIMS.komijn.rf + 1)) K.box(2, 0.01, 0.12, W, x, 0.035, (BZ.road + BZ.pS) / 2);
+      for (const [p, q] of cut(a, b, DIMS.komijn.rf, 0.5)) K.box(q - p, 0.01, 0.1, W, (p + q) / 2, 0.032, BZ.road);
+      for (let x = a + 2.8; x < b; x += 5.6) if (CROSS.every((X) => Math.abs(x - X) > DIMS.komijn.rf + 1)) K.box(0.1, 0.01, 1.9, W, x, 0.032, (BZ.bay + BZ.road) / 2);
       const km = K.build(); if (km) g.add(km);
-      { const pts = []; for (let x = a + 9; x < b; x += 18) pts.push([x, BZ.bay + 0.6]); deps.lampPool(pts, g); } // light under the lamps at night
+      { const pts = []; for (let x = a + 9; x < b; x += 18) if (CROSS.every((X) => Math.abs(x - X) > 10)) pts.push([x, BZ.bay + 0.6]); deps.lampPool(pts, g); } // light under the lamps at night
       scene.add(g);
     });
     for (let sa = a; sa < b; sa += 40) S.push(() => { // lamps, lindens and Amsterdammertjes, a stretch at a time (so what is off screen is not drawn)
       const K = deps.kit(), T = deps.kit(), sb = Math.min(b, sa + 40), inS = (x) => x >= sa && x < sb;
-      for (let x = a + 9; x < b; x += 18) if (inS(x)) deps.lamp(x, BZ.bay - 0.5, K);
-      for (let x = a + 4; x < b; x += 13) if (inS(x) && CROSS.every((X) => Math.abs(x - X) > 5)) deps.tree(x, BZ.pS + 0.9, 0.8, T);
-      for (let x = a + 1.4; x < b; x += 2.8) if (inS(x) && CROSS.every((X) => Math.abs(x - X) > 4.4)) deps.bollard(x, BZ.pS + 0.25, K);
+      for (let x = a + 9; x < b; x += 18) if (inS(x) && CROSS.every((X) => Math.abs(x - X) > 10)) deps.lamp(x, BZ.bay - 0.5, K);
+      for (let x = a + 4; x < b; x += 13) if (inS(x) && CROSS.every((X) => Math.abs(x - X) > 9)) deps.tree(x, BZ.pS + 0.9, 0.8, T);
+      for (let x = a + 1.4; x < b; x += 2.8) if (inS(x) && CROSS.every((X) => Math.abs(x - X) > 8.6)) deps.bollard(x, BZ.pS + 0.25, K);
       const km = K.build(), tm = T.build(); if (km) scene.add(km); if (tm) { tm.castShadow = !low; scene.add(tm); }
     });
-    { let x = a, k = 0; for (const w of deps.spanWidths(L, seed + 11)) { const xx = x + w / 2, kk = k; // the north side: houses and corner shops
-      S.push(() => { deps.house(xx, BZ.house, w, 9, 9 + ((kk + seed) % 4) * 1.1, 0, kk + seed + 6, kk % 4 === 1 ? BACK_SIGNS[(kk + seed) % BACK_SIGNS.length] : null, low ? { simple: true } : {}); }); x += w; k++; } }
+    { let k = 0; for (const [p0, q0] of cut(a, b, ROT_GAP, 1)) { let x = p0; for (const w of deps.spanWidths(q0 - p0, seed + 11 + k)) { const xx = x + w / 2, kk = k; // the north side: houses and corner shops (open where a rotonde is)
+      S.push(() => { deps.house(xx, BZ.house, w, 9, 9 + ((kk + seed) % 4) * 1.1, 0, kk + seed + 6, kk % 4 === 1 ? BACK_SIGNS[(kk + seed) % BACK_SIGNS.length] : null, low ? { simple: true } : {}); }); x += w; k++; } } }
     for (const [p0, q0] of cut(a, b, 13, 1)) for (let p = p0; p < q0; p += 50) S.push(() => { // the south side: the back of the kade's gardens, a long brick wall with garage doors and gates, trees over it
       const K = deps.kit(), T = deps.kit(), q = Math.min(q0, p + 50);
       {
@@ -81,10 +87,10 @@ export function createRoam(deps) {
       }
       const km = K.build(), tm = T.build(); if (km) { km.castShadow = !low; scene.add(km); } if (tm) { tm.castShadow = true; scene.add(tm); }
     });
-    S.push(() => { let k = seed; for (let x = a + 2.8; x < b - 3; x += 5.6) { k++; if ((k * 7) % (low ? 6 : 3) === 0) deps.car(x, (BZ.bay + BZ.road) / 2, null, (k % 2) * Math.PI, true); } }); // parked along the north kerb
-    for (const X of CROSS) if (X > a && X < b) crossSteps(S, X, seed + Math.abs(X), low);
+    S.push(() => { let k = seed; for (let x = a + 2.8; x < b - 3; x += 5.6) { k++; if ((k * 7) % (low ? 6 : 3) === 0 && CROSS.every((X) => Math.abs(x - X) > 10.5)) deps.car(x, (BZ.bay + BZ.road) / 2, null, (k % 2) * Math.PI, true); } }); // parked along the north kerb
+    for (const X of CROSS) if (X > a && X < b) crossSteps(S, X, seed + Math.abs(X), low, c);
   }
-  function crossSteps(S, X, seed, low) {
+  function crossSteps(S, X, seed, low, c) {
     const ST = deps.ST, z0 = BZ.wall, z1 = -15.5;
     S.push(() => { // a dwarsstraat: one lane of klinkers between two narrow pavements, from the kade to the Komijnstraat
       const g = new THREE.Group(), K = deps.kit();
@@ -97,6 +103,17 @@ export function createRoam(deps) {
     for (const s of [-1, 1]) { let z = z0, k = 0; for (const w of deps.spanWidths(z1 - z0, seed + (s > 0 ? 3 : 0))) { const zz = z + w / 2, kk = k; // houses down both sides, facing the dwarsstraat
       S.push(() => { deps.house(X + s * 8.5, zz, w, 9, 9 + ((kk + seed) % 4) * 1.1, s < 0 ? Math.PI / 2 : -Math.PI / 2, kk + seed + 2, null, low ? { simple: true } : {}); }); z += w; k++; }
       S.push(() => { deps.solid(X + s * 4, X + s * 13, z0, z1); }); }
+    S.push(() => { // the rotonde where it meets the Komijnstraat, the plein behind it and what stands there
+      const g = new THREE.Group(), kind = KOMIJN_LANDMARKS[String(X)], LM = LANDMARKS[kind], zf = BZ.pN - 2.2; scene.add(g);
+      buildRotondes(deps, [{ x: X, z: ROT_Z, arms: ['e', 'w', 's'], art: ['tulips', 'xxx', 'tree', 'tulips', 'xxx'][CROSS.indexOf(X)] }], DIMS.komijn, g);
+      flat(g, X - ROT_GAP, X + ROT_GAP, zf - 7, BZ.pN, ST.paveN, 0.011);
+      const KP = deps.kit(), TP = deps.kit(); for (const s of [-1, 1]) deps.tree(X + s * 11.6, BZ.pN - 2.5, 0.8, TP);
+      const pm = KP.build(), tm = TP.build(); if (pm) g.add(pm); if (tm) { tm.castShadow = !low; g.add(tm); }
+      if (LM) buildLandmark(kind, { THREE, kit: deps.kit, x: X, z: zf, low, add: (m) => g.add(m),
+        sign: (lines, w, hh, x, y, z, bg, fg, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), deps.lam({ map: deps.signTex(lines.map(([tx, size]) => ({ t: tx, size })), bg, fg, 512, Math.max(64, Math.round(512 * hh / w))) })); m.position.set(x, y, z); m.rotation.y = ry || 0; g.add(m); return m; } });
+      if (LM) deps.addInteract({ pos: () => new THREE.Vector3(X, 0, BZ.pN + 0.9), r: 2.2, enabled: () => c.vis && c.st === 'done' && !deps.busy(), label: () => `${LM.name} · read the plaque`,
+        act: () => deps.toast(LM.name.toUpperCase(), `${LM.blurb} <small>Kaasland's ${LM.real}. Kipkruidenkwartier is Kaasland's Jordaan.</small>`, 7) });
+    });
   }
 
   // ---- the plan of a chunk: the same list every time (so the joint's door is known before anything is built)

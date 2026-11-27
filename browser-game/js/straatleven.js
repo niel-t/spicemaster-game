@@ -2,9 +2,14 @@
 // other districts. A small pool that follows Eddy: whatever falls far behind him is put down again ahead, on one of
 // the streets near him, so every street he turns into has traffic without one extra car in memory.
 //
-// set(streets | null): streets = [{ x0, x1, lanes: [z westbound, z eastbound], walks: [z north pavement, z south pavement] }]
+// set(streets | null): streets = [{ x0, x1, lanes: [z westbound, z eastbound], walks: [z north pavement, z south pavement],
+//   rings?: [{ x, z }] rotondes on this street (js/rotonde.js), ring?: { car, walk, L, Lw, southTurn } radii round the island and swerve lengths }
+// At a rotonde the cars swerve round the island (anticlockwise) and slow down; walkers on the plein side follow the pavement
+// ring, walkers on the other side cross the side street on the zebra, or turn back where there is no room (southTurn).
 // deps: THREE, scene, player, makeCar(opts), passerBy(seed), animate(person, speed, dt), solid(x0, x1, z0, z1),
 //       eddy() -> { x, z, r } (Eddy, or the vehicle he is in), low
+
+import { bend } from './rotonde.js';
 
 export function createStraatLeven(deps) {
   const { player } = deps;
@@ -26,8 +31,8 @@ export function createStraatLeven(deps) {
     if (Math.abs(x - px) < 22 && Math.abs((s.lanes[0] + s.lanes[1]) / 2 - pz) < 18) { hide(e, isCar); return; } // never pop up in view
     e.s = s; e.on = true;
     if (isCar) { if (cars.some((c) => c !== e && c.on && c.s === s && c.dir === e.dir && Math.abs(c.g.position.x - x) < 14)) { hide(e, true); return; }
-      e.g.position.set(x, 0, s.lanes[e.dir > 0 ? 1 : 0]); e.g.rotation.y = e.dir > 0 ? 0 : Math.PI; e.g.visible = true; e.v = 6; }
-    else { e.p.position.set(x, 0, s.walks[rnd() < 0.5 ? 0 : 1] + (rnd() - 0.5) * 0.7); e.p.rotation.y = e.dir > 0 ? Math.PI / 2 : -Math.PI / 2; e.p.visible = true; }
+      e.z0 = s.lanes[e.dir > 0 ? 1 : 0]; e.g.position.set(x, 0, e.z0); e.g.rotation.y = e.dir > 0 ? 0 : Math.PI; e.g.visible = true; e.v = 6; }
+    else { e.z0 = s.walks[rnd() < 0.5 ? 0 : 1] + (rnd() - 0.5) * 0.7; if (s.rings && s.ring && s.rings.some((r) => Math.abs(x - r.x) < s.ring.Lw)) { hide(e, false); return; } e.p.position.set(x, 0, e.z0); e.p.rotation.y = e.dir > 0 ? Math.PI / 2 : -Math.PI / 2; e.p.visible = true; }
   }
   function hide(e, isCar) { e.on = false; e.wait = 0.6 + rnd() * 2; if (isCar) { e.g.visible = false; e.sol.off = true; } else e.p.visible = false; }
   function set(list) {
@@ -46,8 +51,10 @@ export function createStraatLeven(deps) {
       // brake for Eddy (on foot or at the wheel) and for the car in front
       let gap = 1e9; const dE = (E.x - p.x) * c.dir; if (dE > 0 && Math.abs(E.z - p.z) < 1.3 + E.r) gap = dE - c.half - E.r;
       for (const o of cars) if (o !== c && o.on && o.s === c.s && o.dir === c.dir) { const d = (o.g.position.x - p.x) * c.dir; if (d > 0) gap = Math.min(gap, d - c.half - o.half); }
-      const want = gap < 1.5 ? 0 : gap < 9 ? Math.min(7.5, gap * 0.9) : 7.5; c.v += (want - c.v) * Math.min(1, dt * (want < c.v ? 5 : 1.2));
+      const B = c.s.rings && c.s.ring ? bend(c.s.rings, p.x + c.dir * 4, c.z0, c.s.ring.car, c.s.ring.L) : null, top = B ? 4.6 : 7.5; // slow into the rotonde
+      const want = gap < 1.5 ? 0 : gap < 9 ? Math.min(top, gap * 0.9) : top; c.v += (want - c.v) * Math.min(1, dt * (want < c.v ? 5 : 1.2));
       p.x += c.dir * c.v * dt;
+      if (c.s.rings && c.s.ring) { const b = bend(c.s.rings, p.x, c.z0, c.s.ring.car, c.s.ring.L); p.z = b ? b.z : c.z0; c.g.rotation.y = Math.atan2(-(b ? b.slope : 0) * c.dir, c.dir); }
       Object.assign(c.sol, { minx: p.x - c.half, maxx: p.x + c.half, minz: p.z - 0.85, maxz: p.z + 0.85, off: false });
       if (p.x < c.s.x0 || p.x > c.s.x1 || Math.abs(p.x - px) > 100 || Math.abs(p.z - pz) > 95) hide(c, true);
     }
@@ -55,6 +62,9 @@ export function createStraatLeven(deps) {
       if (!f.on) { f.wait = (f.wait || 0) - dt; if (f.wait <= 0) drop(f, false); continue; }
       const p = f.p.position, dE = (E.x - p.x) * f.dir, blocked = dE > 0 && dE < 1.1 + E.r && Math.abs(E.z - p.z) < 0.7 + E.r;
       const v = blocked ? 0 : f.v; p.x += f.dir * v * dt; deps.animate(f.p, v, dt);
+      if (f.s.rings && f.s.ring) { const R = f.s.ring, side = f.z0 < (f.s.lanes[0] + f.s.lanes[1]) / 2 ? -1 : 1;
+        if (side > 0 && R.southTurn) { const r = f.s.rings.find((q) => Math.abs(p.x + f.dir * 2 - q.x) < R.Lw); if (r && (r.x - p.x) * f.dir > 0) { f.dir = -f.dir; f.p.rotation.y = f.dir > 0 ? Math.PI / 2 : -Math.PI / 2; } } // no room past the corner: turn back
+        else { const b = bend(f.s.rings, p.x, f.z0, R.walk, R.Lw); p.z = b ? b.z : f.z0; f.p.rotation.y = Math.atan2(f.dir, (b ? b.slope : 0) * f.dir); } }
       if (p.x < f.s.x0 + 1 || p.x > f.s.x1 - 1) { f.dir = -f.dir; f.p.rotation.y = f.dir > 0 ? Math.PI / 2 : -Math.PI / 2; p.x = Math.max(f.s.x0 + 1.1, Math.min(f.s.x1 - 1.1, p.x)); }
       if (Math.abs(p.x - px) > 100 || Math.abs(p.z - pz) > 95) hide(f, false);
     }

@@ -8,18 +8,21 @@
 // Each district is built the first time Eddy arrives, far from the home streets, and hidden again when he leaves.
 // While he is there main.js treats him as "away" (the same gate as a trip), so nothing at home interrupts.
 
+import { buildRotondes, DIMS } from './rotonde.js';
+import { build as buildLandmark, LANDMARKS, WIJK_LANDMARKS, WIJK_ART, stall, letters } from './landmarks.js';
+
 export const WIJKEN = {
-  lampas: { name: 'Oud-Vettenburg', gang: 'Lampas', seed: 11, at: 0,
+  lampas: { name: 'Oud-Vettenburg', real: 'het Centrum', gang: 'Lampas', seed: 11, at: 0,
     signs: ['FRITUUR DE VETTE HAP', 'CAFE HET VETTE VARKEN', 'GOKHAL JACKPOT', 'SLAGERIJ VAN KAAS', 'TABAK & LOTTO', 'SNACKBAR OUD-VET', 'KROEG DE LAMP', 'PATAT SPECIAAL'] },
-  nosh: { name: 'Hipsterheuvel', gang: 'Noshgey Kariot', seed: 23, at: 1, colors: [0xf2c8d0, 0xcfe8d8, 0xf6e7b0, 0xc8dcf2, 0xe8d0f0, 0xf4d4b8], tree: 2,
+  nosh: { name: 'Hipsterheuvel', real: 'Amsterdam-Noord', gang: 'Noshgey Kariot', seed: 23, at: 1, colors: [0xf2c8d0, 0xcfe8d8, 0xf6e7b0, 0xc8dcf2, 0xe8d0f0, 0xf4d4b8], tree: 2,
     signs: ['HAVERMELKBAR', 'YOGA & KOMBUCHA', 'FIETSCAFE DE KETTING', 'VINTAGE', 'BARBIER BAARD', 'PLANTENWINKEL', 'BROODJE AVOCADO', 'COWORKING'] },
-  docks: { name: 'De Duistere Dokken', gang: 'Abdavissies', seed: 37, at: 2, colors: [0x3a4450, 0x4a4038, 0x2e3a44, 0x5a5048, 0x38424a], brick: true, tree: 0,
+  docks: { name: 'De Duistere Dokken', real: 'het Oosterdok', gang: 'Abdavissies', seed: 37, at: 2, colors: [0x3a4450, 0x4a4038, 0x2e3a44, 0x5a5048, 0x38424a], brick: true, tree: 0,
     signs: ['SCHEEPSHANDEL', 'HAVENCAFE HET ANKER', 'VISHAL', 'TOUW & ZEIL', 'DOUANE', 'CONTAINERVERHUUR', 'ZEEMANSHUIS', 'KRAANVERHUUR'] },
-  sand: { name: 'De Zandwijk', gang: 'Paravim', seed: 53, at: 3, colors: [0xe8d2a0, 0xf2ead8, 0xd8a868, 0xc87848, 0xf0dcb0], ground: 0xd8b878, tree: 0,
+  sand: { name: 'De Zandwijk', real: 'Amsterdam-West', gang: 'Paravim', seed: 53, at: 3, colors: [0xe8d2a0, 0xf2ead8, 0xd8a868, 0xc87848, 0xf0dcb0], ground: 0xd8b878, tree: 0,
     signs: ['THEEHUIS', 'SOUK', 'DADELS & NOTEN', 'TAPIJTEN', 'SHISHA LOUNGE', 'KRUIDENBAZAAR', 'BAKKERIJ PITA', 'KOPERSMID'] },
   // De Peperpijp (2026-11-27): no gang, no joints. The old quarter round the Albert Kuipmarkt, off the A10 at S109, where the
   // spoed customers have their kitchens (js/spoed.js). Always open: Eddy drives the bags here and unloads at the kerb.
-  pijp: { name: 'De Peperpijp', gang: 'customers', seed: 89, at: 5, colors: [0x8a4a3a, 0x9a5a44, 0x6a3a30, 0x7a4a38, 0xa0644a], brick: true, tree: 1,
+  pijp: { name: 'De Peperpijp', real: 'De Pijp', market: true, gang: 'customers', seed: 89, at: 5, colors: [0x8a4a3a, 0x9a5a44, 0x6a3a30, 0x7a4a38, 0xa0644a], brick: true, tree: 1,
     shops: ['Grillroom Zuid', 'Restaurant De Lepel', 'Kapsalon King', 'Snackbar Bij Henk', 'Eetcafé Het Kuipje', 'Toko Sranang', 'Shoarma Ferdinand Bol', 'Nachtwinkel Abdel'],
     signs: ['ALBERT KUIPMARKT', 'BRUIN CAFE DE ZWAAN', 'FIETSENMAKER', 'STROOPWAFELS', 'HARING & ZO', 'BLOEMEN', 'KAPPER', 'SIGARENMAGAZIJN'],
     intro: 'Albert Kuipmarkt, terrasjes, bakfietsen. Your spoed customers have their kitchens here. The A10 oprit is at the east end of this street.' },
@@ -35,6 +38,7 @@ const SA = SZ[0], PLEIN = [0, 1]; // strip, block
 //       signTex, addInteract, toast, dialogue, choice, setBounds, snapCam, setArea, makeVan, fadeTo(fn), route(x, z, label) / route(null),
 //       joints(key) -> [{ name, id, open(), owned(), retaken() }], raid(id), clientLine(id), goHome(), dismount(), busy(), low,
 //       adoptVan(van, solid) -> the ride system's vehicle, mount(v), riding() -> vehicle | null, isOpen(key), trip({ from, to, theme, onDone })
+const RING_WIJK = { car: (DIMS.wijk.ra + DIMS.wijk.ro) / 2 + 0.2, walk: (DIMS.wijk.rf + DIMS.wijk.rw) / 2, L: 10, Lw: 13 };
 export function createWijk(deps) {
   const { THREE, scene, player } = deps;
   const towns = {};
@@ -88,6 +92,8 @@ export function createWijk(deps) {
     for (let i = 0; i < 6; i++) { const fx = O.x + 92 + i * 3.2; K.cyl(0.05, 0.06, 7, 0xc8ccd2, fx, 3.5, O.z + 5.4, 6); K.box(1.5, 0.9, 0.03, [0xd8202a, 0xf4f4f0, 0x14499a, 0xe8862c, 0xf2c31a, 0x2f6a3a][i], fx + 0.8, 6.4, O.z + 5.4); }
     K.box(5, 0.12, 1.8, 0x3a3e44, O.x + 30, 2.5, O.z + 5.3); for (const dx of [-2.4, 2.4]) K.box(0.08, 2.5, 0.08, 0x3a3e44, O.x + 30 + dx, 1.25, O.z + 5.9); K.box(4.8, 2.0, 0.06, 0x6a94b4, O.x + 30, 1.3, O.z + 6.1); K.box(3.4, 0.08, 0.4, 0x7a5a3a, O.x + 30, 0.5, O.z + 5.7);
     K.box(0.6, 1.5, 0.45, 0xf2c31a, O.x + 12, 0.75, O.z + 5.3); K.box(0.4, 0.3, 0.04, 0x1a1a1a, O.x + 12, 1.15, O.z + 5.06);
+    { const x1 = letters(K, O.x + 36, O.z + 6.2, 0.26, 0.6); deps.solid(O.x + 36, x1, O.z + 5.9, O.z + 6.5); const L = LANDMARKS.letters; // the letters, for the photo
+      deps.addInteract({ pos: () => new THREE.Vector3((O.x + 36 + x1) / 2, 0, O.z + 5.3), r: 2.2, enabled: () => T === t && !deps.busy() && !deps.riding(), label: () => `${L.name} · read the plaque`, act: () => deps.toast(L.name, `${L.blurb} <small>Kaasland's version of ${L.real}.</small>`, 6) }); }
     { const km = K.build(); if (km) { km.castShadow = !low; g.add(km); } }
     { const pts = []; for (let x = 4; x < X1; x += 16) pts.push([O.x + x, O.z - 5.4]); deps.lampPool(pts, g); }
     scene.add(g);
@@ -118,8 +124,12 @@ export function createWijk(deps) {
     const n0 = scene.children.length, s0 = deps.solids.length, f0 = deps.fadeables.length;
     const track = () => { for (let i = n0; i < scene.children.length; i++) t.objs.push(scene.children[i]); for (let i = s0; i < deps.solids.length; i++) t.sols.push(deps.solids[i]); for (let i = f0; i < deps.fadeables.length; i++) t.houses.push(deps.fadeables[i]); return (towns[key] = t); };
     if (W.custom) { buildAir(t); return track(); }
-    t.rect = RECT; t.vanAt = { x: XS[0] + 1, z: SA + RW - 1.2 }; t.oprit = { x: XE, z: SA + 1 }; t.lines = SZ.map((zs) => ({ x0: -4, x1: XE + 4, lanes: [zs - 0.5, zs + 2.5], walks: [zs - RW - 1.3, zs + RW + 1.5] }));
+    t.rect = XS.length > 2 ? { ...RECT, z0: SA - RW - PV - 9.3 } : RECT; t.vanAt = { x: XS[0] + 1, z: SA + RW - 1.2 }; t.oprit = { x: XE, z: SA + 1 }; t.lines = SZ.map((zs) => ({ x0: -4, x1: XE + 4, lanes: [zs - 0.5, zs + 2.5], walks: [zs - RW - 1.3, zs + RW + 1.5] }));
     const g = new THREE.Group(), K = deps.kit(), WH = 0xf4f2ec, X0 = XS[0] - 6, X1 = XE + 6, L = X1 - X0, ZN = SZ[SZ.length - 1];
+    // the dwarsstraten that run north into the first street end at a rotonde, with a plein and a landmark behind it
+    const RD = DIMS.wijk, ROT = XS.slice(1, -1), GAP = 13, nearRot = (x, m) => ROT.some((X) => Math.abs(x - X) < m);
+    const segs = (a, b, half) => { let out = [[a, b]]; for (const X of ROT) out = out.flatMap(([p, q]) => (X + half <= p || X - half >= q ? [[p, q]] : [[p, X - half], [X + half, q]])); return out.filter(([p, q]) => q - p > 2); };
+    t.lines[0].rings = ROT.map((X) => ({ x: X, z: SA })); t.spins = [];
     const flat = (x0, x1, z0, z1, m, y, alongZ) => { const len = alongZ ? z1 - z0 : x1 - x0, wid = alongZ ? x1 - x0 : z1 - z0, geo = new THREE.PlaneGeometry(len, wid), uv = geo.attributes.uv, k = len / 200;
       for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * k);
       const p = new THREE.Mesh(geo, m); p.rotation.x = -Math.PI / 2; if (alongZ) p.rotation.z = Math.PI / 2; p.position.set(O.x + (x0 + x1) / 2, y, O.z + (z0 + z1) / 2); p.receiveShadow = true; g.add(p); return p; };
@@ -129,25 +139,25 @@ export function createWijk(deps) {
     for (const zs of SZ) {
       flat(X0, X1, zs - RW, zs + RW, ST.road, 0.02); flat(X0, X1, zs - RW, zs - RW + 2, ST.bay, 0.022);
       flat(X0, X1, zs - RW - PV, zs - RW, ST.paveN, 0.012); flat(X0, X1, zs + RW, zs + RW + PV, ST.paveN, 0.012);
-      for (const z of [zs - RW - 0.1, zs + RW + 0.1]) { const q = new THREE.Mesh(new THREE.BoxGeometry(L, 0.16, 0.18), deps.kerbMat); q.position.set(O.x + (X0 + X1) / 2, 0.08, O.z + z); q.receiveShadow = true; g.add(q); }
-      for (let x = X0 + 2; x < X1; x += 4) K.box(2, 0.01, 0.12, WH, O.x + x, 0.035, O.z + zs + 1);
-      K.box(L, 0.01, 0.1, WH, O.x + (X0 + X1) / 2, 0.032, O.z + zs - RW + 2);
-      for (let x = X0 + 2.8; x < X1; x += 5.6) K.box(0.1, 0.01, 1.9, WH, O.x + x, 0.032, O.z + zs - RW + 1);
+      for (const z of [zs - RW - 0.1, zs + RW + 0.1]) for (const [p, q2] of zs === SA ? segs(X0, X1, RD.rf) : [[X0, X1]]) { const q = new THREE.Mesh(new THREE.BoxGeometry(q2 - p, 0.16, 0.18), deps.kerbMat); q.position.set(O.x + (p + q2) / 2, 0.08, O.z + z); q.receiveShadow = true; g.add(q); }
+      for (let x = X0 + 2; x < X1; x += 4) if (!(zs === SA && nearRot(x, RD.rf + 1))) K.box(2, 0.01, 0.12, WH, O.x + x, 0.035, O.z + zs + 1);
+      for (const [p, q] of zs === SA ? segs(X0, X1, RD.rf) : [[X0, X1]]) K.box(q - p, 0.01, 0.1, WH, O.x + (p + q) / 2, 0.032, O.z + zs - RW + 2);
+      for (let x = X0 + 2.8; x < X1; x += 5.6) if (!(zs === SA && nearRot(x, RD.rf + 1))) K.box(0.1, 0.01, 1.9, WH, O.x + x, 0.032, O.z + zs - RW + 1);
     }
     // the dwarsstraten: klinkers from the Lange straat to the Achterstraat
     for (let si = 0; si < SZ.length - 1; si++) for (const X of XS) { flat(X - 3, X + 3, SZ[si] + RW, SZ[si + 1] - RW, ST.bay, 0.024, true); for (const s of [-1, 1]) flat(X + s * 4.5 - 1.5, X + s * 4.5 + 1.5, SZ[si] + RW + PV, SZ[si + 1] - RW - PV, ST.paveN, 0.014, true); }
     { const km = K.build(); if (km) g.add(km); }
     { const pts = []; for (const zs of SZ) for (let x = X0 + 9; x < X1; x += 18) pts.push([O.x + x, O.z + zs - RW + 0.6]); deps.lampPool(pts, g); } // light under the lamps at night
     // zebras where a dwarsstraat meets a long street
-    { const KZ = deps.kit(); for (const zs of SZ) for (const X of XS) for (const s of [-1, 1]) for (let q = -3; q <= 3; q++) KZ.box(1.6, 0.012, 0.42, WH, O.x + X + s * 7.2, 0.034, O.z + zs + q * 0.95 + 0.5); const km = KZ.build(); if (km) g.add(km); }
+    { const KZ = deps.kit(); for (const zs of SZ) for (const X of XS) if (!(zs === SA && ROT.includes(X))) for (const s of [-1, 1]) for (let q = -3; q <= 3; q++) KZ.box(1.6, 0.012, 0.42, WH, O.x + X + s * 7.2, 0.034, O.z + zs + q * 0.95 + 0.5); const km = KZ.build(); if (km) g.add(km); }
     scene.add(g);
     // lamps, trees and Amsterdammertjes, a stretch at a time so what is off screen is not drawn
     for (let sa = X0; sa < X1; sa += 40) {
       const K2 = deps.kit(), T2 = deps.kit(), inS = (x) => x >= sa && x < sa + 40;
       for (const zs of SZ) {
-        for (let x = X0 + 9; x < X1; x += 18) if (inS(x)) { deps.lamp(O.x + x, O.z + zs - RW - 0.5, K2); }
-        if (W.tree !== 0) for (let x = X0 + 5; x < X1; x += W.tree === 2 ? 9 : 14) if (inS(x) && XS.every((X) => Math.abs(x - X) > 7)) deps.tree(O.x + x, O.z + zs + RW + 0.9, 0.8, T2);
-        for (let x = X0 + 1.4; x < X1; x += 2.8) if (inS(x) && XS.every((X) => Math.abs(x - X) > 6.4)) deps.bollard(O.x + x, O.z + zs + RW + 0.25, K2);
+        for (let x = X0 + 9; x < X1; x += 18) if (inS(x) && !(zs === SA && nearRot(x, 11))) { deps.lamp(O.x + x, O.z + zs - RW - 0.5, K2); }
+        if (W.tree !== 0) for (let x = X0 + 5; x < X1; x += W.tree === 2 ? 9 : 14) if (inS(x) && XS.every((X) => Math.abs(x - X) > 7) && !(zs === SA && nearRot(x, 10))) deps.tree(O.x + x, O.z + zs + RW + 0.9, 0.8, T2);
+        for (let x = X0 + 1.4; x < X1; x += 2.8) if (inS(x) && XS.every((X) => Math.abs(x - X) > 6.4) && !(zs === SA && nearRot(x, 9.4))) deps.bollard(O.x + x, O.z + zs + RW + 0.25, K2);
       }
       const km = K2.build(), tm = T2.build(); if (km) scene.add(km); if (tm) { tm.castShadow = !low; scene.add(tm); }
     }
@@ -158,8 +168,9 @@ export function createWijk(deps) {
       if (shops && h.k % 4 === 1 && w >= 5) spots.push(h); else place(h, shops && h.k % 4 === 3 ? W.signs[(h.k + seed) % W.signs.length] : null); } };
     const place = (h, sign, joint) => { const f0 = deps.fadeables.length; deps.house(O.x + h.x, O.z + h.zc, h.w, 9, joint ? 10.5 : 9 + ((h.k + W.seed) % 4) * 1.1, h.facing, h.k + W.seed, sign, opt(h.k)); if (h.facing) for (let i = f0; i < deps.fadeables.length; i++) deps.fadeables[i].userData.cut = true; }; // a row with its back to the camera is cut away where Eddy is
     const isPlein = (si, bi) => si === PLEIN[0] && bi === PLEIN[1];
-    row(X0, X1, SA - HZ, 0, W.seed, true); // north of the first street
-    for (let si = 0; si < SZ.length - 1; si++) BLK.forEach(([a, b], bi) => { if (isPlein(si, bi)) return; row(a, b, SZ[si] + HZ, Math.PI, W.seed + a + si * 5, false); row(a, b, SZ[si + 1] - HZ, 0, W.seed + a + 3 + si * 5, true); });
+    segs(X0, X1, GAP).forEach(([a, b], i) => { row(a, b, SA - HZ, 0, W.seed + i * 13, true); deps.solid(O.x + a, O.x + b, O.z + SA - HZ - 4.5, O.z + SA - RW - PV); }); // north of the first street, open where a rotonde is
+    const trimA = (bi) => (ROT.includes(XS[bi]) ? 3 : 0), trimB = (bi) => (ROT.includes(XS[bi + 1]) ? 3 : 0);
+    for (let si = 0; si < SZ.length - 1; si++) BLK.forEach(([a, b], bi) => { if (isPlein(si, bi)) return; row(a + (si === 0 ? trimA(bi) : 0), b - (si === 0 ? trimB(bi) : 0), SZ[si] + HZ, Math.PI, W.seed + a + si * 5, false); row(a, b, SZ[si + 1] - HZ, 0, W.seed + a + 3 + si * 5, true); });
     row(X0, X1, ZN + HZ, Math.PI, W.seed + 9, false); // south of the last street
     // the joints take the shop fronts nearest the afrit first, the rest become ordinary shops
     spots.sort((p, q) => (p.x + Math.max(0, p.zc) * 0.9) - (q.x + Math.max(0, q.zc) * 0.9));
@@ -177,15 +188,18 @@ export function createWijk(deps) {
           flat(a, b, za + RW + PV, zb - RW - PV, ST.paveN, 0.013);
           for (let x = a + 5; x < b - 3; x += 9) for (const z of [za + RW + PV + 3, zb - RW - PV - 3]) deps.tree(O.x + x, O.z + z, 0.95, T3);
           const cx = O.x + (a + b) / 2, cz = O.z + zm;
+          if (W.market) { for (let i = 0; i < (low ? 4 : 8); i++) stall(K3, cx - 13.5 + (i % 4) * 9, cz + (i < 4 ? -4.2 : 4.2), i, low, i < 4 ? 0 : Math.PI); deps.solid(cx - 15.5, cx + 15.5, cz - 5.2, cz - 3.2); deps.solid(cx - 15.5, cx + 15.5, cz + 3.2, cz + 5.2); } else {
           K3.cyl(4.2, 4.4, 0.6, 0xcfc8b8, cx, 0.3, cz, 8); for (let i = 0; i < 8; i++) { const an = i / 8 * Math.PI * 2 + Math.PI / 8; K3.cyl(0.09, 0.09, 3.0, 0x2a5a3a, cx + Math.cos(an) * 3.8, 2.1, cz + Math.sin(an) * 3.8, 8); } K3.cyl(0.4, 4.6, 1.3, 0x2a5a3a, cx, 4.25, cz, 8); K3.cyl(0.12, 0.12, 0.7, 0xd8b040, cx, 5.2, cz, 6);
-          deps.solid(cx - 3.2, cx + 3.2, cz - 3.2, cz + 3.2);
+          deps.solid(cx - 3.2, cx + 3.2, cz - 3.2, cz + 3.2); }
           for (const [dx, dz] of [[-14, -7], [14, -7], [-14, 7], [14, 7], [0, -10], [0, 10]]) { K3.box(1.9, 0.08, 0.5, 0x7a5a3a, cx + dx, 0.48, cz + dz); K3.box(1.9, 0.5, 0.08, 0x7a5a3a, cx + dx, 0.75, cz + dz - 0.24); for (const e of [-0.8, 0.8]) K3.box(0.08, 0.48, 0.5, 0x2a2c30, cx + dx + e, 0.24, cz + dz); }
           K3.box(2.6, 1.0, 1.4, 0xf4f2ec, cx - 22, 0.9, cz + 2); K3.box(3.0, 0.1, 1.9, 0xd8202a, cx - 22, 2.4, cz + 2); for (const e of [-1.2, 1.2]) K3.box(0.07, 1.1, 0.07, 0x8a8e94, cx - 22 + e, 1.85, cz + 2.6); K3.cyl(0.32, 0.32, 0.12, 0x1a1a1a, cx - 22.9, 0.32, cz + 2.75, 10, Math.PI / 2); K3.cyl(0.32, 0.32, 0.12, 0x1a1a1a, cx - 21.1, 0.32, cz + 2.75, 10, Math.PI / 2);
           deps.solid(cx - 23.4, cx - 20.6, cz + 1.2, cz + 2.8);
           const sg = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.5), deps.lam({ map: deps.signTex([{ t: W.name === 'De Zandwijk' ? 'FALAFEL' : 'HOLLANDSE NIEUWE', size: 40 }], '#14499a', '#ffffff', 512, 100) })); sg.position.set(cx - 22, 2.05, cz + 2.72); scene.add(sg);
           return; }
         for (const x of [a, b]) K3.box(0.3, 2.3, zb - za - 2 * (HZ + 4.5) + 0.2, 0x8a4a3a, O.x + x + (x === a ? 0.15 : -0.15), 1.15, O.z + zm);
-        deps.solid(O.x + a, O.x + b, O.z + za + RW + PV, O.z + zb - RW - PV); });
+        if (si === 0 && (trimA(bi) || trimB(bi))) { deps.solid(O.x + a + trimA(bi), O.x + b - trimB(bi), O.z + za + RW + PV, O.z + za + HZ + 4.5); deps.solid(O.x + a, O.x + b, O.z + za + HZ + 4.5, O.z + zb - RW - PV);
+          for (const [x0, x1] of [trimA(bi) ? [a, a + 3] : null, trimB(bi) ? [b - 3, b] : null].filter(Boolean)) { flat(x0, x1, za + RW + PV, za + HZ + 4.5, ST.paveN, 0.013, true); deps.tree(O.x + (x0 + x1) / 2, O.z + za + HZ + 2.6, 0.75, T3); } }
+        else deps.solid(O.x + a, O.x + b, O.z + za + RW + PV, O.z + zb - RW - PV); });
       const km = K3.build(), tm = T3.build(); if (km) { km.castShadow = !low; scene.add(km); } if (tm) { tm.castShadow = !low; scene.add(tm); } }
     // the ends of the district: a wall of houses, the afrit in the west and the oprit in the east
     for (const [x, f] of [[X0 - 4.5, Math.PI / 2], [X1 + 4.5, -Math.PI / 2]]) { let z = SA - HZ - 4.5, k = 0; for (const w of deps.spanWidths(ZN - SA + 2 * HZ + 9, W.seed + 2)) { deps.house(O.x + x, O.z + z + w / 2, w, 9, 9.5 + (k % 3), f, k + W.seed, null, { ...opt(k), simple: true }); z += w; k++; } }
@@ -195,9 +209,29 @@ export function createWijk(deps) {
       const p2 = pole.clone(); p2.position.set(O.x + XE - 1, 1.3, O.z + SA - RW - 1.66); scene.add(p2);
       const ar = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.35, depthWrite: false })); ar.rotation.x = -Math.PI / 2; ar.position.set(O.x + XE, 0.05, O.z + SA + 1); scene.add(ar); }
     // parked cars to borrow, along the north kerbs
-    { let k = W.seed; for (const zs of SZ) for (let x = X0 + 14; x < X1 - 6; x += 5.6) { k++; if ((k * 7) % (low ? 6 : 3) !== 0 || XS.some((X) => Math.abs(x - X) < 7) || Object.values(t.shops || {}).some((q) => Math.abs(O.x + x - q.kerb.x) < 6.5 && Math.abs(O.z + zs - RW + 1 - q.kerb.z) < 2)) continue; /* (the customers' loading bays stay free) */ deps.car(O.x + x, O.z + zs - RW + 1, null, (k % 2) * Math.PI, true); } }
+    { let k = W.seed; for (const zs of SZ) for (let x = X0 + 14; x < X1 - 6; x += 5.6) { k++; if ((k * 7) % (low ? 6 : 3) !== 0 || XS.some((X) => Math.abs(x - X) < 7) || (zs === SA && nearRot(x, 11.5)) || Object.values(t.shops || {}).some((q) => Math.abs(O.x + x - q.kerb.x) < 6.5 && Math.abs(O.z + zs - RW + 1 - q.kerb.z) < 2)) continue; /* (the customers' loading bays stay free) */ deps.car(O.x + x, O.z + zs - RW + 1, null, (k % 2) * Math.PI, true); } }
+    // the rotondes, their pleinen and the landmarks
+    if (ROT.length) {
+      const RG = new THREE.Group(); scene.add(RG);
+      buildRotondes(deps, ROT.map((X, i) => ({ x: O.x + X, z: O.z + SA, arms: ['e', 'w', 's'], art: (WIJK_ART[key] || [])[i] })), RD, RG);
+      ROT.forEach((X, i) => {
+        const kind = (WIJK_LANDMARKS[key] || [])[i], LM = LANDMARKS[kind], zf = LM && LM.wide ? -16 : -10.5;
+        flat(X - GAP, X + GAP, SA - RW - PV - 9.5, SA - RW - PV, ST.paveN, 0.011); // the plein: klinkers from the pavement to the landmark
+        const KP = deps.kit(), TP = deps.kit(); for (const s of [-1, 1]) { deps.tree(O.x + X + s * 11.2, O.z + SA - 11, 0.8, TP); KP.box(1.8, 0.08, 0.5, 0x7a5a3a, O.x + X + s * 7.8, 0.48, O.z + SA - 11.3); KP.box(1.8, 0.5, 0.08, 0x7a5a3a, O.x + X + s * 7.8, 0.78, O.z + SA - 11.55); }
+        const pm = KP.build(), tm = TP.build(); if (pm) RG.add(pm); if (tm) { tm.castShadow = !low; RG.add(tm); }
+        if (!LM) return;
+        buildLandmark(kind, { THREE, kit: deps.kit, x: O.x + X, z: O.z + SA + zf, low, add: (m) => RG.add(m), spin: (m, v) => t.spins.push([m, v]), water: (x0, x1, z0, z1, y) => RG.add(waterPlane(x0, x1, z0, z1, y)),
+          sign: (lines, w, hh, x, y, z, bg, fg, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), deps.lam({ map: deps.signTex(lines.map(([tx, size]) => ({ t: tx, size })), bg, fg, 512, Math.max(64, Math.round(512 * hh / w))) })); m.position.set(x, y, z); m.rotation.y = ry || 0; RG.add(m); return m; } });
+        deps.solid(O.x + X - GAP + 0.5, O.x + X + GAP - 0.5, O.z + SA + zf - 30, O.z + SA + zf);
+        deps.addInteract({ pos: () => new THREE.Vector3(O.x + X, 0, O.z + SA - RW - 1.9), r: 2.4, enabled: () => T === t && !deps.busy() && !deps.riding(), label: () => `${LM.name} · read the plaque`,
+          act: () => deps.toast(LM.name.toUpperCase(), `${LM.blurb} <small>Kaasland's ${LM.real}, in ${W.name} (= ${W.real}).</small>`, 7) });
+      });
+    }
     return track();
   }
+  let waterMat = null;
+  function waterPlane(x0, x1, z0, z1, y) { waterMat = waterMat || new THREE.MeshStandardMaterial({ color: 0x2c4a52, roughness: 0.12, metalness: 0.35, emissive: 0x0a1a20, emissiveIntensity: 0.4 });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), waterMat); m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); return m; }
   function setVis(t, on) {
     if (t.vis === on) return; t.vis = on;
     for (const o of t.objs) o.visible = on;
@@ -261,10 +295,11 @@ export function createWijk(deps) {
     }
     // the oprit: drive the Oofmobiel onto the yellow patch at the east end of the first street
     if (T.W.custom) airJob(dt);
+    if (T.spins) for (const [m, v] of T.spins) m.rotation.z += v * dt;
     const near = deps.riding() === veh && Math.abs(veh.B.x - (T.O.x + T.oprit.x)) < 3.2 && Math.abs(veh.B.z - (T.O.z + T.oprit.z)) < 3.2;
     if (near && !atOprit && !deps.busy()) { atOprit = true; veh.B.v = 0; snelweg(); } else if (!near) atOprit = false;
   }
   let lineKey = null, lineOut = null;
-  const streets = () => { if (!T) return null; if (lineKey !== T) { lineKey = T; lineOut = T.lines.map((l) => ({ x0: T.O.x + l.x0, x1: T.O.x + l.x1, lanes: l.lanes.map((z) => T.O.z + z), walks: l.walks.map((z) => T.O.z + z) })); } return lineOut; };
+  const streets = () => { if (!T) return null; if (lineKey !== T) { lineKey = T; lineOut = T.lines.map((l) => ({ x0: T.O.x + l.x0, x1: T.O.x + l.x1, lanes: l.lanes.map((z) => T.O.z + z), walks: l.walks.map((z) => T.O.z + z), rings: l.rings && l.rings.map((r) => ({ x: T.O.x + r.x, z: T.O.z + r.z })), ring: RING_WIJK })); } return lineOut; };
   return { enter, leave, travel, snelweg, streets, update, AIR, WIJKEN, XS, SZ, vehicle: () => veh, get active() { return !!T; }, get town() { return T; }, towns, rect: RECT, origin: (key) => origin(WIJKEN[key]) };
 }
