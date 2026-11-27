@@ -902,7 +902,7 @@ const whZones = []; // { g, done() }: the outline of something still to come
   for (const [x0, x1] of [[WH.x0 + 0.2, -5.75], [-3.45, WH.x1 - 0.2]]) K.box(x1 - x0, 1.0, 0.04, DADO, (x0 + x1) / 2, 0.5, WH.z0 + 0.18);
   K.box(0.04, 1.0, WH.z1 - WH.z0 - 0.4, DADO, WH.x0 + 0.18, 0.5, (WH.z0 + WH.z1) / 2); for (const [z0, z1] of [[WH.z0 + 0.2, -17.2], [-16.0, WH.z1 - 0.2]]) K.box(0.04, 1.0, z1 - z0, DADO, WH.x1 - 0.18, 0.5, (z0 + z1) / 2);
   K.cyl(0.085, 0.085, 0.42, 0xd8202a, -2.15, 0.95, WH.z1 - 0.32, 10); K.cyl(0.03, 0.05, 0.1, 0x1a1a1a, -2.15, 1.21, WH.z1 - 0.32, 8); K.box(0.3, 0.3, 0.02, 0xd8202a, -2.15, 1.75, WH.z1 - 0.2);
-  K.box(0.36, 0.3, 0.12, 0xf4f2ec, -7.4, 1.5, WH.z1 - 0.24); K.box(0.16, 0.05, 0.02, 0x2f8a3a, -7.4, 1.5, WH.z1 - 0.31); K.box(0.05, 0.16, 0.02, 0x2f8a3a, -7.4, 1.5, WH.z1 - 0.31);
+  K.box(0.36, 0.3, 0.12, 0xf4f2ec, -9.1, 1.5, WH.z1 - 0.24); K.box(0.16, 0.05, 0.02, 0x2f8a3a, -9.1, 1.5, WH.z1 - 0.31); K.box(0.05, 0.16, 0.02, 0x2f8a3a, -9.1, 1.5, WH.z1 - 0.31); // (west of where the Voorraadrek can stand)
   { const km = K.build(); if (km) { km.receiveShadow = true; wh.add(km); } }
   // ---- still to come: white dashed outlines with the name of the upgrade, gone once it stands there
   const ghost = (done, fn) => { const g = new THREE.Group(), GK = kit(); wh.add(g); fn(rectOf(liner(GK)), (t, x, z, w, ry = 0) => stencil(t, x, z, w, '#f4f2ec', g, ry)); const m = GK.build(); if (m) g.add(m); whZones.push({ g, done }); };
@@ -915,9 +915,20 @@ const whZones = []; // { g, done() }: the outline of something still to come
   ghost(() => has('roldeur') || has('hal'), (r, s) => { s('STALEN ROLDEUR', (WH.doorX0 + WH.doorX1) / 2, WH.z1 - 0.7, 2.6); });
   // the Laadzone is only there while the trucks stop at the shed (js/goederen.js): with De Hal built the floor is free
   { const g = new THREE.Group(), GK = kit(), ln = liner(GK), rc = rectOf(ln); wh.add(g); rc(WH.doorX0 + 0.1, -9.4, WH.doorX1 - 0.1, WH.z1 - 0.35, Y); for (let i = 0; i < 6; i++) GK.box(2.5, 0.012, 0.1, Y, WH.doorX0 + 0.75 + i * 0.6, 0.042, -8.38, 0.9); stencil('LAADZONE', (WH.doorX0 + WH.doorX1) / 2, -9.75, 2.6, '#f2c31a', g); const m = GK.build(); if (m) g.add(m); whZones.push({ g, done: () => has('hal') }); }
-  ghost(() => !has('hal'), (r, s) => { s('VRIJE VLOER', (WH.doorX0 + WH.doorX1) / 2, -8.4, 2.4); });
+  // ...and with De Hal built it is used (Tristan 2026-11-27): west of the new door a bay of racking can go up (the Voorraadrek,
+  // js/loods.js bay 13), east of it the Naknikim get a koffiehoek: a counter with the machine, a little table, two stools
+  ghost(() => !has('hal') || has('voorrek'), (r, s) => { r(-8.4, -8.45, -5.6, -7.3, WHT, true); s('VOORRAADREK', -7.0, -8.85, 2.2); });
+  { const g = new THREE.Group(), GK = kit(); wh.add(g);
+    GK.box(1.25, 0.88, 0.52, 0xf4f2ec, -3.2, 0.44, -7.45); GK.box(1.31, 0.05, 0.58, 0x7a5a3a, -3.2, 0.905, -7.45); GK.box(1.2, 0.08, 0.02, 0x3a3e44, -3.2, 0.08, -7.18 - 0.0); // the counter, a wooden top
+    GK.box(0.34, 0.5, 0.34, 0x2a2a2c, -3.55, 1.18, -7.42); GK.box(0.26, 0.12, 0.02, 0xd8202a, -3.55, 1.32, -7.24); GK.box(0.1, 0.05, 0.1, 0x8a8e94, -3.55, 1.0, -7.32); GK.cyl(0.04, 0.035, 0.08, 0xf4f2ec, -3.55, 0.97, -7.3, 10); // the machine and a cup under it
+    for (const [dx, c] of [[-0.05, 0xf2c31a], [0.1, 0xf4f2ec], [0.25, 0x2f62b8]]) GK.cyl(0.04, 0.035, 0.09, c, -3.0 + dx, 0.975, -7.5, 10); GK.box(0.3, 0.2, 0.2, 0xb08a5a, -2.75, 1.03, -7.45); // mugs, a box of sugar
+    GK.cyl(0.36, 0.36, 0.04, 0x7a5a3a, -3.15, 0.74, -8.6, 16); GK.cyl(0.05, 0.05, 0.72, 0x3a3e44, -3.15, 0.36, -8.6, 8); GK.cyl(0.24, 0.24, 0.03, 0x3a3e44, -3.15, 0.02, -8.6, 12); GK.cyl(0.045, 0.04, 0.09, 0xf4f2ec, -3.05, 0.805, -8.5, 10); // the table, a mug left on it
+    for (const dx of [-0.62, 0.62]) { GK.cyl(0.17, 0.17, 0.05, 0xd8202a, -3.15 + dx, 0.5, -8.6, 12); GK.cyl(0.03, 0.03, 0.5, 0x3a3e44, -3.15 + dx, 0.25, -8.6, 6); }
+    stencil('KOFFIE', -3.15, -9.25, 1.1, '#f4f2ec', g);
+    const m = GK.build(); if (m) { m.castShadow = true; g.add(m); }
+    whZones.push({ g, done: () => !has('hal'), sols: [solid(-3.85, -2.55, -7.75, -7.15), solid(-3.95, -2.35, -8.95, -8.25)] }); }
 }
-function whZoneTick() { for (const q of whZones) { let d = false; try { d = q.done(); } catch (e) { /* the loods is not set up yet */ } if (q.g.visible === d) q.g.visible = !d; } } // every frame: six cheap checks
+function whZoneTick() { for (const q of whZones) { let d = false; try { d = q.done(); } catch (e) { /* the loods is not set up yet */ } if (q.g.visible === d || (q.sols && q.sols[0].off !== d)) { q.g.visible = !d; if (q.sols) for (const s of q.sols) s.off = d; } } } // every frame: six cheap checks
 const hokDoor = { leaf: null, pl: null }; // Het Hok: an open doorway while Eddy lives there, a shut storage door after the move
 { const hd = new THREE.Group(); hd.position.set(WH.x1 - 0.17, 0, -16.6); wh.add(hd); box(0.06, 0.12, 1.15, lam({ color: 0xf2ead8 }), 0, 2.3, 0, hd, false);
   const leaf = new THREE.Group(); hd.add(leaf); box(0.07, 2.2, 1.0, lam({ color: 0x6a4a2a }), 0, 1.1, 0, leaf, false); box(0.04, 0.05, 0.14, lam({ color: 0xd8b040 }), -0.05, 1.0, 0.3, leaf, false);
@@ -2203,7 +2214,7 @@ function skipHiddenMatrices() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Freddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['vaste', 'introSeen', 'spoed', 'goed', 'step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag', 'seenTabs', 'klok', 'stats', 'stam',
+const SAVE_FIELDS = ['koffie', 'vaste', 'introSeen', 'spoed', 'goed', 'step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag', 'seenTabs', 'klok', 'stats', 'stam',
   // never saved before 2026-11-26 although their modules said so: gun shop buys, the weather and paper, Johan, the club, the buurt
   'mods', 'upg', 'nades', 'nadeSel', 'spares', 'gear', 'ruStock', 'weer', 'johan', 'club', 'dealer', 'buurt'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
@@ -3523,7 +3534,7 @@ function afterDrive(res) {
 }
 deviceHints();
 npcs = initNpcs({ tutorial, THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave(), debrief: (w) => !!(activists && activists.debrief(w)) });
-loods = createLoods({ forkExtra: (t, F) => (johan ? johan.forkExtra(t, F) : null), floorKg: () => (prod ? prod.floorKg() : null), tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
+loods = createLoods({ forkExtra: (t, F) => (johan ? johan.forkExtra(t, F) : null), floorKg: () => (prod ? prod.floorKg() : null), rackLoads: () => (prod ? prod.rackLoads() : null), dressPallet: (g, l) => prod && prod.dressPallet(g, l), tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), shutter,
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || tripOn(),
   away: () => mission.active || tripOn(), frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),
@@ -3548,10 +3559,10 @@ prod = createProductie({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid,
 solli = createSollicitanten({ extra: () => brep.hireExtra(), state, day: () => econ.ensure().day, rank: rankNow, cap: nakCap, homeCap: () => loods.naknikCap(), canHire: () => !!state.table, perNaknik: () => econ.perNaknik(), addMoney, onHire, fmt: (n) => 'W ' + Math.round(n).toLocaleString('nl-NL'), save: () => writeSave() });
 // the Naknikim at work around the shed, the hall and the tent (js/naknikwork.js)
 work = createNaknikWork({ carry: prod.carry, lineBusy: () => prod.lineBusy(), pace: (n) => { const m = crew.info(naknikim.indexOf(n)); return m ? { speed: 0.79 + 0.07 * m.tempo, rest: 1.6 - 0.2 * m.ethic } : null; }, scene, solids, solid, animate, list: () => naknikim, frozen: (n) => (state.inDialogue || state.inPC) && n.position.distanceTo(player.position) < 2.6,
-  rooms: () => [{ x0: WH.x0, x1: WH.x1, z0: WH.z0, z1: WH.z1 }, ...loods.workRooms()],
+  rooms: () => { const r = [{ x0: WH.x0, x1: WH.x1, z0: WH.z0, z1: WH.z1 }, ...loods.workRooms()], a = goederen && goederen.apron(); if (a) r.push(a); return r; }, // (the pavement too, while a truck unloads at the shed)
   ketels: [{ x: -9.3, z: -9.5, area: 'shed', on: () => state.table && state.sold.has('doner') }, { x: -1.4, z: -23.3, area: 'hall', on: () => loods.has('hal') }],
   stations: () => {
-    const out = [...loods.workStations(), ...prod.stations()], shelfY = 1.16, shelfZ = WH.z0 + 1.35;
+    const out = [...loods.workStations(), ...prod.stations(), ...(goederen ? goederen.stations() : [])], shelfY = 1.16, shelfZ = WH.z0 + 1.35;
     if (state.table) out.push({ key: 'pileshed', kind: 'pile', area: 'shed', x: -8.45, z: -12.9, fx: -7.5, fz: -12.9, h: 'floor', grab: true });
     for (const [k, sx] of [[0, WH.x0 + 6.4], [1, WH.x0 + 10.3]]) {
       if (k === 0 && loods.has('hal')) continue; // that shelf made way for the door into De Hal
@@ -3685,8 +3696,25 @@ pahuis = createPaHuis({ THREE, scene, player, state, box, cyl, lam, canvasTex, s
 }
 goederen = createGoederen({ THREE, scene, player, state, econ, klok, kit, lam, signTex, solid, addInteract, toast, beep, addMoney, dialogue, phone: () => phone, save: () => writeSave(),
   naknik: () => state.naknik | 0, hal: () => !!(loods && loods.has('hal')), inHall: () => !!(loods && loods.inside()), front: { x: -3.0, z: RC - 4 }, dock: { x: 11, z: -26.6 },
+  openDoor: () => { if (shutterTarget < 1) openShutter(); }, setHaul: (ids) => prod.setHaul(ids),
+  haulSpots: (k, hall) => { // where the Naknikim wheel the truck's pallets to (inbound) or fetch them from (outbound)
+    const st = (sp) => { const a = prod.standAt(sp); return { x: a.x, z: a.z, fx: sp.x, fz: sp.z }; }, L = loods.ensure(), bays = loods.bays;
+    if (hall) { if (k === 'out') return [...prod.UIT_SPOTS.map(st), st(prod.OUT_SPOT)];
+      const r = []; for (let i = 1; i < Math.min(L.racks, 7); i++) { const f = bays[i].front; r.push({ x: f.x, z: f.z + 1.75, fx: f.x, fz: f.z }); } return r.length ? r : prod.FEED_SPOTS.map(st); }
+    if (k === 'out') return prod.SHED_SPOTS.slice(3).map(st);
+    const r = prod.SHED_SPOTS.map(st); if (L.racks > 0) { const f = bays[0].front; r.push({ x: f.x + 1.0, z: f.z, fx: f.x, fz: f.z }); } return r; },
   ready: () => state.step === 'free' && !(state.tut && !state.tut.done), busy: () => !!mission.active || tripOn() || state.inDialogue || choiceOpen || state.inPC,
   setHour: (h) => { state.klok = state.klok || {}; state.klok.h = h; klok.refresh(); }, fmt: (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}` });
+// the koffiehoek on the old Laadzone (De Hal built): once a market day, a round of coffee for the ploeg
+addInteract({ pos: () => (loods && loods.has('hal') && isInside(player.position) ? new THREE.Vector3(-3.15, 0, -9.0) : new THREE.Vector3(0, -99, 0)), r: 1.3,
+  enabled: () => !!(loods && loods.has('hal')) && isInside(player.position) && !state.inDialogue,
+  label: () => (state.koffie === econ.ensure().day ? 'Koffiehoek · the pot is empty for today' : (state.naknik | 0) ? 'Koffie voor de ploeg · W 12' : 'A coffee for yourself'),
+  act: () => { const d = econ.ensure().day; if (state.koffie === d) return toast('KOFFIE', 'One round a day. The Naknikim are already buzzing.', 2.4);
+    const n = state.naknik | 0; if (n && state.money < 12) return toast('KOFFIE', 'Not even W 12 for coffee. Sell something first.', 2.6);
+    state.koffie = d; beep(260, 0.3, 'sine', 0.04); setTimeout(() => beep(420, 0.18, 'triangle', 0.04), 260);
+    if (!n) { toast('KOFFIE', 'Eddy drinks a coffee alone at the little table. Once there is a crew, this round is for them.', 3); writeSave(); return; }
+    addMoney(-12); for (const m of crew.ensure()) if (!m.away) m.mood = Math.min(100, m.mood + 4);
+    toast('KOFFIE VOOR DE PLOEG', `Eddy pours ${n} mug${n > 1 ? 's' : ''} at the koffiehoek. −W 12, crew mood up.`, 3.2); writeSave(); } });
 spoed = createSpoed({ THREE, scene, player, state, econ, klok, kit, lam, signTex, addInteract, toast, beep, choice, dialogue, addMoney, save: () => writeSave(), objective: () => updateObjective(),
   oof, oofSolid, kangoo, goederen, hal: () => !!(loods && loods.has('hal')), inHall: () => !!(loods && loods.inside()),
   fade: (fn) => { const f = $('wijkFade') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'wijkFade' }); f.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:1;pointer-events:none;transition:opacity .35s;z-index:40'; setTimeout(() => { try { fn(); } finally { setTimeout(() => { f.style.opacity = '0'; }, 120); } }, 380); },

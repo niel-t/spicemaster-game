@@ -116,6 +116,7 @@ export function createGoederen(deps) {
   function arrive(k, night) {
     const j = G()[k]; j.st = 'here'; j.prog = 0; j.night = !!night; show(k, true); active = k;
     const n = deps.naknik(), slot = night ? SLOTS.night : SLOTS[k], where = site().hall ? 'at the dock of De Hal' : 'in front of the shed';
+    if (!night && !site().hall && deps.openDoor) deps.openDoor(); // the Naknikim wheel the pallets in and out through the roller door
     if (!night) deps.toast(KIND[k].nm, `${KIND[k].who} is ${where} until ${deps.fmt(slot[1])}: ${Math.round(j.kg)} kg to ${k === 'in' ? 'unload' : 'load'}. ${n ? `The Naknikim are on it${n > 1 ? '' : ', slowly: there is only one'}. Lend a hand at the truck if you like.` : 'Nobody on the payroll: do it yourself at the truck.'}`, 6);
     deps.beep(196, 0.25, 'sawtooth', 0.04);
   }
@@ -177,11 +178,36 @@ export function createGoederen(deps) {
       if (h >= (j.night ? SLOTS.night[1] : SLOTS[k][1])) timeout(k);
     }
   }
+  // ---- the Naknikim do it in plain sight (Tristan 2026-11-27): a hand pallet truck from the tail lift to the racking, or a
+  // wrapped pallet of blue bags from the UIT places onto the lift. js/naknikwork.js runs it as an 'l-truck' errand.
+  // A pallet off the lift (inbound) or onto it (outbound) is a tenth of the job on top of the steady crew rate.
+  const TRIP = 0.1;
+  function bump(k) { const j = G()[k]; if (!j || j.st !== 'here') return; j.prog = Math.min(1, j.prog + TRIP); if (j.prog >= 1) finish(k, false); }
+  function liftStands() { // where a Naknik stands with the pallet truck at the back of the truck, facing the lift
+    const s = site();
+    if (s.hall) return [-0.55, 0.55].map((dz) => ({ x: s.x - 0.8, z: s.z + dz, fx: s.x + 1.5, fz: s.z + dz })); // inside the dock door
+    const lx = s.x - 4.3; return [-0.4, 0.4].map((dx) => ({ x: lx + dx, z: s.z - 1.6, fx: lx + dx, fz: s.z })); // on the pavement, north of the lift
+  }
+  function stations() {
+    const k = cur(); if (!k || !deps.ready()) return [];
+    const j = G()[k]; if (j.night || j.prog >= 1 || deps.klok.hour() < 8 || !deps.naknik()) return [];
+    const s = site(), area = s.hall ? 'hall' : 'shed', inb = k === 'in', ids = () => (econ.dockIn ? econ.dockIn().map((o) => o.id) : []);
+    const lift = liftStands().map((p, i) => ({ key: `truckL${i}`, kind: 'pallet', area, far: true, ...p, h: 'mid' }));
+    const ends = (deps.haulSpots ? deps.haulSpots(k, s.hall) : []).map((p, i) => ({ key: `truckE${i}`, kind: 'pallet', area, far: true, ...p, h: 'mid' }));
+    if (!lift.length || !ends.length) return [];
+    if (inb) { // off the lift, into the warehouse
+      const left = Math.ceil((1 - j.prog) * 4 - 1e-6); if (left <= 0) return [];
+      return [...lift.map((q) => ({ ...q, prod: 'truckA', carry: 'jack', grab: true, onGrab: () => { if (deps.setHaul) deps.setHaul(ids()); bump('in'); return 0xc8a05a; } })), ...ends.map((q) => ({ ...q, prod: 'truckB' }))];
+    }
+    return [...ends.map((q) => ({ ...q, prod: 'truckA', carry: 'jackB', grab: true })), ...lift.map((q) => ({ ...q, prod: 'truckB', onDrop: () => bump('out') }))];
+  }
+  // the pavement between the roller door and the truck, walkable while a truck stands in front of the shed
+  const apron = () => (cur() && !site().hall && deps.klok.hour() >= 8 ? { x0: -9.6, x1: -1.4, z0: deps.front.z - 5.2, z1: deps.front.z - 0.25 } : null);
   // what the PC and the day strip can say about today
   function line() {
     const g = G(), out = [];
     for (const k of ['in', 'out']) { const j = g[k]; if (!j) continue; out.push(`${KIND[k].nm.toLowerCase()} ${deps.fmt(SLOTS[k][0])}–${deps.fmt(SLOTS[k][1])}: ${Math.round(j.kg)} kg ${j.st === 'done' ? '✓' : j.st === 'here' ? `(${Math.round(j.prog * 100)}%)` : ''}`); }
     return out.join(' · ');
   }
-  return { onDay, update, line, SLOTS, trucks: T, state: G, site, nightCall, finish };
+  return { onDay, update, line, SLOTS, trucks: T, state: G, site, nightCall, finish, stations, apron, liftStands };
 }

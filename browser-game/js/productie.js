@@ -129,6 +129,12 @@ export function createProductie(deps) {
       g.userData.floor = 0.3; g.userData.paint = () => { const ids = haulIds.length ? haulIds : ['paprika']; vs.forEach((v, k) => v.userData.set(ids[k % ids.length])); }; return g;
     },
   };
+  carry.jackB = () => { // the same pallet truck with a wrapped pallet of blue bags (outbound, to the koerier's tail lift)
+    const g = carry.jack(), pal = g.children[g.children.length - 1]; pal.children.slice(2).forEach((c) => { c.visible = false; });
+    const bs = []; for (let i = 0; i < 8; i++) { const b = makeBag('kip'); b.position.set(i % 2 ? 0.285 : -0.285, 0.24 + (i >> 2) * 0.182, (i >> 1) % 2 ? 0.225 : -0.225); pal.add(b); bs.push(b); }
+    const wr = new THREE.Mesh(geo('wrapB', () => new THREE.BoxGeometry(1.16, 0.4, 0.98)), wrapMat); wr.position.y = 0.35; pal.add(wr);
+    g.userData.paint = () => { const o = econ.ensure().order; bs.forEach((b) => b.userData.set(o)); }; return g;
+  };
   let haulIds = [];
   let carryVat = 'paprika';
 
@@ -207,6 +213,7 @@ export function createProductie(deps) {
       if (tent) { put(zone('tent'), rawLoads, 99); put(zone('tent').slice().reverse(), bagLoads, 99); }
       put(hallPlaces.slice().reverse(), bagLoads, 99); put(bagOrder, bagLoads, 99);
     } else { put(bagOrder, bagLoads, 4); put(rawOrder, rawLoads, 99); put(bagOrder, bagLoads, 99); } // the door end keeps room for finished bags
+    rackQ = [...rawLoads, ...bagLoads]; // what no floor place holds stands in the racking (js/loods.js refreshSlots)
     // a level-1 load with nothing under it drops to the floor
     for (const sp of SHED_SPOTS) { const ps = places.filter((x) => x.spot === sp); if (ps[1] && ps[1].load && !ps[0].load) { ps[0].load = ps[1].load; ps[1].load = null; } }
     for (const pl of places) {
@@ -220,7 +227,7 @@ export function createProductie(deps) {
     for (const sp of ALL_SPOTS) sp.sol.off = !places.some((x) => x.spot === sp && x.g.visible);
     hallMarks.visible = hall; tentMarks.visible = tent;
   }
-  let spare = 0, transit = 0; // vaten in stock beyond the ones at the mixer; a bag pallet riding the heftruck
+  let spare = 0, transit = 0, rackQ = []; // vaten in stock beyond the ones at the mixer; a bag pallet riding the heftruck
   const floorKg = () => places.filter((x) => x.g.visible && x.zone !== 'feed' && x.zone !== 'out').length * PLACE_KG; // what stands on floor places (the racking shows the rest)
   const topOf = (sp) => { const ps = places.filter((x) => x.spot === sp && x.load); return ps[ps.length - 1] || null; };
   const vatSpots = () => (inHall() ? FEED_SPOTS : SHED_SPOTS).filter((sp) => { const t = topOf(sp); return t && t.load.vats && t.load.vats.length; });
@@ -230,6 +237,24 @@ export function createProductie(deps) {
     return withRoom || SHED_SPOTS.slice().reverse().find((sp) => !topOf(sp)) || SHED_SPOTS[SHED_SPOTS.length - 1];
   }
   const standAt = (sp) => ({ x: sp.x + sp.sx, z: sp.z + sp.sz });
+  // a pallet in the racking (js/loods.js) shows its real load: four labelled vaten, or blue bags of a blend. Built the first time
+  // the slot is filled, so empty racking costs nothing.
+  function dressPallet(g, load) {
+    let d = g.userData.dress;
+    const k = load ? (load.vats ? 'v' + load.vats.join() : 'b' + load.bags.join()) : '';
+    if (d && d.k === k) return; if (!d && !load) return;
+    if (!d) {
+      d = g.userData.dress = { k: '', vats: [], bags: [] }; if (g.userData.load) g.userData.load.visible = false; if (g.userData.wrap) g.userData.wrap.visible = false;
+      for (let i = 0; i < 4; i++) { const v = makeVat('paprika'); v.position.set(i % 2 ? 0.29 : -0.29, 0.15, i < 2 ? -0.25 : 0.25); v.rotation.y = (i - 1.5) * 0.12 + LID_TURN; g.add(v); d.vats.push(v); }
+      for (let i = 0; i < 8; i++) { const b = makeBag('kip'); b.position.set(i % 2 ? 0.285 : -0.285, 0.24 + (i >> 2) * 0.182, (i >> 1) % 2 ? 0.225 : -0.225); b.rotation.y = ((i * 7) % 5 - 2) * 0.03; g.add(b); d.bags.push(b); }
+      d.wrapV = new THREE.Mesh(geo('wrapV', () => new THREE.BoxGeometry(1.17, 0.62, 1.07)), wrapMat); d.wrapV.position.y = 0.5; g.add(d.wrapV);
+      d.wrapB = new THREE.Mesh(geo('wrapB', () => new THREE.BoxGeometry(1.16, 0.4, 0.98)), wrapMat); d.wrapB.position.y = 0.35; g.add(d.wrapB);
+    }
+    d.k = k; const v = load && load.vats, b = load && load.bags;
+    d.vats.forEach((m, i) => { m.visible = !!(v && v[i]); if (m.visible) m.userData.set(v[i]); });
+    d.bags.forEach((m, i) => { m.visible = !!(b && b[i]); if (m.visible) m.userData.set(b[i]); });
+    d.wrapV.visible = !!(v && v.length === 4); d.wrapB.visible = !!(b && b.length === 8);
+  }
 
   // ================================================================== the mixers
   const mixers = [0, 1, 2, 3].map(() => { const g = new THREE.Group(); g.position.set(MX, 0, MZ); g.visible = false; scene.add(g); return g; });
@@ -359,6 +384,9 @@ export function createProductie(deps) {
   const boardCv = document.createElement('canvas'); boardCv.width = 640; boardCv.height = 256;
   const boardTex = new THREE.CanvasTexture(boardCv); boardTex.colorSpace = THREE.SRGBColorSpace;
   const board = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 1.32), new THREE.MeshBasicMaterial({ map: boardTex })); board.position.set(-0.75, 3.55, -20.8); board.visible = false; scene.add(board);
+  // in De Hal it hangs from the roof on two chains over the line, between the mixer and the racking aisle (Tristan 2026-11-27)
+  const chains = new THREE.Group(); chains.visible = false; scene.add(chains); for (const x of [-1.1, 1.1]) box(0.03, 0.34, 0.03, dark, x, 4.63, 0, chains, false); box(2.75, 0.06, 0.06, dark, 0, 4.48, 0, chains, false);
+  const BOARD = { shed: [-0.75, 3.55, -20.8], hall: [HX + 1.0, 3.95, HZ - 2.3] };
   let boardSig = '';
   function drawBoard() {
     const e = econ.ensure(), p = P(), T = target(), b = blend(e.order), n = econ.mixers();
@@ -484,6 +512,7 @@ export function createProductie(deps) {
       dustMix.visible = dustPack.visible = hazard.visible = on; dustMix.position.set(MX, 0.05, MZ + 0.5); dustPack.position.set(PX - 0.4, 0.051, PZ); hazard.position.set(MX, 0.048, MZ); hazard.scale.set(TIER[tr].rx * 2 + 0.7, TIER[tr].rz * 2 + 0.7, 1);
       hallDress.visible = hl; hallDressSol.forEach((x) => { x.off = !hl; }); shedDress.visible = on; shedDressSol.off = !on;
       table.visible = on && !mc; packSol.off = !(on && !mc); mach.visible = on && mc; machSol.off = !(on && mc); board.visible = on;
+      board.position.set(...BOARD[hl ? 'hall' : 'shed']); board.scale.setScalar(hl ? 0.8 : 1); chains.position.set(board.position.x, 0, board.position.z - 0.02); chains.visible = on && hl;
     }
     if (deps.away()) { if (hold) setHold(null); return; }
     slow -= dt; if (slow <= 0) { slow = 0.4; layout(); if (on) drawBoard(); const o = econ.ensure().order; tableBags.forEach((b) => b.userData.set(o)); beltBags.forEach((x) => x.b.userData.set(o)); }
@@ -501,5 +530,5 @@ export function createProductie(deps) {
     for (let i = streams.length - 1; i >= 0; i--) { const s = streams[i]; s.t -= dt; s.m.material.opacity = 0.85 * Math.min(1, s.t / 0.3); if (s.t <= 0) { scene.remove(s.m); s.m.material.dispose(); streams.splice(i, 1); } }
     if (hold) held.position.y = 1.0 + Math.sin(performance.now() * 0.008) * 0.012;
   }
-  return { makeBag, floorKg, jobs, FEED_SPOTS, OUT_SPOT, UIT_SPOTS, update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
+  return { rackLoads: () => rackQ, dressPallet, setHaul: (ids) => { haulIds = ids && ids.length ? ids.slice() : []; }, makeBag, floorKg, jobs, FEED_SPOTS, OUT_SPOT, UIT_SPOTS, update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
 }

@@ -16,7 +16,9 @@ const HALL = { x0: -11, x1: 11, z0: -7, z1: 7, h: 4.8 }, TENT = { x0: -33, x1: -
 // rack bays: shed (1), hall (6, along the north wall), tent (6, along its north wall). [x, z, rotY] of the bay centre, world coords
 const BAYS = [[-10.3, -15.05, Math.PI / 2],
   ...[0, 1, 2, 3, 4, 5].map((i) => [HX + HALL.x0 + 1.0 + 1.35 + i * 2.75, HZ + HALL.z0 + 0.65, 0]),
-  ...[0, 1, 2, 3, 4, 5].map((i) => [HX + TENT.x0 + 1.5 + 1.35 + i * 2.75, HZ + TENT.z0 + 0.65, 0])];
+  ...[0, 1, 2, 3, 4, 5].map((i) => [HX + TENT.x0 + 1.5 + 1.35 + i * 2.75, HZ + TENT.z0 + 0.65, 0]),
+  [-7.0, -7.82, Math.PI]]; // 13: the Voorraadrek along the shed's front wall, on the old Laadzone (its own upgrade, not a 'rek')
+const RACK_N = 13, FRONT_BAY = 13;
 const STAGE_BAYS = [1, 7, 13]; // bays open in the shed / with the hall / with the tent
 const LEVELS = [0.12, 1.5, 2.9]; // beam heights (pallet bottom)
 
@@ -28,6 +30,7 @@ export const UPGRADES = [
   { id: 'kavel', name: 'Bouwkavel', what: 'The empty plot behind the shed, TE KOOP for years. Buy it and the warehouse can grow onto it: De Hal first, De Overkapping later.', cost: 2500, days: 1, rank: 1, need: ['junk'] },
   { id: 'hal', name: 'De Hal', what: 'A steel portal hall on the plot, through a new doorway in the shed\'s back wall: room for 6 racking bays, a dock door and a second mixing table. The production line moves onto the hall floor: mixer, packing, pallets in and out. 5 pallet places on the floor (+100 kg).', cost: 6000, days: 3, rank: 1, need: ['kavel', 'rek', 'menger1'], stage: 2 },
   { id: 'heftruck', name: 'Heftruck', what: 'A second-hand forklift for the hall. Buy bulk pallet deals (30% under the Kruidenbeurs) and rack them yourself. A Naknik on it keeps the line going: pallets of vaten from the racking to the mixer, full pallets of bags to the dock.', cost: 2500, days: 1, rank: 1, need: ['hal'] },
+  { id: 'voorrek', name: 'Voorraadrek bij de deur', what: `With the trucks at the dock of De Hal, the old Laadzone inside the shed door is free floor. A bay of racking along the front wall, beside the new door: 6 more pallet places (+${RACK_KG} kg), the first thing you see when you walk in.`, cost: 900, days: 1, rank: 1, need: ['hal'] },
   { id: 'tafel2', name: 'Tweede mengtafel', what: 'A second mixing table in the hall: room for 2 more Naknikim at home.', cost: 2500, days: 2, rank: 1, need: ['hal'] },
   { id: 'molen', name: 'Kruidenmolen', what: 'A stone spice mill: the Naknikim grind everything fresh. Blends come out half a star better.', cost: 3500, days: 2, rank: 2, need: ['menger1'] },
   { id: 'menger2', name: 'Industriële menger', what: 'A stainless ribbon blender replaces the drum mixer: 20 kg per Naknik a day, and half the mistakes.', cost: 5000, days: 3, rank: 2, need: ['menger1', 'hal'] },
@@ -58,7 +61,7 @@ export function createLoods(deps) {
   const rackCost = () => 600 + 350 * ensure().racks;
   const naknikCap = () => 3 + (has('tafel2') ? 2 : 0) + (has('tent') ? 2 : 0);
   function boost() {
-    return { cap: (has('hal') ? 100 : 0) + (has('tent') ? 200 : 0) + ensure().racks * RACK_KG, mix: (has('menger3') ? 3 : has('menger2') ? 2 : has('menger1') ? 1.5 : 1) + (has('inpak') ? 0.5 : 0), care: has('menger2') ? 0.5 : 1, q: has('molen') ? 0.5 : 0, sell: has('dock') ? 40 : 0, keep: has('roldeur') ? 0.5 : 1 };
+    return { cap: (has('hal') ? 100 : 0) + (has('tent') ? 200 : 0) + ensure().racks * RACK_KG + (has('voorrek') ? RACK_KG : 0), mix: (has('menger3') ? 3 : has('menger2') ? 2 : has('menger1') ? 1.5 : 1) + (has('inpak') ? 0.5 : 0), care: has('menger2') ? 0.5 : 1, q: has('molen') ? 0.5 : 0, sell: has('dock') ? 40 : 0, keep: has('roldeur') ? 0.5 : 1 };
   }
 
   // ================================================================== shared props
@@ -70,7 +73,7 @@ export function createLoods(deps) {
     const ld = new THREE.Mesh(geo('load', () => new THREE.BoxGeometry(1.1, 0.95, 0.92)), mt(load));
     ld.position.y = 0.62; ld.castShadow = true; g.add(ld);
     const wrap = new THREE.Mesh(geo('wrap', () => new THREE.BoxGeometry(1.13, 0.6, 0.95)), wrapMat); wrap.position.y = 0.55; g.add(wrap);
-    g.userData.load = ld;
+    g.userData.load = ld; g.userData.wrap = wrap;
     return g;
   }
   const wrapMat = new THREE.MeshPhongMaterial({ color: 0xe8f0f4, transparent: true, opacity: 0.32, shininess: 120, depthWrite: false });
@@ -271,7 +274,7 @@ export function createLoods(deps) {
   function siteSpot(id) {
     const L = ensure();
     if (id === 'rek') { const b = BAYS[L.racks]; return b ? [b[0], b[1], Math.abs(Math.sin(b[2])) > 0.5 ? 1.4 : 3.0, Math.abs(Math.sin(b[2])) > 0.5 ? 3.0 : 1.4] : null; }
-    return { menger1: [-2.4, -15.5, 3.0, 3.0], menger2: [-2.4, -15.5, 3.0, 3.0], menger3: [-2.4, -15.5, 3.2, 3.2], inpak: [0.2, -8.6, 1.6, 2.6], molen: [-6.3, -14.9, 1.6, 1.4], roldeur: [-4.75, -7.9, 4.2, 0.9], hal: [HX - 2, HZ + 1, 12, 8], kavel: [DX - 2.6, PLOT.z1 - 3.2, 4, 1.4], heftruck: [HX + 4.5, HZ + 4.2, 3, 2], tafel2: [HX - 6.5, HZ + 3.6, 3.2, 2], dock: [HX + 9.6, HZ + 1.8, 2.4, 5.4], tent: [HX + HALL.x0 + 1, HZ, 2, 10] }[id] || null;
+    return { menger1: [-2.4, -15.5, 3.0, 3.0], menger2: [-2.4, -15.5, 3.0, 3.0], menger3: [-2.4, -15.5, 3.2, 3.2], inpak: [0.2, -8.6, 1.6, 2.6], molen: [-6.3, -14.9, 1.6, 1.4], roldeur: [-4.75, -7.9, 4.2, 0.9], hal: [HX - 2, HZ + 1, 12, 8], kavel: [DX - 2.6, PLOT.z1 - 3.2, 4, 1.4], heftruck: [HX + 4.5, HZ + 4.2, 3, 2], tafel2: [HX - 6.5, HZ + 3.6, 3.2, 2], dock: [HX + 9.6, HZ + 1.8, 2.4, 5.4], tent: [HX + HALL.x0 + 1, HZ, 2, 10], voorrek: [-7.0, -7.95, 3.0, 1.3] }[id] || null;
   }
   function showSite() {
     const j = ensure().job, s = j && siteSpot(j.id); site.visible = !!s; if (!s) return;
@@ -325,22 +328,29 @@ export function createLoods(deps) {
 
   // rack slots: which slots show a pallet. The fill follows stock / capacity; a racked pallet pins its own slot first.
   const filled = new Set(); let hint = -1;
-  const openSlots = () => bays.slice(0, ensure().racks).flatMap((b, bi) => b.slots.map((s, si) => bi * 6 + si));
+  const bayOpen = (i) => (i === FRONT_BAY ? has('voorrek') : i < Math.min(RACK_N, ensure().racks));
+  const openSlots = () => bays.flatMap((b, bi) => (bayOpen(bi) ? b.slots.map((s, si) => bi * 6 + si) : []));
   function refreshSlots() {
-    const open = openSlots(), cap = econ.cap(), tot = econ.stockTotal(), fl = deps.floorKg ? deps.floorKg() : null; // the floor places fill first (js/productie.js), the racking holds the rest
-    const want = fl === null ? Math.min(open.length, Math.round(open.length * Math.min(1, tot / Math.max(1, cap)) * 1.15)) : Math.max(0, Math.min(open.length, Math.ceil((tot - fl) / 20 - 0.001)));
+    // what stands in the racking is what the floor places cannot hold (js/productie.js rackLoads): real pallets of vaten and
+    // blue bags, the same loads the line works from. Without the production line: a fill by stock / capacity, in colours.
+    const open = openSlots(), loads = deps.rackLoads ? deps.rackLoads() : null, cap = econ.cap(), tot = econ.stockTotal(), fl = deps.floorKg ? deps.floorKg() : null;
+    const want = loads ? Math.min(open.length, loads.length) : fl === null ? Math.min(open.length, Math.round(open.length * Math.min(1, tot / Math.max(1, cap)) * 1.15)) : Math.max(0, Math.min(open.length, Math.ceil((tot - fl) / 20 - 0.001)));
+    const rk = (k) => (!has('hal') ? 0 : k < 6 ? 2 : k >= FRONT_BAY * 6 ? 1 : 0); open.sort((a, b) => rk(a) - rk(b)); // with De Hal: the hall and tent racking first, then the Voorraadrek, the shed bay last
     for (const k of [...filled]) if (!open.includes(k)) filled.delete(k);
     while (filled.size > want) filled.delete(filled.values().next().value); // the oldest pallet goes first
     while (filled.size < want) { const k = hint >= 0 && open.includes(hint) && !filled.has(hint) ? hint : open.find((x) => !filled.has(x)); if (k === undefined) break; filled.add(k); hint = -1; }
-    const stockIds = Object.keys(econ.ensure().stock).map((k) => k.split(':')[0]);
-    bays.forEach((b, bi) => b.slots.forEach((s, si) => { const k = bi * 6 + si; s.visible = filled.has(k); if (s.visible && stockIds.length) s.userData.load.material = mt(ING_COL[stockIds[k % stockIds.length]] || C.paprika); }));
+    for (let g = 0; g < 80; g++) { let worst = -1; for (const k of filled) if (worst < 0 || rk(k) > rk(worst)) worst = k; const free = open.find((x) => !filled.has(x)); if (worst < 0 || free === undefined || rk(free) >= rk(worst)) break; filled.delete(worst); filled.add(free); } // pallets move up to the better racking
+    const stockIds = Object.keys(econ.ensure().stock).map((k) => k.split(':')[0]); let li = 0;
+    for (const k of open) { const s = bays[Math.floor(k / 6)].slots[k % 6]; s.visible = filled.has(k); if (!s.visible) continue;
+      if (loads && deps.dressPallet) deps.dressPallet(s, loads[li++] || null);
+      else if (stockIds.length) s.userData.load.material = mt(ING_COL[stockIds[k % stockIds.length]] || C.paprika); }
   }
 
   // ================================================================== building
   const reqOk = (u) => (u.need || []).every((n) => (n === 'junk' ? deps.junkDone() : n === 'rek' ? ensure().racks > 0 : has(n)));
   function why(u) {
     const L = ensure();
-    if (u.repeat) { if (L.racks >= BAYS.length) return 'All racking bays are full.'; if (L.racks >= bayLimit()) return stage() === 1 ? (deps.junkDone() ? 'The shed has room for one bay. Build De Hal for more.' : NEED_TEXT.junk) : stage() === 2 ? 'The hall is full. De Overkapping has room for six more.' : 'No room left.'; if (L.racks === 0 && !deps.junkDone()) return NEED_TEXT.junk; if (deps.rank() < (L.racks >= 4 ? 2 : L.racks >= 1 ? 1 : 0)) return `rank ${RANK_NAMES[L.racks >= 4 ? 2 : 1]}`; return null; }
+    if (u.repeat) { if (L.racks >= RACK_N) return 'All racking bays are full.'; if (L.racks >= bayLimit()) return stage() === 1 ? (deps.junkDone() ? 'The shed has room for one bay. Build De Hal for more.' : NEED_TEXT.junk) : stage() === 2 ? 'The hall is full. De Overkapping has room for six more.' : 'No room left.'; if (L.racks === 0 && !deps.junkDone()) return NEED_TEXT.junk; if (deps.rank() < (L.racks >= 4 ? 2 : L.racks >= 1 ? 1 : 0)) return `rank ${RANK_NAMES[L.racks >= 4 ? 2 : 1]}`; return null; }
     if (has(u.id)) return 'built';
     const miss = (u.need || []).find((n) => !(n === 'junk' ? deps.junkDone() : n === 'rek' ? L.racks > 0 : has(n))); if (miss) return NEED_TEXT[miss];
     if (deps.rank() < u.rank) return `rank ${RANK_NAMES[u.rank]}`;
@@ -362,12 +372,12 @@ export function createLoods(deps) {
     if (j.id === 'rek') L.racks++; else L.built[j.id] = day();
     if (j.id === 'heftruck') { F.x = HX + 4.5; F.z = HZ + 4.2; F.h = Math.PI / 2; }
     apply(); deps.save();
-    const msg = { inpak: 'The Inpakmachine hums by the door: blue bags roll off the belt, labelled and all.', menger3: 'De Reuzenmenger is in. The Naknikim need the steps to tip their vaten.', rek: `Bay ${L.racks} of the racking is up: 6 pallet places (+${RACK_KG} kg).${L.racks === 1 ? ' Your stock now shows as pallets on it.' : ''}`, hal: 'The back wall is gone: De Hal is yours, and the mixer and the packing stand on its floor now. Go through the new door at the back of the shed.', heftruck: 'The heftruck is parked in the hall. Pallet deals are open on the Loods tab.', tent: "De Overkapping stands. Eddy's Groothandel: a real trader's warehouse." }[j.id] || u.what;
+    const msg = { inpak: 'The Inpakmachine hums by the door: blue bags roll off the belt, labelled and all.', menger3: 'De Reuzenmenger is in. The Naknikim need the steps to tip their vaten.', rek: `Bay ${L.racks} of the racking is up: 6 pallet places (+${RACK_KG} kg).${L.racks === 1 ? ' Your stock now shows as pallets on it.' : ''}`, hal: 'The back wall is gone: De Hal is yours, and the mixer and the packing stand on its floor now. Go through the new door at the back of the shed.', heftruck: 'The heftruck is parked in the hall. Pallet deals are open on the Loods tab.', voorrek: `The Voorraadrek stands where the trucks used to unload: 6 pallet places (+${RACK_KG} kg) right inside the door.`, tent: "De Overkapping stands. Eddy's Groothandel: a real trader's warehouse." }[j.id] || u.what;
     deps.toast('VERBOUWING KLAAR', `${u.name}: ${msg}`, 5);
   }
   function apply() { // show what's built
     const L = ensure();
-    bays.forEach((b, i) => { b.g.visible = i < L.racks; b.sol.off = i >= L.racks; });
+    bays.forEach((b, i) => { const on = bayOpen(i); b.g.visible = on; b.sol.off = !on; });
     mixer1.visible = mixer2.visible = false; mill.visible = has('molen'); // the mixers are drawn by the production line now (js/productie.js)
     shedSol.menger.off = true; shedSol.mill.off = !has('molen');
     cam.visible = has('roldeur'); if (deps.shutter && has('roldeur')) deps.shutter.material.color.setHex(0x6a7078);
@@ -610,7 +620,7 @@ export function createLoods(deps) {
   function workStations() {
     const L = ensure(), out = [], area = (x, z) => (z > SHED_BACK ? 'shed' : x < HX + HALL.x0 ? 'tent' : 'hall');
     bays.forEach((b, i) => { // the two lower levels of every open bay: grab from a pallet, or put a sack on an empty beam
-      if (i >= L.racks) return;
+      if (!bayOpen(i)) return;
       const n = new THREE.Vector3(Math.sin(b.ry), 0, Math.cos(b.ry)), c = b.g.position;
       for (let si = 0; si < 4; si++) {
         const sx = si % 2 ? 0.66 : -0.66, lv = LEVELS[si >> 1], full = b.slots[si].visible;

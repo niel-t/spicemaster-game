@@ -250,9 +250,10 @@ export function createNaknikWork(deps) {
     if (Ln.scoop && Ln.hopper) lk.push('l-feed', 'l-feed');
     if (Ln.belt && Ln.out) lk.push('l-belt', 'l-belt', 'l-belt');
     if (Ln.haulA && Ln.haulB) lk.push('l-haul');
-    if (lk.length && (Math.random() < 0.8 || !kinds.length)) {
-      const kd = pick(lk), one = (a) => a[Math.floor(Math.random() * a.length)];
-      const steps = kd === 'l-vat' ? [[one(Ln.vat), 'grab'], [Ln.mixer[0], 'pour']] : kd === 'l-pack' ? [[Ln.scoop[0], 'grab'], [Ln.pack[0], 'pack'], [Ln.out[0], 'drop']] : kd === 'l-feed' ? [[Ln.scoop[0], 'grab'], [Ln.hopper[0], 'pour']] : kd === 'l-haul' ? [[one(Ln.haulA), 'grab'], [one(Ln.haulB), 'drop']] : [[Ln.belt[0], 'grab'], [Ln.out[0], 'drop']];
+    const truck = !!(Ln.truckA && Ln.truckB); // a goods truck is in (js/goederen.js): the pallets come first
+    if ((lk.length || truck) && (truck || Math.random() < 0.8 || !kinds.length)) {
+      const kd = truck && (Math.random() < 0.75 || lk.length === 0) ? 'l-truck' : pick(lk), one = (a) => a[Math.floor(Math.random() * a.length)];
+      const steps = kd === 'l-vat' ? [[one(Ln.vat), 'grab'], [Ln.mixer[0], 'pour']] : kd === 'l-pack' ? [[Ln.scoop[0], 'grab'], [Ln.pack[0], 'pack'], [Ln.out[0], 'drop']] : kd === 'l-feed' ? [[Ln.scoop[0], 'grab'], [Ln.hopper[0], 'pour']] : kd === 'l-haul' ? [[one(Ln.haulA), 'grab'], [one(Ln.haulB), 'drop']] : kd === 'l-truck' ? [[one(Ln.truckA), 'grab'], [one(Ln.truckB), 'drop']] : [[Ln.belt[0], 'grab'], [Ln.out[0], 'drop']];
       if (steps.every(([s]) => reserve(W, n, s.key))) {
         const plan = []; for (const [s, act] of steps) plan.push({ go: s }, { act, s });
         plan.push({ go: { x: home.x, z: home.z, fx: bowl.x, fz: bowl.z, home: true } });
