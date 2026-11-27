@@ -96,6 +96,13 @@ const HE = [
 ];
 const AFTER_NL = ['Dit is precies het probleem!', 'Wow. Echt. Ik ga hier een thread over schrijven.', 'Je bent gewoon bang voor verandering!', 'Ik voel me hier onveilig. Met mijn megafoon.', 'Ik ga dit melden. Bij wie? Bij iedereen.', 'Dat is jouw mening. Fout, maar jouw mening.'];
 const AFTER_HE = ['Wat zegt hij?', 'Is dat een nieuwe taal? Mogen wij die ook leren? Is er een cursus? Gratis?', 'Ik versta het niet, maar ik ben er tegen!', 'Ik ga het googlen. Na de lunch.', 'Zei hij nou "sababa"? Is dat een soort tofu?', 'Klinkt boos. Ik zet het op Instagram met een vlammetje.'];
+// every smack makes them angrier (state.activists.smacks): these come out of the megaphone from the first one on
+const ANGRY = ['EDDY SLAAT! EDDY SLAAT!', 'GEWELD IS GEEN KRUID!', 'WIJ ZIJN NIET BANG!', 'DE KRUIDENBAAS IS EEN BEUL!', 'SCHANDE! SCHANDE! SCHANDE!', 'KNUPPELS LOSSEN NIETS OP!', 'WIJ HEBBEN HET GEFILMD!'];
+const FURY = ['NU IS HET GENOEG!', 'HIJ SLAAT, WIJ SLAAN TERUG!', 'KAMERADEN! PAK HEM!', 'GEEN WOORDEN MAAR TOTE BAGS!', 'DIT IS ZELFVERDEDIGING! COLLECTIEF!'];
+const HIT_EDDY = ['Dit is voor de planeet!', 'En DIE is voor mijn bril!', 'Voel de solidariteit!', 'Tote bag! In je gezicht!', 'Dit bord is van gerecycled karton en het doet PIJN!', 'Namens de werkgroep!'];
+const KO_ACT = ['Ik... ik ga even liggen. Principieel.', 'Bel... mijn vader...', 'Ik film dit... vanaf de grond...', 'Dit komt in de nieuwsbrief...'];
+const WON = ['WIJ HEBBEN GEWONNEN! ...Waarvan?', 'DE STRAAT IS VAN ONS!', 'EEN OVERWINNING VOOR DE WERKGROEP!'];
+const EDDY_OUCH = ['Au! Godver!', 'Mijn rug!', 'Niet het gezicht!', 'Kut, die megafoon is hard!', 'איי! בן זונה!'];
 const BOO = ['SCHANDE!', 'BOE!', 'WIJ ZIEN JE!', 'DIT GAAT ONLINE!', 'TEGEN! TEGEN!'];
 
 // ---------- what Pa, Shooki and Razim make of it ----------
@@ -104,6 +111,8 @@ const PA_NOW_SMACK = ['Eddy! You do not hit people! ...Okay. Those people, I und
 const PA_NOW = ['Leave them, jongen. In 1983 they protested our paprika. Too red, they said.', 'A megaphone and no job. In my day we had a job and no megaphone.', 'Did you sign? Never sign. Your grandfather signed once. We lost the garage.', 'Walk on, Eddy. You cannot argue with a megaphone. It is louder.'];
 function paTalk(g, kind) {
   const G = g.name;
+  if (kind === 'brawl') return [['Freddy Sr.', `Four of them, jongen. FOUR. On my pavement. With the ${g.tag} flag still standing.`], ['Eddy Jr.', 'They started swinging, Pa. Sort of.'], ['Freddy Sr.', 'In 1983 I fought a man over a parking space with a salami. I won. I was ashamed for a week. Then I was proud for forty years.'], ['Freddy Sr.', 'Bakker is a good man. Do what you told him you would do. And put ice on that eye.']];
+  if (kind === 'beaten') return [['Freddy Sr.', 'Eddy. You have a footprint on your shirt. A sandal.'], ['Eddy Jr.', 'I do not want to talk about it.'], ['Freddy Sr.', 'Beaten by people who drink oat milk. Your grandfather is spinning. Slowly, he had a bad hip.'], ['Freddy Sr.', 'Next time you swing first and you run second. Or you do not swing. I always forget which one is the lesson.']];
   if (kind === 'smack') return [['Freddy Sr.', `Eddy. The ${g.tag} people. With the Maboota.`], ['Eddy Jr.', 'They followed me to the door, Pa. With a clipboard.'], ['Freddy Sr.', 'A clipboard is not a weapon, jongen. ...A clipboard is a little bit a weapon.'], ['Freddy Sr.', 'They will be back, you know. With more megaphones. That kind always comes back. Like the Lampas, but with oat milk.']];
   if (g.pro && Math.random() < 0.7) return rnd([
     [['Eddy Jr.', 'Pa, the PRO were outside. Red flags, scarves, a megaphone. They want to boycott me.'], ['Freddy Sr.', 'The PRO! In 1979 the red ones wanted to nationalise our paprika. I said: take it, it is already red.'], ['Eddy Jr.', 'And?'], ['Freddy Sr.', 'They asked if it was fair trade. I said: I trade, you pay, very fair. They bought two kilo.'], ['Freddy Sr.', 'Remember, jongen: a socialist is a capitalist who has not found his product yet.']],
@@ -117,6 +126,8 @@ function paTalk(g, kind) {
   ]);
 }
 function shookiTalk(g, kind) {
+  if (kind === 'brawl') return [['Shooki', 'BRO. You dropped all four. I have it from two angles, the Kangoo dashcam and my heart.'], ['Eddy Jr.', 'Bakker was standing right there, Shooki.'], ['Shooki', 'I know bro, he is in the video too. He is smiling a little. Do not tell him.'], ['Shooki', 'Their post is already up. Sixty slides. Slide nine is just your face. It is a good picture, bro. Use it for the van.']];
+  if (kind === 'beaten') return [['Shooki', 'Bro. Bro. I saw it. The megaphone. Bro.'], ['Eddy Jr.', 'Shooki.'], ['Shooki', 'I am not laughing, bro, this is my worried face. They took a collection out of your wallet and gave you a RECEIPT.'], ['Shooki', 'Keep the receipt bro. Henk can do something with that. Tax.']];
   if (kind === 'smack') return [['Shooki', 'BRO. You smacked the protest people? I have it on video. Slow motion.'], ['Eddy Jr.', 'Delete it, Shooki.'], ['Shooki', 'Bro, they already posted their side. Forty slides. "We were attacked by Big Spice." Big Spice, bro! That is you! That is a brand!'], ['Shooki', 'They\'ll be back by the afternoon. I give it two hours. I put money on it with Tony.']];
   if (g.pro && Math.random() < 0.7) return rnd([
     [['Shooki', 'Bro, the PRO girl sold me a scarf. Forty Wilders.'], ['Eddy Jr.', 'Why do you need a scarf?'], ['Shooki', 'I don\'t, bro. Then she told me I am "appropriating". I said sister, YOU sold it to me. She said that is different. I asked how. She is still thinking.'], ['Shooki', 'I am selling it back to her tomorrow. Forty-five.']],
@@ -277,9 +288,11 @@ export function createActivists(d) {
   function roll() {
     const s = A(), day = econ.ensure().day;
     if (s.day === day) return;
+    if ((s.smacks | 0) > 0 && day - (s.calmDay || 0) >= 2) { s.smacks--; s.calmDay = day; } // two quiet days take the edge off
     s.day = day; s.gone = false; s.backIn = 0;
     s.here = !s.seen || Math.random() < 0.4; // the first eligible day they are always there, so the player meets them once
     if (d.inspectorDue && d.inspectorDue()) s.here = false; // the parking inspector has the pavement that day
+    if (s.awayTill && day < s.awayTill) s.here = false; // sent off after a brawl
     if (s.here) { let gi; if (Math.random() < 0.65 && s.gi !== 0) gi = 0; else do gi = 1 + Math.floor(Math.random() * (GROUPS.length - 1)); while (gi === s.gi); s.gi = gi; paint(); } // PRO (index 0) most of the time
   }
   let painted = -1;
@@ -305,11 +318,18 @@ export function createActivists(d) {
     if (proFlags.visible) wave(performance.now() / 1000);
     if (!s.seen) { s.seen = true; d.save(); }
     const g = G(), dist = near(), busy = d.busy();
+    if (brawl) { fight(dt, g); return; }
     if (scat > 0) { scatter(dt, g); return; }
     for (const p of [left, right]) animate(p, 0, dt);
     // the megaphone: a chant every few seconds while Eddy is in earshot, fist pumping on the beat
     chantT -= dt;
-    if (dist < 16 && chantT <= 0 && !busy) { chantT = 4.5 + Math.random() * 3; chantBeat = 1.6; squawk(); personBubble(horn, backShout ? rnd(BACK) : Math.random() < 0.55 ? rnd(g.chants) : rnd(CHANTS), g.col, g.tag); backShout = false; }
+    const rage = Math.min(5, s.smacks | 0);
+    if (dist < 16 + rage * 4 && chantT <= 0 && !busy) { chantT = (4.5 + Math.random() * 3) / (1 + rage * 0.55); chantBeat = 1.6; squawk(); if (rage > 1) setTimeout(squawk, 180); if (rage > 3) setTimeout(squawk, 360);
+      const line = backShout ? rnd(BACK) : rage && Math.random() < 0.35 + rage * 0.12 ? rnd(rage >= 3 ? [...ANGRY, ...FURY] : ANGRY) : Math.random() < 0.55 ? rnd(g.chants) : rnd(CHANTS);
+      personBubble(horn, rage >= 2 ? line.replace(/[!.]*$/, '!'.repeat(Math.min(4, rage))) : line, rage >= 3 ? '#ff2a1a' : g.col, g.tag); backShout = false;
+      if (rage >= 2 && Math.random() < 0.5) setTimeout(() => { if (root.visible && !brawl) personBubble(rnd([left, right]), rnd(BOO), g.col, g.tag); }, 700); }
+    // past a certain point they do not wait for him to swing first
+    if (rage >= 4 && dist < 5.5 && !busy && s.jumpDay !== s.day && !brawl) { s.jumpDay = s.day; startBrawl('them'); return; }
     if (chantBeat > 0) { chantBeat -= dt; fl[2].hands[1] = Math.sin(chantBeat * 9) > 0 ? 'fist' : null; } else fl[2].hands[1] = null;
     if (booT > 0 && (booT -= dt) <= 0) { squawk(); personBubble(horn, rnd(BOO), g.col, g.tag); chantT = 5; }
     { const want = dist < 9 ? Math.atan2(player.position.x - horn.position.x - SPOT.x, player.position.z - horn.position.z - SPOT.z) : -0.35; horn.rotation.y += Math.atan2(Math.sin(want - horn.rotation.y), Math.cos(want - horn.rotation.y)) * Math.min(1, dt * 2); }
@@ -330,6 +350,7 @@ export function createActivists(d) {
     const to = target.clone().sub(can.position); to.y = 0; const L = to.length(), stop = follow > 0 ? 1.3 : 0.08;
     if (L > stop) { sp = follow > 0 ? 2.2 : 1.3; const st = Math.min(L - stop, sp * dt); can.position.addScaledVector(to.normalize(), st); can.rotation.y = Math.atan2(to.x, to.z); walking = true; }
     else { walking = false; const want = follow > 0 || dist < 6 ? Math.atan2(P.x - cw.x, P.z - cw.z) : 0; can.rotation.y += Math.atan2(Math.sin(want - can.rotation.y), Math.cos(want - can.rotation.y)) * Math.min(1, dt * 4); }
+    if (d.keepOut) { const wp = can.getWorldPosition(tmpV.clone()); if (d.keepOut(wp, `${g.tag}-activist`, follow > 0)) { can.position.x = wp.x - SPOT.x; can.position.z = wp.z - SPOT.z; walking = false; } } // not into the warehouse: the doorbell
     fl[3].moving = walking; animate(can, walking ? sp : 0, dt);
     for (const f of fl) if (f.tmp && f.tmp.t > 0 && (f.tmp.t -= dt) <= 0) f.tmp = null;
     // Razim heard about it: he calls a little later (missed: he texts)
@@ -402,18 +423,100 @@ export function createActivists(d) {
   function regroup() { for (const c of CREWS) for (const q of c.ppl) { const u = q.userData; u.down = 0; u.body.rotation.x = 0; u.body.position.y = 0; u.run = null; q.position.copy(u.base.pos); q.rotation.y = u.base.ry; q.visible = true; } follow = 0; if (flyer) flyer.visible = false; }
   // melee(f): Eddy swings in the hub; true when the Maboota connected with a protester
   function melee(f) {
-    if (!root.visible || scat > 0) return false;
+    if (!root.visible || (scat > 0 && !brawl)) return false;
     let hit = null;
-    for (const q of ppl) { const w = q.getWorldPosition(new THREE.Vector3()), dx = w.x - player.position.x, dz = w.z - player.position.z, L = Math.hypot(dx, dz); if (L < 1.7 && (dx * f.x + dz * f.z) / (L || 1) > 0.25) { hit = q; break; } }
+    for (const q of ppl) { if (brawl && q.userData.fight && q.userData.fight.hp <= 0) continue; const w = q.getWorldPosition(new THREE.Vector3()), dx = w.x - player.position.x, dz = w.z - player.position.z, L = Math.hypot(dx, dz); if (L < 1.7 && (dx * f.x + dz * f.z) / (L || 1) > 0.25) { hit = q; break; } }
     if (!hit) return false;
     const s = A(), g = G(), u = hit.userData;
+    if (brawl) { punch(hit, g); return true; }
+    if ((s.smacks | 0) >= 2) { s.smacks = (s.smacks | 0) + 1; s.calmDay = s.day; startBrawl('eddy'); punch(hit, g); return true; }
     u.down = 2.2; personBubble(hit, rnd(OUCH_ACT), '#ff7a1a', g.tag);
     beep(90, 0.18, 'square', 0.06); setTimeout(() => beep(60, 0.2, 'sawtooth', 0.05), 50);
     scat = 9; follow = 0; flyer.visible = false;
     ppl.forEach((q, i) => { if (q !== hit) setTimeout(() => { if (scat > 0) personBubble(q, rnd(RUN), g.col, g.tag); }, 300 + i * 450); q.userData.run = { dir: Math.sign(q.position.x + SPOT.x - player.position.x) || (i % 2 ? 1 : -1), wait: q === hit ? 2.4 : 0.25 + i * 0.25 }; });
-    s.here = false; s.gone = true; s.backIn = 120 + Math.random() * 120; s.smacks = (s.smacks || 0) + 1;
+    s.smacks = (s.smacks || 0) + 1; s.calmDay = s.day;
+    s.here = false; s.gone = true; s.backIn = (120 + Math.random() * 120) / s.smacks; // back sooner every time, and louder
     encounter('smack');
     return true;
+  }
+  // ---------- the brawl (Tristan 2026-11-27): after two smacks they stop running. Two of them come at Eddy at a time with
+  // the megaphone, a placard and a tote bag; the others shout from behind. Two hits put an activist down for good, eight put
+  // Eddy on the stones. Running inside ends it at his door. Afterwards somebody has to answer for it: see aftermath().
+  let brawl = null;
+  const EDDY_HP = 8;
+  const hud = document.createElement('div'); hud.style.cssText = 'position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top));transform:translateX(-50%);z-index:60;display:none;padding:6px 14px;border-radius:12px;background:rgba(30,10,10,.82);border:2px solid #ff5a3a;color:#fff;font:700 14px/1.3 Rubik,Arial,sans-serif;text-align:center;pointer-events:none;white-space:nowrap'; document.body.appendChild(hud);
+  function drawHud() { if (!brawl) { hud.style.display = 'none'; return; } const up = ppl.filter((q) => q.userData.fight && q.userData.fight.hp > 0).length; hud.style.display = 'block'; hud.innerHTML = `KNOKPARTIJ &nbsp; Eddy <span style="color:#ffd36b">${'♥'.repeat(Math.max(0, EDDY_HP - brawl.hits))}</span><span style="opacity:.35">${'♥'.repeat(Math.min(EDDY_HP, brawl.hits))}</span> &nbsp;·&nbsp; ${G().tag} <span style="color:#ff7a5a">${'✊'.repeat(up)}</span>`; }
+  function startBrawl(by) {
+    const s = A(), g = G(); brawl = { by, hits: 0, t: 0, away: 0 }; scat = 0; follow = 0; flyer.visible = false; fl[3].hands[1] = null;
+    ppl.forEach((q, i) => { q.userData.fight = { hp: 2, cd: 2.0 + i * 0.8, down: 0 }; q.userData.run = null; q.visible = true; });
+    squawk(); setTimeout(squawk, 150); setTimeout(squawk, 300);
+    personBubble(horn, rnd(FURY), '#ff2a1a', g.tag);
+    toast('KNOKPARTIJ!', by === 'them' ? `The ${g.tag} have had enough of being hit: they come at you. Swing back, or get inside.` : 'This time they do not run. Two hits each, and mind the megaphone.', 4.5);
+    beep(196, 0.3, 'sawtooth', 0.06); drawHud(); d.save();
+  }
+  function punch(hit, g) { // Eddy lands one
+    const f = hit.userData.fight; if (!f || f.hp <= 0) return; f.hp--; f.down = f.hp > 0 ? 1.3 : 99; f.cd = 1.2;
+    personBubble(hit, f.hp > 0 ? rnd(OUCH_ACT) : rnd(KO_ACT), '#ff7a1a', g.tag);
+    beep(90, 0.18, 'square', 0.06); setTimeout(() => beep(60, 0.2, 'sawtooth', 0.05), 50); drawHud();
+  }
+  function fight(dt, g) {
+    const B = brawl, P = player.position; B.t += dt;
+    const up = ppl.filter((q) => q.userData.fight.hp > 0);
+    up.forEach((q, rank) => {
+      const u = q.userData, f = u.fight, w = q.getWorldPosition(tmpV.clone());
+      if (f.down > 0) { f.down -= dt; const lying = f.down > 0.4 ? 1 : Math.max(0, f.down / 0.4); u.body.rotation.x = -1.5 * lying; u.body.position.y = 0.12 * lying; animate(q, 0, dt); return; }
+      u.body.rotation.x = 0; u.body.position.y = 0; f.cd -= dt;
+      const front = rank < 2, dx = P.x - w.x, dz = P.z - w.z, L = Math.hypot(dx, dz) || 1, want = front ? 1.0 : 2.6 + rank * 0.5;
+      // the two in front close in; the rest hang back in a half circle and shout
+      const ang = front ? 0 : (rank % 2 ? 1 : -1) * 0.9, tx = P.x - (dx / L * Math.cos(ang) - dz / L * Math.sin(ang)) * want, tz = P.z - (dz / L * Math.cos(ang) + dx / L * Math.sin(ang)) * want;
+      const mx = tx - w.x, mz = tz - w.z, ML = Math.hypot(mx, mz);
+      if (ML > 0.15) { const sp = front ? 3.3 : 2.4, st = Math.min(ML, sp * dt); q.position.x += mx / ML * st; q.position.z += mz / ML * st; animate(q, sp, dt); } else animate(q, 0, dt);
+      if (d.keepOut) { const wp = q.getWorldPosition(tmpV.clone()); if (d.keepOut(wp, `${g.tag}`, true)) { q.position.x = wp.x - SPOT.x; q.position.z = wp.z - SPOT.z; } }
+      q.rotation.y = Math.atan2(dx, dz);
+      if (front && L < 1.25 && f.cd <= 0) { // a hit on Eddy
+        f.cd = 2.3 + Math.random() * 0.9; B.hits++; personBubble(q, rnd(HIT_EDDY), '#ff2a1a', g.tag); if (Math.random() < 0.6) personBubble(player, rnd(EDDY_OUCH), '#ffd36b', 'Eddy Jr.');
+        beep(140, 0.12, 'square', 0.07); if (d.flash) d.flash(); if (B.hits % 3 === 0 && d.knock) d.knock(dx / L * 3.2, dz / L * 3.2, 3.2); drawHud();
+      } else if (!front && Math.random() < dt * 0.25) personBubble(q, rnd([...BOO, ...ANGRY]), g.col, g.tag);
+    });
+    for (const q of ppl) if (q.userData.fight.hp <= 0) { const u = q.userData; u.body.rotation.x = -1.5; u.body.position.y = 0.12; }
+    const far = near() > 30, inside = d.indoors && d.indoors(); B.away = far || inside ? B.away + dt : 0;
+    if (!up.length) end('win'); else if (B.hits >= EDDY_HP) end('lose'); else if (B.away > 1.8) end(inside ? 'door' : 'ran');
+  }
+  function end(how) {
+    const s = A(), g = G(), B = brawl; brawl = null; drawHud();
+    for (const q of ppl) { const u = q.userData; u.fight = null; u.body.rotation.x = 0; u.body.position.y = 0; }
+    s.fights = (s.fights | 0) + 1; s.calmDay = s.day; s.last = { kind: 'brawl:' + how, gi: s.gi };
+    if (d.fact) d.fact('brawl', { how, by: B.by, tag: g.tag, name: g.name });
+    if (how === 'win') { s.here = false; s.gone = true; s.backIn = 0; s.awayTill = s.day + 3; regroup(); root.visible = false; setTimeout(() => aftermath(B, g), 900); }
+    else if (how === 'lose') {
+      const take = Math.min(150, Math.max(20, Math.round((d.money ? d.money() : 0) * 0.1 / 5) * 5)); if (d.knock) d.knock(0, 2.5, 5.5);
+      personBubble(horn, rnd(WON), g.col, g.tag); squawk(); s.smacks = 1; regroup();
+      setTimeout(() => { if (d.pass) d.pass(2); d.addMoney(-take); if (d.rep) d.rep(-2, 'beaten up by protesters');
+        dialogue([['Eddy Jr.', 'Urgh. Wat... what time is it. Why is there a flyer stuck to my face.'], [g.tag, `We have held a collection for the victims of your violence. From your wallet. W ${take}. You get a receipt.`], ['Eddy Jr.', 'Kut.']],
+          () => toast('OP DE STENEN', `Two hours gone, −W ${take} "for the cause". They stay on your pavement, but they have calmed down: they made their point.`, 6)); encounter('beaten'); }, 1500);
+    } else { // he got away: inside, or down the street
+      s.here = false; s.gone = true; s.backIn = 80; regroup(); root.visible = false;
+      if (how === 'door' && d.bell) { d.bell(`${g.tag}`, true); setTimeout(() => d.bell(`${g.tag}`, true), 1400); }
+      toast(how === 'door' ? 'OP DE DEUR' : 'WEG', how === 'door' ? `They hammer on your door and lean on the bell, then the megaphone reads your address out to the street. They will be back, and no calmer.` : 'You outran a megaphone. They will be back, and no calmer.', 5);
+    }
+    d.save();
+  }
+  // Eddy won. Wijkagent Bakker is there before the last one is on his feet, and somebody has to answer for it.
+  function aftermath(B, g) {
+    const s = A(), mine = B.by === 'eddy', fine = mine ? 150 : 60;
+    const out = (title, text) => { toast(title, text, 6); encounter('brawl'); d.save(); };
+    dialogue([
+      ['Wijkagent Bakker', mine ? `Meneer Eddy. Four people on the pavement and a man with a truncheon. I do not need my notebook for this one.` : `Meneer Eddy. I saw the end of it from the bridge. They came at you first, I will say that. But four on the stones is four on the stones.`],
+      [g.tag, 'He is a danger to the street! We want this on the record! And we want our megaphone back!'],
+    ], () => choice('Wijkagent Bakker', 'So. How do we settle this?', [`Pay the fine (W ${fine})`, 'It was self-defence', 'Make peace: broodjes shoarma for everybody (W 80)'], (i) => {
+      if (i === 0) { d.addMoney(-fine); if (d.rep) d.rep(-3, 'fined for a street fight'); s.smacks = Math.max(2, (s.smacks | 0) - 1); s.awayTill = s.day + 3;
+        out('BOETE', `−W ${fine}. The picket is off your pavement for three days. They come back as angry as they left.`); }
+      else if (i === 1) {
+        if (!mine) { if (d.rep) d.rep(2, 'stood his ground'); s.smacks = 2; s.awayTill = s.day + 6; dialogue([['Wijkagent Bakker', 'It was. I will write it that way. And you lot: a week away from this door, or I start asking who paid for those flags.']], () => out('ZELFVERDEDIGING', 'No fine. The picket is banned from your door for six days, and they know Bakker is watching.')); }
+        else { d.addMoney(-fine * 2); if (d.rep) d.rep(-5, 'lied to Wijkagent Bakker'); s.smacks = (s.smacks | 0) + 1; s.awayTill = s.day + 2; dialogue([['Wijkagent Bakker', 'Self-defence. With the first swing. Meneer Eddy, I was standing right there. That is double.']], () => out('DUBBELE BOETE', `−W ${fine * 2}. They are back in two days, with a lawyer's letter and a bigger megaphone.`)); }
+      } else { d.addMoney(-80); if (d.rep) d.rep(3, 'bought the protesters lunch'); s.smacks = 0; s.awayTill = s.day + 1;
+        dialogue([[g.tag, 'Is it vegan?'], ['Eddy Jr.', 'It is shoarma.'], [g.tag, '...We will allow it. This once. For the working group.'], ['Wijkagent Bakker', 'Then I saw nothing. Smakelijk.']], () => out('VREDE', '−W 80. They will be back tomorrow and they will still chant, but nobody is swinging: the anger is gone.')); }
+    }));
   }
   function scatter(dt, g) {
     scat -= dt;
@@ -437,5 +540,5 @@ export function createActivists(d) {
   const blocks = (x, z) => root.visible && z < 0 && x > SPOT.x - 6 && x < SPOT.x + 5;
   // test hook: spawn(gi) puts the picket out today
   function spawn(gi = Math.floor(Math.random() * GROUPS.length)) { const s = A(); s.day = econ.ensure().day; s.here = true; s.seen = true; s.gi = gi; paint(); painted = gi; return G().name; }
-  return { update, tick, debrief, blocks, melee, regroup, respond, spawn, encounter, callRazim, GROUPS, HE, NL, root, get people() { return ppl; }, SPOT };
+  return { startBrawl, get brawl() { return brawl; }, state: A, update, tick, debrief, blocks, melee, regroup, respond, spawn, encounter, callRazim, GROUPS, HE, NL, root, get people() { return ppl; }, SPOT };
 }

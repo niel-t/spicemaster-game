@@ -795,6 +795,23 @@ const doorOnly = { on: false, high: new THREE.Group(), low: new THREE.Group(), s
   const pl = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.42), lam({ map: signTex([{ t: 'GOEDEREN → DE HAL', size: 44 }], '#f2c31a', '#1a1a1a', 512, 98) })); pl.position.set(cx + 2.0, 2.0, WH.z1 + 0.17); doorOnly.high.add(pl);
   doorOnly.high.visible = doorOnly.low.visible = false; }
 function shedFront(on) { if (doorOnly.on === on) return; doorOnly.on = on; doorOnly.high.visible = doorOnly.low.visible = on; for (const s of doorOnly.sols) s.off = !on; }
+// ---- the doorbell (Tristan 2026-11-27): people from the street do not walk into Eddy's warehouse. Whoever is headed for
+// him stops on the threshold and rings; Eddy opens the door (E inside, by the door) or lets it ring.
+const deurbel = { who: null, t: 0, cd: 0, angry: false };
+function ringBell(who, angry) {
+  deurbel.who = who; deurbel.t = 14; deurbel.angry = !!angry; if (deurbel.cd > 0) return; deurbel.cd = angry ? 1.6 : 7;
+  beep(784, 0.22, 'sine', 0.07); setTimeout(() => beep(622, 0.45, 'sine', 0.07), 240); if (angry) { setTimeout(() => beep(784, 0.2, 'sine', 0.07), 520); setTimeout(() => beep(622, 0.4, 'sine', 0.07), 740); }
+  if (isInside(player.position) && !state.inDialogue) toast('DING DONG', angry ? `${who}: on the deurbel, and on the door with a flat hand. Open it, or sit it out.` : `${who} is at the door. Open it (E by the door), or let it ring.`, 3.5);
+}
+// p: a world position (changed in place when it is inside the walls). Returns true when the visitor was stopped at the door.
+function keepOut(p, who, wantsIn, angry) {
+  if (!(p.x > WH.x0 - 0.2 && p.x < WH.x1 + 0.2 && p.z > WH.z0 - 0.2 && p.z < WH.z1 + 0.35)) return false;
+  p.z = WH.z1 + 0.8; p.x = Math.max(WH.doorX0 + 0.5, Math.min(WH.doorX1 - 0.5, p.x));
+  if (wantsIn && isInside(player.position)) ringBell(who, angry);
+  return true;
+}
+{ const plate = box(0.14, 0.2, 0.05, lam({ color: 0xd8b040 }), WH.doorX1 + 0.45, 1.35, WH.z1 + 0.18, frontLow, false); box(0.05, 0.05, 0.03, lam({ color: 0x1a1a1a }), 0, 0, 0.035, plate, false);
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.16), lam({ map: signTex([{ t: 'BELLEN A.U.B.', size: 40 }], '#f2ead8', '#3a2412', 256, 82) })); pl.position.set(WH.doorX1 + 0.45, 1.62, WH.z1 + 0.17); frontLow.add(pl); }
 // sign
 const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.35), lam({ map: signFace(canvasTex, 'zn', 1024, 182) })); // Eddy & Zn, then Eddy's (updateKangoo)
 sign.position.set((WH.doorX0 + WH.doorX1) / 2, 4.25, WH.z1 + 0.2); frontHigh.add(sign);
@@ -2914,6 +2931,19 @@ function razimVisit() {
   personBubble(p, rnd(['EDDY! Surprise!', 'Eddyyy! I was in the neighbourhood! Pricing things!', 'Eddy! Don\'t pretend you didn\'t see me!']), '#b4cc7a');
   return true;
 }
+// passers-by, the police, the inspector and Razim: none of them through the walls. Whoever ends up at the door while Eddy is
+// inside has come for him, and rings.
+const guardV = new THREE.Vector3();
+function doorGuard(dt) {
+  if (deurbel.cd > 0) deurbel.cd -= dt; if (deurbel.t > 0) deurbel.t -= dt;
+  if (mission.active || tripOn()) return;
+  const one = (o, who) => { const q = o && (o.isObject3D ? o : o.p || o.g || o.obj); if (!q || !q.visible || !q.position) return; guardV.copy(q.position); if (keepOut(guardV, who, true)) { q.position.x = guardV.x; q.position.z = guardV.z; } };
+  for (const w of walkers) one(w, 'Somebody from the street');
+  for (const o of officers) one(o, 'The police');
+  one(inspector, 'The parking inspector'); one(razim, 'Razim');
+}
+addInteract({ pos: () => new THREE.Vector3((WH.doorX0 + WH.doorX1) / 2, 0, WH.z1 - 0.9), r: 1.6, enabled: () => deurbel.t > 0 && isInside(player.position) && !state.inDialogue,
+  label: () => `Open the door · ${deurbel.who}`, act: () => { deurbel.t = 0; player.position.set((WH.doorX0 + WH.doorX1) / 2, 0, WH.z1 + 1.9); player.rotation.y = 0; if (window.__sme.snapCam) window.__sme.snapCam(); beep(330, 0.08, 'square', 0.04); } });
 function updateRazim(dt) {
   if (!razim) {
     const e = econ.ensure();
@@ -3329,7 +3359,7 @@ function tick() {
   const inside = isInside(player.position) && state.step !== 'title'; // the title backdrop shows the street with the roof on
   shedFront(!!(loods && loods.has('hal')));
   roof.visible = !inside; frontHigh.visible = !inside; shutter.visible = !doorOnly.on && (!inside || shutterOpen < 0.5);
-  whCull(inside); whZoneTick();
+  whCull(inside); whZoneTick(); doorGuard(dt);
   const li = inside ? 2.2 : 0; inLight1.intensity += (li - inLight1.intensity) * dt * 4; inLight2.intensity = inLight1.intensity;
   // pawnshop: door swings open, roof + façade hide while you're inside, bunker lights come on
   shopDoorOpen += (shopDoorTarget - shopDoorOpen) * Math.min(1, dt * 3); shopDoor.rotation.y = shopDoorOpen * 1.7;
@@ -3503,7 +3533,10 @@ phone = initPhone({ freddyCall: () => freddy && freddy.onCall(), freddyMissed: (
 freddy = createFreddy({ airport: (job) => !!(wijk && job && wijk.enter('air', { job })), paHouse: () => { if (buurt) buurt.setPoint(PA_DOOR.x, PA_DOOR.z, "Pa's huis"); }, state, econ, dad, dadSolid, player, animate, dialogue, choice, toast, beep, addMoney, save: () => writeSave(), objective: () => updateObjective(), phone: () => phone, drive: () => oofDrive, van: () => garage.stats(), afterDrive: () => { clearPlayerSplats(); clock.getDelta(); },
   busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || tripOn() || state.step === 'title' || !!(phone && phone.isOpen) || isPaused(),
   hidden: () => state.step === 'title' || mission.active || tripOn() || !!(woning && woning.inside()) || !!(pahuis && pahuis.inside()) });
-activists = createActivists({ scene, lam, box, passerBy, personBubble, animate, player, dad, state, econ, folk, addInteract, dialogue, choice, toast, beep, save: () => writeSave(),
+activists = createActivists({ keepOut, bell: ringBell, knock: (vx, vz, up) => bump(vx, vz, up), indoors: () => isInside(player.position) || !!(loods && loods.inside()) || !!(woning && woning.inside()),
+  money: () => state.money, addMoney, pass: (h) => klok && klok.pass(h), rep: (n, why) => brep && brep.add('kade', n, why), fact: (k, data) => world && world.note(k, data),
+  flash: () => { const f = $('hitFlash') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'hitFlash' }); f.style.cssText = 'position:fixed;inset:0;background:radial-gradient(transparent 45%, rgba(200,20,20,.55));opacity:1;pointer-events:none;transition:opacity .45s;z-index:39'; requestAnimationFrame(() => requestAnimationFrame(() => { f.style.opacity = '0'; })); },
+  scene, lam, box, passerBy, personBubble, animate, player, dad, state, econ, folk, addInteract, dialogue, choice, toast, beep, save: () => writeSave(),
   freddy: () => freddy, phone: () => phone, metShooki: () => npcs.met('shooki'), inspectorDue: () => garage.inspectorDue(),
   ready: () => state.step === 'free' && !(state.tut && !state.tut.done),
   busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || tripOn() || state.step === 'title' || !!(phone && phone.isOpen) || isPaused(),
