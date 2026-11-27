@@ -145,11 +145,78 @@ const CAST = {
   rinus: { skin: '#e2b290', shade: '#c08c6c', w: 0.86, hair: 'mullet', hc: '#4a3424', brows: 'sly', bc: '#3a2818', glasses: 'shades', mouth: 'smirk', clothes: 'overall', extras: ['stubble', 'keys'], tint: ['#f0c060', '#d88a3a', '#5a2a1a'] },
 };
 
+
+// ---- the second batch (2026-11-27 15:05): the people Eddy talks to most
+Object.assign(HAIR, {
+  shaggy: { front: (c) => `<path d="M40 176 q-14 -110 88 -116 q102 6 88 116 q-8 -40 -18 -56 q-10 20 -24 14 q-4 -24 -18 -30 q-10 22 -30 18 q-6 -18 -22 -18 q-12 18 -30 14 q-10 20 -22 10 q-8 20 -12 48z" fill="${c}" ${ST} stroke-width="3.5" stroke-linejoin="round"/>` },
+  stringy: { back: (c) => `<path d="M36 140 q-10 70 6 120 l16 -4 q-10 -50 -4 -110z M220 140 q10 70 -6 120 l-16 -4 q10 -50 4 -110z" fill="${c}" ${ST} stroke-width="3"/>`,
+    front: (c) => `<path d="M42 150 q-4 30 -10 54 M50 150 q0 34 -6 60 M214 150 q4 30 10 54 M206 150 q0 34 6 60" stroke="${c}" stroke-width="4" fill="none" stroke-linecap="round"/>` },
+  payot: { front: (c) => `<path d="M40 150 q-8 30 4 46 q-12 10 -2 26 q-10 12 2 26 M216 150 q8 30 -4 46 q12 10 2 26 q10 12 -2 26" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M44 148 q-4 -40 14 -60 q0 30 6 52z M212 148 q4 -40 -14 -60 q0 30 -6 52z" fill="${c}" ${ST} stroke-width="3"/>` },
+  greySides: { front: (c) => `<path d="M42 156 q-8 -44 16 -72 q-4 34 6 60z M214 156 q8 -44 -16 -72 q4 34 -6 60z" fill="${c}" ${ST} stroke-width="3"/>` },
+});
+Object.assign(HATS, {
+  police: (c) => `<path d="M40 118 q0 -66 88 -70 q88 4 88 70z" fill="${c}" ${ST} stroke-width="4"/><path d="M60 118 q68 -12 136 0 q-6 22 -68 22 q-62 0 -68 -22z" fill="#0c1428" ${ST} stroke-width="3.5"/>
+    <path d="M118 76 l10 -14 l10 14 l-4 12 h-12z" fill="#e8b830" ${ST} stroke-width="2"/><path d="M122 80 q6 -8 12 0" stroke="#a87a10" stroke-width="2" fill="none"/>`,
+  ballcap: (c) => `<path d="M42 120 q0 -68 86 -72 q86 4 86 72z" fill="${c}" ${ST} stroke-width="4"/><path d="M56 118 q72 -14 144 0 q-4 18 -72 22 q-68 -4 -72 -22z" fill="#2a3a5a" ${ST} stroke-width="3.5"/><circle cx="128" cy="50" r="5" fill="${c}" ${ST} stroke-width="2.5"/><path d="M86 64 q40 -14 80 -2" stroke="#fff" stroke-width="3" opacity=".2" fill="none"/>`,
+  ballcapBack: (c) => `<path d="M42 118 q0 -66 86 -70 q86 4 86 70z" fill="${c}" ${ST} stroke-width="4"/><path d="M42 116 q86 -8 172 0" stroke="#1a1a1e" stroke-width="5" fill="none"/><path d="M104 108 h48 v10 h-48z" fill="#d8b04a" ${ST} stroke-width="2.5"/><path d="M190 96 q30 0 34 14 q-20 6 -40 0z" fill="${c}" ${ST} stroke-width="3"/>`,
+  hairnet: (c) => `<path d="M34 124 q-6 -84 94 -84 q100 0 94 84 q-14 8 -24 0 q-12 8 -24 0 q-12 8 -24 0 q-12 8 -24 0 q-12 8 -22 0 q-12 8 -24 0 q-12 8 -24 0 q-10 8 -22 0z" fill="#f4f6fa" ${ST} stroke-width="3.5" stroke-linejoin="round"/>${[[70, 70], [100, 56], [130, 52], [160, 58], [188, 74], [86, 92], [120, 84], [154, 88], [180, 102], [60, 100]].map(([x, y]) => `<path d="M${x - 9} ${y} q9 -8 18 0" stroke="#c8ccd4" stroke-width="2.5" fill="none"/>`).join('')}`,
+  beanie: (c) => `<path d="M42 126 q-4 -86 86 -88 q90 2 86 88z" fill="${c}" ${ST} stroke-width="4"/><path d="M40 112 q88 -14 176 0 l2 18 q-90 -14 -180 0z" fill="#26282c" ${ST} stroke-width="3.5"/>${[0, 1, 2, 3, 4, 5, 6, 7].map((i) => `<path d="M${66 + i * 18} 54 v54" stroke="#3a3c42" stroke-width="2.5"/>`).join('')}`,
+  wideBrim: (c) => `<path d="M8 120 q120 -34 240 0 q-10 16 -120 16 q-110 0 -120 -16z" fill="${c}" ${ST} stroke-width="4"/><path d="M52 112 q-6 -76 76 -78 q82 2 76 78 q-76 -10 -152 0z" fill="${c}" ${ST} stroke-width="4"/><path d="M54 104 q74 -10 148 0 v8 q-74 -10 -148 0z" fill="#26262a"/><path d="M80 54 q40 -16 80 -4" stroke="#fff" stroke-width="3" opacity=".18" fill="none"/>`,
+  hood: (c) => `<path d="M30 160 q-10 -128 98 -130 q108 2 98 130 q-6 -96 -98 -98 q-92 2 -98 98z" fill="${c}" ${ST} stroke-width="4"/><path d="M36 150 q4 -10 10 -14 M220 150 q-4 -10 -10 -14" stroke="#2a2c30" stroke-width="3" fill="none"/>`,
+});
+const HOODBACK = (c) => `<path d="M128 26 q112 0 112 130 q0 70 -30 110 q-82 -10 -164 0 q-30 -40 -30 -110 q0 -130 112 -130z" fill="${c}" ${ST} stroke-width="4"/>`;
+const BEARD = {
+  big: (c) => `<path d="M54 172 q-8 86 34 126 q40 26 80 0 q42 -40 34 -126 q-12 44 -44 56 q-30 10 -60 0 q-32 -12 -44 -56z" fill="${c}" ${ST} stroke-width="3.5"/><path d="M84 236 q4 30 18 44 M112 250 q2 30 10 44 M146 250 q-2 30 -10 44 M172 236 q-4 30 -18 44" stroke="#6a6660" stroke-width="2.5" fill="none"/><path d="M88 206 q14 -14 40 -8 q26 -6 40 8 q-10 12 -40 6 q-30 6 -40 -6z" fill="${c}" ${ST} stroke-width="3"/>`,
+  short: (c) => `<path d="M62 186 q2 54 66 70 q64 -16 66 -70 q-10 34 -30 40 q-14 -8 -36 -6 q-22 -2 -36 6 q-20 -6 -30 -40z" fill="${c}" ${ST} stroke-width="3"/><path d="M92 206 q14 -10 36 -6 q22 -4 36 6 q-10 8 -36 4 q-26 4 -36 -4z" fill="${c}" ${ST} stroke-width="2.5"/>`,
+};
+Object.assign(CLOTHES, {
+  police: (o) => `<path d="${BODY}" fill="#1a2546" ${ST} stroke-width="4"/><path d="M98 244 l30 22 l30 -22 l4 14 l-34 26 l-34 -26z" fill="#121a34" ${ST} stroke-width="3"/>
+    <path d="M14 290 q114 -18 228 0 l2 14 q-116 -18 -232 0z" fill="#f2e43a" ${ST} stroke-width="2.5"/><path d="M14 304 q114 -18 232 0 v6 q-116 -18 -232 0z" fill="#2a5ab8"/><text x="128" y="300" font-family="Arial" font-weight="900" font-size="12" text-anchor="middle" fill="#1a2546">POLITIE</text>
+    <path d="M30 262 l22 -8 l6 10 l-22 8z M226 262 l-22 -8 l-6 10 l22 8z" fill="#0c1428" ${ST} stroke-width="2"/>`,
+  shirtApron: (o) => `<path d="${BODY}" fill="#3a6ab8" ${ST} stroke-width="4"/><path d="M100 246 l-20 22 l22 10 l6 -24z M156 246 l20 22 l-22 10 l-6 -24z" fill="#4a7ac8" ${ST} stroke-width="3"/><path d="M108 250 l20 22 l20 -22z" fill="#1a1a1e" ${ST} stroke-width="2.5"/>
+    <path d="M88 270 h80 l6 50 h-92z" fill="#b8b098" ${ST} stroke-width="3.5"/><path d="M88 270 l-6 -24 M168 270 l6 -24" stroke="#b8b098" stroke-width="6"/>`,
+  overallB: (o) => `<path d="${BODY}" fill="#2a3a6a" ${ST} stroke-width="4"/><path d="M100 246 l-24 22 l22 12 l8 -26z M156 246 l24 22 l-22 12 l-8 -26z" fill="#34467a" ${ST} stroke-width="3"/><path d="M110 250 l18 26 l18 -26z" fill="#6a6658" ${ST} stroke-width="3"/>
+    <path d="M40 300 q10 -24 30 -36 M216 300 q-10 -24 -30 -36" stroke="#1e2a50" stroke-width="3" fill="none"/>`,
+  blackCoat: (o) => `<path d="${BODY}" fill="#16161a" ${ST} stroke-width="4"/><path d="M104 246 l24 46 l24 -46z" fill="#f2f0ea" ${ST} stroke-width="3"/><path d="M104 246 l-26 20 l20 12 l-4 34 l32 -20z M152 246 l26 20 l-20 12 l4 34 l-32 -20z" fill="#222228" ${ST} stroke-width="3"/>
+    <path d="M150 256 l18 34" stroke="#2a2a2a" stroke-width="2.5"/><rect x="156" y="288" width="40" height="26" rx="3" fill="#f4f4f0" ${ST} stroke-width="2.5"/><rect x="156" y="288" width="40" height="8" fill="#2a5ab8"/><rect x="160" y="299" width="9" height="11" fill="#8a8a8a"/><path d="M173 302 h18 M173 307 h14" stroke="#8a8a8a" stroke-width="2"/>`,
+  cardigan: (o) => `<path d="${BODY}" fill="#5a4a36" ${ST} stroke-width="4"/><path d="M100 246 l28 40 l28 -40 q-28 10 -56 0z" fill="url(#plaid${o.id})" ${ST} stroke-width="3"/><path d="M100 246 l28 74 M156 246 l-28 74" ${ST} stroke-width="3"/><circle cx="118" cy="292" r="3.5" fill="#3a2a1a"/><circle cx="114" cy="310" r="3.5" fill="#3a2a1a"/>
+    ${[0, 1, 2, 3, 4, 5].map((i) => `<path d="M${30 + i * 12} ${300 - i * 6} q4 4 8 0" stroke="#6a5a44" stroke-width="2" fill="none"/>`).join('')}`,
+  hoodieTrack: (o) => `<path d="${BODY}" fill="#55595e" ${ST} stroke-width="4"/><path d="M110 250 l18 70 l18 -70z" fill="#2a4a9a" ${ST} stroke-width="3"/><path d="M114 270 l14 12 l14 -12 v10 l-14 12 l-14 -12z" fill="#c82a3a"/><path d="M110 250 l18 70 M146 250 l-18 70" stroke="#c8c8c8" stroke-width="2"/><path d="M104 248 v40 M152 248 v40" stroke="#dcdcdc" stroke-width="2.5"/>`,
+  butcher: (o) => `<path d="${BODY}" fill="#f2efe8" ${ST} stroke-width="4"/><path d="M100 246 l-20 22 l22 10 l6 -24z M156 246 l20 22 l-22 10 l-6 -24z" fill="#fbf8f2" ${ST} stroke-width="3"/>
+    <path d="M86 268 h84 l8 52 h-100z" fill="#f2efe8" ${ST} stroke-width="3.5"/>${[0, 1, 2, 3, 4, 5, 6].map((i) => `<rect x="${88 + i * 12}" y="268" width="6" height="52" fill="#c83a3a"/>`).join('')}<path d="M86 268 l-6 -22 M170 268 l6 -22" stroke="#c83a3a" stroke-width="6"/>`,
+  oliveCoat: (o) => `<path d="${BODY}" fill="#4a4a32" ${ST} stroke-width="4"/><path d="M100 244 l-28 22 l22 14 l-4 30 l32 -26z M156 244 l28 22 l-22 14 l4 30 l-32 -26z" fill="#56563a" ${ST} stroke-width="3"/>
+    <path d="M94 240 q34 26 68 0 l6 22 q-40 30 -80 0z" fill="#232326" ${ST} stroke-width="3"/><path d="M140 258 l8 50 h-14 l-2 -46z" fill="#232326" ${ST} stroke-width="3"/><path d="M60 290 q20 -4 30 6 M180 280 q12 6 20 0" stroke="#3a3a24" stroke-width="3" fill="none"/>`,
+});
+Object.assign(EXTRA, {
+  smudges: `<circle cx="80" cy="182" r="9" fill="#e8742a" opacity=".85"/><circle cx="176" cy="184" r="9" fill="#e8742a" opacity=".85"/><path d="M118 176 q10 -6 20 0 l-4 16 q-6 4 -12 0z" fill="#e8742a" opacity=".8"/>`,
+  stains: `<circle cx="60" cy="290" r="8" fill="#e8c43a" opacity=".8"/><circle cx="196" cy="276" r="7" fill="#e8742a" opacity=".8"/><circle cx="130" cy="300" r="9" fill="#e8c43a" opacity=".7"/><circle cx="90" cy="310" r="6" fill="#e8742a" opacity=".8"/>`,
+  paddle: `<path d="M198 320 l18 -110" stroke="#a8743a" stroke-width="10" stroke-linecap="round"/><path d="M200 216 q6 -50 30 -60 q20 4 16 30 l-18 40z" fill="#c8945a" ${ST} stroke-width="3.5"/><path d="M212 188 q6 -8 14 -6" stroke="#e8742a" stroke-width="4"/>`,
+  sack: `<path d="M180 320 q-10 -60 14 -76 q-6 -10 6 -14 q20 6 30 0 q12 6 4 14 q22 20 14 76z" fill="#c8a46a" ${ST} stroke-width="3.5"/><path d="M196 238 q14 -8 30 0" stroke="#e8742a" stroke-width="5"/><path d="M196 270 h40 M192 292 h46" stroke="#a8844a" stroke-width="2"/>`,
+  phoneEar: `<rect x="186" y="128" width="20" height="44" rx="5" fill="#1a1a1e" ${ST} stroke-width="3" transform="rotate(-14 196 150)"/><path d="M196 176 q14 30 2 64" stroke="#f0c8aa" stroke-width="18" fill="none" stroke-linecap="round"/><path d="M196 176 q14 30 2 64" stroke="${INK}" stroke-width="3" fill="none" opacity=".6"/>`,
+  arms: `<path d="M28 318 q60 -40 150 -30" stroke="${INK}" stroke-width="34" fill="none" stroke-linecap="round"/><path d="M28 318 q60 -40 150 -30" stroke="#e8a888" stroke-width="27" fill="none" stroke-linecap="round"/><path d="M228 318 q-60 -36 -150 -26" stroke="${INK}" stroke-width="34" fill="none" stroke-linecap="round"/><path d="M228 318 q-60 -36 -150 -26" stroke="#e8a888" stroke-width="27" fill="none" stroke-linecap="round"/><path d="M70 300 q30 -8 60 -6 M150 300 q24 -6 40 -2" stroke="#b8785a" stroke-width="2" fill="none"/>`,
+  notebook: `<rect x="188" y="250" width="52" height="66" rx="4" fill="#8a5a2a" ${ST} stroke-width="3" transform="rotate(-6 214 283)"/><rect x="196" y="244" width="40" height="12" fill="#f4ecd8" ${ST} stroke-width="2" transform="rotate(-10 216 250)"/><path d="M196 284 q14 -4 30 0" stroke="#3a2a1a" stroke-width="2" transform="rotate(-6 214 283)"/>`,
+  whisper: `<path d="M150 262 q0 -40 14 -66 q6 -8 10 0 q-4 20 -2 34 l8 -40 q6 -8 10 0 l-4 44 q6 18 -2 30z" fill="#e2b090" ${ST} stroke-width="3.5"/>`,
+  thermos: `<rect x="40" y="246" width="30" height="70" rx="5" fill="#b8bcc0" ${ST} stroke-width="3.5"/><rect x="42" y="236" width="26" height="14" rx="3" fill="#6a6e72" ${ST} stroke-width="3"/><path d="M48 260 v40" stroke="#fff" stroke-width="3" opacity=".5"/>`,
+  wrench: `<path d="M196 320 l26 -96" stroke="#e8c43a" stroke-width="12" stroke-linecap="round"/><path d="M210 214 q8 -30 30 -24 q-10 10 -4 18 q10 4 16 -6 q4 22 -22 30z" fill="#e8c43a" ${ST} stroke-width="3"/>`,
+  sweat: `<path d="M196 118 q6 10 0 16 q-6 -6 0 -16z" fill="#bfe4ff" ${ST} stroke-width="2"/>`,
+});
+Object.assign(CAST, {
+  mo: { skin: '#e2a888', shade: '#c0846a', w: 0.94, hair: 'greySides', hc: '#6a5038', hat: 'ballcapBack', hatc: '#2a2a2e', brows: 'raised', bc: '#5a4030', eyes: 'normal', iris: '#3a4a5a', stache: 'walrus', sc: '#7a5232', mouth: 'grin', clothes: 'overallB', extras: ['stubble', 'wrinkles', 'wrench'], tint: SAFFRON },
+  bakker: { skin: '#e8b494', shade: '#c88e70', w: 0.92, hair: 'greySides', hc: '#8a8680', hat: 'police', hatc: '#1a2546', brows: 'happy', bc: '#7a7670', eyes: 'narrow', iris: '#3a4a5a', stache: 'walrus', sc: '#8a7a6a', mouth: 'smile', clothes: 'police', extras: ['stubble', 'wrinkles'], tint: ['#e8c87a', '#c8904a', '#4a2a1a'] },
+  naknik1: { skin: '#f0c4a2', shade: '#d09c7e', w: 0.9, hair: 'shaggy', hc: '#6a4a2e', hat: 'hairnet', brows: 'raised', bc: '#5a3a22', eyes: 'normal', iris: '#3a5a7a', mouth: 'grin', clothes: 'shirtApron', extras: ['smudges', 'stains', 'paddle'], tint: SAFFRON },
+  naknik2: { skin: '#f2c2a0', shade: '#d29a7c', w: 0.98, hair: 'shaggy', hc: '#7a5a38', hat: 'ballcap', hatc: '#3a4a7a', brows: 'happy', bc: '#6a4a2a', eyes: 'normal', iris: '#4a3a2a', mouth: 'gap', clothes: 'overallB', extras: ['stubble', 'stains', 'sack'], tint: SAFFRON },
+  creplach: { skin: '#e6b496', shade: '#c48e70', w: 0.92, hair: 'payot', hc: '#2a2420', hat: 'wideBrim', hatc: '#121214', brows: 'angry', bc: '#3a3430', eyes: 'narrow', iris: '#3a2a1e', glasses: 'thin', beard: 'big', brd: '#8a8680', mouth: 'frown', clothes: 'blackCoat', extras: [], tint: ['#e898c8', '#9a4aa8', '#2a1a4a'] },
+  joop: { skin: '#eab090', shade: '#c88a6c', w: 0.94, hair: 'sidesWhite', hc: '#d8d4cc', hat: 'flatcap', hatc: '#3a3c36', brows: 'sly', bc: '#d0ccc4', eyes: 'narrow', iris: '#4a6a8a', beard: 'short', brd: '#e8e4dc', mouth: 'smirk', clothes: 'cardigan', extras: ['wrinkles', 'finger', 'notebook'], tint: SAFFRON },
+  kevin: { skin: '#eec2a4', shade: '#cc9c80', w: 0.86, hair: 'shaggy', hc: '#7a5a3a', hat: 'hood', hatc: '#55595e', hoodBack: '#4a4e52', brows: 'angry', bc: '#5a4030', eyes: 'wide', iris: '#5a7a8a', mouth: 'frown', clothes: 'hoodieTrack', extras: ['phoneEar', 'sweat'], tint: ['#c8b8a8', '#8a7a70', '#2a2420'] },
+  slager: { skin: '#e8a68a', shade: '#c4806a', w: 1.06, hair: 'bald', hc: '#8a6a50', brows: 'angry', bc: '#7a5a40', eyes: 'narrow', iris: '#4a5a6a', nose: 'big', mouth: 'frown', clothes: 'butcher', extras: ['stubble', 'arms'], tint: ['#f0a87a', '#d8604a', '#6a1a14'] },
+  fluister: { skin: '#dcaa8c', shade: '#b8866c', w: 0.9, hair: 'stringy', hc: '#8a8478', hat: 'beanie', hatc: '#2e3034', brows: 'raised', bc: '#5a5448', eyes: 'wide', iris: '#4a3a2a', nose: 'big', mouth: 'smirk', clothes: 'oliveCoat', extras: ['stubble', 'wrinkles', 'whisper', 'thermos'], tint: ['#d8c08a', '#a8804a', '#3a2814'] },
+});
+
 function cast(key, m, blink) {
   const c = CAST[key], H = HAIR[c.hair] || {}, id = key[0] + key.length;
   const shades = c.glasses === 'shades';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" width="256" height="320">${bg(id, c.tint)}
-  ${H.back ? scaleG(c.w, H.back(c.hc)) : ''}
+  ${c.hoodBack ? scaleG(c.w, HOODBACK(c.hoodBack)) : ''}${H.back ? scaleG(c.w, H.back(c.hc)) : ''}
   ${(CLOTHES[c.clothes] || CLOTHES.collar)({ id, shade: c.shade })}
   ${NECK(c.shade)}
   ${headShape(c.w, c.skin, c.shade)}
@@ -163,7 +230,7 @@ function cast(key, m, blink) {
   <ellipse cx="80" cy="190" rx="18" ry="11" fill="#ea7a6a" opacity=".38"/><ellipse cx="178" cy="192" rx="18" ry="11" fill="#ea7a6a" opacity=".38"/>
   ${c.nose === 'big' ? BIGNOSE(c.skin) : NOSE(c.skin)}
   <path d="M84 200 q-2 12 4 20 M172 200 q2 12 -4 20" stroke="${c.shade}" stroke-width="3" fill="none" stroke-linecap="round"/>
-  ${mouth(c.mouth, m)}
+  ${c.beard ? BEARD[c.beard](c.brd) : ''}${mouth(c.mouth, m)}
   ${c.stache ? STACHE[c.stache](c.sc) : ''}
   ${c.extras.includes('hoops') ? EXTRA.hoops : ''}${c.extras.includes('beads') ? EXTRA.beads : ''}
   ${c.extras.filter((e) => !['stubble', 'wrinkles', 'hoops', 'beads'].includes(e)).map((e) => EXTRA[e]).join('')}
