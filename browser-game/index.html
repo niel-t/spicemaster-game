@@ -561,9 +561,24 @@
   html.aero #nvScreen .btn { font-size: 15px; padding: 12px 26px; }
   html.aero #nvScreen .stats { line-height: 1.12; padding: 10px 16px; border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.03) 50%, rgba(0,0,0,.18) 51%, rgba(0,0,0,.08)); border: 1px solid rgba(255,226,170,.3); box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
   html.aero .shophead button, html.aero #shop .gsX { border-radius: 50%; border: 1px solid #fff; color: #fff; background: radial-gradient(circle at 50% 30%, #ffb59a, #e2582f 55%, #a8300f); box-shadow: inset 0 1px 1px rgba(255,255,255,.8), 0 2px 6px rgba(0,0,0,.4); text-shadow: 0 1px 1px #6a1a00; }
+  /* the loading screen (2026-11-27): plain HTML, painted before any game code runs; js/main.js moves the bar between its
+     build steps and fades it out once the shaders are warm. The spinner turns on the compositor, so it keeps going through long steps. */
+  #loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #efe7d6; transition: opacity .45s ease; }
+  #loader.done { opacity: 0; pointer-events: none; }
+  #loader .lbox { width: min(420px, 86vw); box-sizing: border-box; padding: 22px 24px 18px; border-radius: 14px; text-align: center; color: #f3e6c8;
+    background: linear-gradient(180deg, #4a2e1a, #2e1c10); box-shadow: 0 0 0 2px #7a4a26, 0 14px 40px rgba(40,20,8,.45); }
+  #loader .l1 { display: block; font: 400 clamp(22px, 6vw, 34px)/1 "Bungee", "Arial Black", Impact, sans-serif; letter-spacing: 2px; color: #f2c14e; text-shadow: 2px 2px 0 #b5442a, 4px 4px 0 #2a170c; text-transform: uppercase; }
+  #loader .l2 { display: block; font: 400 clamp(36px, 10vw, 58px)/1 "Bungee", "Arial Black", Impact, sans-serif; letter-spacing: 2px; color: #e8a33d; text-shadow: 3px 3px 0 #b5442a, 5px 5px 0 #2a170c; text-transform: uppercase; margin-top: 2px; }
+  #loader .spin { width: 46px; height: 46px; margin: 18px auto 14px; position: relative; animation: ldSpin 1.1s linear infinite; will-change: transform; }
+  #loader .spin i { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px; border-radius: 50%; }
+  #loader .bar { height: 10px; border-radius: 6px; background: rgba(0,0,0,.35); box-shadow: inset 0 1px 2px rgba(0,0,0,.5); overflow: hidden; }
+  #loader .bar b { display: block; height: 100%; width: 3%; border-radius: 6px; background: linear-gradient(180deg, #f6d36a, #e8a33d 55%, #b5442a); transition: width .3s ease; }
+  #loader .lstep { margin-top: 9px; min-height: 1.3em; font: italic 500 14px "Rubik", Arial, sans-serif; color: #e9d3a0; }
+  @keyframes ldSpin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body class="on-title">
+<div id="loader" role="status" aria-live="polite"><div class="lbox"><span class="l1">Spice Master</span><span class="l2">Eddy</span><div class="spin"><i style="background:#e8a33d;transform:rotate(0deg) translateY(-18px)"></i><i style="background:#f2c14e;transform:rotate(60deg) translateY(-18px)"></i><i style="background:#b5442a;transform:rotate(120deg) translateY(-18px)"></i><i style="background:#7a4a26;transform:rotate(180deg) translateY(-18px)"></i><i style="background:#7f9a5a;transform:rotate(240deg) translateY(-18px)"></i><i style="background:#e9d3a0;transform:rotate(300deg) translateY(-18px)"></i></div><div class="bar"><b id="ldBar"></b></div><div class="lstep" id="ldStep">Unpacking the spice crates…</div></div></div>
 <canvas id="game"></canvas>
 <div id="area" class="hud">Kaasland · Kipkruidenkwartier</div>
 <div id="objective" class="hud"></div>
@@ -593,6 +608,10 @@
   <div class="tinfo" id="tinfo"></div>
   <div class="tfoot">KAASLAND · CHAPTER 0: KIPKRUIDENKWARTIER</div>
 </div></div>
-<script type="module" src="./js/main.js"></script>
+<script type="module">
+  // let the loading screen paint before the game's code is fetched and run (a hidden tab skips the frame wait)
+  await new Promise((r) => { let go = false; const f = () => { if (!go) { go = true; setTimeout(r, 0); } }; requestAnimationFrame(f); setTimeout(f, 120); });
+  import('./js/main.js').catch((e) => { const el = document.getElementById('ldStep'); if (el) el.textContent = 'Could not load the game: ' + e.message; throw e; });
+</script>
 </body>
 </html>

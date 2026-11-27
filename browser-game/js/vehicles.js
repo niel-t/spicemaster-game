@@ -245,7 +245,39 @@ function vanTools(THREE, g, S) {
   };
   // a decal projected onto the body along z (dir +1 = onto the nose, -1 = onto the tail): pts are [x, y, r] seen
   // from that end; uvs run inboard → outboard (u) and bottom → top (v) so one painted texture serves both sides
-  const ray = new THREE.Raycaster();
+  // every decal ray runs straight along z, so the body's triangles near that end are bucketed once on an x/y grid and a
+  // ray only tests the few triangles under its own cell (same hits as a Raycaster, without testing thousands per vertex)
+  const CELL = 0.05;
+  const zGrid = (pos) => {
+    let ax = Infinity, ay = Infinity, bx = -Infinity, by = -Infinity;
+    for (let i = 0; i < pos.length; i += 3) { const x = pos[i], y = pos[i + 1]; if (x < ax) ax = x; if (x > bx) bx = x; if (y < ay) ay = y; if (y > by) by = y; }
+    const nx = Math.max(1, Math.ceil((bx - ax) / CELL) + 1), ny = Math.max(1, Math.ceil((by - ay) / CELL) + 1), cells = new Array(nx * ny);
+    for (let t = 0; t < pos.length; t += 9) {
+      const x0 = Math.min(pos[t], pos[t + 3], pos[t + 6]), x1 = Math.max(pos[t], pos[t + 3], pos[t + 6]), y0 = Math.min(pos[t + 1], pos[t + 4], pos[t + 7]), y1 = Math.max(pos[t + 1], pos[t + 4], pos[t + 7]);
+      const i0 = Math.floor((x0 - ax) / CELL), i1 = Math.floor((x1 - ax) / CELL), j0 = Math.floor((y0 - ay) / CELL), j1 = Math.floor((y1 - ay) / CELL);
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * nx + i; (cells[k] || (cells[k] = [])).push(t); }
+    }
+    return { pos, ax, ay, nx, ny, cells };
+  };
+  // the first triangle a ray from (x, y, dir * 6) heading -dir along z meets: its z and its face normal, or null
+  const zHit = (G, x, y, dir) => {
+    const i = Math.floor((x - G.ax) / CELL), j = Math.floor((y - G.ay) / CELL);
+    if (i < 0 || j < 0 || i >= G.nx || j >= G.ny) return null;
+    const list = G.cells[j * G.nx + i]; if (!list) return null;
+    const P = G.pos, E = 1e-9; let best = null, bz = -Infinity;
+    for (const t of list) {
+      const ax = P[t], ay = P[t + 1], az = P[t + 2], bx = P[t + 3], by = P[t + 4], bz2 = P[t + 5], cx = P[t + 6], cy = P[t + 7], cz = P[t + 8];
+      const d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy); if (Math.abs(d) < E) continue; // edge-on to the ray
+      const u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / d, v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / d, w = 1 - u - v;
+      if (u < -1e-7 || v < -1e-7 || w < -1e-7) continue;
+      const z = u * az + v * bz2 + w * cz; if (z * dir > 6) continue; // behind the ray's start
+      if (z * dir > bz) { bz = z * dir; best = t; }
+    }
+    if (best === null) return null;
+    const t = best, ux = P[t + 6] - P[t + 3], uy = P[t + 7] - P[t + 4], uz = P[t + 8] - P[t + 5], vx = P[t] - P[t + 3], vy = P[t + 1] - P[t + 4], vz = P[t + 2] - P[t + 5];
+    const n = new THREE.Vector3(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx).normalize(); // Triangle.getNormal(a, b, c), as the Raycaster's face.normal
+    return { z: bz * dir, n };
+  };
   const proj = (pts, dir, mat, off = 0.006) => {
     const sh = roundPoly(THREE, pts.map(([x, y, r]) => [x, y, r ?? 0.03])), g0 = new THREE.ShapeGeometry(sh, 6);
     const geo = tessellate(THREE, g0, 0.06, [0, 1]), p = geo.attributes.position, uv = [], hits = new Map();
@@ -254,14 +286,12 @@ function vanTools(THREE, g, S) {
     if (!T[key]) { // only the body's triangles near this end, so the rays stay cheap
       const bp = T.body.geometry.attributes.position.array, out = [], lim = dir > 0 ? S.zF - 0.9 : S.zR + 0.9;
       for (let i = 0; i < bp.length; i += 9) { const cz = (bp[i + 2] + bp[i + 5] + bp[i + 8]) / 3; if (dir > 0 ? cz > lim : cz < lim) for (let k = 0; k < 9; k++) out.push(bp[i + k]); }
-      const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(out, 3)); pg.computeVertexNormals();
-      T[key] = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })); T[key].updateMatrixWorld(true);
+      T[key] = zGrid(new Float32Array(out));
     }
-    const o = new THREE.Vector3(), d = new THREE.Vector3(0, 0, -dir);
     for (let i = 0; i < p.count; i++) {
       const x = p.getX(i), y = p.getY(i), hk = x.toFixed(4) + ',' + y.toFixed(4);
       let h = hits.get(hk);
-      if (h === undefined) { o.set(x, y, dir * 6); ray.set(o, d); const r = ray.intersectObject(T[key], false)[0]; h = r ? { z: r.point.z, n: r.face.normal.clone() } : null; if (h && h.n.z * dir < 0) h.n.negate(); hits.set(hk, h); }
+      if (h === undefined) { h = zHit(T[key], x, y, dir); if (h && h.n.z * dir < 0) h.n.negate(); hits.set(hk, h); }
       p.setXYZ(i, x + (h ? h.n.x * off : 0), y + (h ? h.n.y * off : 0), h ? h.z + h.n.z * off : (dir > 0 ? S.zF : S.zR));
       uv.push((Math.abs(x) - x0) / (x1 - x0 || 1), (y - y0) / (y1 - y0 || 1));
     }

@@ -63,6 +63,12 @@ export function createPost(renderer) {
     set mode(m) { if (!GFX_MODES.includes(m)) return; mode = m; try { localStorage.setItem(KEY, m); } catch (e) { /* settings are optional */ } },
     setAuto(m) { if (GFX_MODES.includes(m)) mode = m; }, // the auto graphics (js/mobile.js): not saved, so the player's own pick still wins later
     cycle() { this.mode = GFX_MODES[(GFX_MODES.indexOf(mode) + 1) % GFX_MODES.length]; return mode; },
+    // compile every material in the scene for the target the next frame draws into, off the main thread where the browser
+    // can (KHR_parallel_shader_compile); without it this still compiles, just in one go, as the first frame did. Capped at 25 s.
+    async warm(scene, camera) {
+      if (mode === 'simple') renderer.setRenderTarget(null); else { fit(); renderer.setRenderTarget(rt); }
+      try { await Promise.race([renderer.compileAsync(scene, camera), new Promise((r) => setTimeout(r, 25000))]); } finally { renderer.setRenderTarget(null); }
+    },
     render(scene, camera) {
       if (mode === 'simple') { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
       fit();

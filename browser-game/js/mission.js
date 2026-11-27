@@ -1541,7 +1541,7 @@ export function initMission(ctx) {
       if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
         if (HEIST.extra) for (const i of enemies.map((e, k) => k).filter((k) => !REMIX.keep.has(k)).slice(0, HEIST.extra)) REMIX.keep.add(i); } // suspicion: more guards
       const mood = LV.mood;
-      M.active = true; root.visible = true; clearPlayerSplats();
+      M.active = true; root.visible = true; hubLights(true); clearPlayerSplats();
       saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity; saved.hemiC = [hemi.color.clone(), hemi.groundColor.clone()];
       scene.background.set(mood.bg); scene.fog.color.set(mood.bg); scene.fog.near = mood.fogNear; scene.fog.far = mood.fogFar; hemi.intensity = mood.hemi; sun.intensity = mood.sun; if (mood.sky) hemi.color.set(mood.sky); if (mood.ground) hemi.groundColor.set(mood.ground); // optional per-level ambient colours
       lights.forEach(([l, k]) => { l.intensity = k; });
@@ -1555,11 +1555,19 @@ export function initMission(ctx) {
       startArrive(() => { if (ctx.arrived) ctx.arrived({ id: LV.id, start: START().clone(), van: van.position.clone(), heist: !!HEIST, defend: !!DEF }); if (DEF) banner('SPICE WAR', `The ${DEF.faction || 'Lampas'} are coming for the warehouse. Three waves. Keep them off the Naknikim.`, 4.5); else if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, (HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them.' : 'No floor plan. Stay in the dark, walk, do not run.') + (HEIST.nv ? ' N: night vision.' : '') + ' Only silenced shots stay quiet. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
+  // the home street's lamps, shop and warehouse lights stay behind while a mission runs: switched off (not just dimmed),
+  // every lit surface in the level stops paying for lights a few hundred metres away. Each material keeps a compiled
+  // shader per light setup, so after the first trip neither going in nor coming home recompiles anything.
+  let hubOff = [];
+  function hubLights(off) {
+    if (off) { hubOff = []; scene.traverse((o) => { if ((o.isPointLight || o.isSpotLight) && o.visible && o !== flashL && !lights.some(([l]) => l === o)) { let x = o.parent; while (x && x !== root) x = x.parent; if (!x) { o.visible = false; hubOff.push(o); } } }); }
+    else { for (const o of hubOff) o.visible = true; hubOff = []; }
+  }
   function exit() {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
       if (ctx.parkDone && PK.on) ctx.parkDone({ paid: PK.paid, how: PK.how, level: LV.id }); PK.on = false; parkUi();
-      if (ctx.left) ctx.left(); setNV(false); saveOwnAmmo(); M.active = false; root.visible = false; REMIX = null; HEIST = null; heistSetup(); heistHud(); DEF = null; defendSetup(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
+      if (ctx.left) ctx.left(); setNV(false); saveOwnAmmo(); M.active = false; root.visible = false; hubLights(false); REMIX = null; HEIST = null; heistSetup(); heistHud(); DEF = null; defendSetup(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; if (saved.hemiC) { hemi.color.copy(saved.hemiC[0]); hemi.groundColor.copy(saved.hemiC[1]); } sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);

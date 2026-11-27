@@ -87,6 +87,14 @@ const music = new Music();
 const score = new CombatScore();
 const musicDucks = {}; // who wants the street song quieter (the fight score, the Kaasdows media player): the quietest wins
 function setDuck(k, v) { if (musicDucks[k] === v) return; musicDucks[k] = v; music.duck(Math.min(1, ...Object.values(musicDucks))); }
+// the loading screen (index.html #loader): main.js pauses between its big build steps so the bar can move and the page
+// stays responsive; the last step warms every shader in the background before the first frame (a hidden tab doesn't wait for frames)
+const bootBar = document.getElementById('ldBar'), bootLbl = document.getElementById('ldStep');
+function bootStep(pct, label) {
+  if (bootBar) bootBar.style.width = pct + '%'; if (bootLbl && label) bootLbl.textContent = label;
+  return new Promise((r) => { let go = false; const f = () => { if (!go) { go = true; setTimeout(r, 0); } }; requestAnimationFrame(f); setTimeout(f, 120); });
+}
+function bootDone() { const el = document.getElementById('loader'); if (!el) return; if (bootBar) bootBar.style.width = '100%'; el.classList.add('done'); setTimeout(() => el.remove(), 600); }
 
 // ------------------------------------------------------------------ renderer / scene
 const canvas = document.getElementById('game');
@@ -241,6 +249,7 @@ function collide(p, r) {
   }
 }
 
+await bootStep(12, 'Laying the cobbles of the Kipkruidenkwartier…');
 // ------------------------------------------------------------------ world: ground, street, canal
 // Cross-section (north → south), road centre RC: facades z=-7 | pavement 3.4 m | kerb | parking | 2 lanes | parking |
 // kerb | red two-way fietspad | pavement + trees | quay | canal (CZ)
@@ -423,6 +432,7 @@ function graffiti(g, x, y, z, k, wdt = 1.6) { const p = new THREE.Mesh(new THREE
 const fadeables = [];
 // a thin bar from (x0,y0) to (x1,y1) on the facade plane
 function edge(g, x0, y0, x1, y1, z, m, t = 0.16) { const b = box(Math.hypot(x1 - x0, y1 - y0) + t * 0.6, t, 0.1, m, (x0 + x1) / 2, (y0 + y1) / 2, z, g, false); b.rotation.z = Math.atan2(y1 - y0, x1 - x0); return b; }
+await bootStep(20, 'Building the canal houses…');
 // ------------------------------------------------------------------ old Dutch canal houses (2026-11-26)
 // Every house on the street is its own building: brick in ten tones (red, brown, yellow IJsselsteen, black-tarred, plastered),
 // one of five gables (trapgevel, klokgevel, halsgevel, tuitgevel, lijstgevel) with a sandstone outline, a hoist beam and a loft
@@ -751,6 +761,7 @@ for (let x = -SX, i = 0; x < SX; i++) { const w = 5 + (i % 3); if ((x + w < -34 
 for (let x = -60, i = 0; x < 60; i++) { const w = 5 + (i % 3); house(x + w / 2, SROW, w, 8, 9 + (i % 4), Math.PI, i + 2, i === 13 ? 'SHOARMA HABIBI' : bizSign('s', i)); x += w; }
 for (const [a, b, k0] of [[-SX, -60, 40], [60, SX, 50]]) { let x = a; spanWidths(b - a, k0).forEach((w, i) => { house(x + w / 2, SROW, w, 8, 9 + ((k0 + i) % 4), Math.PI, k0 + i, null); x += w; }); } // and on along the longer street
 
+await bootStep(30, 'Sweeping out the warehouse…');
 // ------------------------------------------------------------------ the warehouse
 const WH = { x0: -11, x1: 1, z0: -21, z1: -7, h: 5.2, doorX0: -7, doorX1: -2.5 }; // z0 was -19: two metres deeper from the start (Tristan 2026-11-26), up to the plot
 const wh = new THREE.Group(); scene.add(wh);
@@ -1035,6 +1046,7 @@ for (const rx of [-24, 4, 30]) for (let i = 0; i < 5; i++) {
   if (i === 0) solid(rx - 0.4, rx + 3.2, RC + 9.95, RC + 10.75);
 }
 
+await bootStep(38, 'Washing the Oofmobiel…');
 // ------------------------------------------------------------------ the Oofmobiel
 // Eddy's private parking: asphalt lot with a low back wall and a PRIVÉ sign
 {
@@ -1067,6 +1079,7 @@ function updateKangoo() { const on = !!state.district1 && !(spoed && spoed.kango
 // the Oofmobiel's lettering: Dad's Eddy & Zn until Kipkruidenkwartier is Eddy's, then his own brand, Eddy's
 const liveryNow = () => (state.district1 ? 'eddys' : 'zn');
 
+await bootStep(46, 'Painting faces…');
 // ------------------------------------------------------------------ characters
 const faceTex = (f) => { const t = loader.load('./assets/' + f); t.colorSpace = THREE.SRGBColorSpace; return t; };
 // ---- painted heads (Neon Vice approach: a stylised PS2 face painted from the reference photo's colours and features)
@@ -1461,6 +1474,7 @@ let shopDoorOpen = 0, shopDoorTarget = 0, shopDoor, shopDoorSolid;
 const isInShop = (p) => p.x > PS.x0 && p.x < PS.x1 && p.z > PS.z0 && p.z < PS.z1 - 0.1;
 function openShopDoor() { shopDoorTarget = 1; shopDoorSolid.off = true; beep(320, 0.12, 'triangle', 0.04); setTimeout(() => beep(1320, 0.25, 'sine', 0.03), 120); }
 
+await bootStep(56, 'Booting Kaasdows XL…');
 // ------------------------------------------------------------------ junk, desk, PC, mixing table
 const junkDefs = [
   { id: 'doner', name: 'Döner Grill Turbo 3000', price: 650, x: -9.4, z: -9.6 },
@@ -1754,6 +1768,7 @@ function renderPC() {
     econ.propertyBind(body, renderPC);
   }
 }
+await bootStep(62, 'Counting the Lampas…');
 // ------------------------------------------------------------------ district 1: Kipkruidenkwartier (Spekbuurt, Kroketkade, Uitjesbuurt)
 // Each territory is a mission (js/levels/*.js). Spekbuurt opens the other two; owning all three clears the district.
 const D1 = [['Spekbuurt', 'spekbuurt', 1], ['Kroketkade', 'kroketkade', 2], ['Uitjesbuurt', 'uitjesbuurt', 3]];
@@ -2104,7 +2119,7 @@ let shutterOpen = 0, shutterTarget = 0;
 // production line were a quarter of the home street's draw calls and nobody could see them. Things in view of the open
 // shutter stay. Done with layers, not .visible, so it never fights the game's own show/hide of a machine or a pallet.
 const whIn = []; let whScan = 0, whHidden = false; const whBox = new THREE.Box3();
-function whLayer(o, hide) { o.traverse((c) => { c.layers.set(hide ? 1 : 0); }); }
+function whLayer(o, hide) { o.traverse((c) => { if (!c.isLight) c.layers.set(hide ? 1 : 0); }); } // lights stay: a light dropping out changes the light count, and every material in the street would recompile
 function whCull(inside) {
   for (let k = 0; k < 30 && whScan < scene.children.length; k++, whScan++) { // sort the scene out a few objects a frame (and whatever is added later)
     const o = scene.children[whScan]; if (o.isLight || o.isCamera || o === player || o === dad) continue;
@@ -2345,6 +2360,7 @@ function startGame() {
   toast('KIPKRUIDENKWARTIER', 'Freddy Sr. is waiting for you in the warehouse.', 2.6);
 }
 
+await bootStep(70, 'Waking up the neighbours…');
 // ------------------------------------------------------------------ street life: traffic, cyclists, pedestrians
 // Kaasland drives on the right: westbound on the north lane, eastbound on the south lane.
 // Speech bubbles for angry drivers (canvas sprite, redrawn per shout)
@@ -3014,6 +3030,7 @@ function updateRazimMission(dt) {
   razimM.talk = 7 + Math.random() * 5; personBubble(p, rnd(RAZ_M_TALK), '#b4cc7a');
 }
 
+await bootStep(80, 'Feeding the seagulls…');
 // ================================================================== SEAGULLS (they poop on people)
 const gulls = [], poops = [];
 function makeGull() {
@@ -3684,4 +3701,10 @@ if (IS_PHONE) { // phones: the shadow pass was three quarters of the home street
   for (const c of scene.children) { if (Object.keys(c.userData).some((k) => k !== 'merged' && k !== 'fade')) continue;
     c.traverse((o) => { if (!o.isMesh || !o.castShadow || o.isSkinnedMesh) return; const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); if (g.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < 1.0) o.castShadow = false; }); }
 }
+await bootStep(90, 'Warming up the grill…');
+// the first frame would compile every shader at once, frozen. Warm them in the street's real look (the Aero sky and water
+// if that style is on) and with and without the sun's shadows: storm clouds and nightfall switch those off, and each
+// switch used to recompile the whole street mid-game.
+try { if (aeroWorld) aeroWorld.tick(0); await post.warm(scene, camera); const sh = sun.castShadow; sun.castShadow = !sh; await post.warm(scene, camera); sun.castShadow = sh; } catch (e) { console.warn('shader warm-up skipped', e); }
+bootDone();
 tick();
