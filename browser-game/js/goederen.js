@@ -44,16 +44,16 @@ export function createGoederen(deps) {
       for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; K.box(0.035, 0.035, 0.04, 0x5a5e64, x + Math.cos(a) * 0.15, 0.47 + Math.sin(a) * 0.15, z + s * 0.155); } };
     for (const s of [-1, 1]) { wheel(2.72, s * 1.03, s); wheel(-2.2, s * 1.05, s); wheel(-2.2, s * 0.74, s); K.box(0.06, 0.26, 0.66, DARK, -2.82, 0.86, s * 0.9); K.box(0.06, 0.26, 0.66, DARK, -1.58, 0.86, s * 0.9); }
     // the cab: a tilt cab with a raked windscreen, doors with a step, big mirrors on arms, a grille, lamps, a wind deflector
-    K.box(1.86, 1.12, 2.3, WHT, 2.78, 1.22, 0); K.box(1.5, 0.95, 2.26, WHT, 2.6, 2.24, 0); K.box(0.5, 0.95, 2.26, WHT, 3.38, 2.2, 0, 0, 0, -0.3); K.box(1.62, 0.07, 2.3, WHT, 2.66, 2.74, 0);
+    K.box(1.86, 1.12, 2.3, WHT, 2.78, 1.22, 0); K.box(1.86, 0.98, 2.26, WHT, 2.78, 2.25, 0); K.box(1.9, 0.07, 2.3, WHT, 2.78, 2.76, 0); // (an upright cab-over front: the windscreen sits flush in it)
     K.box(0.34, 0.34, 2.44, DARK, 3.62, 0.58, 0); K.box(0.06, 0.5, 1.5, 0x101214, 3.72, 1.1, 0); for (let y = 0.92; y < 1.32; y += 0.09) K.box(0.03, 0.025, 1.4, 0x5a5e64, 3.755, y, 0); K.box(0.03, 0.14, 0.4, STEEL, 3.76, 1.46, 0); // bumper, grille, badge
     for (const s of [-1, 1]) { K.box(0.05, 0.22, 0.38, DARK, 3.73, 1.05, s * 0.95); K.box(0.04, 0.08, 0.2, 0xffa01a, 3.74, 0.86, s * 1.02); K.box(0.05, 0.1, 0.22, 0x101214, 3.8, 0.56, s * 0.8); // lamp housings, indicators, fog lamps
       K.box(0.012, 1.0, 0.012, 0x101214, 2.0, 1.6, s * 1.16); K.box(0.012, 0.012, 0.012, 0x101214, 2.0, 1.6, s * 1.16); K.box(0.9, 0.012, 0.012, 0x101214, 2.5, 1.1, s * 1.158); // door shut lines
       K.box(0.14, 0.04, 0.03, DARK, 2.2, 1.34, s * 1.165); K.box(0.6, 0.05, 0.22, DARK, 2.75, 0.74, s * 1.14); K.box(0.6, 0.05, 0.22, DARK, 2.75, 0.5, s * 1.14); // handle, steps
-      K.box(0.05, 0.05, 0.42, DARK, 3.3, 2.38, s * 1.34); K.box(0.05, 0.05, 0.42, DARK, 3.3, 1.78, s * 1.34); K.box(0.07, 0.72, 0.2, DARK, 3.3, 2.08, s * 1.56); K.box(0.02, 0.6, 0.15, 0xb8c4d0, 3.26, 2.08, s * 1.56); // the mirror
+      K.box(0.05, 0.05, 0.42, DARK, 3.5, 2.38, s * 1.34); K.box(0.05, 0.05, 0.42, DARK, 3.5, 1.78, s * 1.34); K.box(0.07, 0.72, 0.2, DARK, 3.5, 2.08, s * 1.56); K.box(0.02, 0.6, 0.15, 0xb8c4d0, 3.46, 2.08, s * 1.56); // the mirror
       K.box(0.03, 0.04, 0.04, 0xffa01a, 3.2, 2.8, s * 1.0); }
     K.box(1.0, 0.07, 2.2, WHT, 2.5, 3.05, 0, 0, 0, 0.42); for (const s of [-1, 1]) K.box(0.9, 0.36, 0.05, WHT, 2.45, 2.92, s * 1.08); // the wind deflector
-    K.box(0.34, 0.05, 2.1, DARK, 3.52, 2.7, 0, 0, 0, -0.5); // sun visor
-    for (const s of [-1, 1]) K.box(0.5, 0.02, 0.02, 0x101214, 3.47, 1.78, s * 0.45, 0.25, 0, -0.3); // wipers
+    K.box(0.3, 0.05, 2.16, DARK, 3.84, 2.68, 0); // sun visor
+    for (const s of [-1, 1]) K.box(0.02, 0.02, 0.62, 0x101214, 3.75, 2.0, s * 0.42 + 0.1, 0, 0.22, 0); // wipers, parked
     // the box: hollow. Outer skin in the firm's colour, aluminium corner rails, plywood inside
     K.box(X1 - X0, T, W, C.col, (X0 + X1) / 2, Y1, 0); K.box(X1 - X0, T, W, 0x6a6e74, (X0 + X1) / 2, Y0, 0); K.box(T, Y1 - Y0, W, C.col, X1, (Y0 + Y1) / 2, 0);
     for (const s of [-1, 1]) { K.box(X1 - X0, Y1 - Y0, T, C.col, (X0 + X1) / 2, (Y0 + Y1) / 2, s * (W / 2 - T / 2)); K.box(X1 - X0 - 0.1, Y1 - Y0 - 0.1, 0.02, PLY, (X0 + X1) / 2, (Y0 + Y1) / 2, s * (W / 2 - T - 0.012));
@@ -74,7 +74,7 @@ export function createGoederen(deps) {
     const m = K.build(); if (m) { m.castShadow = true; m.receiveShadow = true; g.add(m); }
     // glass, lamps and the strip light in the bay (their own materials)
     const add = (geo, mat, x, y, z, ry = 0, rz = 0) => { const q = new THREE.Mesh(geo, mat); q.position.set(x, y, z); q.rotation.set(0, ry, rz); g.add(q); return q; };
-    add(new THREE.BoxGeometry(0.04, 0.86, 2.02), glassM, 3.52, 2.2, 0, 0, -0.3); // the windscreen, raked
+    add(new THREE.BoxGeometry(0.04, 0.7, 1.98), glassM, 3.715, 2.3, 0); // the windscreen, upright and flush
     for (const s of [-1, 1]) { add(new THREE.BoxGeometry(0.86, 0.62, 0.03), glassM, 2.66, 2.26, s * 1.135); add(new THREE.BoxGeometry(0.035, 0.16, 0.3), lampM, 3.765, 1.05, s * 0.95); }
     add(new THREE.BoxGeometry(3.6, 0.03, 0.14), bayLightM, (X0 + X1) / 2, Y1 - T - 0.03, 0);
     // the firm on both sides, over the cab doors and on the rear header; a Kaasland plate
