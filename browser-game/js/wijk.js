@@ -17,6 +17,12 @@ export const WIJKEN = {
     signs: ['SCHEEPSHANDEL', 'HAVENCAFE HET ANKER', 'VISHAL', 'TOUW & ZEIL', 'DOUANE', 'CONTAINERVERHUUR', 'ZEEMANSHUIS', 'KRAANVERHUUR'] },
   sand: { name: 'De Zandwijk', gang: 'Paravim', seed: 53, at: 3, colors: [0xe8d2a0, 0xf2ead8, 0xd8a868, 0xc87848, 0xf0dcb0], ground: 0xd8b878, tree: 0,
     signs: ['THEEHUIS', 'SOUK', 'DADELS & NOTEN', 'TAPIJTEN', 'SHISHA LOUNGE', 'KRUIDENBAZAAR', 'BAKKERIJ PITA', 'KOPERSMID'] },
+  // De Peperpijp (2026-11-27): no gang, no joints. The old quarter round the Albert Kuipmarkt, off the A10 at S109, where the
+  // spoed customers have their kitchens (js/spoed.js). Always open: Eddy drives the bags here and unloads at the kerb.
+  pijp: { name: 'De Peperpijp', gang: 'customers', seed: 89, at: 5, colors: [0x8a4a3a, 0x9a5a44, 0x6a3a30, 0x7a4a38, 0xa0644a], brick: true, tree: 1,
+    shops: ['Grillroom Zuid', 'Restaurant De Lepel', 'Kapsalon King', 'Snackbar Bij Henk', 'Eetcafé Het Kuipje', 'Toko Sranang', 'Shoarma Ferdinand Bol', 'Nachtwinkel Abdel'],
+    signs: ['ALBERT KUIPMARKT', 'BRUIN CAFE DE ZWAAN', 'FIETSENMAKER', 'STROOPWAFELS', 'HARING & ZO', 'BLOEMEN', 'KAPPER', 'SIGARENMAGAZIJN'],
+    intro: 'Albert Kuipmarkt, terrasjes, bakfietsen. Your spoed customers have their kitchens here. The A10 oprit is at the east end of this street.' },
   air: { name: 'Schiptagat', gang: 'airport', seed: 71, at: 4, custom: true }, // the airport off the A4: a forecourt, not a grid (buildAir)
 };
 // the plan of every district, in its own coordinates: three long streets (z 0, 46, 92) and five dwarsstraten (four on a phone),
@@ -158,7 +164,9 @@ export function createWijk(deps) {
     // the joints take the shop fronts nearest the afrit first, the rest become ordinary shops
     spots.sort((p, q) => (p.x + Math.max(0, p.zc) * 0.9) - (q.x + Math.max(0, q.zc) * 0.9));
     const step = Math.max(1, Math.floor((spots.length - 1) / Math.max(1, jl.length)));
+    t.shops = {}; const shopQ = (W.shops || []).slice(); // De Peperpijp: the customers' shop fronts, every other one from the third on
     spots.forEach((h, i) => { const j = i >= 1 && (i - 1) % step === 0 ? jl[(i - 1) / step] : null; // (the first shop front is right at the afrit: too easy)
+      if (!j && shopQ.length && i >= 2 && i % 2 === 0) { const nm = shopQ.shift(); place(h, nm.toUpperCase()); const zs = h.zc + HZ; t.shops[nm] = { door: { x: O.x + h.x + (h.w * 0.9 / 2 - 0.72), z: O.z + h.zc + 4.5 + 0.6 }, kerb: { x: O.x + h.x, z: O.z + zs - RW + 1.1 }, w: h.w }; return; }
       if (j) { place(h, j.name.toUpperCase(), true); const door = { x: O.x + h.x + (h.w * 0.9 / 2 - 0.72), z: O.z + h.zc + 4.5 + 0.6, j }; t.doors.push(door);
         deps.addInteract({ pos: () => new THREE.Vector3(door.x, 0, door.z), r: 1.6, enabled: () => T === t && !deps.busy(), label: () => `${j.name} · ${j.owned() && !j.retaken() ? 'your client' : j.open() ? 'raid this joint' : W.gang + ' turf'}`, act: () => knock(t, door) }); }
       else place(h, W.signs[(h.k + i) % W.signs.length]); });
@@ -187,7 +195,7 @@ export function createWijk(deps) {
       const p2 = pole.clone(); p2.position.set(O.x + XE - 1, 1.3, O.z + SA - RW - 1.66); scene.add(p2);
       const ar = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.35, depthWrite: false })); ar.rotation.x = -Math.PI / 2; ar.position.set(O.x + XE, 0.05, O.z + SA + 1); scene.add(ar); }
     // parked cars to borrow, along the north kerbs
-    { let k = W.seed; for (const zs of SZ) for (let x = X0 + 14; x < X1 - 6; x += 5.6) { k++; if ((k * 7) % (low ? 6 : 3) !== 0 || XS.some((X) => Math.abs(x - X) < 7)) continue; deps.car(O.x + x, O.z + zs - RW + 1, null, (k % 2) * Math.PI, true); } }
+    { let k = W.seed; for (const zs of SZ) for (let x = X0 + 14; x < X1 - 6; x += 5.6) { k++; if ((k * 7) % (low ? 6 : 3) !== 0 || XS.some((X) => Math.abs(x - X) < 7) || Object.values(t.shops || {}).some((q) => Math.abs(O.x + x - q.kerb.x) < 6.5 && Math.abs(O.z + zs - RW + 1 - q.kerb.z) < 2)) continue; /* (the customers' loading bays stay free) */ deps.car(O.x + x, O.z + zs - RW + 1, null, (k % 2) * Math.PI, true); } }
     return track();
   }
   function setVis(t, on) {
@@ -239,6 +247,7 @@ export function createWijk(deps) {
       else if (J) deps.route(t.O.x + AIR.drop.x, t.O.z + AIR.drop.z, 'Vertrek');
       deps.toast('SCHIPTAGAT', J && J.kind === 'pickup' ? `${J.who} is at <b>Aankomst</b>. Step into the Oofmobiel, drive up the forecourt and stop on the yellow bay.` : J ? `${J.who} has a plane to catch: stop on the blue bay at <b>Vertrek</b>.` : 'Aankomst to pick people up, Vertrek to drop them off. The A4 oprit is at the far end.', 6);
       return true; }
+    if (t.W.intro && !d) { deps.toast(t.W.name.toUpperCase(), t.W.intro, 5); if (deps.onEnter) deps.onEnter(t); return true; }
     deps.toast(t.W.name.toUpperCase(), d ? `${d.j.name} is down the street. Walk or drive there. The A10 oprit is at the east end of this street.` : `${t.W.gang} turf. Every joint has its own door. The A10 oprit is at the east end of this street.`, 5);
     return true;
   }

@@ -28,6 +28,7 @@ export const ROUTES = {
   nosh: { a: 'A8', afrit: 2, via: 'Kaasdam', other: ['A7', 'Purmerkaas'], gang: 'Noshgey Kariot', props: 'hip', ground: 0x7a9a5a },
   docks: { a: 'A1', afrit: 4, via: 'Kaasfoort', other: ['A2', 'Uitkaas'], gang: 'Abdavissies', props: 'docks', ground: 0x6a6e72 },
   sand: { a: 'A5', afrit: 7, via: 'Haarlemmerkaas', other: ['A8', 'Kaasdam'], gang: 'Paravim', props: 'sand', ground: 0xd8b878 },
+  pijp: { a: 'A10', afrit: 'S109', via: 'Kaas-Zuid', other: ['A2', 'Uitkaas'], gang: '', props: 'brick', ground: 0x7a8a5a }, // De Peperpijp, the spoed customers (js/spoed.js)
   air: { a: 'A4', afrit: 2, via: 'Den Kaas', other: ['A9', 'Kaasstelveen'], gang: '', props: 'air', ground: 0x7a9a5a },
 };
 

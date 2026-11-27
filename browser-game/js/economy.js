@@ -42,6 +42,8 @@ const NOSH_JOINTS = ['joppiehaven', 'frikandelhaven', 'havermelkhaven', 'kombuch
 const ABD_JOINTS = ['komijnkade', 'kaneelsilos', 'paprikapakhuis', 'kruidnagelkade', 'peperhaven', 'kurkumaloods', 'saffraanpier', 'nootmuskade', 'smokkelsloot', 'containerchaos', 'kardemomdok'];
 const PARA_JOINTS = ['couscouskade', 'zaatarmarkt', 'sumaksteeg', 'harissahof', 'dadelplein', 'kasbahalgara'];
 const DISTRICT_KG = 5;
+// spoed customers (js/spoed.js): shops and kitchens in De Peperpijp, the old quarter round the Albert Kuipmarkt off the A10
+export const SPOED_KLANTEN = ['Grillroom Zuid', 'Restaurant De Lepel', 'Kapsalon King', 'Snackbar Bij Henk', 'Eetcafé Het Kuipje', 'Toko Sranang', 'Shoarma Ferdinand Bol'];
 // Spice orders (Kruidenbeurs, phone, Loods pallets) arrive on the morning ORDER_DAYS market days later; express: 1 day, +EXPRESS
 export const ORDER_DAYS = 2, EXPRESS = 0.25;
 export const REST_EVERY = 3; // balance 2026-11-19: one lazy day in three, the others need an outing first
@@ -581,12 +583,12 @@ export function createEconomy(deps) {
     const debtor = e.owed.find((o) => levels.includes(CLIENTS.find((c) => c.name === o.name)?.id));
     if (debtor) { const id = CLIENTS.find((c) => c.name === debtor.name).id; cand.push({ kind: 'debt', level: id, reward: Math.round(debtor.amount * 1.25), title: `Collect from ${debtor.name}`, desc: `They owe you W ${debtor.amount}. Raid ${name(id)} tonight and they'll pay now, plus 25% for the trouble.` }); }
     const b = rp(BLENDS.filter(blendOpen)), kg = 10 + Math.floor(r() * 3) * 5;
-    cand.push({ kind: 'spoed', blend: b.id, kg, reward: Math.round(b.value * 1.6 * kg), title: `Spoed-order: ${kg} kg ${b.name}`, desc: `${rp(['Grillroom Zuid', 'Restaurant De Lepel', 'Kapsalon King', 'Snackbar Bij Henk'])} is out of spice and pays 60% over the odds, today only.` });
+    { const cu = rp(SPOED_KLANTEN); cand.push({ kind: 'spoed', blend: b.id, kg, cust: cu, reward: Math.round(b.value * 1.6 * kg), title: `Spoed-order: ${kg} kg ${b.name}`, desc: `${cu} in De Peperpijp is out of spice and pays 60% over the odds, today only. Load the van and drive it there, or let Shooki do it.` }); }
     const g = rp(INGREDIENTS.filter((x) => !x.supply)), dkg = 30;
     cand.push({ kind: 'deal', ing: g.id, kg: dkg, off: 0.4, title: `Supplier deal: ${dkg} kg ${g.name}`, desc: `A truck driver "found" ${dkg} kg of Standaard ${g.name.toLowerCase()}. 40% off, today only.`, reward: 0 });
     { const m = rp(MACHINES); cand.push({ kind: 'machine', machine: m.id, reward: Math.round(m.sell * 1.25 / 10) * 10, title: `Deliver a ${m.name} to Frietwijk`, desc: `${rp(['Kapsalon King', 'Grillroom Ali Baba', 'Shoarma Paleis'])} in Oud-Vettenburg needs a ${m.name.toLowerCase()} and pays 25% over the odds. Have one in the warehouse, then drive to Oud-Vettenburg. The Lampas won't like it (heat +10).`, needs: 'district1' }); }
     if (state.district1) cand.push({ kind: 'scout', reward: 400, title: 'Scout Oud-Vettenburg', desc: 'Drive the Oofmobiel to Oud-Vettenburg and back. The Lampas will try to ram you.' });
-    if (has('koerier')) { const b2 = rp(BLENDS.filter(blendOpen)), k2 = 10 + Math.floor(r() * 2) * 5; cand.push({ kind: 'spoed', blend: b2.id, kg: k2, reward: Math.round(b2.value * 1.5 * k2), title: `Shooki's deal: ${k2} kg ${b2.name}`, desc: `Cousin Shooki found a buyer "who asks no questions". He wants ${k2} kg ${b2.name} today.` }); }
+    if (has('koerier')) { const b2 = rp(BLENDS.filter(blendOpen)), k2 = 10 + Math.floor(r() * 2) * 5; cand.push({ kind: 'spoed', blend: b2.id, kg: k2, cust: 'Nachtwinkel Abdel', reward: Math.round(b2.value * 1.5 * k2), title: `Shooki's deal: ${k2} kg ${b2.name}`, desc: `Cousin Shooki found a buyer "who asks no questions": the nachtwinkel on the corner in De Peperpijp. He wants ${k2} kg ${b2.name} today.` }); }
     rollOffers(r);
     const ok = cand.filter((j) => j.needs !== 'district1' || state.district1);
     for (let i = ok.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ok[i], ok[j]] = [ok[j], ok[i]]; }
@@ -619,6 +621,7 @@ export function createEconomy(deps) {
   const jobFor = (level) => (ensure().jobs || []).find((j) => !j.done && j.level === level);
   function doJob(n, el) {
     const e = ensure(), j = (e.jobs || [])[n]; if (!j || j.done) return null;
+    if (j.kind === 'spoed' && deps.spoed) { if (j.run) return null; return deps.spoed(j, el); } // a real delivery: load the van, drive, unload (js/spoed.js)
     if (j.kind === 'spoed') {
       const cur = blendOf(j.blend); if (cur.kg < j.kg) return `You need ${j.kg} kg ${BLENDS.find((x) => x.id === j.blend).name} in stock (you have ${Math.floor(cur.kg)}).`;
       if (today().plan === 'raid') return 'Today is a raid day. Deliver it tomorrow.';
@@ -633,6 +636,22 @@ export function createEconomy(deps) {
     }
     return null;
   }
+  // spoed deliveries (js/spoed.js): the bags leave the shelf when they are packed, and the customer pays at the door
+  function spoedTake(j) {
+    const cur = blendOf(j.blend), B = BLENDS.find((x) => x.id === j.blend);
+    if (cur.kg < j.kg) return `You need ${j.kg} kg ${B ? B.name : j.blend} in stock (you have ${Math.floor(cur.kg)}).`;
+    if (today().plan === 'raid') return 'Today is a raid day. Deliver it tomorrow.';
+    const q = cur.q; cur.kg -= j.kg; if (cur.kg <= 0.001) delete ensure().blends[j.blend]; else ensure().blends[j.blend] = cur;
+    work('levering'); if (deps.save) deps.save(); return { q };
+  }
+  function spoedBack(blend, kg, q) { const e = ensure(), cur = e.blends[blend] || { kg: 0, q }; cur.q = cur.kg > 0 ? (cur.q * cur.kg + q * kg) / (cur.kg + kg) : q; cur.kg += kg; e.blends[blend] = cur; if (deps.save) deps.save(); }
+  function spoedPaid(n, day, pay, rep, el, note) {
+    const e = ensure(), j = e.day === day ? (e.jobs || [])[n] : null;
+    if (j) { j.done = true; j.run = null; }
+    if (pay) deps.addMoney(pay, el); addRep(rep);
+    if (deps.toast && note !== '') deps.toast('SPOED GELEVERD', note || `+${fmt(pay)}.`, 4.5);
+    if (deps.save) deps.save();
+  }
   function jobsHTML() {
     const e = ensure(); if (!e.jobs) rollDay();
     let h = `<div class="well" style="margin-bottom:8px"><b>Klusbord</b> · Market day <b>${e.day}</b> · New jobs every market day.<br><small>Raids are done from the Oofmobiel map (owned joints show tonight's remix). Order and deal jobs are done right here.</small></div>`;
@@ -642,7 +661,7 @@ export function createEconomy(deps) {
     h += '<table class="list"><tr><th>Job</th><th>Pays</th><th></th></tr>';
     for (const j of e.jobs) {
       const cost = j.kind === 'deal' ? Math.round(price(j.ing, 'std') * (1 - j.off)) * j.kg : 0;
-      const act = j.done ? '<b style="color:#070">DONE</b>' : j.kind === 'spoed' ? `<button class="b95" data-job="${j.n}">Deliver (${Math.floor(blendOf(j.blend).kg)}/${j.kg} kg)</button>` : j.kind === 'deal' ? `<button class="b95" data-job="${j.n}">Buy for ${fmt(cost)}</button>` : j.kind === 'scout' ? '<i>Van map: Drive to Oud-Vettenburg</i>' : j.kind === 'machine' ? `<i>${(e.machines[j.machine] || 0) > 0 ? 'In stock. ' : 'Buy one on Kaasplaats, then '}drive to Oud-Vettenburg</i>` : '<i>Van map: remix raid</i>';
+      const act = j.done ? '<b style="color:#070">DONE</b>' : j.kind === 'spoed' && j.run ? `<i>${j.run}</i>` : j.kind === 'spoed' ? `<button class="b95" data-job="${j.n}">Deliver (${Math.floor(blendOf(j.blend).kg)}/${j.kg} kg)</button>` : j.kind === 'deal' ? `<button class="b95" data-job="${j.n}">Buy for ${fmt(cost)}</button>` : j.kind === 'scout' ? '<i>Van map: Drive to Oud-Vettenburg</i>' : j.kind === 'machine' ? `<i>${(e.machines[j.machine] || 0) > 0 ? 'In stock. ' : 'Buy one on Kaasplaats, then '}drive to Oud-Vettenburg</i>` : '<i>Van map: remix raid</i>';
       h += `<tr><td><b>${j.title}</b><br><small>${j.desc}</small></td><td>${j.reward ? fmt(j.reward) : `save ${fmt(cost / (1 - j.off) * j.off)}`}</td><td>${act}</td></tr>`;
     }
     h += '</table>';
@@ -871,5 +890,5 @@ export function createEconomy(deps) {
   // Hakan's phone order (js/phone.js): Shooki brings it at the next market day
   function phoneOrder(kg) { const e = ensure(); e.phoneOrder = { kg, day: e.day }; e.phoneDay = e.day; if (deps.save) deps.save(); }
   const phoneQuote = (kg) => Math.round(clientPrice('kip', Math.max(1, blendOf('kip').q || 3), null) * kg * 1.15);
-  return { dockIn, receive, REST_EVERY, restOK, restNext, rested, gradeLock, qtyLock, ingOpen: (g) => ingOpen(g, state), today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, dayKg, helpKg, places, placesUsed, PLACE_KG, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { spoedTake, spoedBack, spoedPaid, SPOED_KLANTEN, dockIn, receive, REST_EVERY, restOK, restNext, rested, gradeLock, qtyLock, ingOpen: (g) => ingOpen(g, state), today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, dayKg, helpKg, places, placesUsed, PLACE_KG, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }

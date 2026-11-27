@@ -501,5 +501,5 @@ export function createProductie(deps) {
     for (let i = streams.length - 1; i >= 0; i--) { const s = streams[i]; s.t -= dt; s.m.material.opacity = 0.85 * Math.min(1, s.t / 0.3); if (s.t <= 0) { scene.remove(s.m); s.m.material.dispose(); streams.splice(i, 1); } }
     if (hold) held.position.y = 1.0 + Math.sin(performance.now() * 0.008) * 0.012;
   }
-  return { floorKg, jobs, FEED_SPOTS, OUT_SPOT, UIT_SPOTS, update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
+  return { makeBag, floorKg, jobs, FEED_SPOTS, OUT_SPOT, UIT_SPOTS, update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
 }
