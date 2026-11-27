@@ -35,7 +35,7 @@ const CAST = [
   { key: 'visser', name: 'Mevrouw Visser', at: [3.4, -5.5], face: 0,
     look: mk({ fem: 1, skin: 0xf0c8aa, hair: 0xcbb98e, hs: 'normal', glasses: 1, body: 'slim', shirt: 0x6a4a3a, jacket: 0xc8b48a, pants: 0x3a3a3a, skirt: 0x3a3a3a, sleeves: 'long', calm: 1, smile: 0 }),
     hi: ['Meneer. The VvE has received complaints. From me.', 'Forklift beeps at six in the morning. SIX.', 'I have a folder on you. It is a thick folder.'] },
-  { key: 'lotte', name: 'Lotte de Vlogger', at: [29, 11.6], face: Math.PI,
+  { key: 'lotte', name: 'Lotte de Vlogger', at: [27.4, 11.6], face: Math.PI,
     look: mk({ fem: 1, skin: 0xf2c8a8, hair: 0xe2c270, hs: 'long', body: 'slim', shirt: 0xf4a8cc, jacket: 0xf04a9a, pants: 0x2aa8a8, sleeves: 'long', calm: 0.1 }),
     hi: ['Hiii guys, it\'s Lotte! Say hi to the chat, Eddy!', 'Smash that like, jongens. Literally smash it.', 'Three hundred followers! And my mum. Three hundred and one.'] },
   { key: 'dirk', name: 'Draaiorgel Dirk', at: [-13, 23.4], face: Math.PI,
