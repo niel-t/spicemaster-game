@@ -7,7 +7,7 @@ import { hex01 } from './characters.js';
 import { BIZ } from './buurt.js';
 
 const rgb = (c) => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
-const mk = (o) => ({ tex: 512, skin: hex01(o.skin), hair: o.hair == null ? null : hex01(o.hair), hs: o.hs || 'normal', calm: o.calm ?? 0.8, smile: o.smile ?? 1, body: o.body || 'slim', B: { nowatch: !o.watch },
+export const mk = (o) => ({ tex: 512, skin: hex01(o.skin), hair: o.hair == null ? null : hex01(o.hair), hs: o.hs || 'normal', calm: o.calm ?? 0.8, smile: o.smile ?? 1, body: o.body || 'slim', B: { nowatch: !o.watch },
   ...(o.fem ? { fem: 1 } : {}), ...(o.beard != null ? { beard: hex01(o.beard), fluff: o.fluff ? 1 : 0 } : {}), ...(o.stubble ? { stubble: 1 } : {}), ...(o.stache ? { stache: 1 } : {}), ...(o.glasses ? { glasses: 1 } : {}),
   ...(o.hat ? { hat: o.hat, hatC: hex01(o.hatC ?? 0x1a1a1a) } : {}), ...(o.watch ? { watch: 1 } : {}), ...(o.heels ? { heels: 1 } : {}), ...(o.skirt != null ? { skirt: hex01(o.skirt) } : {}),
   shirt: hex01(o.shirt), jacket: hex01(o.jacket ?? o.shirt), pants: hex01(o.pants), shoes: hex01(o.shoes ?? 0x1a1410), tee: 1,
