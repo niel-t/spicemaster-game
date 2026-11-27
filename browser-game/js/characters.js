@@ -39,7 +39,7 @@ function fabric(x, x0, y0, w, h, col, ribs = 0.07) {
   x.fillStyle = rgb(col); x.fillRect(x0, y0, w, h);
   x.save(); x.beginPath(); x.rect(x0, y0, w, h); x.clip();
   x.globalAlpha = ribs; x.strokeStyle = '#000'; x.lineWidth = 1; for (let i = x0; i < x0 + w; i += 3) { x.beginPath(); x.moveTo(i, y0); x.lineTo(i + h * 0.25, y0 + h); x.stroke(); }
-  x.globalAlpha = 1; const g = x.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(0, 'rgba(255,255,255,.10)'); g.addColorStop(1, 'rgba(0,0,0,.16)'); x.fillStyle = g; x.fillRect(x0, y0, w, h);
+  x.globalAlpha = 1; const g = x.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(0, 'rgba(255,236,200,.10)'); g.addColorStop(1, 'rgba(58,28,8,.2)'); /* warm spice shading */ x.fillStyle = g; x.fillRect(x0, y0, w, h);
   x.restore();
 }
 function blob(x, cx, cy, rx, ry, col) { const g = x.createRadialGradient(cx, cy, 0, cx, cy, 1); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); x.save(); x.translate(cx, cy); x.scale(rx, ry); x.fillStyle = g; x.beginPath(); x.arc(0, 0, 1, 0, 7); x.fill(); x.restore(); }
@@ -120,7 +120,7 @@ export function finishModel(md) {
   const t0 = performance.now(); if (!stats.first) stats.first = t0;
   const { look, cfg } = md;
   const hc = P.paintHeadP(look);
-  if (look.smile) P.paintSmile(hc, {});
+  if (look.smile && look.toon === false) P.paintSmile(hc, {}); // toon faces paint their own mouth (ps2c.js paintToonFace)
   if (look.paintHead) look.paintHead(hc);
   const bc = P.paintBodyP(look);
   if (look.shirtPaint) paintShirt(bc, look.shirtPaint);
@@ -209,6 +209,8 @@ export function ps2Animate(p, speed, dt) {
   }
 }
 
+const HEAD_K = 1.1, hsCache = new Map();
+function headScaleM(k) { let m = hsCache.get(k); if (!m) { const pv = P.BONES[P.BI.head][2]; m = P.M4.mul(P.M4.T(pv[0], pv[1], pv[2]), P.M4.mul([k, 0, 0, 0, 0, k, 0, 0, 0, 0, k, 0, 0, 0, 0, 1], P.M4.T(-pv[0], -pv[1], -pv[2]))); hsCache.set(k, m); } return m; }
 function poseOf(p, now) {
   const u = p.userData, q = u.ps2;
   const walk = q.moving && !u.seated;
@@ -259,6 +261,9 @@ function poseOf(p, now) {
   if (!u.arms[1].visible) cut.push(CUT.arm1);
   if (!u.head.visible) cut.push(CUT.head);
   if (q.look.neckDrop) W[P.BI.head] = P.M4.mul(P.M4.T(0, -q.look.neckDrop, 0), W[P.BI.head]);
+  // toon proportions: a slightly bigger head (scaled about the neck pivot) so faces read from the game camera; hats and props ride along
+  const hk = q.look.headScale ?? (q.look.toon === false ? 1 : HEAD_K);
+  if (hk !== 1) W[P.BI.head] = P.M4.mul(W[P.BI.head], headScaleM(hk));
   for (const grp of cut) {
     const b0 = P.BI[grp[0]], pv = P.M4.ap(W[b0], P.BONES[b0][2]);
     const z = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, pv[0], pv[1], pv[2], 1];
@@ -468,7 +473,16 @@ export function lookFromPerson(o, HEADS = {}) {
     glasses: hd.glasses ? 1 : 0, shirt: hex01(shirt), jacket: hex01(shirt), pants: hex01(pants), shoes: hex01(shoes), tee: 1,
     body: o.belly >= 1 ? 'fat' : o.belly >= 0.55 ? 'stocky' : 'normal',
   };
-  if (hd.beard || hd.beard3d) { L.beard = hex01(css(hd.beard3d || hd.beard)); L.fluff = !!hd.beard3d; }
+  // a full beard only when the head asks for a 3D one; a plain beard colour is the portraits' stubble shadow
+  if (hd.beard3d) { L.beard = hex01(css(hd.beard3d)); L.fluff = true; }
+  else if (hd.beard) { L.stubble = 1; L.stubbleC = hex01(css(hd.beard)); }
+  if (hd.stubble) L.stubble = 1;
+  // portrait face options: iris colour, brow colour and weight, squint, mouth shape
+  if (hd.iris) L.iris = hex01(css(hd.iris));
+  if (hd.brow) L.browC = hex01(css(hd.brow));
+  if (hd.browW) L.browW = Math.min(4.4, 2.6 + hd.browW * 0.3);
+  if (hd.squint) L.squint = 1;
+  if (hd.mouth) L.mouth = hd.mouth === 'laugh' ? 'laugh' : hd.mouth === 'flat' ? 'flat' : hd.mouth === 'frown' ? 'frown' : 'smile';
   if (o.police || o.capColor) { L.hat = 'peaked'; L.hatC = hex01(css(o.capColor || 0x1a2440)); }
   else if (o.ballcap) { L.hat = 'ballcap'; L.hatC = hex01(css(o.ballcap)); }
   else if (o.feltHat) { L.hat = 'fedora'; L.hatC = hex01(css(o.feltHat)); }
@@ -499,7 +513,7 @@ function dolphinPrint(x, x0, y0, w, h) {
 export const LOOKS = {
   eddySr: {
     tex: 512,
-    skin: hex01(0xdc9c82), hair: hex01(0xeceae4), hs: 'slick', stache: 1, beard: null, calm: 1, smile: 1, body: 'stocky', B: { nowatch: true },
+    skin: hex01(0xdc9c82), hair: hex01(0xeceae4), hs: 'slick', stache: 1, beard: null, calm: 1, smile: 1, mouth: 'smile', squint: 1, browC: hex01(0xc8c4bc), browW: 4.2, body: 'stocky', B: { nowatch: true },
     shirt: hex01(0x232a40), jacket: hex01(0x232a40), pants: hex01(0x4a4a52), shoes: hex01(0x2a2018), tee: 1,
     shirtPaint: { shirt: [0x23, 0x2a, 0x40], pants: [0x4a, 0x4a, 0x52], skin: [0xdc, 0x9c, 0x82], belt: [0x2a, 0x20, 0x18], vDepth: 1.42, chain: false, sleeves: 'long', buttons: true,
       badge: (x, fx, ty) => { x.strokeStyle = '#9a2222'; x.lineWidth = 9; x.beginPath(); x.moveTo(fx(-0.08), 0); x.quadraticCurveTo(fx(0), ty(1.4), fx(0.08), 0); x.stroke(); x.strokeStyle = '#ece6d4'; x.lineWidth = 3; x.stroke(); } },
@@ -521,7 +535,7 @@ export const LOOKS = {
   },
   // Naknik look C (picked by Tristan, 14 Nov): saffron beanie, cardamom-green tee, cumin-brown dungarees with the N badge
   naknik: {
-    skin: hex01(0xd8a07a), hair: hex01(0x1d1510), hs: 'normal', hat: 'beanie', hatC: hex01(0xe8a33d), calm: 1, smile: 1, body: 'stocky', B: { nowatch: true },
+    skin: hex01(0xd8a07a), hair: hex01(0x1d1510), hs: 'normal', hat: 'beanie', hatC: hex01(0xe8a33d), calm: 1, smile: 1, mouth: 'laugh', iris: hex01(0x2a4a8a), body: 'stocky', B: { nowatch: true },
     shirt: hex01(0xa9c46a), jacket: hex01(0xa9c46a), pants: hex01(0x6a4a2a), shoes: hex01(0x2a1a10), tee: 1,
     shirtPaint: { shirt: [0xa9, 0xc4, 0x6a], pants: [0x6a, 0x4a, 0x2a], skin: [0xd8, 0xa0, 0x7a], tuck: true, neck: 'crew', sleeves: 'rolled', buttons: false,
       badge: (x, fx, ty) => { x.fillStyle = '#6a4a2a'; x.fillRect(fx(-0.13), 0, 10, ty(1.0)); x.fillRect(fx(0.11), 0, 10, ty(1.0)); x.fillRect(fx(-0.13), ty(1.0), fx(0.13) - fx(-0.13), ty(0.6) - ty(1.0)); naknikBadge(x, fx, ty); } },
@@ -535,7 +549,7 @@ export const LOOKS = {
   },
   eddyJr: {
     tex: 512,
-    skin: hex01(0xe4ab88), hair: hex01(0x1d1510), hs: 'curly', glasses: 1, stubble: 1, calm: 1, smile: 1, body: 'fat', neckDrop: 0.03, B: { nowatch: true },
+    skin: hex01(0xe4ab88), hair: hex01(0x1d1510), hs: 'curly', glasses: 1, stubble: 1, calm: 1, smile: 1, mouth: 'smile', body: 'fat', neckDrop: 0.03, B: { nowatch: true },
     shirt: hex01(0x86acdf), jacket: hex01(0x86acdf), pants: hex01(0xe9e4d8), shoes: hex01(0x6a3a1c), tee: 1,
     shirtPaint: { shirt: [0x86, 0xac, 0xdf], pants: [0xe9, 0xe4, 0xd8], skin: [0xe4, 0xab, 0x88], belt: [0x5a, 0x30, 0x18], vDepth: 1.38, chestHair: true, chain: true, sleeves: 'long' },
   },

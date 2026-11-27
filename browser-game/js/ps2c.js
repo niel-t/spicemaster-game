@@ -78,6 +78,62 @@ function paintFace(y){const C=128,dk=SKIN.map(v=>v*0.62),md=SKIN.map(v=>v*0.8),l
  y.fillStyle=rgb(lt,0.35);y.fillRect(C-4,my+2.4,8,1);soft(C,my+7,7,2.5,rgb(dk,0.4));
  /* chin + jaw line */
  soft(C,V(1.6),8,4,rgb(lt,0.25));y.strokeStyle=INK+'.25)';y.lineWidth=0.8;y.beginPath();y.moveTo(C-3,V(1.598));y.quadraticCurveTo(C,V(1.594),C+3,V(1.598));y.stroke();}
+/* Spice Master: toon face matching the cartoon portraits (tools/portraits): clear eye whites with a coloured iris and a catch-light,
+   soft rounded brows, a small button nose, rosy cheeks and a simple mouth; no Neon Vice wrinkles, bags or frown.
+   T = { iris, brow, browW, calm, squint, mouth: 'smile'|'laugh'|'flat'|'frown'|'grin', fem, old, stache, stacheC, lips } */
+function paintToonFace(y,T){const C=128,dk=SKIN.map(v=>v*0.6),lt=SKIN.map(v=>Math.min(255,v*1.14+6)),INK='rgba(42,22,16,';
+ const V=Y=>(HEAD.crownY-Y)/(HEAD.crownY-HEAD.neckY)*256,U=xm=>C+Math.asin(clamp(xm/0.108,-1,1))/(2*Math.PI)*256;
+ const ell=(cx,cy,rx,ry,col)=>{y.fillStyle=col;y.beginPath();y.ellipse(cx,cy,rx,ry,0,0,6.3);y.fill();};
+ const soft=(cx,cy,rx,ry,col)=>{const g=y.createRadialGradient(cx,cy,0,cx,cy,1);g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');y.save();y.translate(cx,cy);y.scale(rx,ry);y.fillStyle=g;y.fillRect(-1,-1,2,2);y.restore();};
+ const sym=f=>{f(1);f(-1);};
+ y.lineCap='round';y.lineJoin='round';
+ /* soft modelling: a lit forehead and cheeks, a warm shadow under the brow and down the sides of the nose, under-chin shade */
+ soft(C,V(1.77),34,12,rgb(lt,0.32));sym(s=>soft(C+s*19,V(1.668),11,8,rgb(lt,0.22)));
+ soft(C,V(1.588),26,8,rgb(dk,0.3));
+ /* rosy cheeks (the portraits' blush) */
+ sym(s=>soft(C+s*20,V(1.664),9,6,T.fem?'rgba(228,104,100,.5)':'rgba(218,98,84,.42)'));
+ /* eyes */
+ const ey=V(1.705),ex=U(0.032),open=T.squint?0.62:T.fem?1.16:1,ew=7.4,iris=T.iris||[74,48,28];
+ sym(s=>{const cx=C+s*(ex-C);
+  soft(cx,ey-4,9,3.5,rgb(dk,0.18));
+  const top=ey-5.4*open,bot=ey+3.6*open;
+  y.save();y.beginPath();y.moveTo(cx-ew,ey+0.4);y.bezierCurveTo(cx-ew*0.6,top,cx+ew*0.6,top,cx+ew,ey-0.2);y.bezierCurveTo(cx+ew*0.55,bot,cx-ew*0.55,bot,cx-ew,ey+0.4);y.closePath();
+  y.fillStyle='#f6f1e8';y.fill();y.clip();
+  const ix=cx-s*0.4,iy=ey-0.3,ir=3.7;ell(ix,iy,ir,ir,rgb(iris));ell(ix,iy+0.6,ir*0.75,ir*0.6,rgb(iris.map(v=>Math.min(255,v*1.35+10)),0.6));
+  ell(ix,iy,1.8,1.8,'#140a06');ell(ix-1.3,iy-1.4,1.1,1.1,'rgba(255,255,255,.95)');ell(ix+1.2,iy+1,0.45,0.45,'rgba(255,255,255,.7)');
+  y.fillStyle=rgb(dk,0.28);y.fillRect(cx-ew,top-2,ew*2,2.6); /* lid shadow on the white */
+  y.restore();
+  /* bold upper lid line with a little flick, thin lower line */
+  y.strokeStyle=INK+'1)';y.lineWidth=1.9;y.beginPath();y.moveTo(cx-s*ew-s*0.3,ey+(s>0?-0.4:0.6));y.bezierCurveTo(cx-ew*0.6*s,top-0.3,cx+ew*0.6*s,top-0.3,cx+s*ew+s*0.9,ey-(s>0?0.2:-0.2));y.stroke();
+  y.lineWidth=T.fem?1.4:1.1;y.beginPath();y.moveTo(cx+s*ew,ey-0.3);y.lineTo(cx+s*(ew+1.8),ey-1.6);y.stroke();
+  y.strokeStyle=INK+'.45)';y.lineWidth=0.8;y.beginPath();y.moveTo(cx-ew*0.75,ey+1.6*open);y.quadraticCurveTo(cx,bot+0.9,cx+ew*0.75,ey+1.6*open);y.stroke();
+  if(T.old){y.strokeStyle=INK+'.28)';y.lineWidth=0.7;for(const k of [0,1]){y.beginPath();y.moveTo(cx+s*(ew+2),ey+0.5+k*2.2);y.lineTo(cx+s*(ew+4.5),ey+1.4+k*3);y.stroke();}}
+  /* brows: soft rounded strokes; calm 1 = relaxed and raised, 0 = knitted toward the nose */
+  const bw=(T.browW||3.4)*(T.fem?0.62:1),inner=ey-9.4+(1-T.calm)*3.4,outer=ey-9.6-T.calm*0.8,peak=ey-12.4+(1-T.calm)*0.6;
+  y.strokeStyle=T.brow;y.lineWidth=bw;y.beginPath();y.moveTo(cx-s*7,inner);y.quadraticCurveTo(cx+s*0.5,peak,cx+s*8.4,outer);y.stroke();});
+ /* nose: a button nose with a lit tip and a soft underside */
+ const nt=V(1.672);soft(C,nt+2.6,7,3,rgb(dk,0.42));sym(s=>soft(C+s*3.6,nt-6,2.2,8,rgb(dk,0.16)));
+ ell(C,nt-0.6,4.6,3.6,rgb(SKIN.map(v=>Math.min(255,v*1.04))));ell(C-1,nt-2,1.6,1.1,rgb(lt,0.85));
+ y.strokeStyle=INK+'.55)';y.lineWidth=1;y.beginPath();y.moveTo(C-4.6,nt+0.4);y.quadraticCurveTo(C-3.4,nt+3,C-1.2,nt+2.6);y.moveTo(C+4.6,nt+0.4);y.quadraticCurveTo(C+3.4,nt+3,C+1.2,nt+2.6);y.stroke();
+ /* moustache (drawn under the mouth line so the smile shows through its edge) */
+ const m=T.mouth||'smile',my=V(1.645)+(T.stache&&m!=='laugh'&&m!=='grin'?2:0); /* a moustache pushes a closed mouth down so the smile shows under it */
+ if(T.stache){const sc=T.stacheC||[60,40,28],sy=V(1.645);{const my=sy;y.fillStyle=rgb(sc);y.beginPath();y.moveTo(C,my-5.4);y.bezierCurveTo(C-6,my-8,C-13,my-6,C-14.5,my+1.2);y.bezierCurveTo(C-10,my-0.4,C-4,my-0.6,C,my-1.4);y.bezierCurveTo(C+4,my-0.6,C+10,my-0.4,C+14.5,my+1.2);y.bezierCurveTo(C+13,my-6,C+6,my-8,C,my-5.4);y.fill();
+  y.strokeStyle=rgb(sc.map(v=>v*0.42),0.9);y.lineWidth=1;y.stroke();y.strokeStyle=rgb(sc.map(v=>Math.min(255,v*1.5+30)),0.5);y.lineWidth=0.6;for(let i=-3;i<=3;i++){if(!i)continue;y.beginPath();y.moveTo(C+i*3,my-4.4+Math.abs(i)*0.2);y.lineTo(C+i*3.5,my-1.8);y.stroke();}}}
+ /* mouth */
+ const lip=T.lips||(T.fem?[184,76,72]:[160,80,66]);
+ if(m==='laugh'||m==='grin'){const hw=m==='grin'?10:9,dp=m==='grin'?5:7;
+  y.save();y.beginPath();y.moveTo(C-hw,my-1);y.quadraticCurveTo(C,my+1.4,C+hw,my-1);y.quadraticCurveTo(C+hw*0.7,my+dp,C,my+dp+0.4);y.quadraticCurveTo(C-hw*0.7,my+dp,C-hw,my-1);y.closePath();
+  y.fillStyle='#4a1414';y.fill();y.clip();y.fillStyle='#f8f4ea';y.beginPath();y.moveTo(C-hw,my-2);y.quadraticCurveTo(C,my+0.6,C+hw,my-2);y.lineTo(C+hw,my+1.2);y.quadraticCurveTo(C,my+3.2,C-hw,my+1.2);y.closePath();y.fill();
+  ell(C,my+dp+0.6,hw*0.48,2.6,'rgba(214,96,96,.9)');y.restore();
+  y.strokeStyle=INK+'1)';y.lineWidth=1.3;y.beginPath();y.moveTo(C-hw,my-1);y.quadraticCurveTo(C,my+1.4,C+hw,my-1);y.quadraticCurveTo(C+hw*0.7,my+dp,C,my+dp+0.4);y.quadraticCurveTo(C-hw*0.7,my+dp,C-hw,my-1);y.stroke();
+  sym(s=>{y.lineWidth=1;y.beginPath();y.moveTo(C+s*(hw+0.4),my-1.4);y.quadraticCurveTo(C+s*(hw+2),my-2,C+s*(hw+2.4),my-3.4);y.stroke();});}
+ else{const hw=m==='flat'?6.5:m==='frown'?6:8,cv=m==='flat'?0.4:m==='frown'?-2.4:2.6;
+  if(T.fem){y.fillStyle=rgb(lip,0.85);y.beginPath();y.moveTo(C-hw*0.85,my);y.quadraticCurveTo(C,my+cv+3.6,C+hw*0.85,my);y.quadraticCurveTo(C,my+cv*0.4,C-hw*0.85,my);y.fill();y.fillStyle=rgb(lip.map(v=>v*0.9),0.75);y.beginPath();y.moveTo(C-hw*0.8,my-0.2);y.quadraticCurveTo(C-3,my-2.4,C,my-1.2);y.quadraticCurveTo(C+3,my-2.4,C+hw*0.8,my-0.2);y.quadraticCurveTo(C,my+cv*0.3,C-hw*0.8,my-0.2);y.fill();}
+  else soft(C,my+3.4,6,2,rgb(lip,0.35));
+  y.strokeStyle=INK+'1)';y.lineWidth=1.4;y.beginPath();y.moveTo(C-hw,my-cv*0.35);y.quadraticCurveTo(C,my+cv,C+hw,my-cv*0.35);y.stroke();
+  if(m==='smile')sym(s=>{y.lineWidth=0.9;y.beginPath();y.moveTo(C+s*(hw-0.2),my-cv*0.35);y.lineTo(C+s*(hw+1.4),my-cv*0.35-1.4);y.stroke();});}
+ soft(C,V(1.61),6,3,rgb(lt,0.3)); /* chin light */
+}
 function paintEars(x){
  /* painted ears (used by the ear flaps), nape crease, a touch of stubble shadow along the jaw */
  for(const ex of [64,192]){const sd=ex>128?1:-1;x.fillStyle=rgb([150,92,70]);x.beginPath();x.ellipse(ex,105,9,19,0,0,6.3);x.fill();x.fillStyle=rgb(SKIN.map(v=>v*1.0));x.beginPath();x.ellipse(ex+sd*2,103,6,15,0,0,6.3);x.fill();x.strokeStyle=rgb([120,70,52],0.7);x.lineWidth=1.5;x.beginPath();x.ellipse(ex,105,10,20,0,0,6.3);x.stroke();}
@@ -203,7 +259,7 @@ const HEADP={
 function hairShell(M,rows,segs,o){const hu=[144/512,3/512],open=o.open||0,c0=o.c0||0.3,curl=o.curl||0;
  const wy=y=>y>1.6?W1(BI.head):y>1.52?W2(BI.neck,BI.head,(y-1.52)/0.08):y>1.44?W2(BI.chest,BI.neck,(y-1.44)/0.08):W1(BI.chest);
  loft(M,rows.map(r=>({c:[0,r[0],r[3]],s:[1,0,0],f:[0,0,1],rx:r[1],rz:r[2],w:wy(r[0]),v:hu[1],mod:(p,ph)=>{const c=Math.cos(ph),n=1+curl*(Math.sin(ph*9+r[0]*120)*0.6+Math.sin(ph*5-r[0]*70)*0.4);
-  let k=n;if(r[0]<open){const t=clamp((c-c0)/0.3,0,1);k*=1-0.45*t*t*(3-2*t);}p[0]*=k;p[2]=r[3]+(p[2]-r[3])*k;return p;}})),segs,{uvf:()=>hu,capA:o.top?{dir:[0,1,0],uv:hu}:undefined,capB:o.bottom?{dir:[0,-1,0],uv:hu}:undefined});}
+  let k=n;if(r[0]<open){const t=clamp((c-c0)/0.3,0,1);k*=1-0.45*t*t*(3-2*t);}p[0]*=k;p[2]=r[3]+(p[2]-r[3])*k;return p;}})),segs,{uvf:HUV(hu),capA:o.top?{dir:[0,1,0],uv:hu}:undefined,capB:o.bottom?{dir:[0,-1,0],uv:hu}:undefined});}
 /* feathered face-framing lock (80s flick): a tapered strand from the temple down past the jaw, curling outward at the tip */
 function hairLock(M,s,pts){const hu=[144/512,3/512];loft(M,pts.map(q=>({c:[s*q[0],q[1],q[2]],s:[1,0,0],f:[0,0,1],rx:q[3],rz:q[3]*0.7,v:hu[1],w:q[1]>1.6?W1(BI.head):W2(BI.neck,BI.head,clamp((q[1]-1.5)/0.1,0,1))})),6,{uvf:()=>hu,capA:{dir:[0,1,0],uv:hu},capB:{dir:[0,-1,0],uv:hu}});}
 /* torso profile rows [y, rx, rz, zc, weights] after body params, shoulders and belly (shared by the body and the armour shell) */
@@ -277,13 +333,17 @@ function buildBody(B){const M=newMesh(),X=[1,0,0],Y=[0,1,0],Z=[0,0,1],BP=B.fem?B
   else loft(M,[sc(-0.065,0.05,0.045,0.06,0),sc(-0.02,0.056,0.06,0.07,0.25),sc(0.08,0.058,0.045,0.055,0.6),sc(0.17,0.05,0.032,0.04,0.85),sc(0.205,0.032,0.02,0.035,1)],8,{uvf:(u,r)=>[(332+u*178)/512,(ROW.w0+2+r.t*36)/512],capA:{dir:[0,0,-1],uv:[340/512,(ROW.w0+4)/512]},capB:{dir:[0,0,1],uv:[421/512,(ROW.w1-4)/512]},ph0:Math.PI/8});
   if(BP.foot!==1)scaleAbout(M,s0,M.p.length/3,[BP.footX*s,0,-0.04],[BP.foot,0.94,BP.foot]);}
  return M;}
-function buildHead(B){const M=newMesh(),X=[1,0,0],Z=[0,0,1],tv=y=>1-(y-HEAD.neckY)/(HEAD.crownY-HEAD.neckY),FH=!!(B&&B.fem),nk=FH?BODYP.fem.neck:1;
+/* Spice Master toon hair: hair meshes sample a strand strip (head sheet rows 8-14, painted by paintHeadP) round the head and down its height */
+let TOONHAIR=false;const hairV=y=>(8.5+clamp((1.86-y)/0.16,0,1)*5)/512,HUV=hu=>TOONHAIR?(t,r)=>[t,hairV(r.c[1])]:()=>hu;
+function buildHead(B){TOONHAIR=!!(B&&B.toon);const M=newMesh(),X=[1,0,0],Z=[0,0,1],tv=y=>1-(y-HEAD.neckY)/(HEAD.crownY-HEAD.neckY),FH=!!(B&&B.fem),nk=FH?BODYP.fem.neck:1;
  /* rings: neck -> chin -> square jaw -> cheekbones -> brow -> crown */
  const R=[[1.47,0.097*nk,0.094*nk,-0.008,1],[1.52,0.095*nk,0.094*nk,-0.002,1],[1.555,0.09,0.093,0.006,1],[1.585,0.084,0.09,0.012,0.8],[1.605,0.094,0.098,0.02,0.72],[1.628,0.1,0.104,0.02,0.78],[1.652,0.103,0.108,0.016,0.85],[1.677,0.106,0.11,0.011,0.9],
   [1.702,0.108,0.112,0.006,0.92],[1.727,0.109,0.114,0.002,0.95],[1.757,0.107,0.114,-0.004,1],[1.787,0.099,0.107,-0.009,1],[1.812,0.083,0.092,-0.012,1],[1.83,0.058,0.065,-0.014,1]];
  /* women: tapered rounded jaw and a small chin, softer brow and a smaller nose; cheekbones stay full */
  if(FH){const J=HEADP.fem.jaw;for(const r of R){const j=J[r[0]];if(j){r[1]*=j[0];r[2]*=j[1];r[4]=Math.max(r[4],j[2]);}}}
- const HP=FH?HEADP.fem:HEADP.male,nose=HP.nose,brow=HP.brow,chin=HP.chin;
+ /* Spice Master toon: rounder jaw and fuller cheeks, a softer brow ridge and a smaller nose bump (the face is painted on) */
+ if(B&&B.toon){for(const r of R){if(r[0]>=1.555&&r[0]<=1.677){r[4]=Math.min(1,r[4]+0.16);}if(r[0]===1.585){r[1]+=0.008;r[2]+=0.004;}if(r[0]===1.605||r[0]===1.628){r[1]+=0.005;r[2]+=0.002;}}}
+ const HP0=FH?HEADP.fem:HEADP.male,tk=B&&B.toon?0.55:1,sc=o=>{const q={};for(const k in o)q[k]=o[k]*tk;return q;},HP={nose:sc(HP0.nose),brow:sc(HP0.brow),chin:B&&B.toon?sc(HP0.chin):HP0.chin},nose=HP.nose,brow=HP.brow,chin=HP.chin;
  loft(M,R.map(r=>({c:[0,r[0],r[3]],s:X,f:Z,rx:r[1],rz:r[2],sq:r[4],v:tv(r[0]),w:r[0]<1.6?W2(BI.neck,BI.head,clamp((r[0]-1.5)/0.1,0,1)):W1(BI.head),
   mod:(p,ph)=>{const c=Math.cos(ph);if(c>0.5){p[2]-=(c-0.5)*0.03;}const k=Math.max(0,c);const key=r[0];p[2]+=((nose[key]||0)*Math.pow(k,24)+(brow[key]||0)*k*k+(chin[key]||0)*Math.pow(k,4));return p;}})),16,{capB:{dir:[0,1,0],uv:[0.5,0.004],lift:0.012}});
  if(B&&B.cigar){const cu=[12/512,3/512],eu=[38/512,3/512],w=W1(BI.head);loft(M,[{c:[0.03,1.64,0.1],rx:0.009,rz:0.009},{c:[0.06,1.632,0.175],rx:0.0095,rz:0.0095}].map(r=>Object.assign(r,{s:[1,0,0],f:[0,1,0],w,v:cu[1]})),6,{uvf:()=>cu});loft(M,[{c:[0.06,1.632,0.175],rx:0.0096,rz:0.0096},{c:[0.062,1.6315,0.185],rx:0.0092,rz:0.0092}].map(r=>Object.assign(r,{s:[1,0,0],f:[0,1,0],w,v:eu[1]})),6,{uvf:()=>eu,capB:{dir:[0,0,1],uv:eu}});}
@@ -292,15 +352,15 @@ function buildHead(B){const M=newMesh(),X=[1,0,0],Z=[0,0,1],tv=y=>1-(y-HEAD.neck
   for(const s of [1,-1])hairLock(M,s,[[0.09,1.79,0.06,0.02],[0.118,1.73,0.05,0.026],[0.13,1.66,0.03,0.028],[0.124,1.58,0.02,0.026],[0.13,1.5,0.008,0.022],[0.15,1.45,-0.004,0.012]]);}
  else if(B&&B.hs==='long'){/* long hair: falls behind the head past the shoulders, framing the face */
   const hu=[144/512,3/512],R=(y,r,rz,z,w)=>({c:[0,y,z],s:[1,0,0],f:[0,0,1],rx:r,rz,w,v:hu[1]});
-  loft(M,[R(1.76,0.12,0.09,-0.035,W1(BI.head)),R(1.66,0.125,0.08,-0.055,W1(BI.head)),R(1.56,0.128,0.068,-0.07,W2(BI.neck,BI.head,0.5)),R(1.46,0.124,0.056,-0.085,W2(BI.chest,BI.neck,0.5)),R(1.38,0.11,0.042,-0.1,W1(BI.chest))],12,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu},capA:{dir:[0,-1,0],uv:hu}});}
+  loft(M,[R(1.76,0.12,0.09,-0.035,W1(BI.head)),R(1.66,0.125,0.08,-0.055,W1(BI.head)),R(1.56,0.128,0.068,-0.07,W2(BI.neck,BI.head,0.5)),R(1.46,0.124,0.056,-0.085,W2(BI.chest,BI.neck,0.5)),R(1.38,0.11,0.042,-0.1,W1(BI.chest))],12,{uvf:HUV(hu),capB:{dir:[0,1,0],uv:hu},capA:{dir:[0,-1,0],uv:hu}});}
  if(B&&(B.hs==='normal'||B.hs==='slick'||B.hs==='buzz'||B.hs==='long')){const hu=[144/512,3/512],w=W1(BI.head),th=B.hs==='buzz'?0.004:B.hs==='slick'?0.009:FH&&B.hs==='long'?0.02:0.014,fr=FH&&B.hs==='long'?0.024:0;
   const R=(y,r,z,drop)=>({c:[0,y,z],s:[1,0,0],f:[0,0,1],rx:r+th,rz:r*1.045+th,w,v:hu[1],mod:(p,ph)=>{const back=Math.max(0,-Math.cos(ph)),fw=Math.max(0,Math.cos(ph));p[1]-=drop*back;if(B.hs==='slick')p[2]-=0.006*fw;
    if(fr&&y<1.8){const f=Math.pow(fw,3);p[1]-=fr*f;p[2]+=0.012*f;}return p;}});
-  loft(M,[R(1.765,0.108,-0.004,0.07),R(1.79,0.1,-0.009,0.035),R(1.815,0.084,-0.012,0.012),R(1.834,0.06,-0.014,0),R(1.846,0.03,-0.014,0)],14,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});}
+  loft(M,[R(1.765,0.108,-0.004,0.07),R(1.79,0.1,-0.009,0.035),R(1.815,0.084,-0.012,0.012),R(1.834,0.06,-0.014,0),R(1.846,0.03,-0.014,0)],14,{uvf:HUV(hu),capB:{dir:[0,1,0],uv:hu}});}
  if(B&&(B.hs==='mohawk'||B.hs==='big')){const hu=[144/512,3/512],w=W1(BI.head);
   if(B.hs==='big'&&FH){/* women's 80s perm: big curly volume around the crown falling to the shoulders, open at the face */
    hairShell(M,[[1.92,0.06,0.06,-0.02],[1.885,0.13,0.125,-0.018],[1.82,0.158,0.142,-0.022],[1.74,0.166,0.126,-0.036],[1.65,0.162,0.106,-0.052],[1.56,0.152,0.088,-0.066],[1.48,0.136,0.07,-0.076],[1.43,0.118,0.056,-0.08]],16,{open:1.775,c0:0.42,curl:0.07,top:1,bottom:1});}
-  else if(B.hs==='big'){const R=(y,r,z)=>({c:[0,y,z],s:[1,0,0],f:[0,0,1],rx:r,rz:r*1.08,w,v:hu[1]});loft(M,[R(1.7,0.112,-0.03),R(1.76,0.135,-0.02),R(1.83,0.138,-0.015),R(1.89,0.115,-0.015),R(1.925,0.06,-0.015)],14,{uvf:()=>hu,capB:{dir:[0,1,0],uv:hu}});}
+  else if(B.hs==='big'){const R=(y,r,z)=>({c:[0,y,z],s:[1,0,0],f:[0,0,1],rx:r,rz:r*1.08,w,v:hu[1]});loft(M,[R(1.7,0.112,-0.03),R(1.76,0.135,-0.02),R(1.83,0.138,-0.015),R(1.89,0.115,-0.015),R(1.925,0.06,-0.015)],14,{uvf:HUV(hu),capB:{dir:[0,1,0],uv:hu}});}
   else{GRP++;const N=9,ids=[];for(let i=0;i<=N;i++){const a=-1.05+2.1*i/N,cz=Math.sin(a)*0.112-0.004,cy=1.738+Math.cos(a)*0.104,ny=Math.cos(a),nz=Math.sin(a),h=0.07+0.02*Math.sin(i/N*Math.PI);
    ids.push([addV(M,[-0.014,cy,cz],hu,w),addV(M,[0.014,cy,cz],hu,w),addV(M,[0,cy+ny*h,cz+nz*h],hu,w)]);}
    for(let i=0;i<N;i++){const a=ids[i],b=ids[i+1];tri(M,a[0],b[0],b[2],[-1,0,0]);tri(M,a[0],b[2],a[2],[-1,0,0]);tri(M,a[1],a[2],b[2],[1,0,0]);tri(M,a[1],b[2],b[1],[1,0,0]);}}}
@@ -442,32 +502,38 @@ function handFrame(Wm,left,sw,base){const Mh=Wm[left?BI.handL:BI.handR],w=left?L
 const C255=c=>(c||[0.5,0.5,0.5]).map(v=>Math.round(v*255));
 const BODYCFG={fat:{scale:[1.22,0.98,1.2],belly:0.12,shoulders:0.08},big:{scale:[1.14,1.06,1.1],shoulders:0.24},thin:{scale:[0.86,1.05,0.86]},slim:{scale:[0.93,1.02,0.93]},stocky:{scale:[1.08,0.96,1.08],shoulders:0.1},boss:{scale:[1.2,1.0,1.18],belly:0.1,shoulders:0.12},normal:{scale:[1,1,1]}};
 function paintHeadP(L){SKIN=C255(L.skin);const W=256,c=document.createElement('canvas');c.width=c.height=W;const x=c.getContext('2d');const out=x.createImageData(W,W),D=out.data;
- const hair=L.hair?C255(L.hair):null,hs=L.hs,beard=L.beard?C255(L.beard):null,hatOn=!!L.hat;
+ const hair=L.hair?C255(L.hair):null,hs=L.hs,beard=L.beard?C255(L.beard):null,hatOn=!!L.hat;const toon=L.toon!==false;
  const hl=hs==='buzz'?1.79:hs==='slick'?1.772:hs==='big'||hs==='long'?1.75:1.768;
  for(let V=0;V<W;V++){const t=1-V/(W-1),Y=lerp(HEAD.neckY,HEAD.crownY,t);
   for(let U=0;U<W;U++){const ph=(U/(W-1)-0.5)*2*Math.PI,ap=Math.abs(ph);let base=SKIN.slice();
    if(hair&&hs){const line=hl-0.11*clamp((ap-1.0)/1.0,0,1)-0.03*clamp((ap-2.2)/0.8,0,1);let inH=Y>line;if(hs==='mohawk')inH=Y>1.7&&Math.abs(Math.sin(ph))<0.22;
     if(inH){const k=hs==='buzz'?0.55:hs==='mohawk'?1:0.95;base=base.map((v,i)=>v+(hair[i]-v)*k);}}
    if(beard&&Y>1.552&&Y<1.668+0.02*clamp((ap-1)/0.5,0,1)&&ap<2.3){base=beard.slice();}
-   else if(L.stubble&&Y>1.555&&Y<1.655&&ap<2.2)base=base.map(v=>v*0.82);
-   if(L.scar&&false);
-   const col=base.map(v=>v*(0.8+0.2*Math.max(0,Math.cos(ph)))*(0.92+0.08*t));const o=(V*W+U)*4;D[o]=col[0];D[o+1]=col[1];D[o+2]=col[2];D[o+3]=255;}}
+   else if(L.stubble&&Y>1.555&&Y<1.655&&ap<2.2){const st=toon?(L.stubbleC?C255(L.stubbleC):[96,84,82]):null;base=toon?base.map((v,i)=>v+(st[i]-v)*0.26*clamp((1.655-Y)/0.02,0,1)*clamp((Y-1.555)/0.015,0,1)):base.map(v=>v*0.82);}
+   /* Spice Master toon: warm (sienna) shading round the sides instead of a grey darken */
+   const sd=1-Math.max(0,Math.cos(ph)),col=toon?base.map((v,i)=>v*(1-sd*[0.16,0.24,0.27][i])*(0.94+0.06*t)):base.map(v=>v*(0.8+0.2*Math.max(0,Math.cos(ph)))*(0.92+0.08*t));const o=(V*W+U)*4;D[o]=col[0];D[o+1]=col[1];D[o+2]=col[2];D[o+3]=255;}}
  x.putImageData(out,0,0);
  const c2=document.createElement('canvas');c2.width=c2.height=512;const y=c2.getContext('2d');y.imageSmoothingQuality='high';y.drawImage(c,0,0,512,512);
  FO={calm:L.calm||0,brow:hair?rgb(hair.map(v=>v*0.7)):beard?rgb(beard.map(v=>v*0.7)):'#2a1a12',fem:L.fem?1:0};
- y.save();y.scale(2,2);const fy=(HEAD.crownY-1.676)/(HEAD.crownY-HEAD.neckY)*256;y.translate(128,fy);y.scale(1.4,1.22);y.translate(-128,-fy);paintFace(y);
+ y.save();y.scale(2,2);const fy=(HEAD.crownY-1.676)/(HEAD.crownY-HEAD.neckY)*256;y.translate(128,fy);y.scale(1.4,1.22);y.translate(-128,-fy);
+ if(toon){const bc=L.browC?C255(L.browC):hair?hair.map(v=>v*0.62):beard?beard.map(v=>v*0.62):[42,26,18],old=hair&&hair[0]>150&&Math.abs(hair[0]-hair[2])<40;
+  paintToonFace(y,{iris:L.iris?C255(L.iris):null,brow:rgb(bc),browW:L.browW,calm:L.calm??1,squint:!!L.squint,mouth:L.mouth||(L.smile?'smile':'flat'),fem:!!L.fem,old:L.old??old,
+   stache:!!(L.stache||L.beard),stacheC:(beard||hair||(L.browC?C255(L.browC):[96,66,44])).map(v=>v*0.9),lips:L.lips?C255(L.lips):null});}
+ else paintFace(y);
  const C=128,Vy=Y=>(HEAD.crownY-Y)/(HEAD.crownY-HEAD.neckY)*256,ey=Vy(1.706),ex=7.5;
- if(L.stache||L.beard){y.fillStyle=rgb((beard||hair||[40,28,20]).map(v=>v*0.8));y.beginPath();y.moveTo(C-12,Vy(1.646)+2);y.quadraticCurveTo(C-6,Vy(1.662),C,Vy(1.658));y.quadraticCurveTo(C+6,Vy(1.662),C+12,Vy(1.646)+2);y.quadraticCurveTo(C,Vy(1.652),C-12,Vy(1.646)+2);y.fill();}
+ if(!toon&&(L.stache||L.beard)){y.fillStyle=rgb((beard||hair||[40,28,20]).map(v=>v*0.8));y.beginPath();y.moveTo(C-12,Vy(1.646)+2);y.quadraticCurveTo(C-6,Vy(1.662),C,Vy(1.658));y.quadraticCurveTo(C+6,Vy(1.662),C+12,Vy(1.646)+2);y.quadraticCurveTo(C,Vy(1.652),C-12,Vy(1.646)+2);y.fill();}
  if(L.scar){y.strokeStyle='rgba(150,60,60,.8)';y.lineWidth=1.4;y.beginPath();y.moveTo(C+5,ey-12);y.lineTo(C+11,ey+9);y.stroke();for(let k=0;k<4;k++){y.beginPath();y.moveTo(C+5.5+k*1.5-2,ey-8+k*5);y.lineTo(C+5.5+k*1.5+2,ey-8+k*5);y.stroke();}}
- if(L.fem){for(const s of [1,-1]){y.fillStyle='rgba(150,80,170,.4)';y.beginPath();y.ellipse(C+s*ex,ey-3.2,6.2,2.2,0,0,6.3);y.fill();y.fillStyle='rgba(230,90,110,.22)';y.beginPath();y.ellipse(C+s*(ex+4.5),Vy(1.668),5,3,0,0,6.3);y.fill();}
+ if(L.fem&&!toon){for(const s of [1,-1]){y.fillStyle='rgba(150,80,170,.4)';y.beginPath();y.ellipse(C+s*ex,ey-3.2,6.2,2.2,0,0,6.3);y.fill();y.fillStyle='rgba(230,90,110,.22)';y.beginPath();y.ellipse(C+s*(ex+4.5),Vy(1.668),5,3,0,0,6.3);y.fill();}
   y.fillStyle='rgba(200,40,70,.85)';y.beginPath();y.ellipse(C,Vy(1.645),8,2.6,0,0,6.3);y.fill();for(const s of [1,-1]){y.strokeStyle='#1a0a08';y.lineWidth=1.6;y.beginPath();y.moveTo(C+s*(ex+6.5),ey-0.5);y.lineTo(C+s*(ex+9),ey-2.5);y.stroke();}}
  if(L.shades||L.aviators){for(const s of [1,-1]){const cx=C+s*ex;y.fillStyle='rgba(10,10,14,.95)';y.beginPath();if(L.aviators){y.moveTo(cx-s*-7,ey-4);y.lineTo(cx+s*8,ey-4);y.quadraticCurveTo(cx+s*8,ey+6,cx+s*1,ey+6);y.quadraticCurveTo(cx-s*7,ey+5,cx-s*7,ey-4);}else{y.rect(cx-7.5,ey-4,15,8);}y.fill();y.fillStyle='rgba(120,170,220,.45)';y.fillRect(cx-5,ey-3,4,2);
   y.strokeStyle=L.aviators?'#d0a040':'#111';y.lineWidth=1;y.stroke();}y.strokeStyle=L.aviators?'#d0a040':'#111';y.lineWidth=1.4;y.beginPath();y.moveTo(C-2,ey-2);y.lineTo(C+2,ey-2);y.stroke();for(const s of [1,-1]){y.beginPath();y.moveTo(C+s*(ex+7.5),ey-3);y.lineTo(C+s*30,ey-2);y.stroke();}}
- else if(L.glasses){y.strokeStyle='#222';y.lineWidth=1.3;for(const s of [1,-1]){y.beginPath();y.ellipse(C+s*ex,ey,7,5.5,0,0,6.3);y.stroke();}y.beginPath();y.moveTo(C-1,ey-1);y.lineTo(C+1,ey-1);y.stroke();}
+ else if(L.glasses&&!toon){y.strokeStyle='#222';y.lineWidth=1.3;for(const s of [1,-1]){y.beginPath();y.ellipse(C+s*ex,ey,7,5.5,0,0,6.3);y.stroke();}y.beginPath();y.moveTo(C-1,ey-1);y.lineTo(C+1,ey-1);y.stroke();}
  y.restore();const x2=c2.getContext('2d');x2.save();x2.scale(2,2);paintEars(x2);
  if(L.earpiece){x2.fillStyle='#111';x2.fillRect(186,100,6,10);x2.strokeStyle='#ddd';x2.lineWidth=0.7;x2.beginPath();x2.moveTo(189,110);x2.lineTo(189,150);x2.stroke();}x2.restore();
  x2.fillStyle='#5a3418';x2.fillRect(0,0,24,6);x2.fillStyle='#ff8a2a';x2.fillRect(28,0,20,6);x2.fillStyle='#e8e0d4';x2.fillRect(52,0,20,6);
- if(L.hair){x2.fillStyle=rgb(C255(L.hair));x2.fillRect(132,0,24,6);}const hc=C255(L.hatC||[0.1,0.1,0.12]);x2.fillStyle=rgb(hc);x2.fillRect(76,0,24,6);x2.fillStyle=rgb(hc.map(v=>v*0.45));x2.fillRect(104,0,24,6);x2.fillStyle='#0b0b0e';x2.fillRect(160,0,24,6);if(L.beard){x2.fillStyle=rgb(C255(L.beard).map(v=>Math.min(255,v*1.08)));x2.fillRect(188,0,24,6);}
+ if(L.hair){x2.fillStyle=rgb(C255(L.hair));x2.fillRect(132,0,24,6);
+  if(toon&&hs){const hc=C255(L.hair),lum=(hc[0]+hc[1]+hc[2])/3,g=x2.createLinearGradient(0,8,0,14);g.addColorStop(0,rgb(hc.map(v=>Math.min(255,v*1.06+8))));g.addColorStop(0.35,rgb(hc.map(v=>Math.min(255,v*1.18+(lum<60?34:16)))));g.addColorStop(0.6,rgb(hc));g.addColorStop(1,rgb(hc.map(v=>v*0.72)));
+   x2.fillStyle=g;x2.fillRect(0,7,512,8);for(let i=0;i<512;i+=4){const k=((i*37)%23)/23;x2.fillStyle=k>0.5?rgb(hc.map(v=>v*0.7),0.5):rgb(hc.map(v=>Math.min(255,v*1.25+18)),0.32);x2.fillRect(i+((i*13)%3),7,1+(k>0.8?1:0),8);}}}const hc=C255(L.hatC||[0.1,0.1,0.12]);x2.fillStyle=rgb(hc);x2.fillRect(76,0,24,6);x2.fillStyle=rgb(hc.map(v=>v*0.45));x2.fillRect(104,0,24,6);x2.fillStyle='#0b0b0e';x2.fillRect(160,0,24,6);if(L.beard){x2.fillStyle=rgb(C255(L.beard).map(v=>Math.min(255,v*1.08)));x2.fillRect(188,0,24,6);}
  if(ARMOR[L.armor]){const a=C255(L.armorC||(L.armor==='plate'?[0.27,0.29,0.21]:[0.13,0.14,0.17]));x2.fillStyle=rgb(a);x2.fillRect(330,0,24,6);x2.fillStyle=rgb(a.map(v=>v*0.6));x2.fillRect(358,0,24,6);}
  if(HELMET[L.helmet]){x2.fillStyle=rgb(C255(L.helmetC||(L.helmet==='riot'?[0.07,0.07,0.09]:[0.25,0.28,0.19])));x2.fillRect(386,0,24,6);x2.fillStyle='#5a7490';x2.fillRect(414,0,24,6);}return c2;}
 function paintBodyP(L){const sh=C255(L.shirt),jk=C255(L.jacket),sk=C255(L.skin);
@@ -508,6 +574,6 @@ function paintBodyP(L){const sh=C255(L.shirt),jk=C255(L.jacket),sk=C255(L.skin);
    fem only: heels:1 pumps; pads:1 80s shoulder pads; crop:1 bare midriff. */
 const ARMOR={vest:1,plate:1},HELMET={pasgt:1,riot:1};
 function lookCfg(L,bodyType){const fb=k=>BODYCFG[L.fem&&k==='thin'?'slim':k],bt=fb(bodyType)||fb(L.body)||BODYCFG.normal,helmet=HELMET[L.helmet]?L.helmet:null;
- return{L,B:{specs:L.glasses?1:0,fluff:!!(L.fluff&&L.beard),hs:(L.hair&&!L.hat&&!helmet)?L.hs:null,watch:L.watch?-1:0,cigar:!!L.cigar,hat:helmet?null:(L.hat||null),shoulders:bt.shoulders||0,belly:bt.belly||(L.belly?0.1:0),rings:L.bling?1:0,fem:!!L.fem,skirt:L.fem?(L.skirt||0):0,
+ return{L,B:{toon:L.toon!==false,specs:L.glasses?1:0,fluff:!!(L.fluff&&L.beard),hs:(L.hair&&!L.hat&&!helmet)?L.hs:null,watch:L.watch?-1:0,cigar:!!L.cigar,hat:helmet?null:(L.hat||null),shoulders:bt.shoulders||0,belly:bt.belly||(L.belly?0.1:0),rings:L.bling?1:0,fem:!!L.fem,skirt:L.fem?(L.skirt||0):0,
   armor:ARMOR[L.armor]?L.armor:null,helmet,heels:!!(L.fem&&L.heels),pads:!!(L.fem&&L.pads),crop:!!(L.fem&&L.crop)},scale:L.fem?bt.scale.map((v,i)=>v*BODYP.fem.scale[i]):bt.scale,gait:(L.fem?BODYP.fem:BODYP.male).gait};}
 export {BONES,BI,NB,HEAD,FACECFG,V,M4,AD,SH,EL,WR,mir,paintHead,paintSmile,paintBody,paintHeadP,paintBodyP,shirtCanvas,tropicalCanvas,buildBody,buildHead,normals,pose,lookCfg,BODYCFG,C255,handFrame};

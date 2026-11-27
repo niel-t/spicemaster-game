@@ -23,7 +23,7 @@ export function initNpcs(d) {
   const CAST = [
     { // Shooki: the cousin (Game Bible idea, Drive 06_Shooki)
       id: 'shooki', who: 'Shooki', label: 'Talk to cousin Shooki',
-      look: { front: '#1e1f24a', shirt: 0x1e1f24, apron: 0x3a4248, pants: 0x34343a, head: { skin: 0xc8946c, hair: '#2a2420', brow: '#1a1410', hairLine: 64, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3430' }, belly: 0.3, skin: 0xc8946c }, // black tee, worn denim apron, stubble (assets/face_shooki.jpg)
+      look: { front: '#1e1f24a', shirt: 0x1e1f24, apron: 0x3a4248, pants: 0x34343a, head: { skin: 0xc8946c, hair: '#2a2420', brow: '#1a1410', bald: true, hairLine: 64, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3430' }, belly: 0.3, skin: 0xc8946c }, // black tee, worn denim apron, stubble (assets/face_shooki.jpg)
       // once the district is Eddy's he runs errands: a while by his Kangoo, a while in the loods, walking between the two
       pos: () => (state.district1 && met('shooki') ? (errand.van ? SHOOKI_VAN : SHOOKI_LOODS) : met('shooki') ? SHOOKI_LOODS : SHOOKI_DOOR),
       tick(dt) { // runs while he is on screen: count down only while he stands still and nobody is talking to him

@@ -230,3 +230,4 @@ export function createRegulars(deps) {
   function raidStart() { const s = S(); s.haringRaid = s.haring ? 1 : 0; s.haring = 0; }
   return { people, update, raidStart, haringOn, talk, get job() { return job; } };
 }
+export { CAST as REG_CAST }; // the dev turntable (dev/characters.html ?set=cast)

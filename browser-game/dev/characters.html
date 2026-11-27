@@ -6,6 +6,7 @@
 <script type="module">
 import * as THREE from '../vendor/three.module.min.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, bloody, LOOKS } from '../js/characters.js';
+import { REG_CAST } from '../js/regulars.js';
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -25,9 +26,23 @@ const SETS = { lampas: [
   { head: { skin: 0xd8a080, hair: '#1a1a1a', hairLine: 40 }, front: '#ff7a1a', shirt: 0xff7a1a, pants: 0xf2efe6, lampas: true },
   { head: { skin: 0xf0c8a8, hair: '#d8c080', glasses: true }, front: '#f2efe6', shirt: 0xf2efe6, pants: 0xf2efe6, belly: 1.2, chain: true, suit: true, scale: 1.08 },
 ] };
+// ?set=cast: the talking cast as the game builds them (npcs.js / main.js head options -> lookFromPerson); ?view=face&i=N frames one face
+const HEADS = {
+  jr: { skin: 0xe4ab88, hair: '#1d1510', brow: '#20150f', hairLine: 92, curls: true, glasses: true, stubble: true, mouth: 'smile' },
+  sr: { skin: 0xdc9c82, hair: '#eceae4', brow: '#c8c4bc', browW: 5, hairLine: 84, squint: true, mouth: 'laugh' },
+};
+SETS.cast = [
+  { ps2: 'eddyJr' }, { ps2: 'eddySr' },
+  { front: '#1e1f24a', shirt: 0x1e1f24, apron: 0x3a4248, pants: 0x34343a, head: { skin: 0xc8946c, hair: '#2a2420', brow: '#1a1410', bald: true, hairLine: 64, mouth: 'laugh', iris: '#3a2a1a', beard: '#3a3430' }, belly: 0.3, skin: 0xc8946c },
+  { front: '#1e2a46', shirt: 0x1e2a46, pants: 0x4a4a52, head: { skin: 0xeec4a4, hair: '#8a7658', brow: '#6a5a40', hairLine: 52, mouth: 'flat', glasses: true, iris: '#5a7a8a' }, belly: 0.3, skin: 0xeec4a4 },
+  { head: { skin: 0xd6a888, hair: '#1e1814', brow: '#1a1410', bald: true, hairLine: 64, mouth: 'smile', glasses: true, iris: '#3a2a1e' }, shirt: 0x1c1c22, pants: 0x2c3446, shoes: 0x1a1a1a, belly: 0.05, skin: 0xd6a888 },
+  { head: { skin: 0xf0c4a4, hair: '#8a7a62', brow: '#6a5a48', hairLine: 70, mouth: 'flat', iris: '#4a5a6a' }, suit: true, shirt: 0x5a5a60, suitShirt: 0xf2f2ee, pants: 0x5a5a60, belly: 0.4, skin: 0xf0c4a4 },
+  { front: '#f2efe6a', shirt: 0xf2efe6, pants: 0x3a3a40, rolled: true, stache: true, head: { skin: 0xf0b898, bald: true, brow: '#8a5a3a', mouth: 'smile', iris: '#3a2a1a' }, belly: 1.4, scale: 1.12, skin: 0xf0b898 },
+  { ps2: 'naknik' }, { ps2: 'johan' }, { reg: 0 }, { reg: 1 }, { reg: 5 },
+];
 const set = SETS[q.get('set')];
 const names = set ? set.map((_, i) => 'set' + i) : (q.get('looks') || Object.keys(LOOKS).join(',')).split(',');
-if (set) set.forEach((o, i) => { LOOKS['set' + i] = lookFromPerson(o); });
+if (set) set.forEach((o, i) => { LOOKS['set' + i] = o.ps2 ? LOOKS[o.ps2] : o.reg != null ? REG_CAST[o.reg].look : lookFromPerson(o, HEADS); });
 const people = names.map((n, i) => { const p = makePS2Person(LOOKS[n], { scene }); p.position.x = (i - (names.length - 1) / 2) * 1.1; p.userData.inPlace = true; return p; });
 // ?mode=walk|jog|run|sit, ?speed=m/s overrides; ?mocap=0 shows the old procedural walk
 const SPEED = { walk: 1.4, jog: 4.2, run: 7.5, aimrun: 4.2 };
@@ -35,7 +50,7 @@ const seats = people.map((p) => { const b = new THREE.Mesh(new THREE.BoxGeometry
 // a pistol where mission.js puts handGun (old arm space), to check props land in the fist
 for (const p of people) { const g = new THREE.Group(); g.position.set(0, -0.68, 0.05); const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.2), new THREE.MeshStandardMaterial({ color: 0x222222 })); m.position.z = 0.06; g.add(m); p.userData.arms[0].add(g); }
 let mode = q.get('mode') || 'idle', spin = q.get('spin') !== '0', angle = +(q.get('angle') || 0), view = q.get('view') || 'front';
-const ui = document.getElementById('ui');
+const ui = document.getElementById('ui'); if (q.get('ui') === '0') ui.style.display = 'none';
 for (const [k, v] of [['mode', 'idle'], ['mode', 'walk'], ['mode', 'jog'], ['mode', 'run'], ['mode', 'sit'], ['mode', 'aim'], ['view', 'front'], ['view', 'top']]) { const b = document.createElement('button'); b.textContent = v; b.onclick = () => { if (k === 'mode') mode = v; else view = v; }; ui.appendChild(b); }
 const spinB = document.createElement('button'); spinB.textContent = 'spin'; spinB.onclick = () => (spin = !spin); ui.appendChild(spinB);
 const clock = new THREE.Clock();
@@ -57,6 +72,7 @@ function tick() {
   }
   const w = Math.max(2.4, names.length * 1.2);
   if (view === 'top') { camera.position.set(0, 9, 4.5); camera.lookAt(0, 0.6, 0); }
+  else if (view === 'face') { const fi = +(q.get('i') || 0), fx = people[fi] ? people[fi].position.x : 0, fy = people[fi] ? 1.7 * people[fi].userData.body.scale.y : 1.7; camera.position.set(fx, fy + 0.02, +(q.get('dist') || 0.85)); camera.lookAt(fx, fy - 0.01, 0); }
   else if (view === 'side') { camera.position.set(w * 1.9, 1.1, 0); camera.lookAt(0, 0.85, 0); }
   else { camera.position.set(0, 1.25, w * 1.9); camera.lookAt(0, 0.95, 0); }
   renderer.render(scene, camera); requestAnimationFrame(tick);
