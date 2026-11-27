@@ -39,7 +39,7 @@ function fabric(x, x0, y0, w, h, col, ribs = 0.07) {
   x.fillStyle = rgb(col); x.fillRect(x0, y0, w, h);
   x.save(); x.beginPath(); x.rect(x0, y0, w, h); x.clip();
   x.globalAlpha = ribs; x.strokeStyle = '#000'; x.lineWidth = 1; for (let i = x0; i < x0 + w; i += 3) { x.beginPath(); x.moveTo(i, y0); x.lineTo(i + h * 0.25, y0 + h); x.stroke(); }
-  x.globalAlpha = 1; const g = x.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(0, 'rgba(255,236,200,.10)'); g.addColorStop(1, 'rgba(58,28,8,.2)'); /* warm spice shading */ x.fillStyle = g; x.fillRect(x0, y0, w, h);
+  x.globalAlpha = 1; const g = x.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(0, 'rgba(255,236,200,.10)'); g.addColorStop(1, 'rgba(26,14,6,.2)'); /* warm spice shading */ x.fillStyle = g; x.fillRect(x0, y0, w, h);
   x.restore();
 }
 function blob(x, cx, cy, rx, ry, col) { const g = x.createRadialGradient(cx, cy, 0, cx, cy, 1); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); x.save(); x.translate(cx, cy); x.scale(rx, ry); x.fillStyle = g; x.beginPath(); x.arc(0, 0, 1, 0, 7); x.fill(); x.restore(); }
@@ -105,6 +105,53 @@ export function paintShirt(cv, S) {
 // building is split in two: prepModel (skeleton and body group, instant) and finishModel (textures, meshes: the slow part),
 // so street extras can be finished in the background a few per frame (see the queue in syncCharacters)
 const geoCache = new Map();
+/* ---------- character shading: soft toon bands + warm rim light + cloth weave (cheaper than the PBR material it replaces) ----------
+   MeshToonMaterial with a 4-step soft gradient; onBeforeCompile adds a saffron rim on the edges that face up and away (what the
+   overhead camera sees), and a fill term for the environment light toon materials ignore. Cloth gets a tiled weave normal map.
+   SIMPEL graphics (localStorage spiceMasterEddy.gfx = 'simple') keeps the bands but drops the weave and the rim. */
+const GFX = (() => { try { return localStorage.getItem('spiceMasterEddy.gfx') || ''; } catch (e) { return ''; } })();
+const LITE = GFX === 'simple';
+export const charLook = { rim: new THREE.Color(0xffc477), rimK: 0.3, fill: 0.08 }; // shared uniforms: tweak live (night, interiors)
+const U_RIM = { value: charLook.rim }, U_RIMK = { value: LITE ? 0 : charLook.rimK }, U_FILL = { value: charLook.fill };
+export function setCharLight(o) { if (o.rimK != null) U_RIMK.value = LITE ? 0 : o.rimK; if (o.fill != null) U_FILL.value = o.fill; if (o.rim != null) U_RIM.value.set(o.rim); }
+let GRAD = null, WEAVE = null, NOISE = null;
+function gradTex() {
+  if (GRAD) return GRAD;
+  const d = new Uint8Array([66, 66, 66, 255, 112, 112, 112, 255, 166, 166, 166, 255, 208, 208, 208, 255]); // shadow, mid, lit, highlight
+  GRAD = new THREE.DataTexture(d, 4, 1, THREE.RGBAFormat); GRAD.minFilter = GRAD.magFilter = THREE.LinearFilter; GRAD.generateMipmaps = false; GRAD.needsUpdate = true;
+  return GRAD;
+}
+function weaveTex() { // a 64 px twill weave as a tangent-space normal map, tiled many times over the clothes sheet
+  if (WEAVE) return WEAVE;
+  const n = 64, c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'), im = x.createImageData(n, n), D = im.data;
+  const h = (i, j) => { const u = ((i + j) % 8) / 8, v = ((i - j + 64) % 8) / 8; return 0.5 + 0.5 * Math.sin(u * Math.PI * 2) * 0.6 + 0.25 * Math.sin(v * Math.PI * 2) + 0.12 * Math.sin(i * 1.7) * Math.sin(j * 2.3); };
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const dx = h((i + 1) % n, j) - h((i + n - 1) % n, j), dy = h(i, (j + 1) % n) - h(i, (j + n - 1) % n), k = 1.6, l = Math.hypot(dx * k, dy * k, 1), o = (j * n + i) * 4;
+    D[o] = (0.5 - dx * k / l * 0.5) * 255; D[o + 1] = (0.5 - dy * k / l * 0.5) * 255; D[o + 2] = (0.5 + 0.5 / l) * 255; D[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0);
+  WEAVE = new THREE.CanvasTexture(c); WEAVE.wrapS = WEAVE.wrapT = THREE.RepeatWrapping; WEAVE.repeat.set(22, 22); WEAVE.colorSpace = THREE.NoColorSpace;
+  return WEAVE;
+}
+// fine fabric grain painted into the clothes sheet once (a shared noise pattern, soft-light blended)
+function grain(cv) {
+  if (!NOISE) { const n = 96; NOISE = document.createElement('canvas'); NOISE.width = NOISE.height = n; const x = NOISE.getContext('2d'), im = x.createImageData(n, n); for (let i = 0; i < n * n; i++) { const v = 128 + (Math.random() - 0.5) * 120; im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; } x.putImageData(im, 0, 0); }
+  const x = cv.getContext('2d'); x.save(); x.globalCompositeOperation = 'soft-light'; x.globalAlpha = 0.35; x.fillStyle = x.createPattern(NOISE, 'repeat'); x.fillRect(0, 0, cv.width, 400); x.fillRect(0, 440, cv.width, cv.height - 440); x.restore();
+}
+function charMaterial(map, cloth) {
+  const mat = new THREE.MeshToonMaterial({ map, gradientMap: gradTex() });
+  if (cloth && !LITE) { mat.normalMap = weaveTex(); mat.normalScale.set(0.35, 0.35); }
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uRim = U_RIM; sh.uniforms.uRimK = U_RIMK; sh.uniforms.uFill = U_FILL;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim; uniform float uRimK; uniform float uFill;')
+      .replace('#include <opaque_fragment>', `{ vec3 vd = normalize(vViewPosition); float f = 1.0 - clamp(dot(normal, vd), 0.0, 1.0);
+        float up = clamp(dot(normal, (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz) * 0.5 + 0.5, 0.0, 1.0);
+        outgoingLight += diffuseColor.rgb * (uFill + uRim * (pow(f, 4.0) * uRimK * 2.2 * (0.3 + 0.7 * up))); /* rim tinted by the surface: a navy suit stays navy */ }
+      #include <opaque_fragment>`);
+  };
+  mat.customProgramCacheKey = () => 'smeChar' + (mat.normalMap ? 'N' : '');
+  return mat;
+}
 const SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 2.2); // covers standing and lying poses
 export function prepModel(look) {
   const cfg = P.lookCfg(look, look.body);
@@ -130,8 +177,9 @@ export function finishModel(md) {
   const key = JSON.stringify(cfg.B);
   let geos = geoCache.get(key);
   if (!geos) { geos = [geometry(P.buildBody(cfg.B)), geometry(P.buildHead(cfg.B))]; geoCache.set(key, geos); }
+  grain(bc);
   [shrink(bc), shrink(hc)].forEach((cv, i) => {
-    const mat = new THREE.MeshStandardMaterial({ map: canvasTex(cv), roughness: 0.82, metalness: 0 });
+    const mat = charMaterial(canvasTex(cv), i === 0);
     const m = new THREE.SkinnedMesh(geos[i], mat);
     m.bind(md.skeleton, new THREE.Matrix4());
     m.boundingSphere = SPHERE.clone(); // fixed sphere: no per-vertex skinning pass to compute one
