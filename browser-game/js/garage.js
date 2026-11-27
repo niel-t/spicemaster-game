@@ -18,9 +18,13 @@ export const MODS = [
   { id: 'koel', act: 2, name: 'Refrigerated hold', price: 2400, text: 'Off a Noshgey oat-milk van: +100 kg cargo, and Bio spice stays fresh.' },
   { id: 'eco', act: 2, name: 'Electric assist motor', price: 2800, text: 'Silent take-off from a hipster cargo-bike kit, scaled up: +2 top speed.' },
   { id: 'staal', act: 3, name: 'Dockside steel plating', price: 3600, text: 'Smuggler armour from Kardemomdok: rams do 30% less damage.' },
+  // the snelweg politie drive electric Kaasla's capped at 160 (js/snelpolitie.js); the van has a begrenzer at 155. Mo sells
+  // this one only once the politie has chased you on the snelweg and you are Kruidenhandelaar (2026-11-27)
+  { id: 'turbo', rank: 2, chased: true, name: 'Het Kaaskanon (turbo, begrenzer eruit)', price: 4500, text: 'Mo pulls the speed limiter and bolts on a turbo off a written-off Audi: 190+ km/u on the snelweg. The electric politie tops out at 160.' },
   { id: 'nitro', act: 3, name: "Smuggler's nitrous", price: 4200, text: 'A bottle in the back, a button on the dash: +4 top speed.' },
 ];
 const ACT_TXT = { 2: 'after a Hipsterheuvel joint', 3: 'after a dock joint' };
+const CHASE_TXT = 'once the snelweg politie has chased you';
 const CLAMP_FINE = 150, MO_CLAMP = 100;
 const TICKET = 95, CLAMP_AT = 2, COLLECT = 1.5; // a naheffingsaanslag; open tickets that bring the handhaver; the inspector's collection markup
 const RANK_NAMES = ['Hulpje', 'Mengmeester', 'Kruidenhandelaar', 'Kruidenbaron', 'Spice Master'];
@@ -42,7 +46,7 @@ export function createGarage(deps) {
   const has = (id) => !!ensure().mods[id];
   function stats() {
     const V = van();
-    return { livery: deps.livery ? deps.livery() : 'zn', name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0) + (has('koel') ? 100 : 0), maxV: V.maxV + (has('chip') ? 3 : 0) + (has('eco') ? 2 : 0) + (has('nitro') ? 4 : 0) - wearSlow(), wear: Math.round(ensure().wear), dmg: V.dmg * (has('staal') ? 0.7 : 1), tint: has('ramen'), hidden: has('luik') ? HIDE : 0 };
+    return { livery: deps.livery ? deps.livery() : 'zn', name: V.name, paint: V.paint, cargo: V.cargo + (has('veren') ? 150 : 0) + (has('koel') ? 100 : 0), maxV: V.maxV + (has('chip') ? 3 : 0) + (has('eco') ? 2 : 0) + (has('nitro') ? 4 : 0) - wearSlow(), wear: Math.round(ensure().wear), dmg: V.dmg * (has('staal') ? 0.7 : 1), tint: has('ramen'), hidden: has('luik') ? HIDE : 0, turbo: has('turbo') };
   }
   // ---- slijtage (2026-11-26): every drive wears the van a little, dents and the canal a lot. A worn van rattles (slower);
   // Mo fixes it for a price per point that grows with the van (insurance via js/bills.js halves it).
@@ -76,7 +80,7 @@ export function createGarage(deps) {
   }
   function buyMod(id, el) {
     const M = MODS.find((x) => x.id === id), v = ensure();
-    if (!M || v.mods[id]) return; if (actLocked(M)) return `Mo: "I can't get those parts yet. Come back ${ACT_TXT[M.act]}."`; if (locked(M)) return `Mo: "That's for a ${RANK_NAMES[M.rank]}."`; if (state.money < M.price) return 'Not enough Wilders.';
+    if (!M || v.mods[id]) return; if (M.chased && !v.chased) return 'Mo: "A turbo? What for? Nobody\'s chasing you. Come back when the stekkerpolitie has had a go at you."'; if (actLocked(M)) return `Mo: "I can't get those parts yet. Come back ${ACT_TXT[M.act]}."`; if (locked(M)) return `Mo: "That's for a ${RANK_NAMES[M.rank]}."`; if (state.money < M.price) return 'Not enough Wilders.';
     deps.addMoney(-M.price, el); v.mods[id] = econ.ensure().day;
     if (deps.toast) deps.toast('GARAGE MO', `${M.name} fitted. ${M.text}`, 3.5);
     if (deps.save) deps.save();
@@ -162,7 +166,7 @@ export function createGarage(deps) {
       h += `<tr><td><span style="display:inline-block;width:12px;height:12px;background:#${V.paint.toString(16).padStart(6, '0')};border:1px solid #000;margin-right:6px"></span><b>${V.name}</b><br><small>${V.note}</small></td><td>${V.cargo} kg</td><td>${V.maxV}</td><td>${Math.round(V.dmg * 100)}%</td><td>${V.price && v.tier !== V.id && VANS.indexOf(V) > VANS.indexOf(cur) ? fmt(cost) : '-'}</td><td>${act}</td></tr>`;
     }
     h += '</table><table class="list" style="margin-top:8px"><tr><th>Add-on</th><th>What it does</th><th>Price</th><th></th></tr>';
-    for (const M of MODS) h += `<tr><td><b>${M.name}</b></td><td><small>${M.text}</small></td><td>${fmt(M.price)}</td><td>${v.mods[M.id] ? '<b style="color:#070">fitted</b>' : actLocked(M) ? `<small style="color:#888">${ACT_TXT[M.act]}</small>` : locked(M) ? `<small style="color:#888">at rank ${RANK_NAMES[M.rank]}</small>` : `<button class="b95" data-vanmod="${M.id}">Fit it</button>`}</td></tr>`;
+    for (const M of MODS) h += `<tr><td><b>${M.name}</b></td><td><small>${M.text}</small></td><td>${fmt(M.price)}</td><td>${v.mods[M.id] ? '<b style="color:#070">fitted</b>' : M.chased && !v.chased ? `<small style="color:#888">${CHASE_TXT}</small>` : actLocked(M) ? `<small style="color:#888">${ACT_TXT[M.act]}</small>` : locked(M) ? `<small style="color:#888">at rank ${RANK_NAMES[M.rank]}</small>` : `<button class="b95" data-vanmod="${M.id}">Fit it</button>`}</td></tr>`;
     h += '</table>';
     if (v.clamp) h += `<div class="well" style="margin-top:8px"><b style="color:#a00">Wheel clamp on the Oofmobiel.</b> <button class="b95" data-vanclamp="pay">Pay the fine (${fmt(CLAMP_FINE + ticketSum())}${ticketSum() ? ' with the tickets' : ''})</button> <button class="b95" data-vanclamp="mo">Ask Mo (${fmt(MO_CLAMP)})</button></div>`;
     { const i = h.indexOf('</div>') + 6; h = h.slice(0, i) + wearRow + h.slice(i); } // wear right under the van line
@@ -177,5 +181,7 @@ export function createGarage(deps) {
     body.querySelectorAll('[data-vanins]').forEach((b) => b.onchange = () => { if (deps.bills && deps.bills()) deps.bills().setIns(b.checked); rerender(); });
     body.querySelectorAll('[data-vantix]').forEach((b) => b.onclick = () => { payTickets(b); rerender(); });
   }
-  return { addWear, repair, repairCost, insured, ensure, stats, has, buyVan, buyMod, afterMission, unclamp, addTicket, payTickets, ticketSum, parkingDone, TICKET, onMarketDay, dayCheck, inspectorDue, inspectorFine, settleInspector, html, bind, CLAMP_FINE, MO_CLAMP };
+  // the snelweg politie had a go (js/snelpolitie.js via main): Mo hears about it and gets the turbo in
+  function chased() { const v = ensure(), first = !v.chased; v.chased = (v.chased | 0) + 1; if (deps.save) deps.save(); return first; }
+  return { chased, addWear, repair, repairCost, insured, ensure, stats, has, buyVan, buyMod, afterMission, unclamp, addTicket, payTickets, ticketSum, parkingDone, TICKET, onMarketDay, dayCheck, inspectorDue, inspectorFine, settleInspector, html, bind, CLAMP_FINE, MO_CLAMP };
 }

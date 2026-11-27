@@ -12,10 +12,14 @@
 // The same contract as the old drive, so every caller kept working: start({ van, from, to, theme, mission, noPay,
 // airport, arrived, doneLabel, johan, grip, onEvent, onDone }) and onDone({ arrived, pay, time, wrecked, bumped }).
 // Events for the passenger (js/freddy.js) and the wear (js/garage.js): start, ped, crash, wreck, ambush, arrive, fail.
+// 2026-11-27: the snelweg politie (js/snelpolitie.js) chases a van that gives them a reason; deps.onPolice(kind, data)
+// hears 'chase', 'escape' and 'arrest'. Without Garage Mo's turbo (o.van.turbo) the van hits its begrenzer at 155 km/u.
+import { createSnelPolitie } from './snelpolitie.js';
 const PAR = 75, FINE = 25, BOUNTY = 50, BASE_PAY = 250, FLITS = 120 / 3.6;
 const X0 = 1000, Z0 = 600, LEN = 980, LW = 3.4, EXIT0 = LEN - 230, EXIT1 = LEN - 110; // the motorway runs east from X0, centre lane on Z0; the afrit peels off between EXIT0 and EXIT1
 const NEDGE = Z0 - LW * 1.5 - 0.9, SEDGE = Z0 + LW * 1.5 + 2.7; // the guard rail in the middle, and the outside of the vluchtstrook
 const PARK = { x: X0 + LEN - 40, z: Z0 + 21 };
+const BEGRENZER = 155 / 3.6, TURBO_MIN = 56, TURBO_MAX = 60; // m/s on the motorway: the limiter without Mo's turbo; with it, ~190 km/u and up (the politie: 160)
 const W_ = 0xf4f2ec;
 const fmtT = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 // where each trip goes: the motorway, the afrit number, the towns on the signs, the land beside the road
@@ -42,7 +46,7 @@ export function createRit(deps) {
 html.aero #rit{background:linear-gradient(180deg,rgba(120,80,48,.62),rgba(70,42,22,.66) 48%,rgba(42,25,13,.74) 52%,rgba(54,33,18,.7));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 #rit b{color:#ffd36b}#rit .an{display:inline-block;padding:0 5px;border-radius:4px;background:#c8102e;color:#fff;font-weight:800;text-shadow:none}
 #rit .bar{height:9px;margin:5px 0 3px;border-radius:6px;background:rgba(0,0,0,.45);overflow:hidden;border:1px solid rgba(255,240,210,.5)}#rit .bar i{display:block;height:100%;background:#6ed36e;transition:width .2s}
-#rit small{font-weight:400;color:#f3e6c8}#rit button{margin-top:5px;pointer-events:auto;font:600 11px Rubik,Arial;color:#fff;background:rgba(0,0,0,.35);border:1px solid rgba(255,226,170,.5);border-radius:8px;padding:2px 8px;cursor:pointer}
+#rit small{font-weight:400;color:#f3e6c8}#rit .pol{display:inline-block;margin-top:3px;padding:1px 8px;border-radius:9px;font-weight:800;letter-spacing:.06em;color:#fff;animation:ritpol .7s steps(2) infinite}#rit .pol i{font-style:normal;opacity:.3}@keyframes ritpol{0%{background:#1f4fd8}100%{background:#c8102e}}#rit button{margin-top:5px;pointer-events:auto;font:600 11px Rubik,Arial;color:#fff;background:rgba(0,0,0,.35);border:1px solid rgba(255,226,170,.5);border-radius:8px;padding:2px 8px;cursor:pointer}
 body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #fts .spd,body.ritting #kit,body.ritting #weapon,body.ritting #income{display:none!important}
 @media (max-width:820px),(max-height:500px){#rit{left:8px;top:8px;min-width:0;font-size:11.5px;padding:6px 9px}}`;
   document.head.appendChild(css);
@@ -53,7 +57,7 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
     const o = R.opts, rt = R.route, kmh = Math.round(Math.abs(veh.B.v) * 3.6);
     const where = R.phase === 'street' ? `oprit <span class="an">A10</span> ${Math.max(0, Math.round(deps.exit.x - veh.B.x))} m`
       : veh.B.x < X0 + 170 && rt.a !== 'A10' ? `<span class="an">A10</span> ring → <span class="an">${rt.a}</span>` : `<span class="an">${rt.a}</span> afrit ${rt.afrit} ${o.to} ${Math.max(0, Math.round(X0 + EXIT0 - veh.B.x))} m`;
-    const h = `<b>${o.from} → ${o.to}</b><br>${fmtT(R.t)} <small>(par ${fmtT(PAR)})</small> · <b>${kmh} km/u</b> · ${where}<div class="bar"><i style="width:${R.hp}%;background:${R.hp > 60 ? '#6ed36e' : R.hp > 30 ? '#ffd36b' : '#ff4a4a'}"></i></div><small>Oofmobiel ${Math.round(R.hp)}%${R.smart ? ` · boetes W ${R.smart}` : ''}${R.bonus ? ` · claxon +W ${R.bonus}` : ''}${R.wrecked ? ` · ${R.wrecked} wrecked` : ''}</small><br><button>Omkeren (give up)</button>`;
+    const h = `<b>${o.from} → ${o.to}</b><br>${fmtT(R.t)} <small>(par ${fmtT(PAR)})</small> · <b>${kmh} km/u</b> · ${where}<div class="bar"><i style="width:${R.hp}%;background:${R.hp > 60 ? '#6ed36e' : R.hp > 30 ? '#ffd36b' : '#ff4a4a'}"></i></div><small>Oofmobiel ${Math.round(R.hp)}%${R.smart ? ` · boetes W ${R.smart}` : ''}${R.bonus ? ` · claxon +W ${R.bonus}` : ''}${R.wrecked ? ` · ${R.wrecked} wrecked` : ''}</small>${pol.stars ? `<br><span class="pol">POLITIE ${'★'.repeat(pol.stars)}<i>${'★'.repeat(3 - pol.stars)}</i></span>` : ''}<br><button>Omkeren (give up)</button>`;
     if (h !== hudKey) { hudEl.innerHTML = h; hudKey = h; }
   }
   const ev = (type, data) => { const o = R.opts; if (o && o.onEvent) try { o.onEvent(type, data); } catch (e) { console.error(e); } };
@@ -134,8 +138,11 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
   { const st = document.createElement('style'); st.textContent = `#ritRant{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:10;display:none;max-width:min(520px,88vw);padding:8px 16px 9px;border-radius:16px 16px 16px 4px;text-align:center;color:#07304f;font:700 15px/1.3 "Segoe UI",Tahoma,Rubik,Arial,sans-serif;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(226,244,255,.94) 50%,rgba(204,236,255,.94) 52%,rgba(232,248,255,.96));box-shadow:0 0 0 2px rgba(80,170,230,.6),0 8px 22px rgba(0,40,80,.4);pointer-events:none}
 #ritRant small{display:block;font-weight:400;font-size:12px;color:#3a6a8a}#ritRant b{color:#b8501a}#ritRant .he{font-size:18px;direction:rtl;unicode-bidi:isolate}
 body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:13.5px}`; document.head.appendChild(st); }
-  function rant(set, extra) { const he = Math.random() < 0.4, pool = set === 'honk' ? (he ? HONK_HE : HONK_NL) : he ? RANT_HE : RANT_NL, l = pool[Math.floor(Math.random() * pool.length)];
+  function rant(set, extra) { const he = Math.random() < 0.4, pool = typeof set === 'object' ? (he ? set.he : set.nl) : set === 'honk' ? (he ? HONK_HE : HONK_NL) : he ? RANT_HE : RANT_NL, l = pool[Math.floor(Math.random() * pool.length)];
     rantEl.innerHTML = (Array.isArray(l) ? `<span class="he">${RLI}${l[0]}${PDI}</span><small>${l[1]} · ${l[2]}</small>` : l) + (extra ? `<small><b>${extra}</b></small>` : ''); rantEl.style.display = 'block'; rantT = 3.4; }
+  const pol = createSnelPolitie({ THREE, kit: deps.kit, lam: deps.lam, makeCar: deps.makeCar, beep: deps.beep, toast: deps.toast, rant: (set, extra) => rant(set, extra), nightK: deps.nightK, cars: () => cars, Z0, LW, SEDGE, NEDGE, X0,
+    onPolice: (k, data) => { ev('police', { kind: k, ...data }); if (deps.onPolice) try { deps.onPolice(k, data); } catch (e) { console.error(e); } } });
+  const polInfo = () => ({ B: veh.B, van: (R.opts.van && R.opts.van.name) || 'Oofmobiel', route: R.route.a, to: R.opts.to });
   function makeFlitspaal() { const g = new THREE.Group(), K = deps.kit(); K.cyl(0.14, 0.18, 3.0, 0x6a6e74, 0, 1.5, 0, 10); K.box(0.62, 0.95, 0.62, 0x7a7e84, 0, 3.4, 0); K.box(0.66, 0.16, 0.66, 0xf2c31a, 0, 3.0, 0); K.box(0.66, 0.1, 0.66, 0x1a1a1a, 0, 3.86, 0);
     for (const [y, r] of [[3.58, 0.13], [3.26, 0.1]]) K.cyl(r, r, 0.08, 0x16161a, -0.32, y, 0, 12, 0, 0, Math.PI / 2); K.box(0.9, 0.05, 0.9, 0x9a9690, 0, 0.03, 0); const m = K.build(); m.castShadow = true; g.add(m); return g; }
   function makeFlitsbus() { // an unmarked grey van, back doors to the traffic, the camera behind the rear window and a radar on a tripod beside it
@@ -260,6 +267,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     // what the van can't drive through: the guard rail, the grass beyond the vluchtstrook (up to the afrit), the back of the car park, both ends
     for (const s of [deps.solid(X0 - 60, X0 + LEN + 60, NEDGE - 1, NEDGE + 0.2), deps.solid(X0 - 60, X0 + EXIT0, SEDGE, SEDGE + 30), deps.solid(X0 + EXIT0, X0 + LEN + 60, SEDGE + 26, SEDGE + 27),
       deps.solid(X0 - 8, X0 - 7, NEDGE, SEDGE), deps.solid(X0 + LEN + 20, X0 + LEN + 21, SEDGE, SEDGE + 27)]) sols.push(s);
+    pol.build(strip); // the snelweg politie: three Kaasla's, hidden until somebody calls it in
     strip.visible = false; solidsOff(true);
   }
   function solidsOff(off) { for (const s of sols) s.off = off; for (const w of works) { w.sol.off = off; w.sol2.off = off; } for (const c of cams) if (c.sol) c.sol.off = off; }
@@ -348,6 +356,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     const cx = [X0 + 270 + rnd() * 30, X0 + 560 + rnd() * 30, X0 + 90 + rnd() * 30, X0 + 640 + rnd() * 40]; // two palen, two flitsbussen
     cams.forEach((c, i) => { c.x = cx[i]; c.seen = c.done = c.honked = false; if (c.kind === 'paal') c.g.position.set(c.x, 0, SEDGE + 1.0); else { c.g.position.set(c.x, 0, SEDGE - 1.25); box2(c.sol, c.x - 0.6, SEDGE - 1.25, 3.4, 1.0); c.sol.off = false; } });
     far.forEach((f, i) => { f.g.position.x = X0 + i * 130 + rnd() * 60; });
+    pol.reset(); pol.park(rnd() < 0.55 ? X0 + 330 + rnd() * 240 : 0); // some days a patrol car waits on the vluchtstrook with a speed gun
   }
 
   // ---- start
@@ -356,7 +365,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     if (!strip) buildStrip();
     if (!van) { van = deps.makeVan(); van.visible = false; scene.add(van); veh = deps.fiets.adopt(van, { kind: 'car', name: 'Oofmobiel', own: true, quiet: true, half: 2.5, width: 2.0, locked: () => R.active && !R.over, k: { vmax: 19, acc: 7, brake: 16, rev: -5, turn: 1.5, grip: 4.5, r: 1.0, nose: 1.9 } }); }
     R.opts = o; R.route = o.airport ? ROUTES.air : ROUTES[o.theme] || ROUTES.lampas;
-    Object.assign(R, { active: true, phase: 'street', t: 0, hp: 100, bumped: 0, wrecked: 0, smart: 0, bonus: 0, ambush: 0, over: false });
+    Object.assign(R, { active: true, phase: 'street', t: 0, hp: 100, bumped: 0, wrecked: 0, smart: 0, bonus: 0, ambush: 0, over: false, hard: 0, lim: false, parkWarn: false });
     vBase = Math.max(15, ((o.van && o.van.maxV) || 26) * 0.72); Object.assign(veh.k, { vmax: vBase, acc: 7, turn: 1.5, grip: 4.5 }); veh.gripMul = Math.max(0.35, o.grip || 1);
     johanCue = o.johan || null;
     fadeTo(() => {
@@ -375,7 +384,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
   function enterRing() {
     {
       const o = R.opts; dress(o.airport ? 'air' : o.theme || 'lampas'); layout(); strip.visible = true; solidsOff(false);
-      Object.assign(veh.k, { vmax: vBase * 1.6, acc: 9, turn: 0.95, grip: 9 }); // the motorway: top gear, and steering that changes lanes instead of spinning the van
+      Object.assign(veh.k, { vmax: hwTop(), acc: o.van && o.van.turbo ? 14 : 9, turn: 0.95, grip: 9 }); // the motorway: top gear, and steering that changes lanes instead of spinning the van
       veh.B.x = X0 + 4; veh.B.z = Z0 + LW; veh.B.h = Math.PI / 2; veh.B.v = 18; van.position.set(veh.B.x, 0, veh.B.z);
       deps.setBounds({ x0: X0 - 6, x1: X0 + LEN + 19, z0: NEDGE + 1.0, z1: SEDGE + 25.5 });
       const B = deps.buurt(); if (B) B.setPoint(PARK.x, PARK.z, o.to);
@@ -383,11 +392,15 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       deps.toast(R.route.a === 'A10' ? 'A10 RING' : `A10 → ${R.route.a}`, `${o.to}: afrit ${R.route.afrit}, on the right at the end. Trucks keep right, the works close a lane, and there is a flitspaal at 120.`, 4);
     }
   }
+  // the motorway top speed: the van's own, up to the begrenzer at 155; Mo's turbo takes it out and adds a lot (js/garage.js)
+  function hwTop() { const o = R.opts, own = vBase * 1.6; return o.van && o.van.turbo ? Math.min(TURBO_MAX, Math.max(TURBO_MIN, own + 10)) : Math.min(BEGRENZER / 0.95, own); }
   function damage(n) { if (R.over) return; n *= (R.opts.van && R.opts.van.dmg) || 1; R.hp = Math.max(0, R.hp - n); if (R.hp <= 0) finish(false, 'OOFMOBIEL KAPOT', 'The van gave up. Freddy Sr. would have had words.'); }
   function crash(speed) { if (!R.active || R.over || R.t - crashT < 0.7) return; crashT = R.t; if (speed > 9) ev('crash'); damage(Math.max(0, speed - 5) * (R.phase === 'ring' ? 0.9 : 1.3)); } // a scrape costs little, a wall at speed a lot
   function honked() { // Eddy's claxon: at a flitser within earshot it is worth something
     if (!R.active || R.over || R.phase !== 'ring' || !veh) return; const B = veh.B;
-    for (const c of cams) if (!c.honked && c.x - B.x < 110 && c.x - B.x > -50) { c.honked = true; const b = c.kind === 'bus' ? 30 : 15; R.bonus += b; rant('honk', `+W ${b} claxonbonus`); deps.beep(1047, 0.1, 'triangle', 0.05); if (deps.onHonk) deps.onHonk(c.kind); return; }
+    for (const c of cams) if (!c.honked && c.x - B.x < 110 && c.x - B.x > -50) { c.honked = true; const b = c.kind === 'bus' ? 30 : 15; R.bonus += b; rant('honk', `+W ${b} claxonbonus`); deps.beep(1047, 0.1, 'triangle', 0.05); if (deps.onHonk) deps.onHonk(c.kind);
+      if (c.kind === 'bus' && Math.random() < 0.25) setTimeout(() => { if (R.active && !R.over && R.phase === 'ring') pol.trigger('honk', polInfo()); }, 1400); // two agents in the flitsbus did not find it funny
+      return; }
   }
   function giveUp() { if (!R.active || R.over) return; deps.choice('Eddy Jr.', 'Turn the Oofmobiel round and go home? The trip is lost.', ['Omkeren', 'Keep driving'], (i) => { if (i === 0) finish(false, 'OMGEKEERD', 'Back to the warehouse.'); }); }
   function finish(arrived, title, sub) {
@@ -403,7 +416,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     if (!R.active) return;
     R.active = false; R.phase = null; hudEl.style.display = 'none'; document.body.classList.remove('ritting');
     if (deps.fiets.current === veh) { veh.locked = () => false; deps.fiets.dismount(); veh.locked = () => R.active && !R.over; }
-    van.visible = false; rantEl.style.display = 'none'; if (headPool) headPool.visible = false;
+    van.visible = false; rantEl.style.display = 'none'; if (headPool) headPool.visible = false; pol.reset();
     if (strip) { strip.visible = false; solidsOff(true); }
     deps.setBounds(null); const B = deps.buurt(); if (B) B.clearRoute();
     deps.oof.visible = true; deps.oofSolid.off = false;
@@ -428,18 +441,21 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       for (const q of cars) if (q !== c && Math.abs(q.g.position.z - p.z) < 1.5 && q.g.position.x > p.x && q.g.position.x - p.x < c.half + q.half + 12) want = Math.min(want, (q.wreck ? 0 : q.vv) - 1);
       if (c.lane === 1) { let tz = Z0 + LW; for (const w of works) { const d = w.g.position.x - p.x; if (d > -40 && d < 110) tz = Z0; } p.z += (tz - p.z) * Math.min(1, dt * 1.5); } // round the works and back
       if (Math.abs(B.z - p.z) < 1.6 && B.x > p.x && B.x - p.x < c.half + 2.6 + 10) want = Math.min(want, B.v - 1); // and for Eddy
+      for (const u of pol.units) if (u.mode !== 'off' && Math.abs(u.g.position.z - p.z) < 1.6 && u.g.position.x > p.x && u.g.position.x - p.x < c.half + u.half + 12) want = Math.min(want, u.v - 1); // and for the politie
       c.vv += Math.max(-14 * dt, Math.min(4 * dt, Math.max(0, want) - c.vv)); p.x += c.vv * dt;
-      if (p.x < B.x - 150) { p.x = B.x + 210 + Math.random() * 60; p.z = Z0 + c.lane * LW; } else if (p.x > B.x + 290) { p.x = B.x - 120 - Math.random() * 20; p.z = Z0 + c.lane * LW; }
+      if (p.x < B.x - 150) { p.x = B.x + 210 + Math.random() * 60; p.z = Z0 + c.lane * LW; } else if (p.x > B.x + 290) { const nx = B.x - 120 - Math.random() * 20; p.x = pol.units.some((u) => u.mode !== 'off' && Math.abs(u.g.position.x - nx) < 45) ? B.x + 210 + Math.random() * 60 : nx; p.z = Z0 + c.lane * LW; } // never drop a car on top of a police car
       if (hitBox(p.x, p.z, c.half, 1.0, B.x, B.z, 2.3, 1.0)) { // a touch: what counts is the difference in speed
         const rel = Math.abs(B.v - c.vv), behind = B.x < p.x;
-        if (rel > 2 && R.t - crashT > 0.6) { crashT = R.t; if (rel > 8) ev('crash'); damage((rel - 2) * 1.6); deps.beep(70, 0.14, 'sawtooth', 0.06); }
+        if (rel > 2 && R.t - crashT > 0.6) { crashT = R.t; if (rel > 8) ev('crash'); damage((rel - 2) * 1.6); deps.beep(70, 0.14, 'sawtooth', 0.06);
+          if (rel > 10 && !R.over && ((R.hard = (R.hard | 0) + 1) >= 2 || pol.on)) pol.trigger('hit', polInfo()); } // twice into somebody at speed: they call it in
         if (Math.abs(B.z - p.z) > 1.2) B.z += Math.sign(B.z - p.z) * 6 * dt; else if (behind) { B.v = Math.min(B.v, c.vv - 1.5); B.x = Math.min(B.x, p.x - c.half - 2.35); } else { c.vv = Math.min(c.vv, B.v - 1.5); p.x = Math.min(p.x, B.x - c.half - 2.35); }
       }
     }
     // the flitsers: Eddy sees one and says so; too fast past it and it flashes
     for (const c of cams) { const d = c.x - B.x;
       if (!c.seen && d > 0 && d < 140) { c.seen = true; rant('see'); }
-      if (!c.done && d < 0) { c.done = true; if (sp > FLITS) { const fine = c.kind === 'bus' ? FINE + 15 : FINE; R.smart += fine; R.bumped++; flash.position.x = c.x; flash.material.opacity = 0.9; deps.toast('FLITS!', `${Math.round(sp * 3.6)} km/u where 120 is allowed. −W ${fine}, and a photo of you looking guilty.`, 2.6); deps.beep(1400, 0.05, 'square', 0.05); } } }
+      if (!c.done && d < 0) { c.done = true; if (sp > FLITS) { const fine = c.kind === 'bus' ? FINE + 15 : FINE; R.smart += fine; R.bumped++; flash.position.x = c.x; flash.material.opacity = 0.9; deps.toast('FLITS!', `${Math.round(sp * 3.6)} km/u where 120 is allowed. −W ${fine}, and a photo of you looking guilty.`, 2.6); deps.beep(1400, 0.05, 'square', 0.05);
+        if (!pol.on && (sp > 140 / 3.6 || Math.random() < 0.3)) setTimeout(() => { if (R.active && !R.over && R.phase === 'ring') pol.trigger('flits', polInfo()); }, 1200); } } } // far too fast, or a patrol car happened to be near
     if (flash.material.opacity > 0) flash.material.opacity = Math.max(0, flash.material.opacity - dt * 4);
     if (rantT > 0 && (rantT -= dt) <= 0) rantEl.style.display = 'none';
     for (const f of far) { f.g.position.x -= f.v * dt; if (f.g.position.x < B.x - 160) f.g.position.x = B.x + 330 + Math.random() * 120; else if (f.g.position.x > B.x + 520) f.g.position.x = B.x + 300; }
@@ -455,19 +471,26 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     }
     for (const g of gang) {
       if (!g.on || g.dead) continue; const p = g.g.position;
+      if (pol.on) { g.v += (14 - g.v) * Math.min(1, dt * 1.2); p.x += g.v * dt; p.z += (SEDGE - 1.3 - p.z) * Math.min(1, dt); if (p.x < B.x - 80) { g.on = false; g.g.visible = false; } continue; } // blue lights: the gang lets go and takes the vluchtstrook
       if (g.cool > 0) { g.cool -= dt; g.v += (Math.max(6, sp - 5) - g.v) * Math.min(1, dt * 2); } else g.v += (Math.min(veh.k.vmax + 3, sp + 7) - g.v) * Math.min(1, dt * 1.5);
       p.x += g.v * dt; p.z += (B.z - p.z) * Math.min(1, dt * 0.9);
       const hitWork = works.some((w) => hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x + 18.5, w.g.position.z, 14.5, 1.4) || hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x + 0.4, w.g.position.z, 4.2, 1.2)), hitCar = cars.find((c) => !c.wreck && hitBox(p.x, p.z, 2.1, 0.9, c.g.position.x, c.g.position.z, c.half, 1.0) && g.v - c.vv > 4);
-      if (hitWork || hitCar) { g.dead = true; if (g.g.userData.paint) g.g.userData.paint.color.setHex(0x3a2a20); R.wrecked++; ev('wreck'); deps.toast('WRAK!', `One of theirs is done. +W ${BOUNTY}.`, 1.8); deps.beep(90, 0.3, 'sawtooth', 0.07); continue; }
+      if (hitWork || hitCar) { g.dead = true; if (g.g.userData.paint) g.g.userData.paint.color.setHex(0x3a2a20); R.wrecked++; ev('wreck'); deps.toast('WRAK!', `One of theirs is done. +W ${BOUNTY}.`, 1.8); deps.beep(90, 0.3, 'sawtooth', 0.07);
+        if (!pol.on && Math.random() < 0.5) setTimeout(() => { if (R.active && !R.over && R.phase === 'ring') pol.trigger('wreck', polInfo()); }, 1800); continue; } // a wreck on the A10 brings blue lights
       if (hitBox(p.x, p.z, 2.1, 0.9, B.x, B.z, 2.3, 1.0)) { damage(8); ev('crash'); B.v = Math.min(veh.k.vmax, B.v + 2.5); g.cool = 2.4; p.x -= 5; deps.beep(70, 0.16, 'sawtooth', 0.06); }
       if (p.x < B.x - 90) p.x = B.x - 50;
     }
+    // the snelweg politie: chasing, debating, arresting
+    pol.update(dt, { B, cars, works, info: polInfo(), damage, arrest: (fine, stars) => { if (deps.onPolice) try { deps.onPolice('arrest', { fine, stars }); } catch (e) { console.error(e); }
+      finish(false, 'OPGEPAKT', `The snelweg politie pulls you off the ${R.route.a}. Fine W ${fine}, and the trip is over.`); } });
+    if (R.over) return;
+    if (!R.lim && !(o.van && o.van.turbo) && vBase * 1.6 > BEGRENZER && sp > BEGRENZER - 1.5) { R.lim = true; deps.toast('BEGRENZER', "155 km/u and the Oofmobiel won't give more: the speed limiter. Garage Mo knows a guy with a turbo.", 3.4); }
     // the afrit: slow down for the car park, or miss it and come back
     if (B.z > SEDGE + 1 && veh.k.vmax > vBase) Object.assign(veh.k, { vmax: vBase, turn: 1.5, grip: 4.5 });
-    if (B.x > X0 + LEN + 12 && B.z < SEDGE) { R.t += 25; B.x = X0 + EXIT0 - 260; B.z = Z0 + LW; B.v = 20; deps.toast('AFRIT GEMIST', `That was afrit ${R.route.afrit}. The next one and back: 25 seconds gone.`, 3); deps.snapCam(); }
+    if (B.x > X0 + LEN + 12 && B.z < SEDGE) { R.t += 25; pol.shift(X0 + EXIT0 - 260 - B.x); B.x = X0 + EXIT0 - 260; if (!pol.on) { B.z = Z0 + LW; B.v = 20; } deps.toast('AFRIT GEMIST', `That was afrit ${R.route.afrit}. The next one and back: 25 seconds gone.`, 3); deps.snapCam(); }
     ring.material.opacity = 0.6 + Math.sin(R.t * 5) * 0.25;
-    if (Math.hypot(B.x - PARK.x, B.z - PARK.z) < 3.6 && sp < 2.8) { finish(true); return; }
+    if (Math.hypot(B.x - PARK.x, B.z - PARK.z) < 3.6 && sp < 2.8) { if (!pol.close(B)) { finish(true); return; } if (!R.parkWarn) { R.parkWarn = true; deps.toast('NIET NU', 'Park with the politie right behind you? Shake them off first.', 2.6); } }
     hud();
   }
-  return { honked, cams, start, stop, update, crash, giveUp, get active() { return R.active; }, get phase() { return R.phase; }, get run() { return R; }, vehicle: () => veh, X0, Z0, LEN, PAR, PARK, ROUTES };
+  return { pol, traffic: cars, honked, cams, start, stop, update, crash, giveUp, get active() { return R.active; }, get phase() { return R.phase; }, get run() { return R; }, vehicle: () => veh, X0, Z0, LEN, PAR, PARK, ROUTES };
 }

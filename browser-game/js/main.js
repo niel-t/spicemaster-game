@@ -3436,7 +3436,13 @@ mission = initMission({ onEvent: (t, x) => { if (freddy) freddy.onMission(t, x);
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post, fonts });
 // the drive to the next district (js/rit.js): from the van map once Kipkruidenkwartier is yours
 { const enter0 = mission.enter; mission.enter = (id, o) => { const r = enter0(id, o); if (r !== null && freddy) freddy.onMission('enter', o || {}); setTimeout(() => tips.show(o && o.heist ? 'heist' : o && o.defend ? 'siege' : o && o.remix ? 'remix' : 'mission'), 1600); return r; }; } // Shooki's first-time tips
-const oofDrive = createRit({ nightK: () => (klok ? klok.tod().n : 0), onHonk: () => { if (stats) stats.add('flitsers'); }, THREE, scene, player, state, kit, lam, signTex, solid, toast, beep, choice, RC, roadMat: ST.road, isPaused, day: () => econ.ensure().day,
+// the snelweg politie (js/snelpolitie.js): stats, the fine, and Garage Mo hearing about it (the turbo unlocks in js/garage.js)
+function onSnelPolitie(kind, data) {
+  if (kind === 'chase') { if (stats) stats.add('chases'); if (garage.chased()) setTimeout(() => toast('GARAGE MO', rankNow() >= 2 ? '"Heard the stekkerpolitie had you on the snelweg. Come by the garage: I\'ve got something with a turbo."' : '"Heard the politie had you on the snelweg. When you\'re a Kruidenhandelaar, come and see me. I\'ve got something with a turbo."', 6), 14000); }
+  else if (kind === 'escape') { if (stats) stats.add('escapes'); }
+  else if (kind === 'arrest') { const paid = Math.min(state.money, data.fine | 0); if (paid) addMoney(-paid); if (stats) { stats.add('arrests'); stats.add('fines', paid); } if (brep) brep.add('kade', -3, 'arrested on the snelweg'); }
+}
+const oofDrive = createRit({ onPolice: onSnelPolitie, nightK: () => (klok ? klok.tod().n : 0), onHonk: () => { if (stats) stats.add('flitsers'); }, THREE, scene, player, state, kit, lam, signTex, solid, toast, beep, choice, RC, roadMat: ST.road, isPaused, day: () => econ.ensure().day,
   makeCar: (o) => makeCar(THREE, canvasTex, { ...o, rand: crand }), makeVan: () => oof.clone(true), passerBy: (seed) => passerBy(seed), animate: (p, v, dt) => animate(p, v, dt),
   get fiets() { return fiets; }, oof, oofSolid, buurt: () => buurt, setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(),
   exit: { get x() { return Math.min(213, WALK.x1 - 3); }, z: RC + 1.5 }, blockedStart: () => !!(mission && mission.active) || !!(fiets && fiets.riding()) });
