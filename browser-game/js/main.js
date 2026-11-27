@@ -2189,7 +2189,7 @@ function showPrompt(it) {
 ui.prompt.addEventListener('click', (e) => { e.stopPropagation(); if (current && !state.inDialogue && !state.inPC && !choiceOpen && !(fiets && fiets.riding())) current.act(); });
 // in a car the camera looks where it is going: up to 9 m ahead at speed
 let driveZoom = 1, chaseH = Math.PI, chaseLow = 0;
-const driveFocus = () => { const p = player.position.clone(), v = fiets && fiets.current; if (v && v.kind === 'car') { const sp = Math.min(17, Math.abs(v.B.v) * 0.42) * Math.sign(v.B.v || 1); p.x += Math.sin(v.B.h) * sp; p.z += Math.cos(v.B.h) * sp; } return p; };
+const driveFocus = () => { const p = player.position.clone(), v = fiets && fiets.current; if (v && v.kind === 'car') { const sp = Math.min(17, Math.abs(v.B.v) * 0.42) * Math.sign(v.B.v || 1); p.x += Math.sin(v.B.h) * sp; p.z += Math.cos(v.B.h) * sp; p.y = v.obj.position.y || 0; } return p; }; // (y: up on a snelweg viaduct, js/rit.js)
 const roomCam = () => (woning && woning.inside() ? woning : winkels && winkels.inside() ? winkels : pahuis && pahuis.inside() ? pahuis : null); // rooms frame the camera themselves
 function skipHiddenMatrices() {
   for (const c of scene.children) {

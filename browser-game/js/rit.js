@@ -9,6 +9,9 @@
 //      cars that ram the van: lead them into the roadworks or a truck and they wreck (a bounty).
 //   3. Take the afrit on the right and park in the yellow ring: the raid, the delivery or the pick-up starts.
 //      Miss the afrit and it is the next one and back: half a minute gone.
+//   4. (2026-11-27) The afrit is a real ramp now. It climbs to a crossing road on a viaduct over the snelweg: turn right at the
+//      top and you are off to the town, turn left and you cross over the snelweg, take the oprit down onto the other
+//      carriageway and drive back the other way. At the knooppunt at its end: turn round for another go, or go home.
 // The same contract as the old drive, so every caller kept working: start({ van, from, to, theme, mission, noPay,
 // airport, arrived, doneLabel, johan, grip, onEvent, onDone }) and onDone({ arrived, pay, time, wrecked, bumped }).
 // Events for the passenger (js/freddy.js) and the wear (js/garage.js): start, ped, crash, wreck, ambush, arrive, fail.
@@ -18,9 +21,20 @@ import { createSnelPolitie } from './snelpolitie.js';
 const PAR = 75, FINE = 25, BOUNTY = 50, BASE_PAY = 250, FLITS = 120 / 3.6;
 const X0 = 1000, Z0 = 600, LEN = 980, LW = 3.4, EXIT0 = LEN - 230, EXIT1 = LEN - 110; // the motorway runs east from X0, centre lane on Z0; the afrit peels off between EXIT0 and EXIT1
 const NEDGE = Z0 - LW * 1.5 - 0.9, SEDGE = Z0 + LW * 1.5 + 2.7; // the guard rail in the middle, and the outside of the vluchtstrook
-const PARK = { x: X0 + LEN - 40, z: Z0 + 21 };
+// the afrit and the crossing road: XC is the road over the snelweg, J the junction at the top of the afrit, JN the one on
+// the far side where the oprit goes down onto the other carriageway; everything up there is UP metres above the snelweg
+const XC = X0 + LEN - 40, UP = 6, ZJ = SEDGE + 18, ZJN = NEDGE - 22, ZEND = ZJ + 26, RW2 = 4.4; // RW2: half the crossing road
+const PARK = { x: XC, z: ZEND + 6 }; // where the exit road reaches the town: drive onto the yellow ring
+const RX0 = X0 + EXIT1, RZS = Z0 + LW * 1.5 + 1.7, RZN = NEDGE - 13.1; // where the ramps leave and join the carriageways
+const bez = (a, b, c, d, t) => { const u = 1 - t; return [u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0], u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1]]; };
+const RAMP_S = Array.from({ length: 33 }, (_, i) => bez([RX0, RZS], [RX0 + 32, RZS], [XC - 26, ZJ], [XC - RW2, ZJ], i / 32)); // afrit: up from the uitvoegstrook to J
+const RAMP_N = Array.from({ length: 33 }, (_, i) => bez([XC - RW2, ZJN], [XC - 26, ZJN], [RX0 + 32, RZN], [RX0, RZN], i / 32)); // oprit: from JN down to the invoegstrook
+const ss = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+const rampY = (x) => UP * ss((x - RX0) / (XC - RW2 - RX0));
+const nearRamp = (P, x, z, w) => { for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz))); if (Math.hypot(x - ax - dx * t, z - az - dz * t) < w) return true; } return false; };
 const BEGRENZER = 155 / 3.6, TURBO_MIN = 56, TURBO_MAX = 60; // m/s on the motorway: the limiter without Mo's turbo; with it, ~190 km/u and up (the politie: 160)
 const W_ = 0xf4f2ec;
+const TURN_X = X0 + 420; // driving back the other way: the knooppunt where you turn round (or go home)
 const fmtT = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 // where each trip goes: the motorway, the afrit number, the towns on the signs, the land beside the road
 export const ROUTES = {
@@ -57,6 +71,8 @@ body.ritting #objective,body.ritting #area,body.ritting #ftsOff,body.ritting #ft
   function hud() {
     const o = R.opts, rt = R.route, kmh = Math.round(Math.abs(veh.B.v) * 3.6);
     const where = R.phase === 'street' ? `oprit <span class="an">A10</span> ${Math.max(0, Math.round(deps.exit.x - veh.B.x))} m`
+      : R.west ? `<span class="an">${rt.a}</span> the other way · knooppunt ${Math.max(0, Math.round(veh.B.x - TURN_X))} m`
+      : R.up || veh.B.z > SEDGE + 1 ? `top of the afrit: <b>right</b> ${o.to} · <b>left</b> over the snelweg, back the other way`
       : veh.B.x < X0 + 170 && rt.a !== 'A10' ? `<span class="an">A10</span> ring → <span class="an">${rt.a}</span>` : `<span class="an">${rt.a}</span> afrit ${rt.afrit} ${o.to} ${Math.max(0, Math.round(X0 + EXIT0 - veh.B.x))} m`;
     const h = `<b>${o.from} → ${o.to}</b><br>${fmtT(R.t)} <small>(par ${fmtT(PAR)})</small> · <b>${kmh} km/u</b> · ${where}<div class="bar"><i style="width:${R.hp}%;background:${R.hp > 60 ? '#6ed36e' : R.hp > 30 ? '#ffd36b' : '#ff4a4a'}"></i></div><small>Oofmobiel ${Math.round(R.hp)}%${R.smart ? ` · boetes W ${R.smart}` : ''}${R.bonus ? ` · claxon +W ${R.bonus}` : ''}${R.wrecked ? ` · ${R.wrecked} wrecked` : ''}</small>${pol.stars ? `<br><span class="pol">POLITIE ${'★'.repeat(pol.stars)}<i>${'★'.repeat(3 - pol.stars)}</i></span>` : ''}<br><button>Omkeren (give up)</button>`;
     if (h !== hudKey) { hudEl.innerHTML = h; hudKey = h; }
@@ -227,7 +243,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     const road = new THREE.Mesh(new THREE.PlaneGeometry(L, SEDGE - NEDGE), deps.roadMat); { const uv = road.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) { uv.setX(i, uv.getX(i) * L / 200); uv.setY(i, uv.getY(i) * 2.2); } }
     road.rotation.x = -Math.PI / 2; road.position.set(cx, 0.02, (NEDGE + SEDGE) / 2); road.receiveShadow = true; strip.add(road);
     // the afrit and the car park: one slab of the same tarmac
-    const slab = new THREE.Mesh(new THREE.PlaneGeometry(LEN - EXIT0 + 20, 26), deps.roadMat); slab.rotation.x = -Math.PI / 2; slab.position.set(X0 + (EXIT0 + LEN) / 2 + 10, 0.018, SEDGE + 13); slab.receiveShadow = true; strip.add(slab);
+    { const slab = new THREE.Mesh(new THREE.PlaneGeometry(EXIT1 - EXIT0 + 6, 1.4), deps.roadMat); slab.rotation.x = -Math.PI / 2; slab.position.set(X0 + (EXIT0 + EXIT1) / 2 + 3, 0.018, SEDGE + 0.5); strip.add(slab); } // the uitvoegstrook is a little wider than the vluchtstrook
     for (const z of [Z0 - LW / 2, Z0 + LW / 2]) for (let x = X0 - 50; x < X0 + LEN + 50; x += 12) K.box(3, 0.01, 0.15, W_, x, 0.035, z); // lane lines: 3 m on, 9 m off
     K.box(L, 0.01, 0.2, W_, cx, 0.035, Z0 - LW * 1.5); K.box(EXIT0 + 60, 0.01, 0.2, W_, X0 + EXIT0 / 2 - 30, 0.035, Z0 + LW * 1.5); // edge lines (the right one opens at the afrit)
     for (let x = X0 + EXIT0; x < X0 + EXIT1; x += 4) K.box(2, 0.01, 0.35, W_, x, 0.035, Z0 + LW * 1.5); // blokmarkering along the uitvoegstrook
@@ -239,8 +255,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     for (let x = X0; x < X0 + EXIT0; x += 100) { K.box(0.5, 0.7, 0.06, 0x2a7a3a, x, 0.75, SEDGE + 0.5); K.box(0.06, 0.6, 0.06, 0x8a8e94, x, 0.3, SEDGE + 0.5); }
     for (let x = X0 - 40; x < X0 + EXIT0; x += 25) { K.box(0.1, 0.9, 0.1, W_, x, 0.45, SEDGE + 0.25); K.box(0.11, 0.14, 0.11, 0xd8202a, x, 0.72, SEDGE + 0.25); }
     // the car park: bays and a kerb
-    for (let i = -3; i <= 3; i++) K.box(0.12, 0.012, 5, W_, PARK.x + i * 4.5, 0.04, PARK.z + 4);
-    K.box(40, 0.2, 0.3, 0xb8b2a6, PARK.x, 0.1, SEDGE + 26.2);
+
     // a proper middenberm: a rail on each side, the anti-glare hedge between them, and the far carriageway's own lines
     K.box(L, 0.32, 0.08, 0xb8bcc2, cx, 0.62, NEDGE - 0.9); for (let x = X0 - 48; x < X0 + LEN + 50; x += 4) K.box(0.1, 0.7, 0.1, 0x8a8e94, x, 0.35, NEDGE - 0.84); K.box(L, 0.9, 0.5, 0x3e6a3a, cx, 0.55, NEDGE - 0.3);
     for (const z of [NEDGE - 4.85, NEDGE - 8.15]) for (let x = X0 - 50; x < X0 + LEN + 50; x += 12) K.box(3, 0.01, 0.15, W_, x, 0.035, z); for (const z of [NEDGE - 1.6, NEDGE - 11.4]) K.box(L, 0.01, 0.2, W_, cx, 0.035, z);
@@ -266,12 +281,54 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     { const g = makeWorks(); strip.add(g); works.push({ g, sol: deps.solid(0, 0, 0, 0), sol2: deps.solid(0, 0, 0, 0) }); }
     for (let i = 0; i < 2; i++) { const g = deps.makeCar({ paint: 0xff7a1a, lampas: true, model: 0 }); strip.add(g); gang.push({ g, on: false, dead: false, v: 0, cool: 0 }); }
     // what the van can't drive through: the guard rail, the grass beyond the vluchtstrook (up to the afrit), the back of the car park, both ends
-    for (const s of [deps.solid(X0 - 60, X0 + LEN + 60, NEDGE - 1, NEDGE + 0.2), deps.solid(X0 - 60, X0 + EXIT0, SEDGE, SEDGE + 30), deps.solid(X0 + EXIT0, X0 + LEN + 60, SEDGE + 26, SEDGE + 27),
-      deps.solid(X0 - 8, X0 - 7, NEDGE, SEDGE), deps.solid(X0 + LEN + 20, X0 + LEN + 21, SEDGE, SEDGE + 27)]) sols.push(s);
+    for (const s of [deps.solid(X0 - 60, XC - RW2 - 0.6, NEDGE - 1, NEDGE + 0.2), deps.solid(XC + RW2 + 0.6, X0 + LEN + 60, NEDGE - 1, NEDGE + 0.2), deps.solid(X0 - 60, X0 + EXIT0, SEDGE, SEDGE + 30),
+      deps.solid(X0 - 8, X0 - 7, NEDGE, SEDGE), deps.solid(X0 + LEN + 20, X0 + LEN + 21, SEDGE, SEDGE + 27), deps.solid(X0 - 60, X0 + EXIT0 - 4, NEDGE - 13.3, NEDGE - 12.7)]) sols.push(s);
+    buildRamps();
     pol.build(strip); // the snelweg politie: three Kaasla's, hidden until somebody calls it in
     strip.visible = false; solidsOff(true);
   }
-  function solidsOff(off) { for (const s of sols) s.off = off; for (const w of works) { w.sol.off = off; w.sol2.off = off; } for (const c of cams) if (c.sol) c.sol.off = off; }
+  // ---- the afrit, the viaduct and the oprit on the far side (2026-11-27)
+  const lowSols = [], upSols = []; // lowSols: only there when the van is down on the snelweg; upSols: only when it is up on the viaduct
+  function ribbon(P, w, yOf, mat, y0 = 0.03) { // a road along a polyline, at the height yOf(x) gives
+    const n = P.length, pos = new Float32Array(n * 6), uv = new Float32Array(n * 4), idx = []; let d = 0;
+    for (let i = 0; i < n; i++) { const [x, z] = P[i], [ax, az] = P[Math.max(0, i - 1)], [bx, bz] = P[Math.min(n - 1, i + 1)], tx = bx - ax, tz = bz - az, l = Math.hypot(tx, tz) || 1, nx = -tz / l * w / 2, nz = tx / l * w / 2, y = yOf(x, z) + y0;
+      if (i) d += Math.hypot(x - P[i - 1][0], z - P[i - 1][1]); pos.set([x + nx, y, z + nz, x - nx, y, z - nz], i * 6); uv.set([d / 200, 0, d / 200, 1], i * 4); if (i) { const a = (i - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); if (g.attributes.normal.getY(0) < 0) { g.setIndex(idx.map((_, i) => idx[i - (i % 3) + 2 - (i % 3)])); g.computeVertexNormals(); }
+    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.material.side = THREE.DoubleSide; return m;
+  }
+  function buildRamps() {
+    const K = deps.kit(), G = 0x6a8a4a, RAIL = 0xb8bcc2, CON = 0xb0aba0, yS = (x) => rampY(x);
+    // the two ramps: tarmac, an embankment under them, white edge lines, a guard rail on the outside
+    for (const P of [RAMP_S, RAMP_N]) {
+      strip.add(ribbon(P, 4.8, yS, deps.roadMat));
+      for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], mx = (ax + bx) / 2, mz = (az + bz) / 2, l = Math.hypot(bx - ax, bz - az), ry = -Math.atan2(bz - az, bx - ax), y = yS(mx), nx = -(bz - az) / l, nz = (bx - ax) / l;
+        if (y > 0.5) K.box(l + 0.05, y - 0.35, 6.4, G, mx, (y - 0.35) / 2, mz, ry); // the embankment (kept under the tarmac, which slopes)
+        for (const sd of [-1, 1]) { K.box(l + 0.05, 0.012, 0.16, W_, mx + nx * sd * 2.1, y + 0.05, mz + nz * sd * 2.1, ry); K.box(l + 0.05, 0.3, 0.07, RAIL, mx + nx * sd * 2.7, y + 0.62, mz + nz * sd * 2.7, ry); if (i % 2 === 0) K.box(0.1, 0.7, 0.1, 0x8a8e94, mx + nx * sd * 2.72, y + 0.35, mz + nz * sd * 2.72); }
+      }
+    }
+    // the crossing road: up on its embankment from the far side, over both carriageways on a viaduct, down to the town in the south
+    const zTop0 = ZJN - 7, zTop1 = ZJ + 6, deckA = NEDGE - 13.6, deckB = SEDGE + 1.6;
+    { const top = new THREE.Mesh(new THREE.PlaneGeometry(RW2 * 2, zTop1 - zTop0), deps.roadMat); top.rotation.x = -Math.PI / 2; top.position.set(XC, UP + 0.03, (zTop0 + zTop1) / 2); top.receiveShadow = true; strip.add(top); }
+    const down = []; for (let i = 0; i <= 10; i++) down.push([XC, zTop1 + (ZEND - zTop1) * i / 10]);
+    strip.add(ribbon(down, RW2 * 2, (x, z) => UP * (1 - ss((z - zTop1) / (ZEND - zTop1)))));
+    { const lo = new THREE.Mesh(new THREE.PlaneGeometry(RW2 * 2, 40), deps.roadMat); lo.rotation.x = -Math.PI / 2; lo.position.set(XC, 0.03, ZEND + 20); strip.add(lo); }
+    for (const [a, b] of [[zTop0, deckA], [deckB, zTop1]]) K.box(RW2 * 2 + 2, UP, b - a, G, XC, UP / 2 - 0.02, (a + b) / 2); // embankments, the viaduct between them
+    for (let i = 0; i < 10; i++) { const za = zTop1 + (ZEND - zTop1) * i / 10, zb = zTop1 + (ZEND - zTop1) * (i + 1) / 10, y = UP * (1 - ss(((za + zb) / 2 - zTop1) / (ZEND - zTop1))); if (y > 0.5) K.box(RW2 * 2 + 2, y - 0.35, zb - za + 0.05, G, XC, (y - 0.35) / 2, (za + zb) / 2); }
+    K.box(RW2 * 2 + 1.2, 0.9, deckB - deckA, CON, XC, UP - 0.45, (deckA + deckB) / 2); K.box(RW2 * 2 + 1.6, 0.3, deckB - deckA, 0xc8c4ba, XC, UP - 1.0, (deckA + deckB) / 2);
+    for (const pz of [NEDGE - 0.3, deckA + 0.8, deckB - 0.8]) for (const dx of [-3, 3]) { K.cyl(0.55, 0.55, UP - 1.1, CON, XC + dx, (UP - 1.1) / 2, pz, 12); }
+    for (const sd of [-1, 1]) { K.box(0.3, 1.0, zTop1 - zTop0, CON, XC + sd * (RW2 + 0.4), UP + 0.5, (zTop0 + zTop1) / 2); K.box(0.12, 0.12, zTop1 - zTop0, RAIL, XC + sd * (RW2 + 0.4), UP + 1.1, (zTop0 + zTop1) / 2); }
+    for (let z = zTop0 + 2; z < ZEND + 38; z += 4) K.box(0.14, 0.012, 2, W_, XC, (z < zTop1 ? UP : z < ZEND ? UP * (1 - ss((z - zTop1) / (ZEND - zTop1))) : 0) + 0.06, z); // the centre line
+    // at J: shark teeth across the end of the afrit, a stop line, arrows left and right; at JN the same for the oprit traffic coming off the viaduct
+    for (let v = -2.0; v <= 2.01; v += 0.6) { const s2 = new THREE.Shape(); s2.moveTo(0, -0.24); s2.lineTo(0, 0.24); s2.lineTo(-0.55, 0); s2.closePath(); K.geo(new THREE.ShapeGeometry(s2).rotateX(-Math.PI / 2), W_, XC - RW2 - 0.3, UP + 0.06, ZJ + v); }
+    for (const [dx, sd] of [[-14, -1], [-9, 1]]) { const ax = XC - RW2 + dx; K.box(2.2, 0.012, 0.32, W_, ax, rampY(ax) + 0.06, ZJ + 0.6 * sd); K.box(0.32, 0.012, 1.4, W_, ax + 1.0, rampY(ax) + 0.06, ZJ + 0.6 * sd + 0.6 * sd); }
+    const km = K.build(); if (km) { km.castShadow = true; km.receiveShadow = true; strip.add(km); }
+    // what keeps the van on the viaduct while it is up there, and what keeps it out of the gap in the middenberm rail while it is down
+    for (const sd of [-1, 1]) upSols.push(deps.solid(XC + sd * (RW2 + 0.2), XC + sd * (RW2 + 0.6), deckA - 0.5, deckB + 0.5));
+    lowSols.push(deps.solid(XC - RW2 - 0.6, XC + RW2 + 0.6, NEDGE - 1, NEDGE + 0.2));
+    for (const q of [...upSols, ...lowSols]) { q.off = true; }
+  }
+  function setLevel(up) { R.up = up; for (const q of upSols) q.off = !R.active || !up; for (const q of lowSols) q.off = !R.active || up; }
+  function solidsOff(off) { if (off) { for (const q of [...upSols, ...lowSols]) q.off = true; } else setLevel(!!R.up); for (const s of sols) s.off = off; for (const w of works) { w.sol.off = off; w.sol2.off = off; } for (const c of cams) if (c.sol) c.sol.off = off; }
   // a blue ANWB sign: lines of [text, size, colour]
   function sign(lines, w, h, x, y, z, ry = -Math.PI / 2, bg = '#14499a') { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), deps.lam({ map: deps.signTex(lines.map(([t, size, color]) => ({ t, size, color: color || '#ffffff' })), bg, '#ffffff', 512, Math.round(512 * h / w)), emissive: bg === '#14499a' ? 0x0a2040 : 0x202020 })); m.position.set(x, y, z); m.rotation.y = ry; scenery.add(m); return m; }
   function gantry(K, x, lines, matrix) { // a steel truss portaal: lattice legs and beam, the blue boards, and a matrix board over each lane
@@ -295,10 +352,15 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     gantry(K, X0 + EXIT0 - 150, [[[T.a, 44, '#ff5a6a'], [T.via, 34], ['↑', 40]], [[`afrit ${T.afrit}`, 30, '#ffe14a'], [to, 38], ['600 m ↗', 34]]], ['green', 'green', 'green']);
     sign([[`${T.afrit}`, 30, '#ffe14a'], [to, 40], ['↗', 44]], 4.6, 2.6, X0 + EXIT0 + 6, 3.2, SEDGE + 1.6); for (const dz of [0.6, 2.6]) K.box(0.16, 2.2, 0.16, 0x8a8e94, X0 + EXIT0 + 6.1, 1.1, SEDGE + dz);
     sign([['UIT', 60]], 1.6, 1.0, X0 + EXIT1 + 2, 1.5, Z0 + LW * 1.5 + 1.2); K.box(0.12, 1.2, 0.12, 0x8a8e94, X0 + EXIT1 + 2.1, 0.6, Z0 + LW * 1.5 + 1.2);
-    sign([['P', 70], [o.airport ? 'Kiss & Ride' : to, 30]], 3, 2.2, PARK.x - 22, 2.6, SEDGE + 25.5, Math.PI); K.box(0.14, 1.6, 0.14, 0x8a8e94, PARK.x - 22, 0.8, SEDGE + 25.6);
+    // at the top of the afrit: right to the town, left over the snelweg and back the other way
+    sign([['↓ ' + (o.airport ? 'Schiptagat · Kiss & Ride' : to), 34, '#ffe14a'], ['↑ ' + T.a + ' ← terug', 34]], 5.4, 2.0, XC + RW2 + 1.6, UP + 2.6, ZJ, -Math.PI / 2); for (const dz of [-0.9, 0.9]) K.box(0.14, 2.0, 0.14, 0x8a8e94, XC + RW2 + 1.62, UP + 1.0, ZJ + dz);
+    sign([[T.a, 40, '#ff5a6a'], ['← oprit · terug', 30]], 3.6, 1.6, XC + RW2 + 1.2, UP + 2.4, ZJN - 1.6, Math.PI / 2); K.box(0.14, 1.8, 0.14, 0x8a8e94, XC + RW2 + 1.22, UP + 0.9, ZJN - 1.6);
+    sign([['P', 70], [o.airport ? 'Kiss & Ride' : to, 30]], 3, 2.2, PARK.x + 6, 2.6, PARK.z - 2, Math.PI); K.box(0.14, 1.6, 0.14, 0x8a8e94, PARK.x + 6, 0.8, PARK.z - 1.9);
+    sign([['KNOOPPUNT', 34, '#ffe14a'], ['keren · of naar huis', 28]], 4.6, 1.8, TURN_X + 60, 3.0, NEDGE - 12.8, Math.PI / 2); K.box(0.16, 2.2, 0.16, 0x8a8e94, TURN_X + 60, 1.1, NEDGE - 12.8);
     // the land beside the road
     for (let x = X0 - 30; x < X0 + LEN + 40; ) {
       const w = 8 + rnd() * 10, cx = x + w / 2, far = cx > X0 + EXIT0 - 10, zz = far ? SEDGE + 34 + rnd() * 8 : SEDGE + 7 + rnd() * 10;
+      if (far && Math.abs(cx - XC) < w / 2 + 9) { x += w; continue; } // the exit road runs through here
       if (T.props === 'brick') { const h = 7 + rnd() * 7, c = [0x8a4a3a, 0x9a5a44, 0x6a3a30, 0xb08a6a][Math.floor(rnd() * 4)]; K.box(w - 0.6, h, 9, c, cx, h / 2, zz + 4.5); for (let wx = cx - w / 2 + 1.2; wx < cx + w / 2 - 0.8; wx += 1.8) for (let wy = 2.2; wy < h - 1; wy += 2.4) K.box(0.9, 1.2, 0.1, 0xf2e6c0, wx, wy, zz - 0.03); K.box(w - 0.3, 0.5, 9.4, 0x3a2a24, cx, h + 0.25, zz + 4.5); }
       else if (T.props === 'hip') { const h = 3 + rnd() * 4, c = [0xff8fb8, 0x5ac8c0, 0xf2c14e, 0x9ad06a, 0xff7a3a][Math.floor(rnd() * 5)]; K.box(w - 2, h, 6, c, cx, h / 2, zz + 3); K.box(w - 1.6, 0.2, 6.6, W_, cx, h + 0.1, zz + 3); K.cyl(0.14, 0.18, 2.6, 0x5e4636, cx + w / 2, 1.3, zz - 2, 8); K.cyl(1.5, 1.1, 2.0, 0x4f8a3c, cx + w / 2, 3.4, zz - 2, 8); }
       else if (T.props === 'docks') { const n = 1 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) K.box(w - 1, 2.6, 2.6, [0xc8402a, 0x2a5a9a, 0xe8a020, 0x3a7a4a, 0x8a8a8a][Math.floor(rnd() * 5)], cx, 1.3 + k * 2.65, zz + 2); if (rnd() < 0.22) { K.box(0.7, 22, 0.7, 0xf2c31a, cx, 11, zz + 9); K.box(0.7, 0.7, 18, 0xf2c31a, cx, 21.5, zz + 2); } }
@@ -344,7 +406,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     if (T.props === 'sand') { K.cyl(1.6, 2.4, 22, 0xf4f2ec, X0 + EXIT0 - 80, 11, SEDGE + 80, 12); for (const y of [5, 11, 17]) K.cyl(2.0, 2.2, 2.2, 0xc8102e, X0 + EXIT0 - 80, y, SEDGE + 80, 12); K.cyl(1.2, 1.9, 2.6, 0x2a2e34, X0 + EXIT0 - 80, 23.3, SEDGE + 80, 10); } // the vuurtoren of De Zandwijk
     if (T.props === 'air' || T.props === 'sand' || T.props === 'docks') for (const [tx, tz] of [[X0 + 200, SEDGE + 60], [X0 + 430, SEDGE + 78], [X0 + 640, SEDGE + 64]]) turbine(tx, tz); // wind turbines, turning
     // sound barriers behind the far carriageway, and lamp masts in the middenberm
-    for (let x = X0 - 40, i = 0; x < X0 + LEN + 40; x += 8, i++) K.box(7.8, 3.6, 0.3, i % 2 ? 0x5a8a6a : 0x4a7a5a, x + 4, 1.8, NEDGE - 13);
+    for (let x = X0 - 40, i = 0; x < X0 + EXIT0 - 12; x += 8, i++) K.box(7.8, 3.6, 0.3, i % 2 ? 0x5a8a6a : 0x4a7a5a, x + 4, 1.8, NEDGE - 13);
     for (let x = X0 + 20; x < X0 + LEN; x += 45) { K.cyl(0.1, 0.18, 12, 0x8a8e94, x, 6, NEDGE - 0.6, 8); for (const s of [1, -1]) { K.box(0.2, 0.12, 3.6, 0x8a8e94, x, 11.9, NEDGE - 0.6 + s * 1.7, 0, s * -0.12, 0); K.box(0.5, 0.12, 0.9, 0xfff4d0, x, 11.95, NEDGE - 0.6 + s * 3.5); } } // double-armed masts, one arm over each carriageway
     const m = K.build(); if (m) { m.castShadow = true; m.receiveShadow = true; scenery.add(m); }
   }
@@ -387,10 +449,10 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       const o = R.opts; dress(o.airport ? 'air' : o.theme || 'lampas'); layout(); strip.visible = true; solidsOff(false);
       Object.assign(veh.k, { vmax: hwTop(), acc: o.van && o.van.turbo ? 14 : 9, turn: 0.95, grip: 9 }); // the motorway: top gear, and steering that changes lanes instead of spinning the van
       veh.B.x = X0 + 4; veh.B.z = Z0 + LW; veh.B.h = Math.PI / 2; veh.B.v = 18; van.position.set(veh.B.x, 0, veh.B.z);
-      deps.setBounds({ x0: X0 - 6, x1: X0 + LEN + 19, z0: NEDGE + 1.0, z1: SEDGE + 25.5 });
+      deps.setBounds({ x0: X0 - 6, x1: X0 + LEN + 19, z0: ZJN - 6, z1: PARK.z + 4 }); R.up = false; R.west = false; R.asking = false; setLevel(false);
       const B = deps.buurt(); if (B) B.setPoint(PARK.x, PARK.z, o.to);
       R.phase = 'ring'; deps.snapCam();
-      deps.toast(R.route.a === 'A10' ? 'A10 RING' : `A10 → ${R.route.a}`, `${o.to}: afrit ${R.route.afrit}, on the right at the end. Trucks keep right, the works close a lane, and there is a flitspaal at 120.`, 4);
+      deps.toast(R.route.a === 'A10' ? 'A10 RING' : `A10 → ${R.route.a}`, `${o.to}: afrit ${R.route.afrit}, on the right at the end. Up the ramp, then right for the town (left takes you over the snelweg and back). Trucks keep right, the works close a lane, and there is a flitspaal at 120.`, 4);
     }
   }
   // the motorway top speed: the van's own, up to the begrenzer at 155; Mo's turbo takes it out and adds a lot (js/garage.js)
@@ -442,11 +504,11 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       let want = c.v;
       for (const q of cars) if (q !== c && Math.abs(q.g.position.z - p.z) < 1.5 && q.g.position.x > p.x && q.g.position.x - p.x < c.half + q.half + 12) want = Math.min(want, (q.wreck ? 0 : q.vv) - 1);
       if (c.lane === 1) { let tz = Z0 + LW; for (const w of works) { const d = w.g.position.x - p.x; if (d > -40 && d < 110) tz = Z0; } p.z += (tz - p.z) * Math.min(1, dt * 1.5); } // round the works and back
-      if (Math.abs(B.z - p.z) < 1.6 && B.x > p.x && B.x - p.x < c.half + 2.6 + 10) want = Math.min(want, B.v - 1); // and for Eddy
+      if (!R.up && Math.abs(B.z - p.z) < 1.6 && B.x > p.x && B.x - p.x < c.half + 2.6 + 10) want = Math.min(want, B.v - 1); // and for Eddy
       for (const u of pol.units) if (u.mode !== 'off' && Math.abs(u.g.position.z - p.z) < 1.6 && u.g.position.x > p.x && u.g.position.x - p.x < c.half + u.half + 12) want = Math.min(want, u.v - 1); // and for the politie
       c.vv += Math.max(-14 * dt, Math.min(4 * dt, Math.max(0, want) - c.vv)); p.x += c.vv * dt;
       if (p.x < B.x - 150) { p.x = B.x + 210 + Math.random() * 60; p.z = Z0 + c.lane * LW; } else if (p.x > B.x + 290) { const nx = B.x - 120 - Math.random() * 20; p.x = pol.units.some((u) => u.mode !== 'off' && Math.abs(u.g.position.x - nx) < 45) ? B.x + 210 + Math.random() * 60 : nx; p.z = Z0 + c.lane * LW; } // never drop a car on top of a police car
-      if (hitBox(p.x, p.z, c.half, 1.0, B.x, B.z, 2.3, 1.0)) { // a touch: what counts is the difference in speed
+      if (!R.up && hitBox(p.x, p.z, c.half, 1.0, B.x, B.z, 2.3, 1.0)) { // a touch: what counts is the difference in speed
         const rel = Math.abs(B.v - c.vv), behind = B.x < p.x;
         if (rel > 2 && R.t - crashT > 0.6) { crashT = R.t; if (rel > 8) ev('crash'); damage((rel - 2) * 1.6); deps.beep(70, 0.14, 'sawtooth', 0.06);
           if (rel > 10 && !R.over && ((R.hard = (R.hard | 0) + 1) >= 2 || pol.on)) pol.trigger('hit', polInfo()); } // twice into somebody at speed: they call it in
@@ -460,7 +522,12 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
         if (!pol.on && (sp > 140 / 3.6 || Math.random() < 0.3)) setTimeout(() => { if (R.active && !R.over && R.phase === 'ring') pol.trigger('flits', polInfo()); }, 1200); } } } // far too fast, or a patrol car happened to be near
     if (flash.material.opacity > 0) flash.material.opacity = Math.max(0, flash.material.opacity - dt * 4);
     if (rantT > 0 && (rantT -= dt) <= 0) rantEl.style.display = 'none';
-    for (const f of far) { f.g.position.x -= f.v * dt; if (f.g.position.x < B.x - 160) f.g.position.x = B.x + 330 + Math.random() * 120; else if (f.g.position.x > B.x + 520) f.g.position.x = B.x + 300; }
+    { const vx = B.v * Math.sin(B.h); // Eddy's speed along x (negative: driving west, the way the far carriageway goes)
+      for (const f of far) { const q = f.g.position; let v = f.v;
+        if (R.west && !R.up && Math.abs(q.z - B.z) < 1.7 && q.x > B.x && q.x - B.x < 16) v = Math.min(v, Math.max(0, -vx - 1));
+        f.vv = (f.vv ?? f.v) + Math.max(-14 * dt, Math.min(4 * dt, v - (f.vv ?? f.v))); q.x -= f.vv * dt;
+        if (R.west && !R.up && hitBox(q.x, q.z, 2.2, 1.0, B.x, B.z, 2.3, 1.0)) { const rel = Math.abs(-vx - f.vv); if (rel > 2 && R.t - crashT > 0.6) { crashT = R.t; damage((rel - 2) * 1.6); deps.beep(70, 0.14, 'sawtooth', 0.06); } q.x = Math.max(q.x, B.x + 4.6); f.vv = Math.min(f.vv, Math.max(0, -vx)); }
+        if (q.x < B.x - 160) { q.x = B.x + 330 + Math.random() * 120; f.vv = f.v; } else if (q.x > B.x + 520) q.x = B.x + 300; } }
     for (const h of spinners) h.rotation.x += dt * 1.1;
     { const on = Math.floor(R.t * 2.2) % 2 === 0; for (const q of blinkA) q.visible = on; for (const q of blinkB) q.visible = !on; } // amber, left right left right
     { const n = deps.nightK ? deps.nightK() : 0; lampPool.visible = n > 0.05; lampPool.material.opacity = 0.5 * n; }
@@ -479,7 +546,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
       const hitWork = works.some((w) => hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x + 18.5, w.g.position.z, 14.5, 1.4) || hitBox(p.x, p.z, 2.1, 0.9, w.g.position.x + 0.4, w.g.position.z, 4.2, 1.2)), hitCar = cars.find((c) => !c.wreck && hitBox(p.x, p.z, 2.1, 0.9, c.g.position.x, c.g.position.z, c.half, 1.0) && g.v - c.vv > 4);
       if (hitWork || hitCar) { g.dead = true; if (g.g.userData.paint) g.g.userData.paint.color.setHex(0x3a2a20); R.wrecked++; ev('wreck'); deps.toast('WRAK!', `One of theirs is done. +W ${BOUNTY}.`, 1.8); deps.beep(90, 0.3, 'sawtooth', 0.07);
         if (!pol.on && Math.random() < 0.5) setTimeout(() => { if (R.active && !R.over && R.phase === 'ring') pol.trigger('wreck', polInfo()); }, 1800); continue; } // a wreck on the A10 brings blue lights
-      if (hitBox(p.x, p.z, 2.1, 0.9, B.x, B.z, 2.3, 1.0)) { damage(8); ev('crash'); B.v = Math.min(veh.k.vmax, B.v + 2.5); g.cool = 2.4; p.x -= 5; deps.beep(70, 0.16, 'sawtooth', 0.06); }
+      if (!R.up && hitBox(p.x, p.z, 2.1, 0.9, B.x, B.z, 2.3, 1.0)) { damage(8); ev('crash'); B.v = Math.min(veh.k.vmax, B.v + 2.5); g.cool = 2.4; p.x -= 5; deps.beep(70, 0.16, 'sawtooth', 0.06); }
       if (p.x < B.x - 90) p.x = B.x - 50;
     }
     // the snelweg politie: chasing, debating, arresting
@@ -488,11 +555,27 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     if (R.over) return;
     if (!R.lim && !(o.van && o.van.turbo) && vBase * 1.6 > BEGRENZER && sp > BEGRENZER - 1.5) { R.lim = true; deps.toast('BEGRENZER', "155 km/u and the Oofmobiel won't give more: the speed limiter. Garage Mo knows a guy with a turbo.", 3.4); }
     // the afrit: slow down for the car park, or miss it and come back
-    if (B.z > SEDGE + 1 && veh.k.vmax > vBase) Object.assign(veh.k, { vmax: vBase, turn: 1.5, grip: 4.5 });
+    if ((B.z > SEDGE + 1 || B.z < NEDGE - 12.5 || R.up) && veh.k.vmax > vBase) Object.assign(veh.k, { vmax: vBase, turn: 1.5, grip: 4.5 });
+    // up or down: on a ramp or the crossing road outside the snelweg it is up; on the snelweg away from the viaduct it is down;
+    // under or over the viaduct it stays what it was, so the van never pops from one level to the other
+    { const inBand = B.z > NEDGE - 12.5 && B.z < SEDGE + 0.5, inCorr = Math.abs(B.x - XC) < RW2 + 0.8 && B.z > ZJN - 8 && B.z < ZEND + 2;
+      const onRamp = (B.z > SEDGE + 0.5 && nearRamp(RAMP_S, B.x, B.z, 3.2) && B.x > RX0 + 4) || (B.z < NEDGE - 12.5 && nearRamp(RAMP_N, B.x, B.z, 3.2) && B.x > RX0 + 4);
+      const up = inBand ? (inCorr ? R.up : false) : (onRamp || inCorr);
+      if (up !== R.up) setLevel(up);
+      const y = !R.up ? 0 : inCorr ? (B.z <= ZJ + 6 ? UP : UP * (1 - ss((B.z - ZJ - 6) / (ZEND - ZJ - 6)))) : rampY(B.x);
+      van.position.y = y; van.rotation.x = 0;
+      if (!R.west && B.z < NEDGE - 1 && !R.up) { R.west = true; deps.toast('DE ANDERE KANT OP', `Back the other way on the ${R.route.a}. At the knooppunt you can turn round, or call it a day and go home.`, 3.6); const Bu = deps.buurt(); if (Bu) Bu.setPoint(TURN_X, NEDGE - 6.5, 'knooppunt'); }
+      if (R.west && B.z > NEDGE + 0.5) { R.west = false; const Bu = deps.buurt(); if (Bu) Bu.setPoint(PARK.x, PARK.z, o.to); }
+      if (R.west && !R.asking && B.x < TURN_X) { R.asking = true; B.v = 0;
+        deps.choice('Knooppunt', `${R.route.a}, the other way. Turn round and try afrit ${R.route.afrit} again, or give up and drive home?`, [`Turn round to ${o.to}`, 'Go home'], (i) => {
+          if (i === 1) { finish(false, 'OMGEKEERD', `You turned round and drove home. ${o.to} will have to wait.`); return; }
+          fadeTo(() => { R.t += 15; R.west = false; R.asking = false; setLevel(false); B.x = X0 + EXIT0 - 300; B.z = Z0 + LW; B.h = Math.PI / 2; B.v = 18; Object.assign(veh.k, { vmax: hwTop(), turn: 0.95, grip: 9 }); pol.shift(B.x - TURN_X); const Bu = deps.buurt(); if (Bu) Bu.setPoint(PARK.x, PARK.z, o.to); deps.toast('GEKEERD', `Round the knooppunt and back on the ${R.route.a}: 15 seconds. Afrit ${R.route.afrit}, on the right.`, 3); deps.snapCam(); }); }); }
+      if (R.west && veh.k.vmax < hwTop() && B.z > NEDGE - 12 && B.z < NEDGE - 1) Object.assign(veh.k, { vmax: hwTop(), turn: 0.95, grip: 9 }); // back on a carriageway: top gear again
+    }
     if (B.x > X0 + LEN + 12 && B.z < SEDGE) { R.t += 25; pol.shift(X0 + EXIT0 - 260 - B.x); B.x = X0 + EXIT0 - 260; if (!pol.on) { B.z = Z0 + LW; B.v = 20; } deps.toast('AFRIT GEMIST', `That was afrit ${R.route.afrit}. The next one and back: 25 seconds gone.`, 3); deps.snapCam(); }
     ring.material.opacity = 0.6 + Math.sin(R.t * 5) * 0.25;
-    if (Math.hypot(B.x - PARK.x, B.z - PARK.z) < 3.6 && sp < 2.8) { if (!pol.close(B)) { finish(true); return; } if (!R.parkWarn) { R.parkWarn = true; deps.toast('NIET NU', 'Park with the politie right behind you? Shake them off first.', 2.6); } }
+    if (Math.hypot(B.x - PARK.x, B.z - PARK.z) < 4.2 && sp < 9) { if (!pol.close(B)) { finish(true); return; } if (!R.parkWarn) { R.parkWarn = true; deps.toast('NIET NU', 'Park with the politie right behind you? Shake them off first.', 2.6); } }
     hud();
   }
-  return { pol, traffic: cars, honked, cams, start, stop, update, crash, giveUp, get active() { return R.active; }, get phase() { return R.phase; }, get run() { return R; }, vehicle: () => veh, X0, Z0, LEN, PAR, PARK, ROUTES };
+  return { RAMP: { XC, ZJ, ZJN, UP, TURN_X, RX0, RZS, RZN }, pol, traffic: cars, honked, cams, start, stop, update, crash, giveUp, get active() { return R.active; }, get phase() { return R.phase; }, get run() { return R; }, vehicle: () => veh, X0, Z0, LEN, PAR, PARK, ROUTES };
 }
