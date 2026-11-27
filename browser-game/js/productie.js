@@ -36,6 +36,7 @@ export function createProductie(deps) {
   // De Hal's line (Tristan 2026-11-23: scale up in the warehouse): the mixer and the packing stand on the hall floor, the heftruck sets
   // pallets of vaten on the two AANVOER places by the mixer, full pallets of bags go from the UIT place to the three by the dock
   const SITE = { shed: { mx: -2.4, mz: -15.5, px: 0.3, pz: -8.3 }, hall: { mx: HX - 1.0, mz: HZ + 0.3, px: HX + 3.0, pz: HZ + 1.2 } };
+  const SITE_DEF = JSON.parse(JSON.stringify(SITE)); // where Gerrit's crew put them; Eddy can move them (js/inrichten.js)
   const AISLE = HZ - 3.05; // the heftruck's lane in front of the racking
   const FEED_SPOTS = [-3.3, -4.6].map((x) => ({ x: HX + x, z: HZ - 0.5, ry: 0, levels: 1, sx: 0, sz: 1.0, stop: { x: HX + x, z: HZ - 2.4, h: 0, back: { x: HX + x, z: AISLE } } }));
   const OUT_SPOT = { x: HX + 3.0, z: HZ - 1.0, ry: Math.PI / 2, levels: 1, sx: -0.95, sz: 0, stop: { x: HX + 3.0, z: HZ - 2.9, h: 0, back: { x: HX + 3.0, z: AISLE } } };
@@ -501,6 +502,12 @@ export function createProductie(deps) {
     }
   }
   let slow = 0, shown = -1, wasTable = null, wasMach = null, wasHall = null, run = 0;
+  // ---- Inrichten (js/inrichten.js): the mixer and the packing stand where Eddy puts them
+  // these move (into De Hal, or wherever Eddy puts them): js/main.js whCull must not file them under the shed's interior
+  for (const o of [...mixers, table, mach, dustMix, dustPack, hazard, board, chains]) o.userData.mobile = true;
+  function setSite(room, o) { Object.assign(SITE[room], o); wasTable = null; update(0); }
+  const footprint = () => { const t = TIER[tier()]; return { mixer: [-t.rx, t.rx, -t.rz, t.rz], pack: machine() ? [-0.55, 0.5, -1.15, 1.0] : [-0.5, 0.5, -0.85, 0.85] }; };
+  const standPts = () => ({ mixer: [pourAt(), scoopAt()], pack: machine() ? [{ x: PX - 1.05, z: PZ + 0.55 }, { x: PX - 0.95, z: PZ - 0.9 }] : [{ x: PX - 0.95, z: PZ }] });
   function update(dt) {
     const on = !!state.table, tr = tier(), mc = machine(), hl = inHall();
     if (on !== wasTable || tr !== shown || mc !== wasMach || hl !== wasHall) {
@@ -530,5 +537,5 @@ export function createProductie(deps) {
     for (let i = streams.length - 1; i >= 0; i--) { const s = streams[i]; s.t -= dt; s.m.material.opacity = 0.85 * Math.min(1, s.t / 0.3); if (s.t <= 0) { scene.remove(s.m); s.m.material.dispose(); streams.splice(i, 1); } }
     if (hold) held.position.y = 1.0 + Math.sin(performance.now() * 0.008) * 0.012;
   }
-  return { rackLoads: () => rackQ, dressPallet, setHaul: (ids) => { haulIds = ids && ids.length ? ids.slice() : []; }, makeBag, floorKg, jobs, FEED_SPOTS, OUT_SPOT, UIT_SPOTS, update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
+  return { SITE, SITE_DEF, setSite, footprint, standPts, lineSols: () => ({ mixer: mixSol, pack: [packSol, machSol] }), inHall, scoopAt, rackLoads: () => rackQ, dressPallet, setHaul: (ids) => { haulIds = ids && ids.length ? ids.slice() : []; }, makeBag, floorKg, jobs, FEED_SPOTS, OUT_SPOT, UIT_SPOTS, update, stations, carry, helpKg, target, lineBusy, layout, state: P, tier, places, holding: () => hold, liftVat, tipVat, fillBag, stackBag, vatSpots, outSpot, standAt, TIER, pourAt, SHED_SPOTS };
 }

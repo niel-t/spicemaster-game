@@ -51,6 +51,7 @@ import { createGuide, lessons, GUIDE_TIPS } from './guide.js'; // Shooki's click
 import { createLoods } from './loods.js'; // De Loods: timed warehouse upgrades, racking, the heftruck, the hall and the tent
 import { createSollicitanten, naknikLook, drawFace, feeOf } from './sollicitanten.js'; // the Uitzendbureau: pick your Naknikim one by one
 import { createProductie } from './productie.js'; // the production line: pallets of vaten, the mixer, blue bags
+import { createInrichten } from './inrichten.js'; // Eddy places the bought machines himself: a shorter walk, more kilos
 import { createNaknikWork } from './naknikwork.js'; // the Naknikim at work: stirring, carrying sacks, racking, the kruidenketel
 import { createMedia } from './kaasmedia.js'; // Kaasdows Mediaspeler: original live-generated desktop music
 import { createKaasweer } from './kaasweer.js';
@@ -71,6 +72,7 @@ let johan = null; // js/johan.js, set up after De Loods
 let venues = null; // js/venues.js: Club Monique and Tryshtahn Auto
 let prod = null, solli = null; // js/productie.js, js/sollicitanten.js
 let work = null; // js/naknikwork.js, set up after De Loods
+let inricht = null; // js/inrichten.js
 let buurt = null, bfolk = null, regulars = null; // js/buurt.js, js/buurtfolk.js, js/regulars.js
 const streetHouses = []; // the houses on the street rows, for the buurtkaart
 let stats = null, stam = null, klok = null, politie = null; // js/stats.js, js/stamklanten.js, js/klok.js, js/politie.js
@@ -871,6 +873,7 @@ for (let i = 0; i < 2; i++) {
 // wall is for the racking, the back corner is the office, and the Naknikim have lockers. Every upgrade that is not there yet
 // has its outline and its name stencilled on the concrete in white, so Eddy can see where it will stand.
 const whZones = []; // { g, done() }: the outline of something still to come
+const whPaint = {}; // floor paint that moves with its machine
 {
   const K = kit(), Y = 0xf2c31a, WHT = 0xf4f2ec, DADO = 0x3f8f86;
   const liner = (KK) => (x0, z0, x1, z1, c = Y, w = 0.09) => KK.box(Math.abs(x1 - x0) + w, 0.012, Math.abs(z1 - z0) + w, c, (x0 + x1) / 2, 0.042, (z0 + z1) / 2);
@@ -884,9 +887,10 @@ const whZones = []; // { g, done() }: the outline of something still to come
   // OPSLAG: the pallet places along the east wall
   rect(-1.2, -15.8, WH.x1 - 0.25, -9.15, Y); stencil('OPSLAG', -1.62, -12.45, 2.6, '#f2c31a', wh, Math.PI / 2);
   // MENGERIJ: the mixer at the back
-  rect(-4.15, -17.0, -1.38, -14.25, 0xe8862c); stencil('MENGERIJ', -2.76, -13.9, 2.4, '#e8862c');
+  // (the MENGERIJ and INPAK paint are their own groups: they go along when Eddy moves the mixer or the packing, js/inrichten.js)
+  for (const [k, fn] of [['mixer', (r, st, g) => { r(-4.15, -17.0, -1.38, -14.25, 0xe8862c); st('MENGERIJ', -2.76, -13.9, 2.4, '#e8862c', g); }], ['pack', (r, st, g) => { r(-1.55, -9.0, WH.x1 - 0.25, -7.4, 0x3aa0ff); st('INPAK', -2.2, -8.2, 1.4, '#3aa0ff', g, Math.PI / 2); }]]) {
+    const g = new THREE.Group(), PK = kit(); wh.add(g); fn(rectOf(liner(PK)), stencil, g); const m = PK.build(); if (m) g.add(m); whPaint[k] = g; }
   // INPAK: bagging by the door, so the bags leave the way the vaten came
-  rect(-1.55, -9.0, WH.x1 - 0.25, -7.4, 0x3aa0ff); stencil('INPAK', -2.2, -8.2, 1.4, '#3aa0ff', wh, Math.PI / 2);
   // KANTOOR: the desk in the back corner on Oma's kilim, a pin board and a clock over it
   K.box(3.6, 0.02, 2.3, 0x9a2a2a, -8.8, 0.04, -19.45); K.box(3.2, 0.022, 1.9, 0xc8a05a, -8.8, 0.041, -19.45); K.box(2.6, 0.024, 1.3, 0x7a1f24, -8.8, 0.042, -19.45); for (const dx of [-1.0, 0, 1.0]) K.box(0.5, 0.026, 0.5, 0xe8d8b0, -8.8 + dx, 0.043, -19.45, Math.PI / 4);
   stencil('KANTOOR', -8.8, -18.05, 2.2);
@@ -2135,7 +2139,7 @@ const whIn = []; let whScan = 0, whHidden = false; const whBox = new THREE.Box3(
 function whLayer(o, hide) { o.traverse((c) => { if (!c.isLight) c.layers.set(hide ? 1 : 0); }); } // lights stay: a light dropping out changes the light count, and every material in the street would recompile
 function whCull(inside) {
   for (let k = 0; k < 30 && whScan < scene.children.length; k++, whScan++) { // sort the scene out a few objects a frame (and whatever is added later)
-    const o = scene.children[whScan]; if (o.isLight || o.isCamera || o === player || o === dad) continue;
+    const o = scene.children[whScan]; if (o.isLight || o.isCamera || o === player || o === dad || o.userData.mobile) continue; // (mobile: the production line, js/productie.js)
     let skinned = false; o.traverse((c) => { if (c.isSkinnedMesh || c.isInstancedMesh) skinned = true; }); if (skinned) continue;
     whBox.setFromObject(o); if (whBox.isEmpty()) continue;
     const b = whBox, within = b.min.x > WH.x0 + 0.15 && b.max.x < WH.x1 - 0.15 && b.min.z > WH.z0 + 0.15 && b.max.z < WH.z1 - 0.3 && b.max.y < WH.h - 0.15;
@@ -2214,7 +2218,7 @@ function skipHiddenMatrices() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Freddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['koffie', 'vaste', 'introSeen', 'spoed', 'goed', 'step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag', 'seenTabs', 'klok', 'stats', 'stam',
+const SAVE_FIELDS = ['inricht', 'koffie', 'vaste', 'introSeen', 'spoed', 'goed', 'step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag', 'seenTabs', 'klok', 'stats', 'stam',
   // never saved before 2026-11-26 although their modules said so: gun shop buys, the weather and paper, Johan, the club, the buurt
   'mods', 'upg', 'nades', 'nadeSel', 'spares', 'gear', 'ruStock', 'weer', 'johan', 'club', 'dealer', 'buurt'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
@@ -3391,6 +3395,7 @@ function tick() {
   { const P_ = player.position; // the song restyles inside some buildings (js/music.js setStyle), and goes back to the street version outside
     music.setStyle(mOn || tripOn() ? null : venues && venues.inClub(P_) ? 'disco' : venues && venues.inShow(P_) ? 'bollywood' : isInShop(P_) ? 'russian' : isInJoint(P_) ? 'arabic' : null); }
   if (prod && !mOn) prod.update(dt);
+  if (inricht) { inricht.tick(); inricht.update(); }
   ui.income.textContent = state.naknik || econ.helpKg() ? `${state.naknik ? `${state.naknik} Naknik${state.naknik === 1 ? '' : 'im'}` : 'Your own hands'} · mixing ${econ.dayKg()} kg a market day` : ''; // (the old W 30 / 6 sec timer is gone)
   // money counter
   if (state.shown !== state.money) { const d = state.money - state.shown; state.shown += Math.sign(d) * Math.max(1, Math.ceil(Math.abs(d) * dt * 4)); if (Math.sign(state.money - state.shown) !== Math.sign(d)) state.shown = state.money; }
@@ -3443,6 +3448,7 @@ function tick() {
   if (state.step === 'title') { const tt = performance.now() * 0.001; camPos.set(-14 + Math.sin(tt * 0.045) * 16, 5.2 + Math.sin(tt * 0.11) * 0.6, 7.5); camLook.set(camPos.x * 0.85 + 2, 1.6, -7); }
   else if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
   else camLook.lerp(lookAt, Math.min(1, dt * 6));
+  if (inricht && inricht.active()) { const ic = inricht.cam(); camPos.copy(ic.pos); camLook.copy(ic.look); } // (the plan view holds still: dragging needs a steady floor)
   camera.position.copy(camPos); camera.lookAt(camLook);
   if (sun.shadow.autoUpdate || (++shadowTick & 1)) { sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position); sun.shadow.needsUpdate = true; } // (the light only moves when its map is redrawn, so shadows never swim)
   if (aeroWorld) aeroWorld.tick(dt);
@@ -3534,7 +3540,7 @@ function afterDrive(res) {
 }
 deviceHints();
 npcs = initNpcs({ tutorial, THREE, scene, makePerson: (o) => makePS2Person(lookFromPerson(o, HEADS), { scale: o.scale, scene }), addInteract, dialogue, choice, toast, state, econ, player, addMoney, animate, solid, owns, mission, sit, rankOf, save: () => writeSave(), debrief: (w) => !!(activists && activists.debrief(w)) });
-loods = createLoods({ forkExtra: (t, F) => (johan ? johan.forkExtra(t, F) : null), floorKg: () => (prod ? prod.floorKg() : null), rackLoads: () => (prod ? prod.rackLoads() : null), dressPallet: (g, l) => prod && prod.dressPallet(g, l), tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
+loods = createLoods({ forkExtra: (t, F) => (johan ? johan.forkExtra(t, F) : null), layoutEff: () => (inricht ? inricht.eff() : 1), floorKg: () => (prod ? prod.floorKg() : null), rackLoads: () => (prod ? prod.rackLoads() : null), dressPallet: (g, l) => prod && prod.dressPallet(g, l), tip: (k) => tips.show(k), makeDriver: () => makePerson({ ps2: LOOKS.naknik, headKind: 'nak', shirt: 0xec7d2c, front: 'nak', pants: 0xc45e1a, shoes: 0x3a2a1a, belly: 0.8, skin: 0xe8b890, scale: 0.68, rolled: true }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, collide, addInteract, player, state, econ, rank: rankNow, addMoney, toast, beep, keys, virt, glyph,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), shutter,
   junkDone: () => state.sold.size === junkDefs.length, inWarehouse: () => isInside(player.position), blocked: () => mission.active || tripOn(),
   away: () => mission.active || tripOn(), frozen: () => state.inDialogue || state.inPC || choiceOpen || !!(phone && phone.isOpen),
@@ -3571,6 +3577,17 @@ work = createNaknikWork({ carry: prod.carry, lineBusy: () => prod.lineBusy(), pa
     }
     return out;
   } });
+// Inrichten (js/inrichten.js): E at the pin board in the kantoor, or under the board in De Hal
+inricht = createInrichten({ THREE, scene, camera, canvas, state, prod, loods, work, solids, player, toast, beep, save: () => writeSave(), paint: whPaint, snapCam: () => window.__sme.snapCam(),
+  shedRect: { x0: WH.x0, x1: WH.x1, z0: WH.z0, z1: WH.z1 }, hallRect: () => { const [hx, hz] = loods.hallAt, H = loods.HALL; return { x0: hx + H.x0, x1: hx + H.x1, z0: hz + H.z0, z1: hz + H.z1 }; },
+  door: (room) => (room === 'hall' ? { x: -4.6, z: loods.hallAt[1] + loods.HALL.z1 - 0.9 } : { x: (WH.doorX0 + WH.doorX1) / 2, z: WH.z1 - 0.7 }),
+  mustReach: (room) => {
+    const st = (sp) => prod.standAt(sp), homes = naknikim.filter((n) => n.userData.target && (room === 'shed' ? n.userData.target.z > WH.z0 : n.userData.target.z < WH.z0 && n.userData.target.x > -11)).map((n) => ({ x: n.userData.target.x, z: n.userData.target.z }));
+    if (room === 'hall') { const r = [...prod.FEED_SPOTS.map(st), st(prod.OUT_SPOT), ...prod.UIT_SPOTS.map(st), { x: 10, z: -26.6 }, ...homes]; const L = loods.ensure(); for (let i = 1; i < Math.min(L.racks, 7); i++) { const f = loods.bays[i].front; r.push({ x: f.x, z: f.z + 1.3 }); } return r; }
+    const r = [{ x: -8.8, z: -17.9 }, { x: 0.3, z: -16.6 }, ...homes]; if (state.table) r.push(...prod.SHED_SPOTS.map(st), { x: -8.45, z: -12.9 }); if (loods.has('hal')) r.push({ x: -4.6, z: WH.z0 + 0.7 }); return r; } });
+addInteract({ pos: () => (inricht.active() ? new THREE.Vector3(0, -99, 0) : loods.inside() ? new THREE.Vector3(loods.hallAt[0] + 1.0, 0, loods.hallAt[1] - 1.6) : new THREE.Vector3(-9.1, 0, WH.z0 + 1.0)), r: 1.3,
+  enabled: () => !inricht.active() && (loods.inside() || isInside(player.position)) && !state.inDialogue && inricht.PIECES.some((q) => q.here(loods.inside() ? 'hall' : 'shed')),
+  label: () => `Inrichten · place the machines (${Math.round((inricht.eff() - 1) * 100) >= 0 ? '+' : ''}${Math.round((inricht.eff() - 1) * 100)}% kilos)`, act: () => inricht.open(loods.inside() ? 'hall' : 'shed') });
 woning = createWoning({ paper: { ok: () => UNLOCK.krant.ok(), unread: () => world.unread(), open: () => openPC('krant') }, placeKluis: (x, z) => mission.placeKluis(x, z), endDay: () => endDay(), hokDoor: (open) => { hokDoorSolid.off = open; hokDoor.leaf.visible = !open; hokDoor.pl.material.map = open ? hokDoor.plOpen : hokDoor.plShut; hokDoor.pl.material.needsUpdate = true; },
   vanStand: () => ({ x: oof.position.x, z: oof.position.z + 1.9 }), THREE, scene, box, cyl, lam, canvasTex, signTex, solid, solids, addInteract, player, state, econ, rankOf, addMoney, toast, dialogue, choice, beep, music, repaint,
   save: () => writeSave(), setBounds: (b) => { BOUNDS.cur = b; }, openPC: (tab) => openPC(tab), doors: HOME_DOORS,
@@ -3730,7 +3747,7 @@ spoed = createSpoed({ THREE, scene, player, state, econ, klok, kit, lam, signTex
 leven = createStraatLeven({ THREE, scene, player, solid, low: IS_PHONE, makeCar: (o) => makeCar(THREE, canvasTex, { ...o, rand: crand }), passerBy: (seed) => passerBy(seed), animate: (p, v, dt) => animate(p, v, dt),
   eddy: () => (fiets && fiets.current ? { x: fiets.state.x, z: fiets.state.z, r: 1.6 } : { x: player.position.x, z: player.position.z, r: 0.4 }) });
 const KOMIJN = [{ x0: -334, x1: 214, lanes: [-54.5, -51.5], walks: [-59.3, -48.8], rings: CROSS.map((x) => ({ x, z: ROT_Z })), ring: KOMIJN_RING }]; // js/roam.js BZ, and its rotondes
-window.__sme = { get regulars() { return regulars; }, get spoed() { return spoed; }, get wijk() { return wijk; }, get goederen() { return goederen; }, get pahuis() { return pahuis; }, get freddy() { return freddy; }, get leven() { return leven; }, get stats() { return stats; }, get stam() { return stam; }, get klok() { return klok; }, get politie() { return politie; }, get roam() { return roam; }, get hub() { return hub; }, get vandaag() { return vandaag; }, get brep() { return brep; }, get winkels() { return winkels; }, get bills() { return bills; }, get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
+window.__sme = { get inricht() { return inricht; }, get regulars() { return regulars; }, get spoed() { return spoed; }, get wijk() { return wijk; }, get goederen() { return goederen; }, get pahuis() { return pahuis; }, get freddy() { return freddy; }, get leven() { return leven; }, get stats() { return stats; }, get stam() { return stam; }, get klok() { return klok; }, get politie() { return politie; }, get roam() { return roam; }, get hub() { return hub; }, get vandaag() { return vandaag; }, get brep() { return brep; }, get winkels() { return winkels; }, get bills() { return bills; }, get buurt() { return buurt; }, get bfolk() { return bfolk; }, get world() { return world; }, get venues() { return venues; }, get johan() { return johan; }, get loods() { return loods; }, get fiets() { return fiets; }, get guide() { return guide; }, score, media, get work() { return work; }, get prod() { return prod; }, get solli() { return solli; }, tips, tutorial, kangoo, woning, HOME_DOORS, snapCam: () => { camPos.copy(player.position).add(new THREE.Vector3(0, 12.5 * zoom, 6 * zoom)); camLook.copy(player.position).setY(0.8); }, startNewGamePlus, charStats, post, startLevel, startDrive, oofDrive, own: ownTerritories, checkDistrict, LEVELS: mission.LEVELS, writeSave, readSave, solids, clearSave, SAVE_KEY, scene, camera, renderer, makeBike, mission, BOUNDS,  clearPlayerSplats, playerSplats, nabil, schmatzel, talkNabil, talkSchmatzel, openJointDoor, JS, giveMaboota, equip, swing, spawnOfficer, officers, gulls, ducks, knock, bump, say, traffic, cyclists, walkers, openShopDoor, PS, oof, talkRussian, russian, openShop, paintHead, HEADS, setZoom: (z) => { zoom = z; }, dad, player, state, junkDefs, loods, talkDad, openPC, closePC, nextLine, sellItem, buyTable, hireNaknik, econ, ws, garage, crew, heists, siegeOver, naknikim, talkNaknik, oof, gulls, get inspector() { return inspector; }, law, razimVisit, get razim() { return razim; }, get razimM() { return razimM; }, get npcs() { return npcs; }, get freddy() { return freddy; }, get activists() { return activists; }, get phone() { return phone; }, folk, folkCtx, balloons, dialogue };
 aeroWorld = createAeroWorld({ THREE, scene, renderer, hemi, sun, water, post, busy: () => mission.active });
 fiets = createFiets({ talkedAt: () => dlgClosedAt, honk: () => { claxon(); if (oofDrive.active) oofDrive.honked(); }, onBorrow: (v) => { v.obj.userData.moved = true; if (v.solid) v.solid.moved = true; if (v.kind === 'car') { stats.add('borrowed'); politie.witness('theft', v.obj.position.x, v.obj.position.z); } },
   onMove: (v, d, sp) => { stats.add(v.kind === 'car' ? 'driven' : 'biked', d); if (sp > 3.5) { const R = v.kind === 'car' ? 1.5 : 0.8, fx = Math.sin(player.rotation.y), fz = Math.cos(player.rotation.y); for (const w of walkers) { if (!w.visible || w.userData.down > 0 || (w.userData.walk && w.userData.walk.home)) continue; if (Math.hypot(w.position.x - player.position.x, w.position.z - player.position.z) < R) { hitStreetPerson(w, { x: fx, z: fz }); politie.witness('hit', w.position.x, w.position.z); } } } },

@@ -61,7 +61,7 @@ export function createLoods(deps) {
   const rackCost = () => 600 + 350 * ensure().racks;
   const naknikCap = () => 3 + (has('tafel2') ? 2 : 0) + (has('tent') ? 2 : 0);
   function boost() {
-    return { cap: (has('hal') ? 100 : 0) + (has('tent') ? 200 : 0) + ensure().racks * RACK_KG + (has('voorrek') ? RACK_KG : 0), mix: (has('menger3') ? 3 : has('menger2') ? 2 : has('menger1') ? 1.5 : 1) + (has('inpak') ? 0.5 : 0), care: has('menger2') ? 0.5 : 1, q: has('molen') ? 0.5 : 0, sell: has('dock') ? 40 : 0, keep: has('roldeur') ? 0.5 : 1 };
+    return { cap: (has('hal') ? 100 : 0) + (has('tent') ? 200 : 0) + ensure().racks * RACK_KG + (has('voorrek') ? RACK_KG : 0), mix: ((has('menger3') ? 3 : has('menger2') ? 2 : has('menger1') ? 1.5 : 1) + (has('inpak') ? 0.5 : 0)) * (deps.layoutEff ? deps.layoutEff() : 1), /* x how short Eddy's layout makes the walk (js/inrichten.js) */ care: has('menger2') ? 0.5 : 1, q: has('molen') ? 0.5 : 0, sell: has('dock') ? 40 : 0, keep: has('roldeur') ? 0.5 : 1 };
   }
 
   // ================================================================== shared props
@@ -241,6 +241,8 @@ export function createLoods(deps) {
     box(0.25, 0.2, 0.3, mt(C.turmeric), 0.62, 0.95, 0, mill);
   }
   const shedSol = { menger: solid(-4.15, -2.25, -15.25, -14.2), mill: solid(-6.9, -5.7, -15.4, -14.4) }; shedSol.menger.off = shedSol.mill.off = true;
+  const MILL_DEF = [-6.3, -14.9];
+  function setMill(x, z) { mill.position.set(x, 0, z); Object.assign(shedSol.mill, { minx: x - 0.6, maxx: x + 0.6, minz: z - 0.5, maxz: z + 0.5 }); } // Inrichten (js/inrichten.js)
   const cam = new THREE.Group(); cam.position.set(-7.4, 4.3, -7.35); cam.visible = false; scene.add(cam);
   { box(0.12, 0.12, 0.3, mt(0xe8e4dc), 0, 0, 0.1, cam, false); box(0.06, 0.06, 0.06, mt(0xff2020, { emissive: 0xc00000 }), 0, 0.05, 0.27, cam, false); }
   function table(x, z, parent) { // a second (and third) mixing table, with sacks
@@ -635,13 +637,13 @@ export function createLoods(deps) {
     if (has('tent')) for (const k of [1, 4, 7]) { const x = HX + TENT.x0 + 0.9, z = HZ + TENT.z0 + 3.4 + k * 1.2; out.push({ key: `zwart${k}`, kind: 'pallet', area: 'tent', x: x + 1.15, z, fx: x, fz: z, h: 'mid', grab: true }); }
     for (const [t, ar] of [[table2, 'hall'], [table3, 'tent']]) if (t.visible) { const x = HX + t.position.x - 1.62, z = HZ + t.position.z - 0.9; out.push({ key: `pile${ar}`, kind: 'pile', area: ar, x: x - 0.85, z, fx: x, fz: z, h: 'floor', grab: true }); }
     if (mixer1.visible || mixer2.visible) out.push({ key: 'menger', kind: 'machine', area: 'shed', x: -3.2, z: -15.75, fx: -3.2, fz: -14.7, h: 'pour', pour: true, ty: 1.6 });
-    if (mill.visible) out.push({ key: 'molen', kind: 'machine', area: 'shed', x: -6.3, z: -15.9, fx: -6.3, fz: -14.9, h: 'pour', pour: true, ty: 1.6 });
+    if (mill.visible) out.push({ key: 'molen', kind: 'machine', area: 'shed', x: mill.position.x, z: mill.position.z - 1.0, fx: mill.position.x, fz: mill.position.z, h: 'pour', pour: true, ty: 1.6 });
     return out;
   }
 
   apply();
   return {
-    workRooms, workStations, hallAt: [HX, HZ], forkJob, rackPick,
+    setMill, MILL_DEF, millSol: () => shedSol.mill, millAt: () => [mill.position.x, mill.position.z], HALL, workRooms, workStations, hallAt: [HX, HZ], forkJob, rackPick,
     UPGRADES, ensure, boost, has, stage, naknikCap, html, bind, update, apply, order, finish, buyDeal, rollDeals, enterHall, leaveHall, getOn, getOff, forkAction,
     inside: () => inHall, driving: () => F.drive, fork: F, auto: A, nightShift, spots: () => SPOTS, bays, refreshSlots,
     camFocus: (p) => p.clone(), loaded: () => { F.drive = false; F.carry = null; carried.visible = false; apply(); },
