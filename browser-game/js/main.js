@@ -2904,7 +2904,7 @@ function updateInspector(dt) {
 // ================================================================== THE MABOOTA IN PUBLIC (js/maboota.js)
 // Out on the street people notice a drawn truncheon and call it in; Wijkagent Bakker comes by the next morning.
 const law = createMabootaLaw({ callMult: () => brep.callMult(), pardon: () => brep.pardon(), onReport: (how) => { if (politie && how !== 'search' && state.cops && state.cops.reports.filter((r) => r.day === econ.ensure().day).length >= 3) politie.witness('maboota', player.position.x, player.position.z); return brep.add('kade', how === 'search' ? -6 : how === 'hit' ? -5 : -3, how === 'search' ? 'a huiszoeking at your warehouse' : how === 'hit' ? 'hit someone with the Maboota' : 'waving the Maboota around'); }, state, walkers, player, personBubble, toast, beep, econ, tips, dialogue, choice, addMoney, equip, scene, animate,
-  isPublic: () => state.step !== 'title' && !(mission && mission.active) && !tripOn() && !(woning && woning.inside()) && !(winkels && winkels.inside()) && !isInside(player.position) && !(venues && venues.inside()),
+  isPublic: () => !(activists && activists.heat()) && state.step !== 'title' && !(mission && mission.active) && !tripOn() && !(woning && woning.inside()) && !(winkels && winkels.inside()) && !isInside(player.position) && !(venues && venues.inside()),
   atHome: () => !!(woning && woning.inside()),
   busy: () => choiceOpen || !!inspector || !!(mission && mission.active) || tripOn() || !!(phone && phone.isOpen) || isPaused(),
   touch: () => document.body.classList.contains('touch'),

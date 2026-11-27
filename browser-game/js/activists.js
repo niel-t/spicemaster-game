@@ -103,6 +103,9 @@ const HIT_EDDY = ['Dit is voor de planeet!', 'En DIE is voor mijn bril!', 'Voel 
 const KO_ACT = ['Ik... ik ga even liggen. Principieel.', 'Bel... mijn vader...', 'Ik film dit... vanaf de grond...', 'Dit komt in de nieuwsbrief...'];
 const WON = ['WIJ HEBBEN GEWONNEN! ...Waarvan?', 'DE STRAAT IS VAN ONS!', 'EEN OVERWINNING VOOR DE WERKGROEP!'];
 const EDDY_OUCH = ['Au! Godver!', 'Mijn rug!', 'Niet het gezicht!', 'Kut, die megafoon is hard!', 'איי! בן זונה!'];
+const FILM = ['Ik film ALLES!', 'Dit gaat live!', 'Lach eens naar de camera, kruidenbaas!', 'Bewijs! Dit is BEWIJS!', 'Veertig slides worden dit!', 'Staat hij erop? Hij staat erop!'];
+const FILM_BY = ['Niet slaan, ik film alleen maar!', 'Dit geloof je toch niet. Wacht, ik zet hem op groot.', 'Voor de buurtapp!', 'Jongens moet je kijken!'];
+const PHONE_GONE = ['MIJN TELEFOON!', 'Die was nieuw!', 'Het scherm! HET SCHERM!', 'Hij heeft hem in de gracht geslagen!', 'Ik had hem nog niet geback-upt!'];
 const BOO = ['SCHANDE!', 'BOE!', 'WIJ ZIEN JE!', 'DIT GAAT ONLINE!', 'TEGEN! TEGEN!'];
 
 // ---------- what Pa, Shooki and Razim make of it ----------
@@ -305,7 +308,7 @@ export function createActivists(d) {
   // speech balloons fade on their own clock here (the street loop only ticks its walkers)
   function tickB(o, dt) { const b = o.userData.bubble, u = b && b.userData; if (u && u.life > 0 && (u.life -= dt) <= 0) b.visible = false; }
   function update(dt) {
-    tickB(player, dt); for (const c of CREWS) for (const p of c.ppl) tickB(p, dt);
+    tickB(player, dt); for (const c of CREWS) for (const p of c.ppl) tickB(p, dt); for (const w of watchers) tickB(w, dt); if (cop) tickB(cop, dt); copTick(dt);
     if (d.ready()) roll();
     const s = A();
     // smacked off the pavement (Tristan 2026-11-22): they come back later the same day, louder
@@ -424,9 +427,10 @@ export function createActivists(d) {
   // melee(f): Eddy swings in the hub; true when the Maboota connected with a protester
   function melee(f) {
     if (!root.visible || (scat > 0 && !brawl)) return false;
-    let hit = null;
-    for (const q of ppl) { if (brawl && q.userData.fight && q.userData.fight.hp <= 0) continue; const w = q.getWorldPosition(new THREE.Vector3()), dx = w.x - player.position.x, dz = w.z - player.position.z, L = Math.hypot(dx, dz); if (L < 1.7 && (dx * f.x + dz * f.z) / (L || 1) > 0.25) { hit = q; break; } }
+    let hit = null, best = 1e9;
+    for (const q of (brawl ? [...ppl, ...watchers] : ppl)) { if (brawl && (!q.visible || (q.userData.fight && q.userData.fight.hp <= 0))) continue; const w = q.getWorldPosition(new THREE.Vector3()), dx = w.x - player.position.x, dz = w.z - player.position.z, L = Math.hypot(dx, dz); const dot = (dx * f.x + dz * f.z) / (L || 1), sc = L - dot * 1.4 - (q.userData.fight && q.userData.fight.film ? 0.25 : 0); if (L < 1.7 && dot > 0.25 && sc < best) { best = sc; hit = q; } } // the one Eddy is facing (a raised phone draws the eye)
     if (!hit) return false;
+    lastHit = performance.now();
     const s = A(), g = G(), u = hit.userData;
     if (brawl) { punch(hit, g); return true; }
     if ((s.smacks | 0) >= 2) { s.smacks = (s.smacks | 0) + 1; s.calmDay = s.day; startBrawl('eddy'); punch(hit, g); return true; }
@@ -442,20 +446,33 @@ export function createActivists(d) {
   // ---------- the brawl (Tristan 2026-11-27): after two smacks they stop running. Two of them come at Eddy at a time with
   // the megaphone, a placard and a tote bag; the others shout from behind. Two hits put an activist down for good, eight put
   // Eddy on the stones. Running inside ends it at his door. Afterwards somebody has to answer for it: see aftermath().
-  let brawl = null;
+  let brawl = null, lastHit = -1e9;
+  const heat = () => !!brawl || performance.now() - lastHit < 25000 || !!copJob; // the fight and its aftermath are settled here, by what was filmed (js/maboota.js stays out of it)
   const EDDY_HP = 8;
+  // Evidence (Tristan 2026-11-27): Wijkagent Bakker can only write up what somebody filmed. The two protesters at the back
+  // hold their phones up, and so do two people from the street who stop to watch. One smack and a phone is in the gutter.
+  // Whatever is still filming when the fight ends is the footage Bakker gets to see.
+  const phoneGeo = new THREE.BoxGeometry(0.075, 0.15, 0.012), phoneM = lam({ color: 0x14161a }), screenM = new THREE.MeshBasicMaterial({ color: 0x9ad0ff });
+  function phoneFor(q) { let ph = q.userData.phone; if (!ph) { ph = new THREE.Group(); const b0 = new THREE.Mesh(phoneGeo, phoneM), sc = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.12), screenM); sc.position.z = -0.008; sc.rotation.y = Math.PI; ph.add(b0); ph.add(sc); ph.position.set(0.2, 1.52, 0.34); q.add(ph); q.userData.phone = ph; } ph.visible = true; ph.position.set(0.2, 1.52, 0.34); ph.rotation.set(0, 0, 0); return ph; }
+  const watchers = [0, 1].map((i) => { const q = d.passerBy(900 + i * 17); q.visible = false; root.add(q); return q; }); // two people from the street
+  const filming = () => (brawl ? [...ppl, ...watchers].filter((q) => q.userData.fight && q.userData.fight.film).length : 0);
   const hud = document.createElement('div'); hud.style.cssText = 'position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top));transform:translateX(-50%);z-index:60;display:none;padding:6px 14px;border-radius:12px;background:rgba(30,10,10,.82);border:2px solid #ff5a3a;color:#fff;font:700 14px/1.3 Rubik,Arial,sans-serif;text-align:center;pointer-events:none;white-space:nowrap'; document.body.appendChild(hud);
-  function drawHud() { if (!brawl) { hud.style.display = 'none'; return; } const up = ppl.filter((q) => q.userData.fight && q.userData.fight.hp > 0).length; hud.style.display = 'block'; hud.innerHTML = `KNOKPARTIJ &nbsp; Eddy <span style="color:#ffd36b">${'♥'.repeat(Math.max(0, EDDY_HP - brawl.hits))}</span><span style="opacity:.35">${'♥'.repeat(Math.min(EDDY_HP, brawl.hits))}</span> &nbsp;·&nbsp; ${G().tag} <span style="color:#ff7a5a">${'✊'.repeat(up)}</span>`; }
+  function drawHud() { if (!brawl) { hud.style.display = 'none'; return; } const up = ppl.filter((q) => q.userData.fight && q.userData.fight.hp > 0).length, cams = filming(); hud.style.display = 'block'; hud.innerHTML = `KNOKPARTIJ &nbsp; Eddy <span style="color:#ffd36b">${'♥'.repeat(Math.max(0, EDDY_HP - brawl.hits))}</span><span style="opacity:.35">${'♥'.repeat(Math.min(EDDY_HP, brawl.hits))}</span> &nbsp;·&nbsp; ${G().tag} <span style="color:#ff7a5a">${'✊'.repeat(up)}</span> &nbsp;·&nbsp; ${cams ? `<span style="color:#9ad0ff">${'▮'.repeat(cams)} ${cams} filming</span>` : '<span style="color:#8aff9a">nobody filming</span>'}`; }
   function startBrawl(by) {
     const s = A(), g = G(); brawl = { by, hits: 0, t: 0, away: 0 }; scat = 0; follow = 0; flyer.visible = false; fl[3].hands[1] = null;
-    ppl.forEach((q, i) => { q.userData.fight = { hp: 2, cd: 2.0 + i * 0.8, down: 0 }; q.userData.run = null; q.visible = true; });
+    ppl.forEach((q, i) => { q.userData.fight = { hp: 2, cd: 2.0 + i * 0.8, down: 0, film: i >= 2 }; q.userData.run = null; q.visible = true; if (i >= 2) phoneFor(q); else if (q.userData.phone) q.userData.phone.visible = false; });
+    watchers.forEach((q, i) => { q.userData.fight = { hp: 1, cd: 0, down: 0, film: true, by: true, side: i ? 1 : -1, gone: 0 }; q.visible = true; q.position.set((i ? 1 : -1) * (5.2 + i), 0, 2.3); q.rotation.y = 0; phoneFor(q); });
+    setTimeout(() => { if (brawl) personBubble(watchers[0], rnd(FILM_BY), '#9ad0ff', 'omstander'); }, 1200);
     squawk(); setTimeout(squawk, 150); setTimeout(squawk, 300);
     personBubble(horn, rnd(FURY), '#ff2a1a', g.tag);
     toast('KNOKPARTIJ!', by === 'them' ? `The ${g.tag} have had enough of being hit: they come at you. Swing back, or get inside.` : 'This time they do not run. Two hits each, and mind the megaphone.', 4.5);
     beep(196, 0.3, 'sawtooth', 0.06); drawHud(); d.save();
   }
   function punch(hit, g) { // Eddy lands one
-    const f = hit.userData.fight; if (!f || f.hp <= 0) return; f.hp--; f.down = f.hp > 0 ? 1.3 : 99; f.cd = 1.2;
+    const f = hit.userData.fight; if (!f || f.hp <= 0) return;
+    if (f.film) { f.film = false; const ph = hit.userData.phone; if (ph) { ph.position.set(0.5, 0.03, 0.6); ph.rotation.set(Math.PI / 2, 0.6, 0); } setTimeout(() => personBubble(hit, rnd(PHONE_GONE), '#9ad0ff', f.by ? 'omstander' : g.tag), 250); beep(1500, 0.05, 'square', 0.04); setTimeout(() => beep(300, 0.12, 'sawtooth', 0.04), 90); }
+    if (f.by) { f.hp = 0; f.gone = 0.01; beep(90, 0.18, 'square', 0.06); drawHud(); return; } // a bystander: the phone goes, and so does he
+    f.hp--; f.down = f.hp > 0 ? 1.3 : 99; f.cd = 1.2;
     personBubble(hit, f.hp > 0 ? rnd(OUCH_ACT) : rnd(KO_ACT), '#ff7a1a', g.tag);
     beep(90, 0.18, 'square', 0.06); setTimeout(() => beep(60, 0.2, 'sawtooth', 0.05), 50); drawHud();
   }
@@ -479,14 +496,19 @@ export function createActivists(d) {
       } else if (!front && Math.random() < dt * 0.25) personBubble(q, rnd([...BOO, ...ANGRY]), g.col, g.tag);
     });
     for (const q of ppl) if (q.userData.fight.hp <= 0) { const u = q.userData; u.body.rotation.x = -1.5; u.body.position.y = 0.12; }
+    for (const q of watchers) { const f = q.userData.fight; if (!q.visible) continue;
+      if (f.gone > 0) { f.gone += dt; q.position.x += f.side * 4.6 * dt; q.rotation.y = f.side > 0 ? Math.PI / 2 : -Math.PI / 2; animate(q, 4.6, dt); if (f.gone > 2.6) q.visible = false; continue; }
+      const w = q.getWorldPosition(tmpV.clone()); q.rotation.y = Math.atan2(P.x - w.x, P.z - w.z); animate(q, 0, dt); if (Math.random() < dt * 0.14) personBubble(q, rnd(FILM_BY), '#9ad0ff', 'omstander'); }
+    for (const q of ppl) { const f = q.userData.fight; if (f.film && f.hp > 0 && f.down <= 0 && Math.random() < dt * 0.16) personBubble(q, rnd(FILM), '#9ad0ff', g.tag); }
     const far = near() > 30, inside = d.indoors && d.indoors(); B.away = far || inside ? B.away + dt : 0;
     if (!up.length) end('win'); else if (B.hits >= EDDY_HP) end('lose'); else if (B.away > 1.8) end(inside ? 'door' : 'ran');
   }
   function end(how) {
-    const s = A(), g = G(), B = brawl; brawl = null; drawHud();
-    for (const q of ppl) { const u = q.userData; u.fight = null; u.body.rotation.x = 0; u.body.position.y = 0; }
+    const s = A(), g = G(), B = brawl; B.footage = filming(); brawl = null; drawHud();
+    for (const q of ppl) { const u = q.userData; u.fight = null; u.body.rotation.x = 0; u.body.position.y = 0; if (u.phone) u.phone.visible = false; }
+    for (const q of watchers) { q.userData.fight = null; q.visible = false; }
     s.fights = (s.fights | 0) + 1; s.calmDay = s.day; s.last = { kind: 'brawl:' + how, gi: s.gi };
-    if (d.fact) d.fact('brawl', { how, by: B.by, tag: g.tag, name: g.name });
+    if (d.fact) d.fact('brawl', { how, by: B.by, tag: g.tag, name: g.name, footage: B.footage });
     if (how === 'win') { s.here = false; s.gone = true; s.backIn = 0; s.awayTill = s.day + 3; regroup(); root.visible = false; setTimeout(() => aftermath(B, g), 900); }
     else if (how === 'lose') {
       const take = Math.min(150, Math.max(20, Math.round((d.money ? d.money() : 0) * 0.1 / 5) * 5)); if (d.knock) d.knock(0, 2.5, 5.5);
@@ -497,25 +519,56 @@ export function createActivists(d) {
     } else { // he got away: inside, or down the street
       s.here = false; s.gone = true; s.backIn = 80; regroup(); root.visible = false;
       if (how === 'door' && d.bell) { d.bell(`${g.tag}`, true); setTimeout(() => d.bell(`${g.tag}`, true), 1400); }
+      if (B.footage) { d.addMoney(-60); if (d.rep) d.rep(-2, 'filmed in a street fight'); setTimeout(() => toast('BOETE PER POST', `${B.footage} phone${B.footage > 1 ? 's' : ''} filmed it. Wijkagent Bakker has watched the clip and sends the bill: −W 60.`, 5.5), 5600); }
       toast(how === 'door' ? 'OP DE DEUR' : 'WEG', how === 'door' ? `They hammer on your door and lean on the bell, then the megaphone reads your address out to the street. They will be back, and no calmer.` : 'You outran a megaphone. They will be back, and no calmer.', 5);
     }
     d.save();
   }
-  // Eddy won. Wijkagent Bakker is there before the last one is on his feet, and somebody has to answer for it.
-  function aftermath(B, g) {
-    const s = A(), mine = B.by === 'eddy', fine = mine ? 150 : 60;
-    const out = (title, text) => { toast(title, text, 6); encounter('brawl'); d.save(); };
+  // Eddy won. Wijkagent Bakker comes walking up from the bridge, and he can only write up what he can prove: no phone
+  // left filming, no case. With footage somebody has to answer for it.
+  let cop = null, copJob = null; // { st: 'come' | 'talk' | 'go', then }
+  function bakkerComes(then) {
+    if (!cop) { cop = d.makeCop ? d.makeCop() : d.passerBy(4, { police: true }); if (cop.parent !== scene) scene.add(cop); }
+    cop.visible = true; cop.position.set(SPOT.x + 15, 0, SPOT.z + 2.4); copJob = { st: 'come', then };
+    toast('WIJKAGENT BAKKER', 'Here he comes, from the bridge, in no hurry at all.', 3);
+  }
+  function copTick(dt) {
+    if (!copJob || !cop) return; const J = copJob, goal = J.st === 'go' ? SPOT.x + 26 : Math.max(SPOT.x + 1.6, Math.min(SPOT.x + 8, player.position.x + 1.6)), dx = goal - cop.position.x;
+    if (J.st === 'talk') { cop.rotation.y = Math.atan2(player.position.x - cop.position.x, player.position.z - cop.position.z); animate(cop, 0, dt); return; }
+    if (Math.abs(dx) > 0.15) { const sp = J.st === 'go' ? 1.6 : 2.6; cop.position.x += Math.sign(dx) * Math.min(Math.abs(dx), sp * dt); cop.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2; animate(cop, sp, dt); }
+    else if (J.st === 'come') { J.st = 'talk'; const t = J.then; J.then = null; if (t) t(); }
+    else { cop.visible = false; copJob = null; }
+  }
+  const bakkerGoes = () => { if (copJob) copJob.st = 'go'; };
+  function aftermath(B, g) { bakkerComes(() => verdict(B, g)); }
+  function verdict(B, g) {
+    const s = A(), mine = B.by === 'eddy', fine = mine ? 150 : 60, n = B.footage | 0;
+    const out = (title, text) => { toast(title, text, 6); encounter('brawl'); bakkerGoes(); d.save(); };
+    if (!n) { // nobody filmed it
+      dialogue([
+        ['Wijkagent Bakker', 'Meneer Eddy. Four people on the pavement, a man with a truncheon, and a lot of phones in the gutter.'],
+        [g.tag, 'He did it! He hit all of us! And he broke my phone! It is ALL on video! ...It was all on video.'],
+        ['Wijkagent Bakker', 'Is there footage?'], [g.tag, '...No.'],
+        ['Wijkagent Bakker', 'Then I have four people who fell over and one man who was standing nearby. I cannot write up what I cannot prove. Good day, meneer Eddy.'],
+        ['Wijkagent Bakker', 'And between us: next time I might be on the bridge a little earlier.'],
+      ], () => choice('Eddy Jr.', 'No footage, no case. And the picket?', ['Leave it at that', 'Make peace: broodjes shoarma for everybody (W 80)'], (i) => {
+        if (i === 1) { d.addMoney(-80); if (d.rep) d.rep(3, 'bought the protesters lunch'); s.smacks = 0; s.awayTill = s.day + 1; out('VREDE', '−W 80. No fine, and the anger is gone: they will be back tomorrow, chanting, not swinging.'); }
+        else { s.smacks = Math.max(2, (s.smacks | 0) - 1); s.awayTill = s.day + 3; out('GEEN BEWIJS', 'No footage, no fine. The picket stays away three days. They are no calmer, and they are buying phone cases.'); }
+      }));
+      return;
+    }
     dialogue([
-      ['Wijkagent Bakker', mine ? `Meneer Eddy. Four people on the pavement and a man with a truncheon. I do not need my notebook for this one.` : `Meneer Eddy. I saw the end of it from the bridge. They came at you first, I will say that. But four on the stones is four on the stones.`],
-      [g.tag, 'He is a danger to the street! We want this on the record! And we want our megaphone back!'],
-    ], () => choice('Wijkagent Bakker', 'So. How do we settle this?', [`Pay the fine (W ${fine})`, 'It was self-defence', 'Make peace: broodjes shoarma for everybody (W 80)'], (i) => {
+      ['Wijkagent Bakker', mine ? `Meneer Eddy. Four people on the pavement and a man with a truncheon.` : `Meneer Eddy. I saw the end of it from the bridge. Four on the stones is four on the stones.`],
+      [g.tag, `And we have it on video! ${n > 1 ? `${n} phones` : 'One phone'}! Look! LOOK!`],
+      ['Wijkagent Bakker', mine ? 'I am looking. That is you. That is the first swing. That is a very clear picture.' : 'I am looking. They come at you first, I will say that. And then there is rather a lot of you.'],
+    ], () => choice('Wijkagent Bakker', `${n > 1 ? `${n} phones` : 'One phone'} filmed it. How do we settle this?`, [`Pay the fine (W ${fine})`, 'It was self-defence', 'Make peace: broodjes shoarma for everybody (W 80)'], (i) => {
       if (i === 0) { d.addMoney(-fine); if (d.rep) d.rep(-3, 'fined for a street fight'); s.smacks = Math.max(2, (s.smacks | 0) - 1); s.awayTill = s.day + 3;
         out('BOETE', `−W ${fine}. The picket is off your pavement for three days. They come back as angry as they left.`); }
       else if (i === 1) {
-        if (!mine) { if (d.rep) d.rep(2, 'stood his ground'); s.smacks = 2; s.awayTill = s.day + 6; dialogue([['Wijkagent Bakker', 'It was. I will write it that way. And you lot: a week away from this door, or I start asking who paid for those flags.']], () => out('ZELFVERDEDIGING', 'No fine. The picket is banned from your door for six days, and they know Bakker is watching.')); }
-        else { d.addMoney(-fine * 2); if (d.rep) d.rep(-5, 'lied to Wijkagent Bakker'); s.smacks = (s.smacks | 0) + 1; s.awayTill = s.day + 2; dialogue([['Wijkagent Bakker', 'Self-defence. With the first swing. Meneer Eddy, I was standing right there. That is double.']], () => out('DUBBELE BOETE', `−W ${fine * 2}. They are back in two days, with a lawyer's letter and a bigger megaphone.`)); }
+        if (!mine) { if (d.rep) d.rep(2, 'stood his ground'); s.smacks = 2; s.awayTill = s.day + 6; dialogue([['Wijkagent Bakker', 'It was, and it is on their own video. I will write it that way. And you lot: a week away from this door, or I start asking who paid for those flags.']], () => out('ZELFVERDEDIGING', 'No fine: their own footage shows them swinging first. The picket is banned from your door for six days.')); }
+        else { d.addMoney(-fine * 2); if (d.rep) d.rep(-5, 'lied to Wijkagent Bakker'); s.smacks = (s.smacks | 0) + 1; s.awayTill = s.day + 2; dialogue([['Wijkagent Bakker', 'Self-defence. Meneer Eddy, I am holding the video. That is double.']], () => out('DUBBELE BOETE', `−W ${fine * 2}. They are back in two days, with a lawyer's letter and a bigger megaphone.`)); }
       } else { d.addMoney(-80); if (d.rep) d.rep(3, 'bought the protesters lunch'); s.smacks = 0; s.awayTill = s.day + 1;
-        dialogue([[g.tag, 'Is it vegan?'], ['Eddy Jr.', 'It is shoarma.'], [g.tag, '...We will allow it. This once. For the working group.'], ['Wijkagent Bakker', 'Then I saw nothing. Smakelijk.']], () => out('VREDE', '−W 80. They will be back tomorrow and they will still chant, but nobody is swinging: the anger is gone.')); }
+        dialogue([[g.tag, 'Is it vegan?'], ['Eddy Jr.', 'It is shoarma.'], [g.tag, '...We will allow it. This once. And we delete the video.'], ['Wijkagent Bakker', 'Then I saw nothing. Smakelijk.']], () => out('VREDE', '−W 80. The video is gone and so is the anger: they will be back tomorrow, chanting, not swinging.')); }
     }));
   }
   function scatter(dt, g) {
@@ -540,5 +593,5 @@ export function createActivists(d) {
   const blocks = (x, z) => root.visible && z < 0 && x > SPOT.x - 6 && x < SPOT.x + 5;
   // test hook: spawn(gi) puts the picket out today
   function spawn(gi = Math.floor(Math.random() * GROUPS.length)) { const s = A(); s.day = econ.ensure().day; s.here = true; s.seen = true; s.gi = gi; paint(); painted = gi; return G().name; }
-  return { startBrawl, get brawl() { return brawl; }, state: A, update, tick, debrief, blocks, melee, regroup, respond, spawn, encounter, callRazim, GROUPS, HE, NL, root, get people() { return ppl; }, SPOT };
+  return { heat, filming, watchers, get cop() { return cop; }, startBrawl, get brawl() { return brawl; }, state: A, update, tick, debrief, blocks, melee, regroup, respond, spawn, encounter, callRazim, GROUPS, HE, NL, root, get people() { return ppl; }, SPOT };
 }
