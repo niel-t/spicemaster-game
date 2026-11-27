@@ -388,24 +388,53 @@ export function createProductie(deps) {
   // in De Hal it hangs from the roof on two chains over the line, between the mixer and the racking aisle (Tristan 2026-11-27)
   const chains = new THREE.Group(); chains.visible = false; scene.add(chains); for (const x of [-1.1, 1.1]) box(0.03, 0.34, 0.03, dark, x, 4.63, 0, chains, false); box(2.75, 0.06, 0.06, dark, 0, 4.48, 0, chains, false);
   const BOARD = { shed: [-0.75, 3.55, -20.8], hall: [HX + 1.0, 3.95, HZ - 2.3] };
+  // Tristan 2026-11-27: at first the day's orders are chalked on a blackboard in a wooden frame; once the business takes off
+  // (De Hal built, or rank Kruidenhandelaar) Eddy hangs a big flat-screen TV instead. It stays a TV after that.
+  const frame = new THREE.Group(); board.add(frame);
+  const wood = mt(0x7a5232), woodD = mt(0x5a3a22);
+  for (const [w, h, x, y] of [[3.5, 0.1, 0, 0.71], [3.5, 0.1, 0, -0.71], [0.1, 1.52, -1.7, 0], [0.1, 1.52, 1.7, 0]]) box(w, h, 0.07, wood, x, y, 0.01, frame, false);
+  box(3.3, 0.06, 0.12, woodD, 0, -0.79, 0.06, frame, false); for (const [x, c] of [[-0.9, 0xf4f2ec], [-0.75, 0xf2c31a], [0.4, 0xf4f2ec]]) { const ch = box(0.1, 0.025, 0.025, mt(c), x, -0.75, 0.08, frame, false); ch.rotation.y = 0.3; } // the chalk tray, a few sticks
+  box(0.32, 0.1, 0.06, mt(0xd8d0c0), 1.1, -0.76, 0.08, frame, false); // a sponge
+  const tv = new THREE.Group(); board.add(tv);
+  box(3.44, 1.46, 0.09, mt(0x141518), 0, 0, -0.05, tv, false); box(3.44, 0.05, 0.1, mt(0x2a2c30), 0, -0.71, -0.04, tv, false); box(0.05, 0.02, 0.02, new THREE.MeshBasicMaterial({ color: 0x40ff60 }), 1.6, -0.71, 0.01, tv, false); // the bezel, a power light
+  const tvOn = () => { const p = P(); if (!p.tv && (loods.has('hal') || (deps.rank && deps.rank() >= 2))) { p.tv = 1; boardSig = ''; if (deps.toast) deps.toast('DE GROTE TV', "The chalkboard comes down: Eddy hangs a big flat-screen TV with today's orders on it. It's a real business now.", 4.5); } return !!p.tv; };
   let boardSig = '';
+  function goodsRows() { const G = deps.goods && deps.goods(); if (!G) return []; const st = G.state(), out = [], hh = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${h % 1 ? '30' : '00'}`;
+    for (const k of ['in', 'out']) { const j = st[k]; if (!j) continue; out.push({ k, t: `${k === 'in' ? 'In' : 'Uit'} ${hh(G.SLOTS[k][0])}: ${Math.round(j.kg)} kg`, done: j.st === 'done', here: j.st === 'here' ? Math.round(j.prog * 100) : -1 }); } return out; }
   function drawBoard() {
-    const e = econ.ensure(), p = P(), T = target(), b = blend(e.order), n = econ.mixers();
-    const s = [e.order, T, Math.round(p.out * 2), econ.placesUsed(), econ.places(), n, helpKg()].join();
-    if (s === boardSig) return; boardSig = s;
-    const g = boardCv.getContext('2d'), W = 640, H = 256;
-    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#fffaf0'); bg.addColorStop(1, '#f1dfb0'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
-    const hd = g.createLinearGradient(0, 0, 0, 62); hd.addColorStop(0, '#5b9ae8'); hd.addColorStop(0.5, '#2a5aa8'); hd.addColorStop(1, '#1a3f86'); g.fillStyle = hd; g.fillRect(0, 0, W, 62);
-    g.fillStyle = 'rgba(255,255,255,.28)'; g.fillRect(0, 0, W, 28);
-    g.fillStyle = '#fff'; g.font = '900 34px Arial'; g.textAlign = 'left'; g.fillText('PRODUCTIE VANDAAG', 20, 44); g.textAlign = 'right'; g.font = '700 24px Arial'; g.fillText(`dag ${e.day}`, W - 20, 42);
-    g.textAlign = 'left'; g.fillStyle = '#2a1a0e'; g.font = '900 40px Arial'; g.fillText(b.name, 20, 110);
-    const done = Math.min(T, p.out), k = T ? done / T : 0;
-    g.fillStyle = 'rgba(60,40,10,.18)'; g.beginPath(); g.roundRect(20, 128, W - 40, 44, 22); g.fill();
-    if (k > 0) { const gr = g.createLinearGradient(0, 128, 0, 172); gr.addColorStop(0, '#ffd97a'); gr.addColorStop(0.5, '#f2a81a'); gr.addColorStop(1, '#d8820a'); g.fillStyle = gr; g.beginPath(); g.roundRect(20, 128, Math.max(44, (W - 40) * k), 44, 22); g.fill(); g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.roundRect(26, 131, Math.max(32, (W - 40) * k - 12), 16, 8); g.fill(); }
-    g.fillStyle = '#2a1a0e'; g.font = '900 26px Arial'; g.textAlign = 'center';
-    g.fillText(T ? `${String(done).replace('.', ',')} / ${T} kg in blauwe zakken` : n || helpKg() ? 'Geen voorraad voor deze mix' : 'Nog geen Naknikim aan het werk', W / 2, 160);
-    g.font = '700 24px Arial'; g.textAlign = 'left'; g.fillStyle = '#5a3a1a'; g.fillText(`Opslag: ${econ.placesUsed()} / ${econ.places()} palletplaatsen`, 20, 222);
-    g.textAlign = 'right'; g.fillText(helpKg() ? `Eddy hielp mee: +${String(helpKg()).replace('.', ',')} kg` : `${n} Naknik${n === 1 ? '' : 'im'}`, W - 20, 222);
+    const e = econ.ensure(), p = P(), T = target(), b = blend(e.order), n = econ.mixers(), isTv = tvOn(), rows = goodsRows();
+    const s = [isTv, e.order, T, Math.round(p.out * 2), econ.placesUsed(), econ.places(), n, helpKg(), JSON.stringify(rows), e.day].join();
+    if (s === boardSig) return; boardSig = s; frame.visible = !isTv; tv.visible = isTv;
+    const g = boardCv.getContext('2d'), W = 640, H = 256, done = Math.min(T, p.out), k = T ? done / T : 0, c = (v) => String(v).replace('.', ',');
+    const status = T ? `${c(done)} / ${T} kg in blauwe zakken` : n || helpKg() ? 'Geen voorraad voor deze mix' : 'Nog geen Naknikim aan het werk';
+    const foot = [`Opslag ${econ.placesUsed()} / ${econ.places()} plaatsen`, helpKg() ? `Eddy hielp: +${c(helpKg())} kg` : `${n} Naknik${n === 1 ? '' : 'im'}`];
+    if (!isTv) { // ---- the chalkboard
+      g.fillStyle = '#25352d'; g.fillRect(0, 0, W, H);
+      let sd = 7; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+      g.globalAlpha = 0.07; g.fillStyle = '#f4f2ec'; for (let i = 0; i < 26; i++) { g.beginPath(); g.ellipse(rnd() * W, rnd() * H, 30 + rnd() * 70, 8 + rnd() * 18, rnd() * 3, 0, 7); g.fill(); } g.globalAlpha = 1; // old wiped-out chalk
+      const chalk = (t, x, y, size, col = '#f2f0e6', al = 'left') => { g.font = `700 ${size}px "Segoe Print", "Comic Sans MS", "Chalkboard SE", cursive`; g.textAlign = al; g.fillStyle = col; g.globalAlpha = 0.92; g.fillText(t, x, y); g.globalAlpha = 0.35; g.fillText(t, x + 1, y + 1); g.globalAlpha = 1; };
+      chalk('BESTELLINGEN', 22, 42, 30, '#f2e08a'); chalk(`dag ${e.day}`, W - 22, 40, 22, '#f2f0e6', 'right');
+      g.strokeStyle = 'rgba(242,240,230,.7)'; g.lineWidth = 2; g.beginPath(); g.moveTo(22, 52); g.lineTo(250, 50); g.stroke();
+      chalk(b.name, 22, 94, 30);
+      g.strokeStyle = 'rgba(242,240,230,.85)'; g.lineWidth = 3; g.strokeRect(22, 106, W - 44, 30); // the bar: a chalk outline, hatched as it fills
+      if (k > 0) { g.save(); g.beginPath(); g.rect(22, 106, (W - 44) * k, 30); g.clip(); g.lineWidth = 3; g.strokeStyle = 'rgba(242,224,138,.85)'; for (let x = 10; x < W; x += 11) { g.beginPath(); g.moveTo(x, 138); g.lineTo(x + 16, 104); g.stroke(); } g.restore(); }
+      chalk(status, W / 2, 162, 20, '#f2f0e6', 'center');
+      rows.forEach((r, i) => { const x = 22 + i * 310; chalk(r.t, x, 200, 21, r.done ? '#9ad08a' : r.here >= 0 ? '#f2e08a' : '#f2f0e6'); if (r.done) { g.strokeStyle = '#9ad08a'; g.lineWidth = 3; g.beginPath(); g.moveTo(x + 230, 190); g.lineTo(x + 238, 199); g.lineTo(x + 254, 180); g.stroke(); } else if (r.here >= 0) chalk(`${r.here}%`, x + 236, 200, 19, '#f2e08a'); });
+      if (!rows.length) chalk('Geen vrachtwagens vandaag', 22, 200, 19, 'rgba(242,240,230,.7)');
+      chalk(foot[0], 22, 240, 18, 'rgba(242,240,230,.8)'); chalk(foot[1], W - 22, 240, 18, 'rgba(242,240,230,.8)', 'right');
+    } else { // ---- the big TV: a glossy dashboard
+      const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0e2a52'); bg.addColorStop(1, '#06162e'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      const hd = g.createLinearGradient(0, 0, 0, 52); hd.addColorStop(0, '#5b9ae8'); hd.addColorStop(0.5, '#2a5aa8'); hd.addColorStop(1, '#1a3f86'); g.fillStyle = hd; g.fillRect(0, 0, W, 52); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(0, 0, W, 22);
+      g.fillStyle = '#fff'; g.font = '900 30px Arial'; g.textAlign = 'left'; g.fillText("EDDY'S · BESTELLINGEN", 18, 37); g.textAlign = 'right'; g.font = '700 22px Arial'; g.fillText(`dag ${e.day}`, W - 18, 36);
+      g.textAlign = 'left'; g.fillStyle = '#ffd97a'; g.font = '900 32px Arial'; g.fillText(b.name, 18, 92);
+      g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.roundRect(18, 104, W - 36, 36, 18); g.fill();
+      if (k > 0) { const gr = g.createLinearGradient(0, 104, 0, 140); gr.addColorStop(0, '#9ef08a'); gr.addColorStop(0.5, '#3ac04a'); gr.addColorStop(1, '#22882e'); g.fillStyle = gr; g.beginPath(); g.roundRect(18, 104, Math.max(36, (W - 36) * k), 36, 18); g.fill(); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.roundRect(24, 107, Math.max(24, (W - 36) * k - 12), 12, 6); g.fill(); }
+      g.fillStyle = '#fff'; g.font = '800 21px Arial'; g.textAlign = 'center'; g.fillText(status, W / 2, 129);
+      rows.forEach((r, i) => { const x = 18 + i * 308; g.fillStyle = r.done ? 'rgba(58,192,74,.25)' : r.here >= 0 ? 'rgba(242,195,26,.22)' : 'rgba(255,255,255,.08)'; g.beginPath(); g.roundRect(x, 156, 296, 40, 10); g.fill();
+        g.fillStyle = r.k === 'in' ? '#e8862c' : '#5b9ae8'; g.fillRect(x + 10, 166, 8, 20); g.fillStyle = '#fff'; g.font = '700 20px Arial'; g.textAlign = 'left'; g.fillText(r.t, x + 28, 183); g.textAlign = 'right'; g.fillText(r.done ? '✓' : r.here >= 0 ? `${r.here}%` : '', x + 284, 183); });
+      if (!rows.length) { g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '700 19px Arial'; g.textAlign = 'left'; g.fillText('Geen vrachtwagens vandaag', 18, 183); }
+      g.fillStyle = 'rgba(255,255,255,.75)'; g.font = '700 18px Arial'; g.textAlign = 'left'; g.fillText(foot[0], 18, 236); g.textAlign = 'right'; g.fillText(foot[1], W - 18, 236);
+    }
     boardTex.needsUpdate = true;
   }
 

@@ -3560,7 +3560,7 @@ johan = createJohan({ THREE, scene, state, dialogue, toast, beep, save: () => wr
 venues = createVenues({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, dialogue, choice, toast, beep, addMoney, save: () => writeSave(),
   day: () => econ.ensure().day, makePerson: (look, scale) => makePerson({ ps2: look, scale }), sit, animate: (p, dt) => animate(p, 0, dt), passerBy: (seed) => passerBy(seed), makeCar: (o) => makeCar(THREE, canvasTex, o) });
 // the production line in the shed: pallets of vaten, the mixer, the packing table (js/productie.js)
-prod = createProductie({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, econ, loods, toast, beep, glyph, save: () => writeSave(),
+prod = createProductie({ rank: () => rankNow(), goods: () => goederen, THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, econ, loods, toast, beep, glyph, save: () => writeSave(),
   away: () => mission.active || tripOn() || state.step === 'title', pep: (k) => { for (const m of crew.ensure()) if (!m.away) m.mood = Math.min(100, m.mood + k); } });
 solli = createSollicitanten({ extra: () => brep.hireExtra(), state, day: () => econ.ensure().day, rank: rankNow, cap: nakCap, homeCap: () => loods.naknikCap(), canHire: () => !!state.table, perNaknik: () => econ.perNaknik(), addMoney, onHire, fmt: (n) => 'W ' + Math.round(n).toLocaleString('nl-NL'), save: () => writeSave() });
 // the Naknikim at work around the shed, the hall and the tent (js/naknikwork.js)
