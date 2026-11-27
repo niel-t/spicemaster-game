@@ -259,7 +259,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     // a proper middenberm: a rail on each side, the anti-glare hedge between them, and the far carriageway's own lines
     K.box(L, 0.32, 0.08, 0xb8bcc2, cx, 0.62, NEDGE - 0.9); for (let x = X0 - 48; x < X0 + LEN + 50; x += 4) K.box(0.1, 0.7, 0.1, 0x8a8e94, x, 0.35, NEDGE - 0.84); K.box(L, 0.9, 0.5, 0x3e6a3a, cx, 0.55, NEDGE - 0.3);
     for (const z of [NEDGE - 4.85, NEDGE - 8.15]) for (let x = X0 - 50; x < X0 + LEN + 50; x += 12) K.box(3, 0.01, 0.15, W_, x, 0.035, z); for (const z of [NEDGE - 1.6, NEDGE - 11.4]) K.box(L, 0.01, 0.2, W_, cx, 0.035, z);
-    K.box(L, 0.02, 2.5, 0x5a5c60, cx, 0.024, SEDGE - 1.3); for (let x = X0 - 40; x < X0 + EXIT0; x += 0.9) K.box(0.3, 0.012, 0.12, 0x3a3c40, x, 0.04, Z0 + LW * 1.5 + 0.35); // the vluchtstrook is a paler tarmac, with a ribbelstrook along the line
+    K.box(EXIT0 + 60, 0.02, 2.5, 0x5a5c60, X0 + EXIT0 / 2 - 30, 0.024, SEDGE - 1.3); for (let x = X0 - 40; x < X0 + EXIT0; x += 0.9) K.box(0.3, 0.012, 0.12, 0x3a3c40, x, 0.04, Z0 + LW * 1.5 + 0.35); // the vluchtstrook is a paler tarmac, with a ribbelstrook along the line
     const km = K.build(); if (km) strip.add(km);
     ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc83a, transparent: true, opacity: 0.85, fog: false })); ring.position.set(PARK.x, 0.06, PARK.z); strip.add(ring);
     flash = new THREE.Mesh(new THREE.PlaneGeometry(26, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, fog: false })); flash.position.set(X0 + 520, 0.08, Z0); strip.add(flash);
@@ -289,38 +289,68 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
   }
   // ---- the afrit, the viaduct and the oprit on the far side (2026-11-27)
   const lowSols = [], upSols = []; // lowSols: only there when the van is down on the snelweg; upSols: only when it is up on the viaduct
-  function ribbon(P, w, yOf, mat, y0 = 0.03) { // a road along a polyline, at the height yOf(x) gives
+  // a strip along a polyline at the height yOf(x, z) gives: off moves it sideways (+ is to the left of the direction of travel)
+  function ribbon(P, w, yOf, mat, y0 = 0.03, off = 0) {
     const n = P.length, pos = new Float32Array(n * 6), uv = new Float32Array(n * 4), idx = []; let d = 0;
-    for (let i = 0; i < n; i++) { const [x, z] = P[i], [ax, az] = P[Math.max(0, i - 1)], [bx, bz] = P[Math.min(n - 1, i + 1)], tx = bx - ax, tz = bz - az, l = Math.hypot(tx, tz) || 1, nx = -tz / l * w / 2, nz = tx / l * w / 2, y = yOf(x, z) + y0;
-      if (i) d += Math.hypot(x - P[i - 1][0], z - P[i - 1][1]); pos.set([x + nx, y, z + nz, x - nx, y, z - nz], i * 6); uv.set([d / 200, 0, d / 200, 1], i * 4); if (i) { const a = (i - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); if (g.attributes.normal.getY(0) < 0) { g.setIndex(idx.map((_, i) => idx[i - (i % 3) + 2 - (i % 3)])); g.computeVertexNormals(); }
-    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.material.side = THREE.DoubleSide; return m;
+    for (let i = 0; i < n; i++) { const [x, z] = P[i], [ax, az] = P[Math.max(0, i - 1)], [bx, bz] = P[Math.min(n - 1, i + 1)], tx = bx - ax, tz = bz - az, l = Math.hypot(tx, tz) || 1, ux = tz / l, uz = -tx / l, y = yOf(x, z) + y0;
+      const cx = x + ux * off, cz = z + uz * off; if (i) d += Math.hypot(x - P[i - 1][0], z - P[i - 1][1]);
+      pos.set([cx + ux * w / 2, y, cz + uz * w / 2, cx - ux * w / 2, y, cz - uz * w / 2], i * 6); uv.set([d / 200, 0, d / 200, 1], i * 4); if (i) { const a = (i - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    let up = 0; for (let i = 0; i < g.attributes.normal.count; i++) up += g.attributes.normal.getY(i); if (up < 0) { g.setIndex(idx.map((_, i) => idx[i - (i % 3) + 2 - (i % 3)])); g.computeVertexNormals(); }
+    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; return m;
+  }
+  // the bank under a raised road: a flat top a little wider than the road and grass slopes down to the ground (1 : 1.6),
+  // left out where skip(x, z) says so (over the snelweg the road is on the viaduct)
+  function bank(P, w, yOf, skip) {
+    const pos = [], col = [], c1 = new THREE.Color(0x6f9048), c2 = new THREE.Color(0x587a3a);
+    const sec = (i) => { const [x, z] = P[i], [ax, az] = P[Math.max(0, i - 1)], [bx, bz] = P[Math.min(P.length - 1, i + 1)], tx = bx - ax, tz = bz - az, l = Math.hypot(tx, tz) || 1, ux = tz / l, uz = -tx / l, y = Math.max(0, yOf(x, z) - 0.04), s = w / 2 + 0.4, o = s + y * 1.6;
+      return [[x + ux * o, 0, z + uz * o], [x + ux * s, y, z + uz * s], [x - ux * s, y, z - uz * s], [x - ux * o, 0, z - uz * o]]; };
+    for (let i = 0; i < P.length - 1; i++) { if (skip && skip((P[i][0] + P[i + 1][0]) / 2, (P[i][1] + P[i + 1][1]) / 2)) continue; const A = sec(i), Bq = sec(i + 1);
+      for (let k = 0; k < 3; k++) { const c = k === 1 ? c1 : c2; for (const v of [A[k], Bq[k], A[k + 1], A[k + 1], Bq[k], Bq[k + 1]]) { pos.push(...v); col.push(c.r, c.g, c.b); } } }
+    if (!pos.length) return null;
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); m.receiveShadow = true; return m;
+  }
+  // a guard rail along a polyline: posts and a rail tilted with the slope, so it follows the road up
+  function rail(K, P, yOf, off, from = 0, to = 1) {
+    const n = P.length - 1;
+    for (let i = Math.floor(n * from); i < Math.ceil(n * to); i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], l = Math.hypot(bx - ax, bz - az), ux = (bz - az) / l, uz = -(bx - ax) / l, ya = yOf(ax, az), yb = yOf(bx, bz);
+      const mx = (ax + bx) / 2 + ux * off, mz = (az + bz) / 2 + uz * off, ry = -Math.atan2(bz - az, bx - ax), rz = Math.atan2(yb - ya, l), y = (ya + yb) / 2;
+      K.box(Math.hypot(l, yb - ya) + 0.06, 0.32, 0.07, 0xb8bcc2, mx, y + 0.62, mz, ry, 0, rz); K.box(0.1, 0.72, 0.1, 0x8a8e94, ax + ux * off, ya + 0.36, az + uz * off); }
   }
   function buildRamps() {
-    const K = deps.kit(), G = 0x6a8a4a, RAIL = 0xb8bcc2, CON = 0xb0aba0, yS = (x) => rampY(x);
-    // the two ramps: tarmac, an embankment under them, white edge lines, a guard rail on the outside
+    const K = deps.kit(), CON = 0xb4afa4, yS = (x) => rampY(x), roadM = deps.roadMat, lineM = new THREE.MeshLambertMaterial({ color: W_ });
+    // the two ramps: tarmac on a grass bank, solid edge lines, a guard rail on both sides
     for (const P of [RAMP_S, RAMP_N]) {
-      strip.add(ribbon(P, 4.8, yS, deps.roadMat));
-      for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], mx = (ax + bx) / 2, mz = (az + bz) / 2, l = Math.hypot(bx - ax, bz - az), ry = -Math.atan2(bz - az, bx - ax), y = yS(mx), nx = -(bz - az) / l, nz = (bx - ax) / l;
-        if (y > 0.5) K.box(l + 0.05, y - 0.35, 6.4, G, mx, (y - 0.35) / 2, mz, ry); // the embankment (kept under the tarmac, which slopes)
-        for (const sd of [-1, 1]) { K.box(l + 0.05, 0.012, 0.16, W_, mx + nx * sd * 2.1, y + 0.05, mz + nz * sd * 2.1, ry); K.box(l + 0.05, 0.3, 0.07, RAIL, mx + nx * sd * 2.7, y + 0.62, mz + nz * sd * 2.7, ry); if (i % 2 === 0) K.box(0.1, 0.7, 0.1, 0x8a8e94, mx + nx * sd * 2.72, y + 0.35, mz + nz * sd * 2.72); }
-      }
+      strip.add(ribbon(P, 4.8, yS, roadM)); const b = bank(P, 4.8, yS); if (b) strip.add(b);
+      for (const sd of [-1, 1]) { strip.add(ribbon(P, 0.15, yS, lineM, 0.045, sd * 2.1)); rail(K, P, yS, sd * 2.75, 0.05, 1); }
     }
-    // the crossing road: up on its embankment from the far side, over both carriageways on a viaduct, down to the town in the south
-    const zTop0 = ZJN - 7, zTop1 = ZJ + 6, deckA = NEDGE - 13.6, deckB = SEDGE + 1.6;
-    { const top = new THREE.Mesh(new THREE.PlaneGeometry(RW2 * 2, zTop1 - zTop0), deps.roadMat); top.rotation.x = -Math.PI / 2; top.position.set(XC, UP + 0.03, (zTop0 + zTop1) / 2); top.receiveShadow = true; strip.add(top); }
-    const down = []; for (let i = 0; i <= 10; i++) down.push([XC, zTop1 + (ZEND - zTop1) * i / 10]);
-    strip.add(ribbon(down, RW2 * 2, (x, z) => UP * (1 - ss((z - zTop1) / (ZEND - zTop1)))));
-    { const lo = new THREE.Mesh(new THREE.PlaneGeometry(RW2 * 2, 40), deps.roadMat); lo.rotation.x = -Math.PI / 2; lo.position.set(XC, 0.03, ZEND + 20); strip.add(lo); }
-    for (const [a, b] of [[zTop0, deckA], [deckB, zTop1]]) K.box(RW2 * 2 + 2, UP, b - a, G, XC, UP / 2 - 0.02, (a + b) / 2); // embankments, the viaduct between them
-    for (let i = 0; i < 10; i++) { const za = zTop1 + (ZEND - zTop1) * i / 10, zb = zTop1 + (ZEND - zTop1) * (i + 1) / 10, y = UP * (1 - ss(((za + zb) / 2 - zTop1) / (ZEND - zTop1))); if (y > 0.5) K.box(RW2 * 2 + 2, y - 0.35, zb - za + 0.05, G, XC, (y - 0.35) / 2, (za + zb) / 2); }
-    K.box(RW2 * 2 + 1.2, 0.9, deckB - deckA, CON, XC, UP - 0.45, (deckA + deckB) / 2); K.box(RW2 * 2 + 1.6, 0.3, deckB - deckA, 0xc8c4ba, XC, UP - 1.0, (deckA + deckB) / 2);
-    for (const pz of [NEDGE - 0.3, deckA + 0.8, deckB - 0.8]) for (const dx of [-3, 3]) { K.cyl(0.55, 0.55, UP - 1.1, CON, XC + dx, (UP - 1.1) / 2, pz, 12); }
-    for (const sd of [-1, 1]) { K.box(0.3, 1.0, zTop1 - zTop0, CON, XC + sd * (RW2 + 0.4), UP + 0.5, (zTop0 + zTop1) / 2); K.box(0.12, 0.12, zTop1 - zTop0, RAIL, XC + sd * (RW2 + 0.4), UP + 1.1, (zTop0 + zTop1) / 2); }
-    for (let z = zTop0 + 2; z < ZEND + 38; z += 4) K.box(0.14, 0.012, 2, W_, XC, (z < zTop1 ? UP : z < ZEND ? UP * (1 - ss((z - zTop1) / (ZEND - zTop1))) : 0) + 0.06, z); // the centre line
-    // at J: shark teeth across the end of the afrit, a stop line, arrows left and right; at JN the same for the oprit traffic coming off the viaduct
-    for (let v = -2.0; v <= 2.01; v += 0.6) { const s2 = new THREE.Shape(); s2.moveTo(0, -0.24); s2.lineTo(0, 0.24); s2.lineTo(-0.55, 0); s2.closePath(); K.geo(new THREE.ShapeGeometry(s2).rotateX(-Math.PI / 2), W_, XC - RW2 - 0.3, UP + 0.06, ZJ + v); }
-    for (const [dx, sd] of [[-14, -1], [-9, 1]]) { const ax = XC - RW2 + dx; K.box(2.2, 0.012, 0.32, W_, ax, rampY(ax) + 0.06, ZJ + 0.6 * sd); K.box(0.32, 0.012, 1.4, W_, ax + 1.0, rampY(ax) + 0.06, ZJ + 0.6 * sd + 0.6 * sd); }
+    // the crossing road as one line from the far side to the town: up on its bank, over both carriageways on the viaduct,
+    // and down again to the town in the south (the far end runs down to the polder and is closed off)
+    const zTop0 = ZJN - 7, zTop1 = ZJ + 6, deckA = NEDGE - 13.6, deckB = SEDGE + 1.6, zFar = ZJN - 30, zLow = PARK.z + 24;
+    const yC = (x, z) => (z < zTop0 ? UP * ss((z - zFar) / (zTop0 - zFar)) : z <= zTop1 ? UP : UP * (1 - ss((z - zTop1) / (ZEND - zTop1))));
+    const C = []; for (let z = zFar; z <= zLow + 0.01; z += 2) C.push([XC, z]);
+    strip.add(ribbon(C, RW2 * 2, yC, roadM));
+    { const b = bank(C, RW2 * 2, yC, (x, z) => z > deckA && z < deckB); if (b) strip.add(b); }
+    for (const sd of [-1, 1]) strip.add(ribbon(C, 0.15, yC, lineM, 0.045, sd * (RW2 - 0.35)));
+    for (let i = 0; i < C.length - 1; i += 2) { const [, z] = C[i], y = yC(XC, z + 1); K.box(0.15, 0.012, 1.9, W_, XC, y + 0.06, z + 1, 0, Math.atan2(yC(XC, z + 2) - yC(XC, z), 2)); } // the centre line, dashed
+    // the viaduct: a concrete deck with edge beams, columns in the middenberm and the verges, abutments where the banks stop
+    const dl = deckB - deckA, dz = (deckA + deckB) / 2;
+    K.box(RW2 * 2 + 1.0, 0.8, dl, CON, XC, UP - 0.42, dz); for (const sd of [-1, 1]) { K.box(0.5, 1.15, dl, 0xd4d0c6, XC + sd * (RW2 + 0.55), UP - 0.3, dz); K.box(0.52, 0.12, dl, 0x2f6a8a, XC + sd * (RW2 + 0.56), UP - 0.62, dz); }
+    for (let k = -2; k <= 2; k++) K.box(0.6, 0.55, dl, 0x9a958c, XC + k * 1.7, UP - 1.08, dz); // the beams under the deck
+    for (const pz of [NEDGE - 0.3, deckA + 0.6, deckB - 0.6]) { K.box(RW2 * 2 - 0.6, 0.7, 1.1, CON, XC, UP - 1.6, pz); for (const dx of [-2.6, 2.6]) K.cyl(0.5, 0.55, UP - 1.95, CON, XC + dx, (UP - 1.95) / 2, pz, 12); }
+    for (const z of [deckA, deckB]) K.box(RW2 * 2 + 1.6, UP - 0.8, 1.2, 0xa8a398, XC, (UP - 0.8) / 2, z + (z === deckA ? -0.6 : 0.6));
+    // railings: a low concrete parapet with a steel rail along the whole raised stretch
+    { const top = C.filter(([, z]) => z >= zTop0 - 12 && z <= ZEND); for (const sd of [-1, 1]) rail(K, top, yC, sd * (RW2 + 0.45)); }
+    // at J: haaientanden across the end of the afrit, arrows left and right; at JN, the oprit traffic comes off the viaduct and turns left
+    for (let v = -2.0; v <= 2.01; v += 0.6) { const s2 = new THREE.Shape(); s2.moveTo(0, -0.24); s2.lineTo(0, 0.24); s2.lineTo(-0.55, 0); s2.closePath(); K.geo(new THREE.ShapeGeometry(s2).rotateX(-Math.PI / 2), W_, XC - RW2 - 0.3, UP + 0.07, ZJ + v); }
+    for (const [ax, sd] of [[XC - RW2 - 9, -1], [XC - RW2 - 9, 1]]) { const y = rampY(ax) + 0.07; K.box(2.4, 0.012, 0.3, W_, ax, y, ZJ + 0.9 * sd); K.box(0.3, 0.012, 1.2, W_, ax + 1.05, y, ZJ + 0.9 * sd + 0.6 * sd); } // ← and → painted in the lane
+    // the uitvoegstrook's puntstuk and the invoegstrook on the far side, with blokmarkering, tapering into the carriageway
+    for (let i = 0; i < 6; i++) K.box(2.4, 0.012, 0.3, W_, RX0 - 4 + i * 1.6, 0.05, SEDGE + 0.6 + i * 0.35, -0.6);
+    { const x1 = RX0 + 2, x0 = X0 + EXIT0 - 20, len = x1 - x0, iz = RZN; const strip2 = new THREE.Mesh(new THREE.PlaneGeometry(len, 3.6), roadM); strip2.rotation.x = -Math.PI / 2; strip2.position.set((x0 + x1) / 2, 0.022, iz + 0.3); strip.add(strip2);
+      for (let x = x0 + 40; x < x1; x += 4) K.box(2, 0.012, 0.35, W_, x, 0.05, NEDGE - 11.4);
+    }
+    { const g = new THREE.BufferGeometry(), x0 = X0 + EXIT0 - 20, xT = x0 - 40; g.setAttribute('position', new THREE.Float32BufferAttribute([x0, 0.022, RZN - 1.5, xT, 0.022, NEDGE - 11.4, x0, 0.022, NEDGE - 11.4 + 0.2], 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 0.2, 1, 0, 1], 2)); g.computeVertexNormals(); strip.add(new THREE.Mesh(g, roadM)); }
     const km = K.build(); if (km) { km.castShadow = true; km.receiveShadow = true; strip.add(km); }
     // what keeps the van on the viaduct while it is up there, and what keeps it out of the gap in the middenberm rail while it is down
     for (const sd of [-1, 1]) upSols.push(deps.solid(XC + sd * (RW2 + 0.2), XC + sd * (RW2 + 0.6), deckA - 0.5, deckB + 0.5));
@@ -354,7 +384,7 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     sign([['UIT', 60]], 1.6, 1.0, X0 + EXIT1 + 2, 1.5, Z0 + LW * 1.5 + 1.2); K.box(0.12, 1.2, 0.12, 0x8a8e94, X0 + EXIT1 + 2.1, 0.6, Z0 + LW * 1.5 + 1.2);
     // at the top of the afrit: right to the town, left over the snelweg and back the other way
     sign([['↓ ' + (o.airport ? 'Schiptagat · Kiss & Ride' : to), 34, '#ffe14a'], ['↑ ' + T.a + ' ← terug', 34]], 5.4, 2.0, XC + RW2 + 1.6, UP + 2.6, ZJ, -Math.PI / 2); for (const dz of [-0.9, 0.9]) K.box(0.14, 2.0, 0.14, 0x8a8e94, XC + RW2 + 1.62, UP + 1.0, ZJ + dz);
-    sign([[T.a, 40, '#ff5a6a'], ['← oprit · terug', 30]], 3.6, 1.6, XC + RW2 + 1.2, UP + 2.4, ZJN - 1.6, Math.PI / 2); K.box(0.14, 1.8, 0.14, 0x8a8e94, XC + RW2 + 1.22, UP + 0.9, ZJN - 1.6);
+    sign([[T.a, 40, '#ff5a6a'], ['← oprit · terug', 30]], 3.0, 1.3, XC - RW2 - 2.2, UP + 2.3, ZJN - 4, 0); K.box(0.14, 1.8, 0.14, 0x8a8e94, XC - RW2 - 2.2, UP + 0.9, ZJN - 4.06);
     sign([['P', 70], [o.airport ? 'Kiss & Ride' : to, 30]], 3, 2.2, PARK.x + 6, 2.6, PARK.z - 2, Math.PI); K.box(0.14, 1.6, 0.14, 0x8a8e94, PARK.x + 6, 0.8, PARK.z - 1.9);
     sign([['KNOOPPUNT', 34, '#ffe14a'], ['keren · of naar huis', 28]], 4.6, 1.8, TURN_X + 60, 3.0, NEDGE - 12.8, Math.PI / 2); K.box(0.16, 2.2, 0.16, 0x8a8e94, TURN_X + 60, 1.1, NEDGE - 12.8);
     // the land beside the road
