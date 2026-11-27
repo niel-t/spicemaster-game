@@ -166,6 +166,7 @@ export function createEconomy(deps) {
   // one market day: drift, news, supply refills
   function advance(why) {
     const e = ensure();
+    receive(); // whatever still stood on a truck is in by nightfall
     const made = mix(); // the Naknikim mix overnight with what's on the shelves
     const rep = deliver(); // then the clients get their orders and pay (the day report)
     const strikes = turf(); // the Lampas react to how much of their turf you hold
@@ -198,7 +199,7 @@ export function createEconomy(deps) {
     const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
     if (strikes.length && deps.toast) { deps.toast(state.act1 ? 'THEY STRIKE BACK' : 'THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
     const lateLine = late.held.length ? `${deps.weatherName ? deps.weatherName() : 'Bad weather'}: the truck is stuck on the A-Kaas, ${late.held.reduce((a, o) => a + o.kg, 0)} kg comes tomorrow. ` : '';
-    const cameLine = lateLine + (came.length ? `The truck dropped ${came.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : '');
+    const cameLine = lateLine + (came.length ? `${deps.holdArrivals && deps.holdArrivals() ? 'On the truck, at the door from 09:00:' : 'The truck dropped'} ${came.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : '');
     if (deps.onDay) deps.onDay(e.day);
     if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, (deps.dayLine ? deps.dayLine() : '') + mixLine + payLine + cameLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine || cameLine ? 5 : 3);
     return e.day;
@@ -245,7 +246,9 @@ export function createEconomy(deps) {
       ${t.plan === 'werk' ? `Done today: ${Object.keys(t.did).map((k) => DID[k]).join(', ')}. ` : ''}${arr.length ? `Tomorrow morning the truck brings ${arr.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : ''}<button class="b95" data-endday="1">Dag afsluiten · end the day</button></div>`;
   }
   // ---- spice orders on their way
-  const inboundKg = () => ensure().inbound.reduce((a, o) => a + o.kg, 0);
+  const dockIn = () => { const e = ensure(); return Array.isArray(e.dockIn) ? e.dockIn : (e.dockIn = []); };
+  function receive() { const e = ensure(), d = dockIn(); let kg = 0; for (const o of d) { e.stock[key(o.id, o.grade)] = +(stockOf(o.id, o.grade) + o.kg).toFixed(2); kg += o.kg; } e.dockIn = []; return kg; } // the truck is unloaded
+  const inboundKg = () => ensure().inbound.reduce((a, o) => a + o.kg, 0) + dockIn().reduce((a, o) => a + o.kg, 0);
   const orderRoom = () => cap() - stockTotal() - inboundKg();
   function order(id, gradeId, kg, express) { // paid now, on the shelves ORDER_DAYS (express 1) mornings later
     const e = ensure(), d = e.day + (express ? 1 : ORDER_DAYS), o = e.inbound.find((x) => x.id === id && x.grade === gradeId && x.day === d);
@@ -257,7 +260,8 @@ export function createEconomy(deps) {
     const e = ensure(), held = [];
     if (deps.truckLate && deps.truckLate(e.day)) for (const o of e.inbound) if (o.day === e.day) { o.day++; held.push(o); } // storm or snow: the truck waits a day
     const came = e.inbound.filter((o) => o.day <= e.day);
-    for (const o of came) e.stock[key(o.id, o.grade)] = +(stockOf(o.id, o.grade) + o.kg).toFixed(2);
+    if (deps.holdArrivals && deps.holdArrivals()) { e.dockIn = (Array.isArray(e.dockIn) ? e.dockIn : []).concat(came.map((o) => ({ id: o.id, grade: o.grade, kg: o.kg }))); } // on the truck: js/goederen.js unloads it in the inbound slot
+    else for (const o of came) e.stock[key(o.id, o.grade)] = +(stockOf(o.id, o.grade) + o.kg).toFixed(2);
     e.inbound = e.inbound.filter((o) => o.day > e.day);
     return report ? { came, held } : came;
   }
@@ -867,5 +871,5 @@ export function createEconomy(deps) {
   // Hakan's phone order (js/phone.js): Shooki brings it at the next market day
   function phoneOrder(kg) { const e = ensure(); e.phoneOrder = { kg, day: e.day }; e.phoneDay = e.day; if (deps.save) deps.save(); }
   const phoneQuote = (kg) => Math.round(clientPrice('kip', Math.max(1, blendOf('kip').q || 3), null) * kg * 1.15);
-  return { REST_EVERY, restOK, restNext, rested, gradeLock, qtyLock, ingOpen: (g) => ingOpen(g, state), today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, dayKg, helpKg, places, placesUsed, PLACE_KG, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
+  return { dockIn, receive, REST_EVERY, restOK, restNext, rested, gradeLock, qtyLock, ingOpen: (g) => ingOpen(g, state), today, canRaid, canDrive, startRaid, work, endDay, planLine, planHTML, planBind, order, inboundKg, orderRoom, expressCost, inboundHTML, ORDER_DAYS, EXPRESS, perNaknik, dayKg, helpKg, places, placesUsed, PLACE_KG, stockIn, space, wholesalePrice, phoneOrder, phoneQuote, siegeResult, siegeDue, INGREDIENTS, GRADES, BLENDS, STOCK_CAP, ensure, advance, update, price, buy, sell, unpackCrates, stockOf, stockTotal, mix, sellBlend, blendOf, deliver, settle, activeClients, trustOf, rollDay, doJob, jobFor, driveDone, jobsHTML, jobsBind, turf, tribute, turfHTML, isRetaken, controlOf, buyMachine, installMachine, machinesHTML, machinesBind, buyWarehouse, hireAt, propertyHTML, propertyBind, cap, mixers, addRep, rankHTML, IDEAS, has, learn, rumour, forecast, kevinTip, bribeKevin, retakeMod, ideasHTML, blendOpen, html, bind, mixHTML, mixBind, reportHTML, reportBind };
 }
