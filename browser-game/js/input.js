@@ -251,13 +251,13 @@ function makeStick(zone, onMove, onEnd) {
 let updateTouchButtons = null;
 function setupTouch() {
   document.body.appendChild(ui);
-  makeStick($('tzL'), (s, x, y, m) => { const k = m < 0.15 ? 0 : 1; virt.mx = x * k; virt.mz = y * k; }, (s, cancel, at) => {
+  makeStick($('tzL'), (s, x, y, m) => { const k = m < 0.12 ? 0 : Math.min(1, 0.3 + m) / m; virt.mx = x * k; virt.mz = y * k; }, (s, cancel, at) => { // analog stick: a short push walks, past ~70% it's a full jog
     virt.mx = virt.mz = 0;
     if (at && ctx && !(ctx.getMission() && ctx.getMission().active)) { // a quick tap on the street: same as clicking that spot
       const c = ctx.canvas; c.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: at[0], clientY: at[1], pointerType: 'mouse', button: 0, isPrimary: true }));
     }
   });
-  makeStick($('tzR'), (s, x, y, m) => { virt.aim = m > 0.2 ? Math.atan2(x, y) : virt.aim; fireHeld = m > 0.85; $('tzR').classList.toggle('fire', fireHeld); }, () => { virt.aim = null; fireHeld = false; $('tzR').classList.remove('fire'); });
+  makeStick($('tzR'), (s, x, y, m) => { virt.aim = m > 0.2 ? Math.atan2(x, y) : virt.aim; fireHeld = m > 0.7; $('tzR').classList.toggle('fire', fireHeld); }, () => { virt.aim = null; fireHeld = false; $('tzR').classList.remove('fire'); });
   ui.addEventListener('pointerdown', (e) => {
     const b = e.target.closest('[data-k]'); if (!b) return; e.preventDefault(); e.stopPropagation();
     const k = b.dataset.k; b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 140);

@@ -22,6 +22,8 @@ import { LOOKS, bloody, cleanBlood, setHold, holdRecoil, holdPump } from './char
 import { weaponMesh as buildWeapon, fireFlash, tickFlash, weaponKind, isTwoGun } from './weapons.js';
 import { WD, CAL, MODS, ARMOUR, PLATE, NADES, GEAR_X, BASE_MAG, KILLPTS as KP, FORCE, isGunId, isMeleeId, SHOT_GUN } from './arsenal.js';
 import { gunAudio } from './gunaudio.js';
+import { createAimFeel } from './aimfeel.js';
+import { INTROS, CREWS, INTRO_CSS } from './levels/intros.js'; // who runs each joint (the dossier before a first raid) // crosshair + hit markers (feel pass 2026-11-27)
 import { enrichFloor, normalOf, macro, blobGeo, mergeStatic } from './richtex.js'; // crisp, weathered floors with a bump, walls with grime
 import { DRESS_FURN, dress, spits, dressGroup, stash } from './dressing.js'; // spice sacks, big bags, meat racks, shoarma spits on every level
 import { buildStory } from './levels/story.js'; // story props, readable notes and quiet side entrances (Act 1 and Act 2)
@@ -364,7 +366,7 @@ export function initMission(ctx) {
   const loudOf = (id) => (quiet(id) ? WD.silenced.loud : WD[id].loud);
   const sndOf = (id) => (quiet(id) ? 'silenced' : WD[id].snd);
   const EASY = { hp: 3, react: 1.9, espr: 0.17, ebSpd: 15, vision: 9, cone: 0.85, ecd: 1.5, regen: 7 };
-  const TIPS = ['Red laser = a gunman is aiming at you. Break line of sight.', 'Yellow cones show where they are looking. Stay out of them to sneak up.', 'A Lampas who stops and raises his gun is about to fire. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
+  const TIPS = ['Yellow cones show where they are looking. Stay out of them to sneak up.', 'A Lampas who stops and raises his gun is about to fire. Get behind a counter, a bar or a rack.', 'Counters, bars, slot machines, racks and crates stop bullets. Tables and sofas don\'t.', 'Stand still for accurate shots. Running throws your aim off.', 'Run into a door to swing it. A fast door knocks people flat.', 'The Maboota knocks people down. Hit a downed Lampas again to finish him.', 'Magazine and pocket both empty? Attack again to throw the gun. It knocks people down.', 'Shoot the red barrels. Stand back.', 'Glass stops you, not bullets. And they can see you through it.', 'Gunshots wake up the whole floor. The Maboota is quiet.', 'Press R while reloading: hit the green window for an instant reload. Miss it and the gun jams.', 'Sprinting (Shift) is loud. Every Lampas nearby hears your footsteps.', 'Grab (E) a Lampas gun of the same calibre to strip its rounds into your pocket.'];
   // weapon models live in weapons.js (grip origin, barrel +Z); the mods pick the variant (suppressor, extended mag)
   const weaponMesh = (id) => buildWeapon(id, { quiet: quiet(id), xmag: hasMod('xmag') });
   const isHeldGun = (id) => { const k = weaponKind(id); return k === 'pistol' || k === 'smg' || k === 'rifle'; };
@@ -692,7 +694,7 @@ export function initMission(ctx) {
   const enemies = [];
   // sight lines (Neon Vice, Easy): a red laser while a gunman aims at you, and yellow vision cones on the floor, cut off by walls.
   // Heists keep their own rule: cones only with Kevin's floor plan (HEIST.cased), no lasers.
-  const SHOW_LASERS = true, SHOW_CONES = true;
+  const SHOW_LASERS = false, SHOW_CONES = true; // red aim lasers off again on Tristan's word (2026-11-27); the cones stay for sneaking
   const CONE_N = 13, CONE_COL = { idle: 0xffd84d, patrol: 0xffd84d, search: 0xff7320, distract: 0x66ff80 };
   const visConeM = () => new THREE.MeshBasicMaterial({ color: CONE_COL.idle, transparent: true, opacity: 0.15, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
   function rayLen(x, z, sa, ca, max) { // how far a guard sees along a ray: walls, racks and closed doors stop it (glass and low furniture don't)
@@ -780,6 +782,7 @@ export function initMission(ctx) {
   const tracerM = [new THREE.MeshBasicMaterial({ color: 0xfff0a0 }), new THREE.MeshBasicMaterial({ color: 0xff5a3a })];
   // Neon Vice fireGun: spread = base + moving + bloom (players) or the Easy enemy spread; dual pistols alternate hands;
   // .357 / M16 / AK / Deagles go through bodies (pierce) and the rifles through one thin wall (pen); thrown knives fly
+  const sprNow = (id, moving) => (WD[id].spr + (moving ? WD[id].mv : 0) + P.bloom) * Math.max(0.4, 1 - 0.15 * pk('steady'));
   function fireGun(from, a, id, byPlayer, moving, shooter = byPlayer ? player : null) {
     const W2 = WD[id];
     if (W2.toss) { // throwing knife: a blade that flies and kills whoever it meets; pick it up again afterwards
@@ -787,14 +790,14 @@ export function initMission(ctx) {
       dropItem('tknife', at, Math.sin(a) * 21, Math.cos(a) * 21, 1, true, byPlayer); const it = items[items.length - 1]; it.g.position.y = 1.0; it.blade = true;
       sfx('throw'); return;
     }
-    const spr = byPlayer ? (W2.spr + (moving ? W2.mv : 0) + P.bloom) * Math.max(0.4, 1 - 0.15 * pk('steady')) : W2.spr + EASY.espr;
+    const spr = byPlayer ? sprNow(id, moving) : W2.spr + EASY.espr;
     const sh = shooter && shooter.userData, hd = sh && sh.hold, alt = W2.dual ? (sh ? (sh.alt = !sh.alt) : (P.alt = !P.alt)) : false; // each shooter alternates his own pair
     let ox = 0; if (W2.dual) ox = alt ? -0.17 : 0.17;
     const gunM = hd ? (alt && hd.gun2 ? hd.gun2 : hd.gun) : null, muzY = gunM && gunM.userData.muzzle ? (gunM.userData.muzzle.getWorldPosition(flashAt), flashAt.y) : 1.25;
     const ca = Math.cos(a), sa = Math.sin(a), bx = from.x + ca * ox, bz = from.z - sa * ox;
     for (let i = 0; i < W2.pel; i++) {
-      const aa = a + (W2.pel > 1 ? rnd(-spr, spr) : (Math.random() + Math.random() - 1) * spr), sp = byPlayer ? 34 : EASY.ebSpd;
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, byPlayer ? 0.7 : 0.45), tracerM[byPlayer ? 0 : 1]);
+      const aa = a + (W2.pel > 1 ? rnd(-spr, spr) : (Math.random() + Math.random() - 1) * spr), sp = byPlayer ? 58 : EASY.ebSpd;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, byPlayer ? 1.1 : 0.45), tracerM[byPlayer ? 0 : 1]);
       m.position.set(bx + sa * 0.3, muzY, bz + ca * 0.3); m.rotation.y = aa; root.add(m);
       bullets.push({ m, dx: Math.sin(aa), dz: Math.cos(aa), sp, byPlayer, id, life: 1.2, pierce: byPlayer ? (W2.pierce || 1) : 1, pen: byPlayer ? (W2.pen || 0) : 0, hit: new Set() });
     }
@@ -949,6 +952,7 @@ export function initMission(ctx) {
   // Press Start 2P / VT323 are vendored in assets/fonts (js/fontstyle.js), no Google Fonts request
   const mk = (id) => { const d = document.createElement('div'); d.id = id; document.body.appendChild(d); return d; };
   const hudEl = mk('nvHud'), scoreEl = mk('nvScore'), grainEl = mk('nvGrain'), scanEl = mk('nvScan'), vigEl = mk('nvVig'), flashEl = mk('nvFlash'), screenEl = mk('nvScreen'), bannerEl = mk('nvBanner'), invEl = mk('nvInv'), reloadEl = mk('nvReload'), pulseEl = mk('nvPulse'), threatEl = mk('nvThreat'), bossEl = mk('nvBoss');
+  const feel = createAimFeel({ beep });
   reloadEl.innerHTML = '<div class="g"></div><div class="f"></div><div class="m"></div><div class="t"></div>';
   { const c = document.createElement('canvas'); c.width = c.height = 160; const g = c.getContext('2d'), id = g.createImageData(160, 160); for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } g.putImageData(id, 0, 0); grainEl.style.backgroundImage = `url(${c.toDataURL()})`; }
   const fade = document.createElement('div'); fade.className = 'smeFade'; fade.style.cssText = 'position:fixed;inset:0;background:#0a0410;opacity:0;pointer-events:none;transition:opacity .45s;z-index:30'; document.body.appendChild(fade);
@@ -1461,7 +1465,7 @@ export function initMission(ctx) {
       if (f.wave && (HEIST || DEF)) off = true; // the backup car only comes to a raid
       if (f.paraSkip && state.paravim && !REMIX) off = true;
       const pend = f.wave && !off; // backup: waits off-map until the alarm (waveTick brings it in)
-      Object.assign(f, { alive: !off, down: 0, hp: (f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 + (LV.foeHp || 1) - 1 : (LV.foeHp || 1)) + Math.min(2, state.ngp || 0) /* New Game+: tougher every round */, dodgeT: 0, named: false, leanT: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
+      Object.assign(f, { alive: !off, down: 0, hp: (f.type ? FOE_TYPES[f.type].hp : f.boss ? 2 + (LV.foeHp || 1) - 1 : (LV.foeHp || 1)) + Math.min(2, state.ngp || 0) /* New Game+: tougher every round */, dodgeT: 0, named: false, leanT: 0, flinch: 0, state: 'idle', react: 0, cd: 0, wind: 0, seeT: 99, path: null, pathT: 0, sx: 0, sz: 0, searchT: 0, turnT: Math.random() * 3, ta: r, vx: 0, vz: 0, vy: 0, y: 0, spin: 0, lkx: 0, lkz: 0, found: false, wary: false, aiming: false, strT: 0, strD: 1, atkT: 0, body: false, mvx: 0, mvz: 0, headless: false, fountain: 0, smear: 0 });
       f.pend = pend; f.waveW = w; if (pend) f.alive = false;
       Object.assign(f, { rage: 0, seen: false, phase: 1, argue: f.argueK || null, shield: !!f.shieldK }); if (f.shieldM) f.shieldM.visible = f.shield && !off;
       if (LV.paravim) f.wary = true; // always angry
@@ -1567,7 +1571,7 @@ export function initMission(ctx) {
     fade.style.opacity = '1'; closeInv();
     setTimeout(() => {
       if (ctx.parkDone && PK.on) ctx.parkDone({ paid: PK.paid, how: PK.how, level: LV.id }); PK.on = false; parkUi();
-      if (ctx.left) ctx.left(); setNV(false); saveOwnAmmo(); M.active = false; root.visible = false; hubLights(false); REMIX = null; HEIST = null; heistSetup(); heistHud(); DEF = null; defendSetup(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
+      if (ctx.left) ctx.left(); setNV(false); saveOwnAmmo(); M.active = false; feel.update({ on: false, el: ctx.canvas }); root.visible = false; hubLights(false); REMIX = null; HEIST = null; heistSetup(); heistHud(); DEF = null; defendSetup(); clearPlayerSplats(); P.rl = null; reloadEl.style.display = 'none';
       scene.background.copy(saved.bg); scene.fog.color.copy(saved.fog[0]); scene.fog.near = saved.fog[1]; scene.fog.far = saved.fog[2]; hemi.intensity = saved.hemi; if (saved.hemiC) { hemi.color.copy(saved.hemiC[0]); hemi.groundColor.copy(saved.hemiC[1]); } sun.intensity = saved.sun;
       lights.forEach(([l]) => { l.intensity = 0; }); flashL.intensity = 0;
       setBounds(null);
@@ -1834,7 +1838,12 @@ export function initMission(ctx) {
     e.rotation.y = Math.atan2(-dir[0], -dir[1]); f.state = 'chase'; sfx('hit'); bloodBurst(e.position, dir, 6, 2); bloody(e, 1);
     say(e.userData.bubble, ['AU!', 'Mijn hoofd!', 'Ooompf!', 'Vuile...'][Math.floor(Math.random() * 4)], '#ff7a1a');
   }
-  function stagger(e, dir) { const f = e.userData.foe; f.vx += dir[0] * 3; f.vz += dir[1] * 3; f.cd = Math.max(f.cd, 0.5); f.wind = 0; sfx('hit'); if (f.state !== 'chase') { f.state = 'chase'; f.react = 0.4; } }
+  function stagger(e, dir) { const f = e.userData.foe; f.vx += dir[0] * 3; f.vz += dir[1] * 3; f.cd = Math.max(f.cd, 0.5); f.wind = 0; sfx('hit'); flinch(e, dir, 0); if (f.state !== 'chase') { f.state = 'chase'; f.react = 0.4; } }
+  function flinch(e, dir, dmg) { const f = e.userData.foe; f.flinch = 0.24; f.vx += dir[0] * 2.4 * (dmg || 1) / f.mass; f.vz += dir[1] * 2.4 * (dmg || 1) / f.mass; f.wind = 0; f.cd = Math.max(f.cd, 0.35); }
+  // hit marker: at the crosshair with the mouse, over the man who was hit on touch / controller
+  const scr = new THREE.Vector3();
+  function markHit(e, kill) { if (inputMode() === 'mouse' && mouseSeen) { feel.hit(kill, (mouseN.x + 1) / 2 * innerWidth, (1 - mouseN.y) / 2 * innerHeight); return; }
+    scr.set(e.position.x, 1.3, e.position.z).project(camera); feel.hit(kill, (scr.x + 1) / 2 * innerWidth, (1 - scr.y) / 2 * innerHeight); }
   // Zeegaal-style dodge: a small, almost bored lean to the side; the bullet goes past (not while he's winding up or down)
   function tryDodge(e, b) {
     const f = e.userData.foe, FT = f.type && FOE_TYPES[f.type];
@@ -1860,7 +1869,7 @@ export function initMission(ctx) {
   }
   function hitEnemy(e, type, dir, dmg) {
     const f = e.userData.foe; if (!f.alive) return;
-    if (f.hp > dmg) { f.hp -= dmg; bloodBurst(e.position, dir, 12, 3); floorDecal(e.position.x + dir[0] * 0.4, e.position.z + dir[1] * 0.4, 0.5, Math.random() * 6); popup(e.position, f.type ? FOE_TYPES[f.type].hurt[Math.floor(Math.random() * FOE_TYPES[f.type].hurt.length)] : 'IS DAT ALLES?!', '#ffd36b'); f.state = 'chase'; f.react = Math.min(f.react, 0.2);
+    if (f.hp > dmg) { f.hp -= dmg; bloodBurst(e.position, dir, 12, 3); floorDecal(e.position.x + dir[0] * 0.4, e.position.z + dir[1] * 0.4, 0.5, Math.random() * 6); popup(e.position, f.type ? FOE_TYPES[f.type].hurt[Math.floor(Math.random() * FOE_TYPES[f.type].hurt.length)] : 'IS DAT ALLES?!', '#ffd36b'); const was = f.state; f.state = 'chase'; f.react = was === 'chase' ? Math.max(f.react, 0.3) : Math.min(f.react, 0.2); flinch(e, dir, dmg);
       const P2 = f.type && FOE_TYPES[f.type].phase2; if (P2 && f.phase !== 2 && f.hp <= P2.at) bossPhase2(e, P2); // Ras al Gara draws the scimitar
       return; }
     killEnemy(e, type, dir);
@@ -1946,6 +1955,7 @@ export function initMission(ctx) {
       if (P.fireT > 0 || P.rl) return;
       if (P.held.ammo <= 0) { gunAudio.dry(WD[P.held.id].snd); if (!reloadStart()) throwHeld(); return; }
       const W2 = WD[P.held.id]; P.held.ammo--; P.fireT = W2.cd; R.shots++;
+      if (inputMode() !== 'mouse') player.rotation.y = P.aimA != null ? P.aimA : assist(player.rotation.y, 0.45); // pad / touch: fire where you point, with a nudge when you don't
       fireGun(player.position, player.rotation.y, P.held.id, true, moving());
       if (W2.burst3) { P.burstQ = Math.min(2, P.held.ammo); P.burstT = 0.065; } // M16: three rounds per pull
       if (W2.toss && P.held.ammo <= 0) { P.guns[P.slot - 2] = null; P.slot = 1; syncHeld(); hud(); return; }
@@ -1988,6 +1998,7 @@ export function initMission(ctx) {
 
   // ================================================================== INPUT (capture phase: runs before main.js)
   addEventListener('keydown', (e) => {
+    if (ARR && ARR.ph === 'intro' && M.active && (e.code === 'Escape' || e.code === 'Backspace') && performance.now() - ARR.t0 > 450) { e.stopImmediatePropagation(); e.preventDefault(); skipIntro(); return; } // skips the whole intro, call box or not
     if (state.inDialogue || state.inPC || state.step === 'title' || (ctx.choiceOpen && ctx.choiceOpen())) return;
     const stop = () => { e.stopImmediatePropagation(); e.preventDefault(); };
     if (e.code === 'KeyI') { stop(); invOpen ? closeInv() : openInv(); return; }
@@ -2034,14 +2045,25 @@ export function initMission(ctx) {
   function aimAtMouse(dt) {
     if (inputMode() !== 'mouse') { // controller / touch: right stick aims; idle right stick aims along movement
       const mvx = player.position.x - P.last.x, mvz = player.position.z - P.last.z;
-      const a = virt.aim !== null ? virt.aim : Math.hypot(mvx, mvz) > 0.004 ? Math.atan2(mvx, mvz) : null;
-      if (a !== null) player.rotation.y += angDiff(player.rotation.y, a) * Math.min(1, (dt || 0.016) * (virt.aim !== null ? 22 : 12));
+      let a = virt.aim !== null ? virt.aim : Math.hypot(mvx, mvz) > 0.004 ? Math.atan2(mvx, mvz) : null;
+      if (a !== null && virt.aim !== null && gunOut()) a = assist(a, 0.3); // soft lock: the stick snaps onto a Lampas close to where it points
+      P.aimA = virt.aim !== null ? a : null;
+      if (a !== null) player.rotation.y += angDiff(player.rotation.y, a) * Math.min(1, (dt || 0.016) * (virt.aim !== null ? 30 : 12));
       aim.set(player.position.x + Math.sin(player.rotation.y) * 4, 1.1, player.position.z + Math.cos(player.rotation.y) * 4);
       return;
     }
     if (!mouseSeen) return;
     rc.setFromCamera(mouseN, camera);
     if (rc.ray.intersectPlane(aimPlane, aim)) player.rotation.y = Math.atan2(aim.x - player.position.x, aim.z - player.position.z);
+  }
+  // aim assist (touch / controller only): the closest-to-the-stick Lampas inside the cone and in sight, standing (not downed)
+  function assist(a, cone, range = 12) {
+    let best = null, bd = cone; const pp = player.position;
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.down > 0 || !e.visible) continue;
+      const dx = e.position.x - pp.x, dz = e.position.z - pp.z, d = Math.hypot(dx, dz); if (d > range || d < 0.3) continue;
+      const ea = Math.atan2(dx, dz), da = Math.abs(angDiff(a, ea)) * (0.75 + d / range * 0.5); // nearer men win a tie
+      if (da < bd && los(pp, e.position)) { bd = da; best = ea; } }
+    return best === null ? a : best;
   }
   function holdPose(dt) { const h = player.userData.hold; if (h) { h.aim = P.rl ? 0.35 : 1; return; } if (gunOut()) { const a = player.userData.arms[0]; a.rotation.x += (-1.45 - a.rotation.x) * Math.min(1, dt * 12); a.rotation.z = 0; if (WD[P.held.id].pel > 1) player.userData.arms[1].rotation.x = -1.2; } }
   function street() { /* guns are mission-only; nothing to do on the street */ }
@@ -2068,6 +2090,21 @@ export function initMission(ctx) {
     const [g, f, m, t] = reloadEl.children, k = Math.min(1, r.t / r.dur);
     g.style.display = r.tried ? 'none' : 'block'; g.style.left = (r.ar0 / r.dur * 100) + '%'; g.style.width = Math.max(3, (r.ar1 - r.ar0) / r.dur * 100) + '%';
     f.style.width = (k * 100) + '%'; m.style.left = (k * 100) + '%'; t.textContent = r.jam ? 'VASTGELOPEN' : 'HERLADEN · ' + glyph('R');
+  }
+  // the crosshair: as wide as the cone your next shot can land in, red when it would reach a Lampas
+  const rq = new THREE.Vector3(), rs = new THREE.Vector3();
+  function aimTick() {
+    const on = M.active && !P.dead && !ARR && !R.results && !invOpen && gunOut() && inputMode() === 'mouse' && mouseSeen && !state.inDialogue && !state.inPC;
+    if (!on) { feel.update({ on: false, el: ctx.canvas }); return; }
+    const id = P.held.id, pp = player.position, d = Math.max(1, Math.hypot(aim.x - pp.x, aim.z - pp.z));
+    const spr = WD[id].toss ? 0.02 : sprNow(id, moving()), a = player.rotation.y, rad = d * Math.tan(Math.min(0.6, spr)) + (WD[id].pel > 1 ? 0.15 : 0);
+    rq.copy(aim).project(camera); rs.set(aim.x + Math.cos(a) * rad, aim.y, aim.z - Math.sin(a) * rad).project(camera);
+    const px = Math.max(4, Math.hypot((rs.x - rq.x) / 2 * innerWidth, (rs.y - rq.y) / 2 * innerHeight));
+    let hot = false; const sa = Math.sin(a), ca = Math.cos(a), reach = WD[id].toss ? 9 : 16;
+    for (const e of enemies) { const f = e.userData.foe; if (!f.alive || !e.visible) continue;
+      const dx = e.position.x - pp.x, dz = e.position.z - pp.z, along = dx * sa + dz * ca; if (along < 0.3 || along > reach) continue;
+      if (Math.abs(dx * ca - dz * sa) < 0.42 + along * Math.tan(Math.min(0.3, spr)) && los(pp, e.position)) { hot = true; break; } }
+    feel.update({ on, el: ctx.canvas, x: (mouseN.x + 1) / 2 * innerWidth, y: (1 - mouseN.y) / 2 * innerHeight, spread: px, hot, dry: P.held.ammo <= 0 || !!P.rl });
   }
   function hitstop(dt) { if (FX.freeze > 0) { FX.freeze -= dt; return 0; } return dt; }
   // ================================================================== ADAPTIVE MUSIC + its screen (js/combatmusic.js)
@@ -2111,7 +2148,7 @@ export function initMission(ctx) {
     if (!P.dead && (P.vx || P.vz)) { player.position.x += P.vx * dt; player.position.z += P.vz * dt; ctx.collide(player.position, 0.38); P.vx *= Math.exp(-dt * 8); P.vz *= Math.exp(-dt * 8); if (Math.hypot(P.vx, P.vz) < 0.05) P.vx = P.vz = 0; }
     const pv = [(player.position.x - P.last.x) / Math.max(dt, 1e-4), (player.position.z - P.last.z) / Math.max(dt, 1e-4)];
     if (!P.dead) collideDoors(player.position, 0.42, pv[0], pv[1], true);
-    reloadTick(dt); drawReload();
+    reloadTick(dt); drawReload(); aimTick();
     if (P.burstQ > 0 && gunOut() && !P.rl) { if ((P.burstT -= dt) <= 0) { if (P.held.ammo > 0) { P.held.ammo--; R.shots++; fireGun(player.position, player.rotation.y, P.held.id, true, moving()); P.burstT = 0.065; P.burstQ--; if (P.held.ammo <= 0) { P.burstQ = 0; reloadStart(); } hud(); } else P.burstQ = 0; } }
     if (fireHeld() && gunOut() && WD[P.held.id].burst && P.fireT <= 0 && !P.dead && P.exec <= 0 && !invOpen) attack(); // automatics: hold to fire
     // sprint (Shift, same speed as on the street): loud footsteps, every Lampas within 4.5 m hears them (Neon Vice alertNoise)
@@ -2208,7 +2245,7 @@ export function initMission(ctx) {
         const dir = [b.dx, b.dz];
         if (b.byPlayer) {
           for (const e of enemies) { const f = e.userData.foe; if (!e.visible || b.hit.has(e)) continue;
-            if (f.alive) { const r = f.down > 0 ? 0.5 : 0.42; if (Math.hypot(e.position.x - nx, e.position.z - nz) < r) { if (shieldBlocks(e, b)) { sparks(nx, 1.1, nz, undefined, 8); popup(e.position, 'TING!', '#e8a33d'); sfx('thud'); gone = true; break; } if (tryDodge(e, b)) continue; R.hits++; b.hit.add(e); if (WD[b.id] && WD[b.id].weak && !f.boss && f.down <= 0 && !f.grazed) { f.grazed = 1; stagger(e, dir); bloodBurst(e.position, dir, 6, 2); bloody(e, 1); popup(e.position, 'WINGED!', '#ffd36b'); } else f.down > 0 ? killEnemy(e, b.id, dir) : hitEnemy(e, b.id, dir, 1); if (--b.pierce <= 0) { gone = true; break; } } }
+            if (f.alive) { const r = f.down > 0 ? 0.5 : 0.42; if (Math.hypot(e.position.x - nx, e.position.z - nz) < r) { if (shieldBlocks(e, b)) { sparks(nx, 1.1, nz, undefined, 8); popup(e.position, 'TING!', '#e8a33d'); sfx('thud'); gone = true; break; } if (tryDodge(e, b)) continue; R.hits++; b.hit.add(e); if (WD[b.id] && WD[b.id].weak && !f.boss && f.down <= 0 && !f.grazed) { f.grazed = 1; stagger(e, dir); bloodBurst(e.position, dir, 6, 2); bloody(e, 1); popup(e.position, 'WINGED!', '#ffd36b'); } else f.down > 0 ? killEnemy(e, b.id, dir) : hitEnemy(e, b.id, dir, 1); markHit(e, !f.alive); if (--b.pierce <= 0) { gone = true; break; } } }
             else if (Math.hypot(e.position.x - nx, e.position.z - nz) < 0.45) { b.hit.add(e); const kk = (FORCE[b.id] || 4) * 0.45 / f.mass; f.vx += b.dx * kk; f.vz += b.dz * kk; f.spin = (f.spin || 0) + rnd(-2, 2); bloodBurst(e.position, dir, 8, 2.5, 0.3); floorDecal(nx + b.dx * 0.4, nz + b.dz * 0.4, rnd(0.3, 0.5), Math.random() * 6); } }
         } else if (!P.dead && Math.hypot(player.position.x - nx, player.position.z - nz) < 0.38) { hurtPlayer(dir, b.id); gone = true; }
       }
@@ -2266,6 +2303,7 @@ export function initMission(ctx) {
     const FT = f.type && FOE_TYPES[f.type];
     if (f.dodgeT > 0) f.dodgeT -= dt;
     if (f.leanT > 0) { f.leanT -= dt; u.body.rotation.z = Math.sin(Math.min(1, f.leanT / 0.45) * Math.PI) * 0.45 * f.leanS; } else if (FT) u.body.rotation.z = 0;
+    if (f.flinch > 0) { f.flinch -= dt; u.body.rotation.x = f.flinch > 0 ? -Math.sin(f.flinch / 0.24 * Math.PI) * 0.32 : 0; } // rocks back from the hit
     f.cd -= dt; f.laser.visible = false;
     const wid = f.weapon || 'fists', W2 = WD[wid];
     const pp = player.position, dx = pp.x - e.position.x, dz = pp.z - e.position.z, dist = Math.hypot(dx, dz) || 0.001, ang = Math.atan2(dx, dz);
@@ -2348,6 +2386,7 @@ export function initMission(ctx) {
     if (W2.kill) hitEnemy(tgt, id, dir, 2); else if (f.boss) stagger(tgt, dir); else { knockdown(tgt, dir); popup(tgt.position, 'DOWN!', '#ffd36b'); }
   }
   function cameraFor(zoom) {
+    if (ARR && ARR.ph === 'intro') return introCam(ARR.t);
     if (ARR) { const look = (ARR.ph === 'drive' ? van.position : player.position).clone().setY(0.8); return { pos: look.clone().add(new THREE.Vector3(0, 12 * zoom, 8 * zoom)), look }; }
     const sc = !P.dead && gunOut() && WD[P.held.id].scope; // AWP: the camera reaches out along your aim
     const lean = P.dead ? new THREE.Vector3() : aim.clone().sub(player.position).setY(0).clampLength(0, sc ? 14 : 6).multiplyScalar(sc ? 0.62 : 0.3);
@@ -2461,6 +2500,32 @@ export function initMission(ctx) {
     @keyframes nvblink{50%{opacity:.25}}`;
   document.head.appendChild(lbCss);
   const lbTop = mk('nvLbT'), lbBot = mk('nvLbB');
+  // ---- the joint intro (feel pass 2026-11-27): first raid on a joint = a slow look over the building, the dossier card and a
+  // phone call (js/levels/intros.js); later visits and remixes get the card alone while the van pulls up. Seen: state.introSeen[id].
+  // On a phone held sideways the card moves right and the call box left (body.introOn); upright the card spans the top.
+  const introCss = document.createElement('style'); introCss.textContent = INTRO_CSS; document.head.appendChild(introCss);
+  const introEl = mk('nvIntro');
+  introEl.addEventListener('pointerdown', (e) => { if (e.target.closest('[data-skip]')) { e.preventDefault(); e.stopPropagation(); skipIntro(); } });
+  const BOSS_SVG = '<svg viewBox="0 0 46 46"><circle cx="23" cy="17" r="8.5" fill="rgba(0,0,0,.75)"/><path d="M7 46c1-11 7-16 16-16s15 5 16 16z" fill="rgba(0,0,0,.75)"/><text x="23" y="21" text-anchor="middle" font-size="11" font-weight="900" fill="#fff" font-family="Rubik,Arial">?</text></svg>';
+  function introCard(id, compact) {
+    const I = INTROS[id], C = CREWS[I.crew]; introEl.style.setProperty('--crew', C.col);
+    const sub = REMIX ? `${REMIX.retake ? 'RETAKE' : REMIX.daily ? 'DAILY CHALLENGE' : 'REMIX'} · ${REMIX.m.name}` : I.area || C.area;
+    introEl.innerHTML = `<div class="tag">DOSSIER · ${C.name.toUpperCase()}</div><div class="nm">${LV.text.banner[0]}</div><div class="ar">${sub}</div>` +
+      `<div class="boss">${BOSS_SVG}<div><b>${I.boss}</b><span>${I.role}</span></div></div>` +
+      `<div class="row"><i>INSIDE</i><p>${I.inside}</p></div><div class="row st"><i>AT STAKE</i><p>${REMIX && compact ? REMIX.m.line : I.stake}</p></div>` +
+      `<button class="skip" data-skip>${inputMode() === 'touch' ? '' : glyph('Escape') + ' · '}OVERSLAAN ▸▸</button>`;
+    introEl.className = compact ? 'compact' : ''; void introEl.offsetWidth; introEl.classList.add('on'); document.body.classList.toggle('introOn', !compact);
+  }
+  function hideIntro() { introEl.classList.remove('on'); document.body.classList.remove('introOn'); }
+  const markSeen = (id) => { state.introSeen = state.introSeen || {}; state.introSeen[id] = 1; };
+  function skipIntro() { if (!ARR) { hideIntro(); return; } if (ARR.ph === 'intro') markSeen(LV.id); endArrive(); }
+  // the establishing look: from the street side, high, drifting slowly along the front of the joint
+  function introCam(t) {
+    const cx = OX + W / 2, cz = -H / 2, s = Math.max(-0.5, Math.min(0.5, -0.5 + t / 16)), x = cx + s * W * 0.55;
+    const up = Math.max(13, H * 0.85 + 4), back = 9 + H * 0.2;
+    return { pos: new THREE.Vector3(x, up, back), look: new THREE.Vector3(x * 0.4 + cx * 0.6, 0, cz * 0.75) };
+  }
+  function driveSound() { beep(70, 2.3, 'sawtooth', 0.04); beep(46, 2.3, 'square', 0.03); setTimeout(() => { if (ARR && ARR.ph === 'drive') beep(1900, 0.3, 'triangle', 0.015); }, 2050); }
   
   function letterbox(on) {
     lbTop.innerHTML = `<span>${LV.text.area}</span>`; lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`;
@@ -2468,12 +2533,16 @@ export function initMission(ctx) {
     hudEl.style.opacity = scoreEl.style.opacity = on ? 0 : 1; $('objective').style.opacity = on ? 0 : 1; mapEl.style.opacity = on ? 0 : 0.9; if (!on) setTimeout(hud, 0);
   }
   function startArrive(then) {
-    ARR = { ph: 'drive', t: 0, t0: performance.now(), x0: OX + LV.van.from, then }; // skipping goes by wall time (t restarts every phase)
+    const I = !HEIST && !DEF && INTROS[LV.id], full = !!I && !REMIX && !ownsLevel(LV.id) && !(state.introSeen && state.introSeen[LV.id]) && !!ctx.dialogue;
+    ARR = { ph: full ? 'intro' : 'drive', t: 0, t0: performance.now(), x0: OX + LV.van.from, then }; // skipping goes by wall time (t restarts every phase)
     van.position.set(ARR.x0, 0, van.position.z); player.visible = false; letterbox(true); M.snap = true;
-    beep(70, 2.3, 'sawtooth', 0.04); beep(46, 2.3, 'square', 0.03); setTimeout(() => { if (ARR && ARR.ph === 'drive') beep(1900, 0.3, 'triangle', 0.015); }, 2050);
+    if (I) setTimeout(() => { if (ARR && M.active) introCard(LV.id, !full); }, full ? 350 : 150);
+    if (full) lbBot.innerHTML = `<span>${inputMode() === 'touch' ? '' : glyph('Escape') + ' · OVERSLAAN'}</span>`; // E / Space now turn the call's lines
+    if (!full) driveSound();
   }
   function endArrive() {
-    if (!ARR) return; const then = ARR.then; ARR = null;
+    if (!ARR) return; const then = ARR.then, wasIntro = ARR.ph === 'intro'; ARR = null;
+    hideIntro(); if (wasIntro && state.inDialogue && ctx.dialogue) ctx.dialogue([], null); // skipped mid-call: close the call box
     van.position.set(VAN_PARK, 0, van.position.z); player.visible = true;
     player.position.copy(START()); player.rotation.y = Math.PI; P.last.copy(player.position); P.vx = P.vz = 0;
     letterbox(false); M.snap = true; if (then) then();
@@ -2482,6 +2551,9 @@ export function initMission(ctx) {
   function updateArrive(dt) {
     const A = ARR; A.t += dt;
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
+    if (A.ph === 'intro') { // the dossier is up; the call starts once the camera has settled, the van rolls in when it ends
+      if (!A.called && A.t > 0.9) { A.called = true; ctx.dialogue(INTROS[LV.id].call, () => { if (ARR !== A || A.ph !== 'intro') return; markSeen(LV.id); hideIntro(); A.ph = 'drive'; A.t = 0; driveSound(); lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`; }); }
+      return; }
     if (A.ph === 'drive') {
       const u = Math.min(1, A.t / 2.4), e = 1 - Math.pow(1 - u, 3);
       van.position.x = A.x0 + (VAN_PARK - A.x0) * e; van.position.y = Math.abs(Math.sin(A.t * 17)) * 0.035 * (1 - u);
@@ -2589,7 +2661,7 @@ export function initMission(ctx) {
     return { nades: have.reduce((n, k) => n + state.nades[k], 0), nade: have.length ? NADES[nadeSel()].name : '', types: have.length, plate: P.armourT === 'carrier' && state.spares > 0 && P.armor < ARMOUR.carrier.plates && !(P.plateT > 0) };
   }, enumerable: true });
   Object.defineProperty(M, 'nvOK', { get: () => !!(M.active && ((HEIST && HEIST.nv) || state.gear.nvg)), enumerable: true });
-  Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
+  Object.assign(M, { enter, exit, update, street, melee, cameraFor, hitstop, onBuy, frozen: () => P.dead || R.results || !!ARR, arriving: () => !!ARR, aiming: () => M.active, invOpen: () => invOpen, openInv, closeInv,
     enemies, items, doors, glass, barrels, P, R, lootCrates, OX, L, G, resetFloor, hud, validate, LEVELS, buildLevel, ownsLevel, setOwned, migrateLevels,
     canRestart: () => M.active && !!LV && !ownsLevel(LV.id) && !DEF, levelName: () => (LV ? LV.name : ''),
     _hit: (e) => killEnemy(e, 'maboota', [0, 1]), _hurt: (c) => hurtPlayer([0, 1], c || 'makarov'), _knock: (e) => knockdown(e, [0, 1]), _attack: attack, _grab: grab, _select: selectSlot, FOE_TYPES, _wristLock: wristLock, _tryDodge: tryDodge, endArrive, arriving: () => !!ARR, openStash, stashAct, migrateKit, owns, canBuy, kitSummary, commitKit, _cycle: cycleSlot, _putInHand: putInHand, _explode: explode, _breakGlass: breakGlass, _fire: (a, id) => fireGun(player.position, a, id || 'makarov', true, false), _reload: reloadInput, _strip: stripAmmo, shift, WD, _P: () => P, NV, setNV, receive, sellables, sellKey, armour, setArmour, swapGuns, ownCals, setMod, hasMod, capOf, armourOf, STASH_CAP });

@@ -2201,7 +2201,7 @@ function skipHiddenMatrices() {
 // Everything worth keeping lives in `state`; the world (sold junk, shutter, table, Naknikim, Freddy Sr. gone) is rebuilt from it on load.
 // Unknown fields in a save (from a newer build) are kept and written back untouched.
 const SAVE_KEY = 'spiceMasterEddy.save', SAVE_VER = 1;
-const SAVE_FIELDS = ['spoed', 'goed', 'step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag', 'seenTabs', 'klok', 'stats', 'stam',
+const SAVE_FIELDS = ['introSeen', 'spoed', 'goed', 'step', 'money', 'table', 'naknik', 'mapSeen', 'kit', 'metRussian', 'raids', 'loan', 'metNabil', 'metSchmatzel', 'loot', 'spekbuurt', 'spekbuurtLootTaken', 'owned', 'lootTaken', 'district1', 'drives', 'ammo', 'pool', 'loadout', 'stash', 'econ', 'best', 'daily', 'act1', 'act2', 'act3', 'finale', 'paravim', 'rasCall', 'ngp', 'npcs', 'freddy', 'ws', 'van', 'crew', 'crewDay', 'heists', 'hg', 'eddy', 'tins', 'tut', 'tips', 'loods', 'guide', 'activists', 'prod', 'sollis', 'cops', 'bills', 'winkels', 'buurtrep', 'vandaag', 'seenTabs', 'klok', 'stats', 'stam',
   // never saved before 2026-11-26 although their modules said so: gun shop buys, the weather and paper, Johan, the club, the buurt
   'mods', 'upg', 'nades', 'nadeSel', 'spares', 'gear', 'ruStock', 'weer', 'johan', 'club', 'dealer', 'buurt'];
 let saveExtra = {}, loadingSave = false, titleConfirm = false;
@@ -2387,6 +2387,7 @@ function honk() { beep(415, 0.32, 'square', 0.035); setTimeout(() => beep(349, 0
 function bell() { beep(2100, 0.12, 'sine', 0.04); setTimeout(() => beep(2100, 0.18, 'sine', 0.04), 140); }
 // knockback when traffic hits you
 const knock = { vx: 0, vz: 0, vy: 0, t: 0 };
+const moveV = { x: 0, z: 0 }; // Eddy's walking velocity (eased, see the movement block in the loop)
 function bump(vx, vz, up, line) {
   if (knock.t > 0) return;
   knock.vx = vx; knock.vz = vz; knock.vy = up; knock.t = 0.9;
@@ -3284,18 +3285,24 @@ function tick() {
   if (oofDrive.active) oofDrive.update(dt);
   if (stats && state.step === 'free' && !riding && !(mission && mission.active)) { const wd = Math.hypot(player.position.x - walkFrom.x, player.position.z - walkFrom.z); if (wd > 0.001 && wd < 1) stats.add('walked', wd); } walkFrom.x = player.position.x; walkFrom.z = player.position.z;
   // movement (screen-relative: camera looks north)
-  let mx = 0, mz = 0;
+  let mx = 0, mz = 0, canMove = false;
   const mOn = mission && mission.active;
   if (!state.inDialogue && !state.inPC && state.step !== 'title' && !(mOn && mission.frozen()) && !mission.invOpen() && !(phone && phone.isOpen)) {
     if (keys.KeyW || keys.ArrowUp) mz -= 1; if (keys.KeyS || keys.ArrowDown) mz += 1;
     if (keys.KeyA || keys.ArrowLeft) mx -= 1; if (keys.KeyD || keys.ArrowRight) mx += 1;
     mx += virt.mx; mz += virt.mz; // controller / touch stick
+    canMove = true;
   }
   if (mOn || BOUNDS.cur) ctrlFlip = false; else if (!mx && !mz) ctrlFlip = camFlip; // screen-relative, also with the camera turned round (latched while a key is held, so crossing never reverses you)
   if (ctrlFlip) { mx = -mx; mz = -mz; }
-  if (knock.t > 0 || riding || (loods && loods.driving())) { mx = mz = 0; } // on the heftruck, js/loods.js drives
+  if (knock.t > 0 || riding || (loods && loods.driving())) { mx = mz = 0; canMove = false; } // on the heftruck, js/loods.js drives
   let len = Math.hypot(mx, mz); if (len < 0.15) { mx = mz = 0; len = 0; }
-  const speed = len ? (keys.ShiftLeft || keys.ShiftRight ? 7.5 : 4.2) * (1 + 0.06 * (woning ? woning.perk('fleet') : 0)) : 0;
+  // feel pass 2026-11-27: a stick pushed part way walks (keys are always a full push), and Eddy takes ~0.1 s to reach speed
+  // and less to stop, so starts and stops read as weight without feeling floaty; anything that takes control stops him dead
+  const push = len >= 0.999 ? 1 : Math.min(1, Math.max(0.42, (len - 0.15) / 0.55));
+  const speed = len ? (keys.ShiftLeft || keys.ShiftRight ? 7.5 : 4.2) * (1 + 0.06 * (woning ? woning.perk('fleet') : 0)) * push : 0;
+  if (!canMove) moveV.x = moveV.z = 0;
+  else { const k = 1 - Math.exp(-dt * (len ? 30 : 40)); moveV.x += ((len ? mx / len * speed : 0) - moveV.x) * k; moveV.z += ((len ? mz / len * speed : 0) - moveV.z) * k; if (!len && Math.hypot(moveV.x, moveV.z) < 0.05) moveV.x = moveV.z = 0; }
   if (knock.t > 0) {
     knock.t -= dt;
     player.position.x += knock.vx * dt; player.position.z += knock.vz * dt;
@@ -3305,14 +3312,14 @@ function tick() {
     player.rotation.y += dt * 14 * Math.min(1, knock.t * 2);
     if (knock.t <= 0) player.position.y = 0;
   }
+  if (moveV.x || moveV.z) { player.position.x += moveV.x * dt; player.position.z += moveV.z * dt; }
   if (len) {
-    player.position.x += mx / len * speed * dt; player.position.z += mz / len * speed * dt;
     const target = mission && mission.aiming() ? player.rotation.y : Math.atan2(mx, mz);
     let dr = target - player.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
-    player.rotation.y += dr * Math.min(1, dt * 14);
+    player.rotation.y += dr * Math.min(1, dt * 20);
   }
   if (!(loods && loods.driving()) && !riding) collide(player.position, 0.38);
-  if (!riding) animate(player, speed, dt);
+  if (!riding) animate(player, Math.hypot(moveV.x, moveV.z), dt);
   updateMelee(dt);
   if (!(freddy && freddy.update(dt))) { // Freddy Sr. back home: js/freddy.js walks him behind Eddy
   // dad faces the player when close
@@ -3446,14 +3453,14 @@ camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(pl
 updateObjective();
 mission = initMission({ onEvent: (t, x) => { if (freddy) freddy.onMission(t, x); if (t === 'results' && stats) { stats.add('raids'); stats.add('kos', (x && x.kills) || 0); if (x && /^S/.test(x.grade || '')) stats.add('sGrades'); } if (t === 'results' && vandaag) vandaag.note('raid', x && x.grade); if (t === 'results' && state.lastRaid && brep) brep.raid(state.lastRaid.id, x && x.grade, { vettenburg: LAMPAS.map((j) => j[1]), hipster: NOSH.map((j) => j[1]), dokken: ABD.map((j) => j[1]), zandwijk: PARA.map((j) => j[1]) }); }, score, musicOn: () => music.on, perk: (k) => (woning ? woning.perk(k) : 0), THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
-  tip: (k) => tips.show(k), choiceOpen: () => choiceOpen, interacting: () => current, // the [E] prompt on screen (the van, a task): E acts on it instead of throwing the weapon // Shooki's tips; the clamp choice must not lose its keys to the mission
+  tip: (k) => tips.show(k), dialogue: (lines, done) => dialogue(lines, done), choiceOpen: () => choiceOpen, interacting: () => current, // the [E] prompt on screen (the van, a task): E acts on it instead of throwing the weapon // Shooki's tips; the clamp choice must not lose its keys to the mission
   parkTicket: () => garage.addTicket(mission.levelName()), clampVan: () => writeSave(), parkDone: () => garage.parkingDone(), // paid bays (js/garage.js)
   clampChoice: (cb) => { tips.show('clamp'); const tix = garage.ticketSum(); choice('Oofmobiel', `The handhaver left a <b>wheel clamp</b> on the front wheel. Pay at the parking office (W ${garage.CLAMP_FINE + tix}${tix ? ', with your open tickets' : ''}) or get Monteur Mo to cut it off (W ${garage.MO_CLAMP})?`, ['Pay the fine', 'Call Mo', 'Leave it'], (i) => cb(i < 2 && garage.unclamp(i ? 'mo' : 'pay'))); },
   arrived: (i) => razimArrived(i), left: () => razimLeft(), // Razim sometimes waits by the van (above)
   makeVan: () => oof.clone(true), brand: () => liveryNow(), save: () => writeSave(), kitChanged: () => kitText(), shop: SHOP, streetTargets, streetHit: hitStreetPerson, setBounds: (b) => { BOUNDS.cur = b; }, updateObjective, setArea: (t) => { $('area').textContent = t; } });
 initInput({ state, getMission: () => mission, canvas, beep, toast, gfx: post, fonts });
 // the drive to the next district (js/rit.js): from the van map once Kipkruidenkwartier is yours
-{ const enter0 = mission.enter; mission.enter = (id, o) => { const r = enter0(id, o); if (r !== null && freddy) freddy.onMission('enter', o || {}); setTimeout(() => tips.show(o && o.heist ? 'heist' : o && o.defend ? 'siege' : o && o.remix ? 'remix' : 'mission'), 1600); return r; }; } // Shooki's first-time tips
+{ const enter0 = mission.enter; mission.enter = (id, o) => { const r = enter0(id, o); if (r !== null && freddy) freddy.onMission('enter', o || {}); const tip = () => { if (mission.arriving && mission.arriving()) { setTimeout(tip, 500); return; } tips.show(o && o.heist ? 'heist' : o && o.defend ? 'siege' : o && o.remix ? 'remix' : 'mission'); }; setTimeout(tip, 1600); return r; }; } // Shooki's first-time tips (after the joint intro and the van arrival)
 // the snelweg politie (js/snelpolitie.js): stats, the fine, and Garage Mo hearing about it (the turbo unlocks in js/garage.js)
 function onSnelPolitie(kind, data) {
   if (kind === 'chase') { if (stats) stats.add('chases'); if (garage.chased()) setTimeout(() => toast('GARAGE MO', rankNow() >= 2 ? '"Heard the stekkerpolitie had you on the snelweg. Come by the garage: I\'ve got something with a turbo."' : '"Heard the politie had you on the snelweg. When you\'re a Kruidenhandelaar, come and see me. I\'ve got something with a turbo."', 6), 14000); }

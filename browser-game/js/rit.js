@@ -428,7 +428,8 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
   const hitBox = (ax, az, ahx, ahz, bx, bz, bhx, bhz) => Math.abs(ax - bx) < ahx + bhx && Math.abs(az - bz) < ahz + bhz;
   function update(dt) {
     if (!R.active || R.over || R.phase === 'fade' || !veh || deps.fiets.current !== veh) return;
-    R.t += dt; const B = veh.B, sp = Math.abs(B.v);
+    if (!state.inDialogue && !state.inPC) R.t += dt; // the run clock stops while someone is talking (Johan) or the PC is open
+    const B = veh.B, sp = Math.abs(B.v);
     { const n = deps.nightK ? deps.nightK() : 0; headPool.visible = n > 0.3; if (headPool.visible) { headPool.position.set(B.x + Math.sin(B.h) * 9, 0.09, B.z + Math.cos(B.h) * 9); headPool.rotation.y = B.h - Math.PI / 2; } } // the van's headlights on the road
     if (R.phase === 'street') {
       if (B.x >= deps.exit.x - 3 && Math.abs(B.z - deps.RC) < 6) toRing();
