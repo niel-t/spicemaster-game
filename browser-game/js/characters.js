@@ -163,7 +163,7 @@ function charMaterial(map, cloth, mode, jig) {
   mat.onBeforeCompile = (sh) => {
     if (jig) { /* butt jiggle: each cheek (a soft ellipsoid behind the hips, in rest space) is pushed by its own spring (jiggleStep) */
       sh.uniforms.uJigL = jig.L; sh.uniforms.uJigR = jig.R;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uJigL; uniform vec3 uJigR;\nfloat cheek(vec3 p, float sx) { vec3 d = (p - vec3(sx * 0.07, 0.89, -0.09)) / vec3(0.09, 0.11, 0.1); float m = 1.0 - clamp(dot(d, d), 0.0, 1.0); return m * m * smoothstep(0.0, -0.07, p.z); }')
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uJigL; uniform vec3 uJigR;\nfloat cheek(vec3 p, float sx) { vec3 d = (p - vec3(sx * 0.075, 0.86, -0.11)) / vec3(0.1, 0.13, 0.12); float m = 1.0 - clamp(dot(d, d), 0.0, 1.0); return m * m * smoothstep(0.0, -0.07, p.z); }')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += uJigL * cheek(position, 1.0) + uJigR * cheek(position, -1.0);');
     }
     sh.uniforms.uRim = U_RIM; sh.uniforms.uRimK = U_RIMK; sh.uniforms.uFill = U_FILL;
@@ -199,14 +199,15 @@ function faceSpotprent(y, F) { // newspaper caricature: pen lines and cross-hatc
   const line = (a, w, pts) => { y.strokeStyle = INKC + a + ')'; y.lineWidth = w; y.beginPath(); y.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 4) y.quadraticCurveTo(pts[i], pts[i + 1], pts[i + 2], pts[i + 3]); y.stroke(); };
   for (const s of [1, -1]) {
     line(0.75, 1.1, [C + s * 8, V(1.668), C + s * 14, V(1.652), C + s * 13, V(1.628)]); // nasolabial fold
+    if (L.fem && !old) { line(0.3, 0.7, [C + s * 8, V(1.668), C + s * 12, V(1.652), C + s * 11.5, V(1.635)]); continue; } // young women: one soft line, no wrinkles
     line(0.5, 0.8, [C + s * 7, ey + 5, C + s * 12, ey + 8.5, C + s * 18, ey + 5]); // eye bag
     if (old) line(0.4, 0.7, [C + s * 8, ey + 8, C + s * 13, ey + 11.5, C + s * 19, ey + 8]);
     for (let k = 0; k < 3; k++) line(0.45, 0.6, [C + s * 20, ey - 1 + k * 2.6, C + s * 23, ey - 1.5 + k * 3.2, C + s * 25.5, ey - 2 + k * 4]); // crow's feet
     for (let k = 0; k < 6; k++) { const x0 = C + s * (17 + k * 2.1); line(0.24, 0.55, [x0 + s * 3, V(1.67), x0 + s * 1.5, V(1.652), x0 - s * 1, V(1.636) + k * 0.8]); } // hatching under the cheekbone
     for (let k = 0; k < 5; k++) { const x0 = C + s * (5 + k * 1.6); line(0.28, 0.5, [x0, ey - 13 - k * 0.4, x0 + s * 1, ey - 16, x0 + s * 2, ey - 19]); } // brow shading
   }
-  const nf = old ? 4 : 2; for (let k = 0; k < nf; k++) { const yy = V(1.752) - k * 4.2; line(0.4, 0.75, [C - 15, yy + r() * 1.5, C - 5, yy - 1.8, C, yy, C + 6, yy + 1.4, C + 15, yy - r() * 1.5]); } // forehead lines
-  line(0.55, 0.9, [C - 5, V(1.618), C, V(1.612), C + 5, V(1.618)]); // chin crease
+  const nf = old ? 4 : L.fem ? 0 : 2; for (let k = 0; k < nf; k++) { const yy = V(1.752) - k * 4.2; line(0.4, 0.75, [C - 15, yy + r() * 1.5, C - 5, yy - 1.8, C, yy, C + 6, yy + 1.4, C + 15, yy - r() * 1.5]); } // forehead lines
+  if (!L.fem || old) line(0.55, 0.9, [C - 5, V(1.618), C, V(1.612), C + 5, V(1.618)]); // chin crease
 }
 function faceRubber(y, F) { // latex satire puppet: airbrushed blotches, deep sculpted creases, ruddy cheeks, a sheen
   const { C, V, L, SKIN, rgb } = F, r = rnd(JSON.stringify(L.skin) + 'r'), ey = V(1.705), soft = softF(y);
@@ -573,7 +574,7 @@ function jiggleStep(p, W, now) {
   for (let i = 0; i < 2; i++) {
     const c = j.s[i], { k, c: damp } = JIG[i];
     for (let n = 0; n < 2; n++) { const h = dt / 2; c.v.addScaledVector(c.x, -k * h).addScaledVector(c.v, -damp * h).addScaledVector(acc, -h * 2.4); c.x.addScaledVector(c.v, h); }
-    c.x.y = clamp(c.x.y, -0.035, 0.035); c.x.x = clamp(c.x.x, -0.015, 0.015); c.x.z = clamp(c.x.z, -0.02, 0.02);
+    c.x.y = clamp(c.x.y, -0.045, 0.045); c.x.x = clamp(c.x.x, -0.018, 0.018); c.x.z = clamp(c.x.z, -0.025, 0.025);
   }
   md.jig.L.value.copy(j.s[0].x); md.jig.R.value.copy(j.s[1].x);
 }

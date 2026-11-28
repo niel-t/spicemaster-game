@@ -2,7 +2,7 @@
 //  - West: CLUB MONIQUE, Eddy Jr.'s favourite strip club. A reception room with the bouncer, Creplach (a rabbi, strict, deadpan),
 //    who wants W 200 a night to let you through. Inside: a bar, a centre stage with three dancers (Brie, Feta and Edam), and on
 //    a front seat Jossi, Eddy's friend, always there and always angling for the next lapdance. A lapdance is a fade-out and a
-//    text card: no nudity, stage outfits only.
+//    text card: no nudity, stage lingerie only.
 //  - East: TRYSHTAHN AUTO. A big empty plot off the street, then a round glass showroom with three cars on turntables: the boxy
 //    Kaasland Kombi, the sporty Stuttgart 911-ish Zuidwester, and a golden Rolls-ish Koninklijke. Tryshtahn stands up front and always
 //    asks Eddy double: the first time you come in, a local buys a Kombi for W 5,000 and you get quoted W 10,000 ("immigrant price").
@@ -12,6 +12,53 @@ import { hex01 } from './characters.js';
 
 const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
+
+// stage lingerie, painted over the body sheet (characters.js layout: torso rows 0-290 from Y 1.51 down to 0.8, u 256 = centre front,
+// 0/512 = centre back; sleeves 290-380, cuffs 381-399, legs 440-512): bare skin, a lace-trimmed bra, high-cut briefs with a garter belt,
+// sheer stockings with a lace top. No nudity: the bra and briefs are always on.
+function paintLingerie(cv, skin, col) {
+  const x = cv.getContext('2d'), W = cv.width, k = W / 512, ty = (Y) => (1.51 - Y) / 0.71 * 290 * k, fx = (m) => (256 + m * 340) * k;
+  const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`, sk = [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], cl = [(col >> 16) & 255, (col >> 8) & 255, col & 255];
+  const dk = cl.map((v) => v * 0.45), lt = cl.map((v) => Math.min(255, v * 1.25 + 30)), skd = sk.map((v) => v * 0.8);
+  // bare skin everywhere (torso, sleeves, cuffs), with soft modelling: a darker spine, under-bust and side shading
+  x.fillStyle = rgb(sk); x.fillRect(0, 0, W, 400 * k);
+  const blob = (cx, cy, rx, ry, c) => { const g = x.createRadialGradient(cx, cy, 0, cx, cy, 1); g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0)'); x.save(); x.translate(cx, cy); x.scale(rx, ry); x.fillStyle = g; x.fillRect(-1, -1, 2, 2); x.restore(); };
+  for (const u of [0, W]) blob(u, ty(1.2), 26 * k, 120 * k, rgb(skd, 0.35));
+  for (const s of [-1, 1]) { blob(fx(s * 0.37), ty(1.15), 40 * k, 90 * k, rgb(skd, 0.3)); blob(fx(s * 0.07), ty(1.24), 30 * k, 10 * k, rgb(skd, 0.35)); }
+  blob(fx(0), ty(1.05), 10 * k, 16 * k, rgb(skd, 0.45)); // navel
+  const lace = (y0, y1, x0, x1, down) => { // scalloped lace edge along a band
+    x.fillStyle = rgb(dk, 0.85); for (let u = x0; u < x1; u += 9 * k) { x.beginPath(); x.arc(u + 4.5 * k, down ? y1 : y0, 4.5 * k, down ? 0 : Math.PI, down ? Math.PI : 0); x.fill(); }
+    x.strokeStyle = rgb(lt, 0.35); x.lineWidth = 1 * k; for (let u = x0; u < x1; u += 6 * k) { x.beginPath(); x.moveTo(u, y0); x.lineTo(u + 3 * k, y1); x.stroke(); }
+  };
+  const satin = (y0, y1, x0, x1) => { const g = x.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, rgb(lt)); g.addColorStop(0.45, rgb(cl)); g.addColorStop(1, rgb(cl.map((v) => v * 0.75))); x.fillStyle = g; x.fillRect(x0, y0, x1 - x0, y1 - y0); };
+  // bra: a band all the way round under the bust, two cups at the front, straps over the shoulders to the back
+  satin(ty(1.25), ty(1.215), 0, W); lace(ty(1.25), ty(1.215), 0, W, true);
+  for (const s of [-1, 1]) {
+    const cx = fx(s * 0.075), cy = ty(1.3);
+    x.fillStyle = rgb(cl); x.beginPath(); x.moveTo(fx(s * 0.008), ty(1.24)); x.quadraticCurveTo(fx(s * 0.02), ty(1.34), fx(s * 0.06), ty(1.37)); x.quadraticCurveTo(fx(s * 0.13), ty(1.36), fx(s * 0.16), ty(1.24)); x.closePath(); x.fill();
+    blob(cx - s * 6 * k, cy - 6 * k, 16 * k, 12 * k, rgb(lt, 0.55)); // satin sheen on the cup
+    x.strokeStyle = rgb(dk); x.lineWidth = 2.5 * k; x.beginPath(); x.moveTo(fx(s * 0.008), ty(1.24)); x.quadraticCurveTo(fx(s * 0.02), ty(1.34), fx(s * 0.06), ty(1.37)); x.quadraticCurveTo(fx(s * 0.13), ty(1.36), fx(s * 0.16), ty(1.24)); x.stroke();
+    x.strokeStyle = rgb(cl); x.lineWidth = 5 * k; x.beginPath(); x.moveTo(fx(s * 0.07), ty(1.37)); x.lineTo(fx(s * 0.09), 0); x.stroke(); // front strap
+    const bu = s < 0 ? 0 : W; x.beginPath(); x.moveTo(bu - s * -1 * 0, 0); x.moveTo(fx(s * 0.62), 0); x.lineTo(fx(s * 0.66), ty(1.25)); x.stroke(); // back strap
+  }
+  blob(fx(0), ty(1.27), 5 * k, 12 * k, rgb(skd, 0.5)); // cleavage shadow
+  x.fillStyle = rgb(lt); x.beginPath(); x.arc(fx(0), ty(1.245), 3.5 * k, 0, 7); x.fill(); // a little bow
+  // briefs: high-cut, a V at the front, full at the back (u 0/512), a waistband with a garter belt above
+  satin(ty(0.93), ty(0.9), 0, W); lace(ty(0.93), ty(0.9), 0, W, false);
+  // high-cut at the hips (m about +-0.3), full at the front and over the seat
+  const cut = (u) => { const m = (u / k - 256) / 340, d = Math.min(Math.abs(Math.abs(m) - 0.3), 0.5), f = Math.max(0, 1 - d / 0.13); return 0.8 + 0.07 * f * f; };
+  x.fillStyle = rgb(cl); x.beginPath(); x.moveTo(0, ty(0.9)); for (let u = 0; u <= W; u += 3 * k) x.lineTo(u, ty(cut(u)) + 2 * k); x.lineTo(W, ty(0.9)); x.closePath(); x.fill();
+  x.fillStyle = rgb(sk); x.beginPath(); x.moveTo(0, ty(0.8) + 3 * k); for (let u = 0; u <= W; u += 3 * k) x.lineTo(u, ty(cut(u)) + 2 * k); x.lineTo(W, ty(0.8) + 3 * k); x.closePath(); x.fill();
+  blob(fx(0), ty(0.85), 34 * k, 10 * k, rgb(lt, 0.35)); for (const u of [0, W]) blob(u, ty(0.85), 70 * k, 14 * k, rgb(lt, 0.3));
+  x.strokeStyle = rgb(dk, 0.9); x.lineWidth = 2 * k; x.beginPath(); for (let u = 0; u <= W; u += 3 * k) { const y = ty(cut(u)) + 2 * k; if (!u) x.moveTo(u, y); else x.lineTo(u, y); } x.stroke();
+  for (const m of [-0.16, 0.16, -0.44, 0.44]) { x.strokeStyle = rgb(dk); x.lineWidth = 3 * k; x.beginPath(); x.moveTo(fx(m), ty(0.9)); x.lineTo(fx(m), ty(0.8)); x.stroke(); } // garter straps
+  // sleeves and cuffs: bare arms; a lace wrist band
+  x.fillStyle = rgb(sk); x.fillRect(0, 290 * k, W, 110 * k); x.fillStyle = rgb(dk, 0.8); x.fillRect(0, 381 * k, W, 6 * k);
+  // legs: sheer stockings (skin seen through a darker tint), a lace top band and a back seam
+  const g = x.createLinearGradient(0, 440 * k, 0, 512 * k); g.addColorStop(0, rgb(sk)); g.addColorStop(0.12, rgb(sk)); g.addColorStop(0.16, rgb(sk.map((v, i) => v * 0.55 + dk[i] * 0.25))); g.addColorStop(1, rgb(sk.map((v, i) => v * 0.45 + dk[i] * 0.25)));
+  x.fillStyle = g; x.fillRect(0, 440 * k, W, 72 * k); lace(445 * k, 451 * k, 0, W, true);
+  x.strokeStyle = rgb(dk, 0.7); x.lineWidth = 1.5 * k; for (const u of [2 * k, 256 * k, W - 2 * k]) { x.beginPath(); x.moveTo(u, 452 * k); x.lineTo(u, 512 * k); x.stroke(); }
+}
 
 // looks (js/characters.js fields)
 const LOOK = {
@@ -24,7 +71,7 @@ const LOOK = {
   tryshtahn: { tex: 512, skin: hex01(0xc8906a), hair: hex01(0x1a1410), hs: 'buzz', stubble: 1, stache: 1, smile: 1, calm: 1, hat: 'wrap', hatC: hex01(0x1c2a5a), body: 'big', watch: 1, B: { nowatch: false },
     shirt: hex01(0x14161c), jacket: hex01(0x14161c), pants: hex01(0x14161c), shoes: hex01(0x0e0c0a), tee: 1,
     shirtPaint: { shirt: [0x14, 0x16, 0x1c], pants: [0x14, 0x16, 0x1c], skin: [0xf6, 0xf6, 0xf2], belt: [0x0e, 0x0c, 0x0a], vDepth: 1.42, chain: false, sleeves: 'long', buttons: true } },
-  dancer: (skin, hair, outfit, hs) => ({ tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, jiggle: 1, B: { nowatch: true, gluteK: 1.8 },
+  dancer: (skin, hair, outfit, hs, lingerie) => ({ paintBody: (cv) => paintLingerie(cv, skin, lingerie || outfit), tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, jiggle: 1, B: { nowatch: true, gluteK: 4.4 },
     shirt: hex01(outfit), jacket: hex01(outfit), pants: hex01(outfit), shoes: hex01(0x111111), tee: 1, /* a stage catsuit: no skirt tube over the hips */
     shirtPaint: { shirt: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], pants: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], skin: [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], neck: 'crew', sleeves: 'rolled', buttons: false } }),
 };
@@ -32,11 +79,11 @@ LOOK.statue = { tex: 512, fem: 1, skin: hex01(0xf2f0ea), hair: hex01(0xe8e4dc), 
   shirt: hex01(0xf4f2ee), jacket: hex01(0xf4f2ee), pants: hex01(0xf4f2ee), shoes: hex01(0xf2f0ea), tee: 1, skirt: hex01(0xf4f2ee),
   shirtPaint: { shirt: [0xf4, 0xf2, 0xee], pants: [0xf4, 0xf2, 0xee], skin: [0xf2, 0xf0, 0xea], neck: 'crew', sleeves: 'long', buttons: false } }; // a marble figure in a draped robe
 const DANCERS = [
-  { name: 'Brie', skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
-  { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
-  { name: 'Edam', skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
+  { name: 'Brie', skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, lingerie: 0xe8287a, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
+  { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, lingerie: 0x1c1a24, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
+  { name: 'Edam', skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, lingerie: 0xc8141e, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
 ];
-export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs)); // dev/characters.html ?set=dancers
+export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie)); // dev/characters.html ?set=dancers
 const DANCE = 50, ENTRY = 200;
 
 export function createVenues(deps) {
@@ -173,7 +220,7 @@ export function createVenues(deps) {
   // the people
   const creplach = deps.makePerson(LOOK.creplach); creplach.position.set(K.door + 1.45, 0, K.part + 0.75); creplach.rotation.y = 0; scene.add(creplach);
   const jossi = deps.makePerson(LOOK.jossi, 0.92); const js = K.seats[2]; jossi.position.set(js.x, 0, js.z); jossi.rotation.y = js.ry + Math.PI; scene.add(jossi); deps.sit(jossi, 0.5);
-  const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
+  const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
   const extras = [0, 4].map((k, i) => { const s = K.seats[k], p = deps.passerBy(700 + i * 13); p.position.set(s.x, 0, s.z); p.rotation.y = s.ry + Math.PI; scene.add(p); deps.sit(p, 0.5); return p; });
 
   const paid = () => C().paidDay === day();
