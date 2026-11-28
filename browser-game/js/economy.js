@@ -202,10 +202,10 @@ export function createEconomy(deps) {
     for (const g of INGREDIENTS) { e.hist[g.id].push(effMult(g.id)); if (e.hist[g.id].length > HISTORY) e.hist[g.id].shift(); }
     const mixLine = made ? (made.kg ? `${made.solo ? 'You' : 'Naknikim'} mixed ${made.kg} kg ${made.name} ${stars(Math.round(made.q))}${made.help && !made.solo ? ` (${made.help} kg thanks to your own hands)` : ''}. ` : `Naknikim couldn't mix ${made.name}: ${made.why} `) : '';
     const payLine = rep.rows.length ? `Clients paid ${fmt(rep.paid)}${rep.missed ? `, ${rep.missed} order(s) missed` : ''}${e.cards.length ? ', a client wants a word (Dagrapport)' : ''}. ` : '';
+    if (deps.onDay) deps.onDay(e.day); // before the strike toast returns early: a strike night is still a new day (bills, Cijfers, the Top 10)
     if (strikes.length && deps.toast) { deps.toast(state.act1 ? 'THEY STRIKE BACK' : 'THE LAMPAS STRIKE BACK', strikes.join(' '), 6); return e.day; }
     const lateLine = late.held.length ? `${deps.weatherName ? deps.weatherName() : 'Bad weather'}: the truck is stuck on the A-Kaas, ${late.held.reduce((a, o) => a + o.kg, 0)} kg comes tomorrow. ` : '';
     const cameLine = lateLine + (came.length ? `${deps.holdArrivals && deps.holdArrivals() ? 'On the truck, at the door from 09:00:' : 'The truck dropped'} ${came.map((o) => `${o.kg} kg ${INGREDIENTS.find((g) => g.id === o.id).name}`).join(', ')}. ` : '');
-    if (deps.onDay) deps.onDay(e.day);
     if (deps.toast) deps.toast(`MARKET DAY ${e.day}`, (deps.dayLine ? deps.dayLine() : '') + mixLine + payLine + cameLine + (headline ? `Kruidenbeurs: ${headline.text}.` : `Spice prices moved${why ? ' while you were ' + why : ''}.`), mixLine || payLine || cameLine ? 5 : 3);
     return e.day;
   }

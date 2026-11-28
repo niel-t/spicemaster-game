@@ -345,6 +345,7 @@ export function createKaasweer(deps) {
             <div class="kk-fcs">${fc.join('')}</div>${n < 3 ? '<small class="kk-dim">Three days ahead: for subscribers of Mengmeester rank.</small>' : '<small class="kk-dim">The further ahead, the more guesswork.</small>'}</div>
           <div class="kk-box"><h4>Snackbarbarometer</h4><div class="kk-baro"><b style="color:${dm > 1.02 ? '#1f7a2a' : dm < 0.98 ? '#a02020' : '#444'}">${dm > 1 ? '+' : ''}${Math.round((dm - 1) * 100)}%</b> snackbar orders today</div>${why.length ? `<ul>${why.map((x) => `<li>${x}</li>`).join('')}</ul>` : '<small class="kk-dim">An ordinary day.</small>'}${truckLate(p.d) ? '<p class="kk-warn">Trucks are stuck: what was due today comes tomorrow.</p>' : ''}</div>
           <div class="kk-box"><h4>Markt</h4>${(e.news || []).length ? e.news.map((x) => `<p>• ${x.text}</p>`).join('') : '<p>A quiet day on the Kruidenbeurs.</p>'}${bias ? `<p class="kk-dim">${bias}.</p>` : ''}</div>
+          ${deps.league ? deps.league(p.d) : ''}
           ${deps.ad ? `<div class="kk-box"><h4>Advertentie</h4>${deps.ad(p.d)}</div>` : ''}
           <div class="kk-box kk-ads"><h4>Kleintjes</h4>${p.ads.map((a) => `<p>${a}</p>`).join('')}</div>
         </div>

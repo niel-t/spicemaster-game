@@ -100,6 +100,7 @@ body.touch #vandaag{top:auto;bottom:auto;top:calc(150px + env(safe-area-inset-to
     const done = v.goals.filter((g) => g.done).length, w = RANK_PAY[rank()];
     const html = `<div class="vd-h"><img src="./assets/face_shooki_sq.jpg" alt=""><div class="vd-t">Shooki · vandaag<b>${done === v.goals.length ? 'Klaar voor vandaag!' : 'Three things for today'}</b></div><div class="vd-n">${done}/${v.goals.length}</div></div>
       <ul>${v.goals.map((g) => { const G = GOALS[g.id], cnt = g.n > 1 && !g.done && !G.money ? ` <em>${G.abs ? Math.min(g.n, Math.max(0, valOf(G))) : g.prog}/${g.n}</em>` : ''; return `<li class="${g.done ? 'ok' : ''}${popId === g.id ? ' pop' : ''}"><i></i><span>${G.label(g.n)}${cnt}</span><small>${g.done ? '' : '+' + fmt(w)}</small></li>`; }).join('')}</ul>
+      ${deps.extra ? deps.extra() : ''}
       <div class="vd-f">${v.bonus ? `All three done${v.streak > 1 ? `, ${v.streak} days in a row` : ''}. New goals tomorrow.` : `All three: +${fmt(w * 2)} bonus. New ones every market day.`}</div>`;
     if (el.style.display !== 'block') el.style.display = 'block';
     if (innerWidth <= 600 && innerHeight > innerWidth) { // a phone held upright: under the objective box, clear of SHMOKIA

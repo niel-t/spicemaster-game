@@ -75,7 +75,7 @@ body.riding #dstrip{display:none!important}
   const day = () => econ.ensure().day;
 
   // ================================================================ Overzicht
-  const TABS = [['vandaag', 'Vandaag'], ['klanten', 'Klanten'], ['geld', 'Geld'], ['voorraad', 'Voorraad'], ['bills', 'Rekeningen'], ['rep', 'Buurten'], ['heat', 'Bendes'], ['stats', 'Cijfers'], ['kaart', 'Kaarten']];
+  const TABS = [['vandaag', 'Vandaag'], ['klanten', 'Klanten'], ['geld', 'Geld'], ['voorraad', 'Voorraad'], ['bills', 'Rekeningen'], ['rep', 'Buurten'], ['heat', 'Bendes'], ['top10', 'Top 10'], ['stats', 'Cijfers'], ['kaart', 'Kaarten']];
   const ov = document.createElement('div'); ov.id = 'ovz';
   ov.innerHTML = '<div class="ov-w" role="dialog" aria-label="Overzicht"><div class="ov-h"><b>Overzicht</b><small class="ov-k"></small><button class="smeX" title="Close (Esc)" aria-label="Close">✕</button></div><div class="ov-t"></div><div class="ov-b"></div></div>';
   document.body.appendChild(ov);
@@ -100,6 +100,8 @@ body.riding #dstrip{display:none!important}
       if (due.length) h += `<div class="well" style="margin-top:8px"><b>Vandaag en morgen</b><br>${due.map((x) => `· ${x}`).join('<br>')}</div>`;
       if (s && s.goals.length) h += `<div style="margin-top:8px"><b>Shooki's three for today</b>${s.goals.map((g) => `<div class="gl${g.done ? ' ok' : ''}"><i></i><span>${G[g.id].label(g.n)}</span>${g.done ? '' : `<button class="ovb" data-way="${g.id}">Wijs de weg</button>`}</div>`).join('')}</div>`;
       else h += '<div class="well" style="margin-top:8px">Shooki\'s goals start once the mixing table is running.</div>';
+      const t10 = deps.top10 && deps.top10(), dd = t10 && t10.ensure().dd;
+      if (dd && dd.day === day()) h += `<div class="well" style="margin-top:8px;background:#fff6e4;border-color:#e8c088"><b>Top 10 dagdoel:</b> earn ${fmt(dd.n)} today, ${dd.label}. ${dd.done ? '<span class="pos">Done.</span>' : ''} <button class="ovb" data-t10="1">Kaasland Top 10</button></div>`;
       return h;
     }
     if (t === 'geld') {
@@ -116,6 +118,7 @@ body.riding #dstrip{display:none!important}
     }
     if (t === 'bills') return deps.bills() ? deps.bills().html() : '';
     if (t === 'klanten') return deps.stam && deps.stam() ? deps.stam().html() : '';
+    if (t === 'top10') return deps.top10 && deps.top10() ? deps.top10().html() : '';
     if (t === 'stats') return deps.stats && deps.stats() ? deps.stats().html() : '';
     if (t === 'rep') return deps.brep() ? deps.brep().html() : '';
     if (t === 'heat') {
@@ -129,6 +132,7 @@ body.riding #dstrip{display:none!important}
   function bind(t, b) {
     if (t === 'bills' && deps.bills()) deps.bills().bind(b, render);
     if (t === 'klanten' && deps.stam && deps.stam()) deps.stam().bind(b, render);
+    b.querySelectorAll('[data-t10]').forEach((x) => x.onclick = () => { tab = 'top10'; render(); });
     b.querySelectorAll('[data-way]').forEach((x) => x.onclick = () => { if (goTo(x.dataset.way)) close(); });
     b.querySelectorAll('[data-map]').forEach((x) => x.onclick = () => { const m = x.dataset.map; close(); if (m === 'buurt' && deps.buurt()) deps.buurt().open(); else if (m === 'kaasland') deps.openPC('map'); else if (m === 'clear' && deps.buurt()) deps.buurt().clearRoute(); });
   }
