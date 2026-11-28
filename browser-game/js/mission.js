@@ -123,7 +123,7 @@ export function initMission(ctx) {
   let FM = FM0;
   const glassM = new THREE.MeshPhongMaterial({ color: 0x9ad8ff, transparent: true, opacity: 0.32, shininess: 120, specular: 0xffffff, depthWrite: false });
   const frameM = lam({ color: 0xe8e8f0 }), barrelM = lam({ color: 0xc81e1e });
-  let wallM = null, capM = null, pristine = null;
+  let wallM = null, capM = null, pristine = null, outer = null;
   let tableGuns = [];
   let notes = []; // story props Eddy reads when he walks up to them (js/levels/story.js)
   let glass = new Map(), barrels = new Map(), lights = [], van = null, levelTick = null, levelReset = null, START = null, VAN_PARK = 0;
@@ -224,6 +224,12 @@ export function initMission(ctx) {
     buildLoot(def);
     buildExtras(def, carIn);
     pristine = { glass: new Map(glass), barrels: new Map(barrels) };
+    // the level's own backdrop (houses across the street, the neighbours): everything that lies wholly outside the building and
+    // its stretch of street. A raid fought in the district street (enter opts.inStreet) hides it: the district is the backdrop.
+    outer = new THREE.Group(); { const bb = new THREE.Box3(), x0 = OX + 0.2, x1 = OX + W - 0.2, z1 = Math.max(def.bounds[3], 0) + 2.5;
+      for (const o of root.children.slice()) { if (o.isLight || o === van || o === flashL || o === flashSp || o.userData.foe) continue; let skinned = false; o.traverse((c) => { if (c.isSkinnedMesh) skinned = true; }); if (skinned) continue; /* people: never backdrop, and their boxes are slow to work out */ bb.setFromObject(o); if (bb.isEmpty()) continue;
+        if (bb.max.x < x0 || bb.min.x > x1 || bb.min.z > z1 || bb.max.z < Z0 - 0.2) outer.add(o); } }
+    root.add(outer);
     Object.assign(M, { enemies, doors, glass, barrels, lootCrates, L, G, level: def.id, def, W, H, Z0 });
   }
   function teardown() {
@@ -1463,6 +1469,7 @@ export function initMission(ctx) {
     return { k, off, note, day };
   }
   Object.defineProperty(M, 'crowd', { get: () => CROWD && { k: CROWD.k, off: CROWD.off.size }, enumerable: true });
+  M.prebuild = (id) => { if (!M.active && LEVELS[id] && (!LV || LV.id !== id || LV.looksKey)) buildLevel(LEVELS[id]); }; // at the joint's door: build while Eddy makes up his mind, so kicking it in has no wait
   M.REMIX_MODS = REMIX_MODS; M.remixFor = remixFor;
   Object.defineProperty(M, 'remix', { get: () => REMIX, enumerable: true });
   const R = { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: false, results: false, ammoAtStart: {}, poolAtStart: {}, lootAtStart: 0, lastOneShown: false };
@@ -1552,11 +1559,13 @@ export function initMission(ctx) {
   }
   function enter(id = 'spekbuurt', opts = {}) {
     if (M.active || !LEVELS[id]) return;
-    fade.style.opacity = '1'; closeInv();
+    const inStreet = opts.inStreet && !opts.heist && !opts.defend ? opts.inStreet : null;
+    fade.style.opacity = '1'; closeInv(); // (in the street too: a blink as the door goes, it covers the moment the joint's shaders compile)
     setTimeout(() => {
       const fl = opts.defend && SIEGE_LOOKS[opts.defend.looks] ? opts.defend.looks : null;
       if (!LV || LV.id !== id || (LV.looksKey || null) !== fl) { buildLevel(fl ? { ...LEVELS[id], foeLooks: SIEGE_LOOKS[fl].foeLooks, foeCap: SIEGE_LOOKS[fl].foeCap, faction: SIEGE_LOOKS[fl].faction, factionName: SIEGE_LOOKS[fl].factionName, looksKey: fl } : LEVELS[id]); }
-      HEIST = opts.heist || null; DEF = opts.defend || null; ONFOOT = !!opts.onFoot && !HEIST && !DEF; // walked up from the open world: no van pulling up
+      HEIST = opts.heist || null; DEF = opts.defend || null; ONFOOT = !!opts.onFoot && !HEIST && !DEF; STREET = inStreet; outer.visible = !STREET;
+      if (STREET) { STREET.p0 = player.position.clone(); STREET.r0 = player.rotation.y; } if (STREET) STREET.d = STREET.apply({ x0: OX, x1: OX + W, z0: Z0, z1: Math.max(LV.bounds[3], 0) + 2.5, door: { x: OX + LV.start[0], z: 0 } }); // walked up from the open world: no van pulling up
       REMIX = DEF ? null : HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
       TOD = !HEIST && !DEF && ctx.tod ? ctx.tod() : null; CROWD = TOD && !(REMIX && REMIX.daily) && state.step === 'free' ? rollCrowd(id, TOD) : null;
       if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
@@ -1568,7 +1577,7 @@ export function initMission(ctx) {
       lights.forEach(([l, k]) => { l.intensity = k; });
       if (TOD && TOD.n < 1 && !(REMIX && REMIX.m.dark)) { // a raid by day: the sky outside is light and the place is lit by it (the moods above are the night look)
         const d = 1 - TOD.n, sky = new THREE.Color(0x8fb8d8).lerp(new THREE.Color(0xe09a5a), Math.min(1, (TOD.dusk || 0) * 0.7));
-        scene.background.lerp(sky, d * 0.85); scene.fog.color.copy(scene.background); hemi.intensity *= 1 + 0.7 * d; sun.intensity *= 1 + 0.9 * d; }
+        scene.background.lerp(sky, d * 0.85); scene.fog.color.copy(scene.background); hemi.intensity *= 1 + 1.3 * d; sun.intensity *= 1 + 1.5 * d; }
       if (REMIX && REMIX.m.dark) { lights.forEach(([l, k]) => { l.intensity = k * 0.2; }); hemi.intensity *= 0.45; sun.intensity *= 0.4; }
       setBounds({ x0: OX + LV.bounds[0], x1: OX + LV.bounds[1], z0: LV.bounds[2], z1: LV.bounds[3] });
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
@@ -1577,7 +1586,7 @@ export function initMission(ctx) {
       $('objective').innerHTML = DEF ? '<b>SPICE WAR</b>: hold the warehouse against three waves. Keep them away from the Naknikim under the mixing tables.' : HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
       fade.style.opacity = '0'; if (CROWD && CROWD.note) $('objective').innerHTML += ' ' + CROWD.note;
       startArrive(() => { if (ctx.arrived) ctx.arrived({ id: LV.id, start: START().clone(), van: van.position.clone(), heist: !!HEIST, defend: !!DEF }); if (DEF) banner('SPICE WAR', `The ${DEF.faction || 'Lampas'} are coming for the warehouse. Three waves. Keep them off the Naknikim.`, 4.5); else if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, (HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them.' : 'No floor plan. Stay in the dark, walk, do not run.') + (HEIST.nv ? ' N: night vision.' : '') + ' Only silenced shots stay quiet. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
-    }, 480);
+    }, inStreet ? 260 : 480);
   }
   // the home street's lamps, shop and warehouse lights stay behind while a mission runs: switched off (not just dimmed),
   // every lit surface in the level stops paying for lights a few hundred metres away. Each material keeps a compiled
@@ -2510,6 +2519,7 @@ export function initMission(ctx) {
   function setMod(k) { state.mods[k] = 1; applyMods(); meshOf = null; if (M.active) syncHeld(); }
   // ================================================================== ARRIVAL (Neon Vice: every mission opens with you pulling up)
   // The Oofmobiel drives in along the street, parks out front, Eddy climbs out and walks to the door. E / Space / click skips it.
+let STREET = null; // STREET: the raid is fought in the district street itself (js/wijk.js lines the district up with the level)
   let ARR = null, ONFOOT = false; // ONFOOT: the raid began at the joint's door in the open world (js/roam.js, js/wijk.js), so Eddy is already there
   const lbCss = document.createElement('style'); lbCss.textContent = `
     #nvLbT,#nvLbB{position:fixed;left:0;right:0;height:0;background:#000;z-index:7;transition:height .35s;pointer-events:none;overflow:hidden}
@@ -2557,7 +2567,12 @@ export function initMission(ctx) {
     ARR = { ph: full ? 'intro' : 'drive', t: 0, t0: performance.now(), x0: OX + LV.van.from, then }; // skipping goes by wall time (t restarts every phase)
     van.position.set(ARR.x0, 0, van.position.z); player.visible = false; letterbox(true); M.snap = true;
     if (ONFOOT && !full) { // on foot: straight in, the Oofmobiel is already parked round the corner; the dossier stays up a moment
-      endArrive(); sfx('door'); if (I) { introCard(LV.id, true); setTimeout(() => { if (!ARR) hideIntro(); }, 3200); } return; }
+      const p0 = STREET && STREET.p0, r0 = STREET && STREET.r0; endArrive(); sfx('door');
+      if (STREET && STREET.d) { // no cut: Eddy stands where he stood (the district moved with him), the camera eases over to the raid view
+        const q = { x: p0.x + STREET.d.dx, z: p0.z + STREET.d.dz }, R = 0.45;
+        if (!ctx.solids.some((s) => !s.off && q.x > s.minx - R && q.x < s.maxx + R && q.z > s.minz - R && q.z < s.maxz + R)) { player.position.set(q.x, 0, q.z); player.rotation.y = r0; P.last.copy(player.position); }
+        M.snap = false; }
+      if (I) { introCard(LV.id, true); setTimeout(() => { if (!ARR) hideIntro(); }, 3200); } return; }
     if (I) setTimeout(() => { if (ARR && M.active) introCard(LV.id, !full); }, full ? 350 : 150);
     if (full) lbBot.innerHTML = `<span>${inputMode() === 'touch' ? '' : glyph('Escape') + ' · OVERSLAAN'}</span>`; // E / Space now turn the call's lines
     if (!full) driveSound();

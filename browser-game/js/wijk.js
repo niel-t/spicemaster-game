@@ -140,7 +140,7 @@ export function createWijk(deps) {
       for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * k);
       const p = new THREE.Mesh(geo, m); p.rotation.x = -Math.PI / 2; if (alongZ) p.rotation.z = Math.PI / 2; p.position.set(O.x + (x0 + x1) / 2, y, O.z + (z0 + z1) / 2); p.receiveShadow = true; g.add(p); return p; };
     const ground = W.ground ? deps.lam({ color: W.ground }) : deps.groundMat;
-    flat(X0 - 60, X1 + 60, SA - 80, ZN + 80, ground, 0);
+    g.userData.ground = true; flat(X0 - 60, X1 + 60, SA - 80, ZN + 80, ground, 0);
     // the long streets: tarmac with parking along the north kerb, klinker pavements
     for (const zs of SZ) {
       flat(X0, X1, zs - RW, zs + RW, ST.road, 0.02); flat(X0, X1, zs - RW, zs - RW + 2, ST.bay, 0.022);
@@ -249,7 +249,42 @@ export function createWijk(deps) {
     const j = door.j, W = t.W;
     if (j.owned() && !j.retaken()) { deps.dialogue([deps.clientLine(j.id) || [j.name, 'Open for business. Your spice, our kitchen.']]); return; }
     if (!j.open()) { deps.toast(j.name.toUpperCase(), `${W.gang} turf, and not a door you can kick in yet. Take the joints before it first.`, 3.5); return; }
-    deps.choice('Eddy Jr.', `${j.name}. ${j.retaken() ? `The ${W.gang} took it back.` : `${W.gang} inside.`} Walk in and take it? <small>A raid takes the whole day.</small>`, ['Kick the door in', 'Not now'], (i) => { if (i === 0) { back = { x: door.x, z: door.z + 1.0 }; deps.dismount(); deps.raid(j.id); } });
+    if (deps.prebuild) setTimeout(() => deps.prebuild(j.id), 60);
+    deps.choice('Eddy Jr.', `${j.name}. ${j.retaken() ? `The ${W.gang} took it back.` : `${W.gang} inside.`} Walk in and take it? <small>A raid takes the whole day.</small>`, ['Kick the door in', 'Not now'], (i) => { if (i === 0) { back = { x: door.x, z: door.z + 1.0 }; deps.dismount(); deps.raid(j.id, { apply: (R) => lineUp(t, door, R) }); } });
+  }
+  // ---- the raid in the street (2026-11-28): the joint's interior is a level that lives somewhere else (js/mission.js). When Eddy
+  // kicks the door in, the district is drawn where the level is: every object shifts by one offset so this door sits on the
+  // level's front door, the houses the building replaces are hidden, and Eddy steps in without a cut. Looks only: the district's
+  // own solids, vans and people stay where they were, and everything goes back when the raid is over (update, wasMission).
+  let lined = null;
+  function lineUp(t, door, R) {
+    if (lined) unline();
+    const dx = R.door.x - door.x, dz = R.door.z - (door.z - 0.6), dy = -0.07, bb = new THREE.Box3(), hid = [], sols = [];
+    const cx0 = R.x0 - dx - 0.5, cx1 = R.x1 - dx + 0.5, cz0 = R.z0 - dz - 0.5, cz1 = R.z1 - dz, far = deps.low ? 26 : 55, noSh = []; // the level's footprint, in district coordinates
+    const hide = (o) => { o.visible = false; hid.push(o); };
+    const check = (o, depth) => { if (!o.visible || o.userData.ground) return; bb.setFromObject(o); if (bb.isEmpty()) return;
+      if (bb.max.x < cx0 - far || bb.min.x > cx1 + far || bb.max.z < cz0 - far || bb.min.z > cz1 + far) { hide(o); return; } // out of sight from inside: not drawn at all
+      if (bb.max.x < cx0 || bb.min.x > cx1 || bb.max.z < cz0 || bb.min.z > cz1) return;
+      const big = bb.max.x - bb.min.x > 70 || bb.max.z - bb.min.z > 70;
+      if (big && o.children.length && depth < 2) { for (const c of o.children.slice()) check(c, depth + 1); return; }
+      if (big && bb.max.y < 0.6) return; // paint and tarmac that run the length of the district: the level's floor lies over them
+      hide(o); };
+    for (const o of t.objs) check(o, 0);
+    if (deps.low) for (const o of t.objs) if (o.visible) o.traverse((c) => { if (c.castShadow) { c.castShadow = false; noSh.push(c); } }); // phones: the district around a raid casts no shadows (they doubled the frame time)
+    for (const o of t.objs) { o.position.x += dx; o.position.y += dy; o.position.z += dz; o.updateMatrix(); o.updateMatrixWorld(true); }
+    // lamp posts and Amsterdammertjes on the stretch in front of the door keep their collision
+    for (const s of t.sols) { if (s.off || s.maxx - s.minx > 1.3 || s.maxz - s.minz > 1.3) continue; const x0 = s.minx + dx, x1 = s.maxx + dx, z0 = s.minz + dz, z1 = s.maxz + dz;
+      if (x1 < R.x0 || x0 > R.x1 || z0 < 0.4 || z1 > R.z1 + 4) continue; sols.push(deps.solid(x0, x1, z0, z1)); }
+    if (van) { lined = { vanVis: van.visible }; van.visible = false; } else lined = {};
+    Object.assign(lined, { t, dx, dy, dz, hid, sols, noSh }); if (deps.shiftCam) deps.shiftCam(dx, dz);
+    return { dx, dz };
+  }
+  function unline() {
+    const L = lined; if (!L) return; lined = null;
+    for (const o of L.t.objs) { o.position.x -= L.dx; o.position.y -= L.dy; o.position.z -= L.dz; o.updateMatrix(); o.updateMatrixWorld(true); }
+    for (const o of L.hid) o.visible = true; for (const c of L.noSh) c.castShadow = true;
+    for (const s of L.sols) { const i = deps.solids.indexOf(s); if (i >= 0) deps.solids.splice(i, 1); }
+    if (van && L.vanVis !== undefined) van.visible = L.vanVis;
   }
   function placeVan(t) {
     if (!van) { van = deps.makeVan(); scene.add(van); vanSol = deps.solid(0, 0, 0, 0); veh = deps.adoptVan(van, vanSol);
@@ -296,7 +331,7 @@ export function createWijk(deps) {
     if (!T) return;
     if (inMission) { wasMission = true; return; }
     if (wasMission) { // back from a raid: Eddy stands at the door he kicked in, the district around him again
-      wasMission = false; deps.setBounds(bounds(T)); const p = back || { x: van.position.x + 0.4, z: van.position.z + 2.4 }; back = null;
+      wasMission = false; unline(); deps.setBounds(bounds(T)); const p = back || { x: van.position.x + 0.4, z: van.position.z + 2.4 }; back = null;
       player.position.set(p.x, 0, p.z); deps.setArea(`KAASLAND · ${T.W.name.toUpperCase()}`); deps.route(null); deps.snapCam();
     }
     // the oprit: drive the Oofmobiel onto the yellow patch at the east end of the first street
