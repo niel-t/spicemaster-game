@@ -1963,11 +1963,11 @@ function bindMap() {
     }[k];
     info.innerHTML = t;
     const go = $('go'); if (go) go.onclick = () => { closePC(); toast('HOME', 'You\'re already at the warehouse.'); }; // travelling elsewhere must call clearPlayerSplats()
-    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); const id = jt ? jt[1] : 'spekbuurt'; const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } if (!econ.canRaid()) { raidRefused(); return; } afterDark(() => mission.enter(id, rx ? { remix: rx } : {})); };
+    const goM = $('goM'); if (goM) goM.onclick = () => { closePC(); const id = jt ? jt[1] : 'spekbuurt'; const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); };
     const goD = $('goD'); if (goD) goD.onclick = () => { closePC(); const ks = Object.keys(wijk.WIJKEN).filter(wijkOpen); if (ks.length < 2) { startDrive(); return; } choice('Eddy Jr.', 'A run in the Oofmobiel, no raid. Which district?', [...ks.map((k) => wijk.WIJKEN[k].name), 'Not now'], (i) => { if (i < ks.length) startDrive(null, ks[i]); }); };
     const goNGP = $('goNGP'); if (goNGP) goNGP.onclick = () => { closePC(); startNewGamePlus(); };
-    const goL = $('goL'); if (goL) goL.onclick = () => { closePC(); if (!econ.canRaid()) { raidRefused(); return; } afterDark(() => startDrive(lj[1])); };
-    const goDaily = $('goDaily'); if (goDaily) goDaily.onclick = () => { const dc = dailyChallenge(); if (!dc) return; closePC(); if (!econ.canRaid()) { raidRefused(); return; } afterDark(() => mission.enter(dc.id, { remix: dc.remix })); };
+    const goL = $('goL'); if (goL) goL.onclick = () => { closePC(); startDrive(lj[1]); };
+    const goDaily = $('goDaily'); if (goDaily) goDaily.onclick = () => { const dc = dailyChallenge(); if (!dc) return; closePC(); mission.enter(dc.id, { remix: dc.remix }); };
   });
   kmap.bind($('winbody'));
 }
@@ -3484,7 +3484,7 @@ function tick() {
 }
 camPos.copy(player.position).add(new THREE.Vector3(0, 12.5, 6)); camLook.copy(player.position);
 updateObjective();
-mission = initMission({ onEvent: (t, x) => { if (freddy) freddy.onMission(t, x); if (t === 'results' && stats) { stats.add('raids'); stats.add('kos', (x && x.kills) || 0); if (x && /^S/.test(x.grade || '')) stats.add('sGrades'); } if (t === 'results' && vandaag) vandaag.note('raid', x && x.grade); if (t === 'results' && state.lastRaid && brep) brep.raid(state.lastRaid.id, x && x.grade, { vettenburg: LAMPAS.map((j) => j[1]), hipster: NOSH.map((j) => j[1]), dokken: ABD.map((j) => j[1]), zandwijk: PARA.map((j) => j[1]) }); }, score, musicOn: () => music.on, perk: (k) => (woning ? woning.perk(k) : 0) + (k === 'medic' && regulars && regulars.haringOn() ? 2 : 0) /* a broodje haring (js/regulars.js): faster healing this raid */, THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
+mission = initMission({ tod: () => (klok ? klok.tod() : null), onEvent: (t, x) => { if (freddy) freddy.onMission(t, x); if (t === 'results' && stats) { stats.add('raids'); stats.add('kos', (x && x.kills) || 0); if (x && /^S/.test(x.grade || '')) stats.add('sGrades'); } if (t === 'results' && vandaag) vandaag.note('raid', x && x.grade); if (t === 'results' && state.lastRaid && brep) brep.raid(state.lastRaid.id, x && x.grade, { vettenburg: LAMPAS.map((j) => j[1]), hipster: NOSH.map((j) => j[1]), dokken: ABD.map((j) => j[1]), zandwijk: PARA.map((j) => j[1]) }); }, score, musicOn: () => music.on, perk: (k) => (woning ? woning.perk(k) : 0) + (k === 'medic' && regulars && regulars.haringOn() ? 2 : 0) /* a broodje haring (js/regulars.js): faster healing this raid */, THREE, scene, camera, player, state, box, cyl, lam, solid, solids, collide, makePerson, animate, toast, beep, addMoney,
   neonTube, neonRect, signTex, canvasTex, car, $, maboota, equip, swing, bubble, say, addInteract, clearPlayerSplats, sun, hemi, canvas,
   tip: (k) => tips.show(k), dialogue: (lines, done) => dialogue(lines, done), choiceOpen: () => choiceOpen, interacting: () => current, // the [E] prompt on screen (the van, a task): E acts on it instead of throwing the weapon // Shooki's tips; the clamp choice must not lose its keys to the mission
   parkTicket: () => garage.addTicket(mission.levelName()), clampVan: () => writeSave(), parkDone: () => garage.parkingDone(), // paid bays (js/garage.js)
@@ -3531,13 +3531,7 @@ const wijkOpen = (k) => (k === 'almere' ? !!(blokaas && blokaas.almereOpen()) : 
 const PA_DOOR = { x: 31, z: -59.9 }; // Freddy Sr.'s front door on the Komijnstraat (js/pahuis.js)
 const makePa = () => makePerson({ ps2: LOOKS.eddySr, headKind: 'sr', shirt: 0x232a40, front: 'sr', pants: 0x4a4a52, shoes: 0x2a2018, belly: 0.6, skin: 0xdc9c82, scale: 0.96 }); // a district opens when the story reaches it
 const wijkOf = (id) => { const j = ACT_JOINTS.find((x) => x[1] === id); return !j ? null : PARA.includes(j) ? 'sand' : NOSH.includes(j) ? 'nosh' : ABD.includes(j) || FINAL.includes(j) ? 'docks' : 'lampas'; };
-const raidOnFoot = (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } afterDark(() => mission.enter(id, { ...(rx ? { remix: rx } : {}), onFoot: true })); }; // knocked on the joint's door in the open world: straight in, no van drive-in
-// raids happen at night (2026-11-28): the raid maps are lit for the dark, so in daylight Eddy waits until 20:30 first
-// (the same rule as a Nachtklus). Chapter 0 and the tutorial are left alone, and so is the warehouse defence.
-function afterDark(go) {
-  if (!klok || klok.isNight() || state.step !== 'free' || (state.tut && !state.tut.done)) { go(); return; }
-  choice('Eddy Jr.', `It is ${klok.label()}. Raids happen after dark: in daylight the street is full of witnesses and the Lampas keep the door locked.`, ['Wait until dark (20:30)', 'Not now'], (k) => { if (k === 0) { klok.waitUntil(20.5); go(); } });
-}
+const raidOnFoot = (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, { ...(rx ? { remix: rx } : {}), onFoot: true }); }; // knocked on the joint's door in the open world: straight in, no van drive-in
 function afterDrive(res) {
   clearPlayerSplats(); clock.getDelta();
   if (res.arrived) {

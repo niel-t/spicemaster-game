@@ -1448,6 +1448,21 @@ export function initMission(ctx) {
     const loot = new Set(shuffle(lootCrates.map((l, i) => i)).slice(0, Math.min(3, lootCrates.length)));
     return { ...opt, m, place, weapons, keep, loot };
   }
+  // DRUKTE (2026-11-28): a raid can start at any hour, and the hour decides who is in. A shoarma joint, snackbar or bar
+  // is quiet by day and full at night; a loods, dock, market or farm is the other way round (def.busy: 'day' | 'night'
+  // overrides). In the quiet hours up to 40% of the ordinary crew stays away (bosses, specials and the backup car never
+  // do); fewer kills also means a lower score and so less pay. Seeded per joint, so a restart gives the same floor.
+  const DAY_BUSY = new Set(['kurkumaloods', 'paprikapakhuis', 'peperhaven', 'kaneelsilos', 'kardemomdok', 'komijnkade', 'kruidnagelkade', 'nootmuskade', 'saffraanpier', 'smokkelsloot', 'containerchaos', 'mayonaisemarkt', 'zaatarmarkt', 'dadelplein', 'avocadoakkers', 'quinoaplantage', 'speltpolder', 'glutenvrijegaarde']);
+  let TOD = null, CROWD = null;
+  function rollCrowd(id, td) {
+    const day = (LV.busy || (DAY_BUSY.has(id) ? 'day' : 'night')) === 'day', k = day ? 1 - 0.4 * td.n : 0.6 + 0.4 * td.n, r = rng32(hashStr(id + '#drukte'));
+    const pool = enemies.map((e, i) => i).filter((i) => { const f = enemies[i].userData.foe; return !f.boss && !f.type && !f.wave && (!REMIX || REMIX.keep.has(i)); });
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const off = new Set(pool.slice(0, Math.round(pool.length * (1 - k)))), who = LV.factionName || 'Lampas';
+    const note = k < 0.8 ? (day ? `<b>After hours</b>: the day shift went home, only part of the ${who} crew is in.` : `<b>Quiet hour</b>: the place only fills up after dark, part of the ${who} crew is not in yet.`) : k > 0.95 ? (day ? '<b>Working hours</b>: the whole crew is on the floor.' : '<b>Busy night</b>: the place is full, the whole crew is in.') : '';
+    return { k, off, note, day };
+  }
+  Object.defineProperty(M, 'crowd', { get: () => CROWD && { k: CROWD.k, off: CROWD.off.size }, enumerable: true });
   M.REMIX_MODS = REMIX_MODS; M.remixFor = remixFor;
   Object.defineProperty(M, 'remix', { get: () => REMIX, enumerable: true });
   const R = { score: 0, combo: 0, comboT: 0, maxCombo: 0, kills: 0, execs: 0, heads: 0, glass: 0, shots: 0, hits: 0, taken: 0, time: 0, cleared: false, results: false, ammoAtStart: {}, poolAtStart: {}, lootAtStart: 0, lastOneShown: false };
@@ -1462,6 +1477,7 @@ export function initMission(ctx) {
       const f = e.userData.foe, u = e.userData, i = enemies.indexOf(e);
       let [x, z, r, w] = f.spawn, off = done;
       if (REMIX) { if (REMIX.place[i]) [x, z, r] = REMIX.place[i]; if (i in REMIX.weapons) w = REMIX.weapons[i]; off = !REMIX.keep.has(i); }
+      if (CROWD && CROWD.off.has(i)) off = true; // the quiet hours: part of the crew is not in
       if (f.wave && (HEIST || DEF)) off = true; // the backup car only comes to a raid
       if (f.paraSkip && state.paravim && !REMIX) off = true;
       const pend = f.wave && !off; // backup: waits off-map until the alarm (waveTick brings it in)
@@ -1542,6 +1558,7 @@ export function initMission(ctx) {
       if (!LV || LV.id !== id || (LV.looksKey || null) !== fl) { buildLevel(fl ? { ...LEVELS[id], foeLooks: SIEGE_LOOKS[fl].foeLooks, foeCap: SIEGE_LOOKS[fl].foeCap, faction: SIEGE_LOOKS[fl].faction, factionName: SIEGE_LOOKS[fl].factionName, looksKey: fl } : LEVELS[id]); }
       HEIST = opts.heist || null; DEF = opts.defend || null; ONFOOT = !!opts.onFoot && !HEIST && !DEF; // walked up from the open world: no van pulling up
       REMIX = DEF ? null : HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
+      TOD = !HEIST && !DEF && ctx.tod ? ctx.tod() : null; CROWD = TOD && !(REMIX && REMIX.daily) && state.step === 'free' ? rollCrowd(id, TOD) : null;
       if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
         if (HEIST.extra) for (const i of enemies.map((e, k) => k).filter((k) => !REMIX.keep.has(k)).slice(0, HEIST.extra)) REMIX.keep.add(i); } // suspicion: more guards
       const mood = LV.mood;
@@ -1549,13 +1566,16 @@ export function initMission(ctx) {
       saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity; saved.hemiC = [hemi.color.clone(), hemi.groundColor.clone()];
       scene.background.set(mood.bg); scene.fog.color.set(mood.bg); scene.fog.near = mood.fogNear; scene.fog.far = mood.fogFar; hemi.intensity = mood.hemi; sun.intensity = mood.sun; if (mood.sky) hemi.color.set(mood.sky); if (mood.ground) hemi.groundColor.set(mood.ground); // optional per-level ambient colours
       lights.forEach(([l, k]) => { l.intensity = k; });
+      if (TOD && TOD.n < 1 && !(REMIX && REMIX.m.dark)) { // a raid by day: the sky outside is light and the place is lit by it (the moods above are the night look)
+        const d = 1 - TOD.n, sky = new THREE.Color(0x8fb8d8).lerp(new THREE.Color(0xe09a5a), Math.min(1, (TOD.dusk || 0) * 0.7));
+        scene.background.lerp(sky, d * 0.85); scene.fog.color.copy(scene.background); hemi.intensity *= 1 + 0.7 * d; sun.intensity *= 1 + 0.9 * d; }
       if (REMIX && REMIX.m.dark) { lights.forEach(([l, k]) => { l.intensity = k * 0.2; }); hemi.intensity *= 0.45; sun.intensity *= 0.4; }
       setBounds({ x0: OX + LV.bounds[0], x1: OX + LV.bounds[1], z0: LV.bounds[2], z1: LV.bounds[3] });
       R.lootAtStart = state.loot || 0; saveOwnAmmo(); R.ammoAtStart = { ...state.ammo }; R.poolAtStart = { ...state.pool }; R.loadoutAtStart = JSON.parse(JSON.stringify(state.loadout));
       resetFloor(); placeTin(); parkSetup();
       setArea(LV.text.area);
       $('objective').innerHTML = DEF ? '<b>SPICE WAR</b>: hold the warehouse against three waves. Keep them away from the Naknikim under the mixing tables.' : HEIST ? `<b>NACHTKLUS</b>: take the loot${HEIST.safe ? ', crack the safe (E, several times)' : ''} and carry it to the Oofmobiel. Being seen fills the alarm.` : REMIX ? (REMIX.daily ? `<b>DAILY CHALLENGE ${REMIX.daily} · ${REMIX.m.name}</b>: the same raid for everyone today. Beat your best score. ${REMIX.m.line}` : REMIX.retake ? `<b>RETAKE · ${REMIX.m.name}</b>: the Lampas took this joint back. Clear them out and it's yours again. ${REMIX.m.line}` : `<b>Remix raid · ${REMIX.m.name}</b>: the Lampas moved back in. Clear the joint again. ${REMIX.m.line}`) : ownsLevel(LV.id) ? LV.text.objectiveOwned : LV.text.objective;
-      fade.style.opacity = '0';
+      fade.style.opacity = '0'; if (CROWD && CROWD.note) $('objective').innerHTML += ' ' + CROWD.note;
       startArrive(() => { if (ctx.arrived) ctx.arrived({ id: LV.id, start: START().clone(), van: van.position.clone(), heist: !!HEIST, defend: !!DEF }); if (DEF) banner('SPICE WAR', `The ${DEF.faction || 'Lampas'} are coming for the warehouse. Three waves. Keep them off the Naknikim.`, 4.5); else if (HEIST) banner(`NACHTKLUS · ${HEIST.title || LV.text.area}`, (HEIST.cased ? 'You have the floor plan: their sight cones show on the floor. Stay out of them.' : 'No floor plan. Stay in the dark, walk, do not run.') + (HEIST.nv ? ' N: night vision.' : '') + ' Only silenced shots stay quiet. E grabs, the van takes the bag.', 5); else if (REMIX) banner(REMIX.retake ? `TAKE IT BACK · ${REMIX.m.name}` : REMIX.daily ? `DAILY CHALLENGE · ${REMIX.m.name}` : `REMIX · ${REMIX.m.name}`, REMIX.m.line, 4); else if (!ownsLevel(LV.id)) banner(LV.text.banner[0], LV.text.banner[1] + ' ' + controlsLine(), 4.5); });
     }, 480);
   }
