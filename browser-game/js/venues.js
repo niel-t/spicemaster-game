@@ -25,6 +25,7 @@ export function danceExtra(st) {
     else if (m === 'drop') { const d = dropDepth(t); knees(0.1 + 1.15 * d, 0.3 * d); rot('spine', AX, 0.12 * d * w); hip(0, s(t * 6) * 0.08 * (1 - d)); armsUp(0.4 * (1 - d)); }
     else if (m === 'shake') { knees(0.32); lean(0.5); rot('spine', AX, 0.22 * w); rot('chest', AX, -0.3 * w); rot('head', AX, -0.35 * w); rot('pelvis', AZ, s(t * 17) * 0.085 * w); rot('spine', AZ, -s(t * 17) * 0.07 * w); rot('uarmL', AX, -0.5 * w); rot('uarmR', AX, -0.5 * w); }
     else if (m === 'spin') { rot('thighL', AX, -1.0 * w); rot('shinL', AX, 1.35 * w); rot('spine', AX, -0.22 * w); rot('head', AX, -0.25 * w); armsUp(0.75); rot('thighR', AX, 0.15 * w); }
+    else if (m === 'sit') { for (const sd of ['L', 'R']) { rot('thigh' + sd, AX, -1.4 * w); rot('shin' + sd, AX, 1.45 * w); } rot('spine', AX, -0.14 * w); rot('chest', AX, -0.1 * w); rot('pelvis', AZ, s(t * 1.6) * 0.04 * w); rot('spine', AZ, -s(t * 1.6) * 0.04 * w); rot('head', AY, (0.75 + 0.2 * s(t * 1.1)) * w); rot('head', AX, -0.15 * w); } // sitting on his knees, looking back at him over her shoulder
     else if (m === 'lap') { const d = 0.55 + 0.2 * s(t * 2.4); knees(0.1 + 0.75 * d, 0.22); lean(0.34); rot('spine', AX, 0.1 * w); rot('chest', AX, -0.25 * w); rot('pelvis', AZ, s(t * 4.8) * 0.16 * w); rot('spine', AZ, -s(t * 4.8) * 0.13 * w); rot('uarmL', AX, -0.35 * w); rot('uarmR', AX, -0.35 * w); }
   };
 }
@@ -35,6 +36,7 @@ export function danceY(st) {
   if (m === 'drop') return -0.4 * dropDepth(t) * w;
   if (m === 'shake') return (-0.07 + Math.abs(Math.sin(t * 8.5)) * 0.035) * w;
   if (m === 'lap') return (-0.24 - 0.09 * Math.sin(t * 2.4) + Math.abs(Math.sin(t * 4.8)) * 0.03) * w;
+  if (m === 'sit') return -0.17 * w;
   if (m === 'spin') return 0.1 * w;
   return Math.abs(Math.sin(t * 3.2)) * 0.05 * w;
 }
@@ -431,8 +433,8 @@ export function createVenues(deps) {
       if (t >= sc.dur) { if (sc.extra) { sc.phase = 'curtain'; sc.t = 0; sc.sq = 0; caption(''); } else endPrive(); }
     } else if (sc.phase === 'curtain') { // the extras happen behind the curtain: all you get is the curtain, the hearts and the couch springs
       const t = sc.t, st = d.st; setCurtain(Math.min(1, t / 0.8)); st.t += dt; st.w = Math.min(1, st.w + dt * 2.4);
-      // behind the curtain the lap dance goes on: hip rolls facing him, a lap dance with her back to him, then in close for a kiss
-      const beat = t < 3.3 ? ['roll', 0.66, Math.PI] : t < 5.9 ? ['lap', 0.72, 0] : ['roll', 0.56, Math.PI], kiss = t > 6.6 && t < 8.1;
+      // behind the curtain the lap dance goes on: hip rolls facing him, a lap dance with her back to him, then she sits down on his knees for a kiss
+      const beat = t < 2.8 ? ['roll', 0.66, Math.PI] : t < 5 ? ['lap', 0.72, 0] : ['sit', 0.4, 0], kiss = t > 6.4 && t < 8.1; // ...and she ends up sitting on his knees
       if (st.move !== beat[0]) { st.move = beat[0]; st.t = 0; st.w = 0; }
       p.position.x = BO.cx; p.position.z += (BO.seatZ + beat[1] - p.position.z) * Math.min(1, dt * 2.5); p.position.y = danceY(st) * 0.93; turnTo(p, beat[2], dt * 3.4); player.position.set(BO.cx, 0, BO.seatZ);
       if (deps.animate) deps.animate(p, dt);
