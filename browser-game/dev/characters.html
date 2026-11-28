@@ -40,6 +40,7 @@ SETS.cast = [
   { front: '#f2efe6a', shirt: 0xf2efe6, pants: 0x3a3a40, rolled: true, stache: true, head: { skin: 0xf0b898, bald: true, brow: '#8a5a3a', mouth: 'smile', iris: '#3a2a1a' }, belly: 1.4, scale: 1.12, skin: 0xf0b898 },
   { ps2: 'naknik' }, { ps2: 'johan' }, { reg: 0 }, { reg: 1 }, { reg: 5 },
 ];
+SETS.reg = REG_CAST.map((_, i) => ({ reg: i })); // ?set=reg: all street regulars
 const set0 = SETS[q.get('set')], set = set0 && q.get('pick') ? q.get('pick').split(',').map((i) => set0[+i]) : set0; // ?pick=0,2,1 picks and orders set members
 const names = set ? set.map((_, i) => 'set' + i) : (q.get('looks') || Object.keys(LOOKS).join(',')).split(',');
 if (set) set.forEach((o, i) => { LOOKS['set' + i] = o.ps2 ? LOOKS[o.ps2] : o.reg != null ? REG_CAST[o.reg].look : lookFromPerson(o, HEADS); });

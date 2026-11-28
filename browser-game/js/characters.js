@@ -170,7 +170,7 @@ function charMaterial(map, cloth, mode) {
         float lit = dot(outgoingLight, vec3(0.333)) / max(dot(diffuseColor.rgb, vec3(0.333)), 0.02);
         float hx = step(0.55, fract((gl_FragCoord.x - gl_FragCoord.y) * 0.21)), hy = step(0.6, fract((gl_FragCoord.x + gl_FragCoord.y) * 0.21));
         float sh = (1.0 - smoothstep(0.5, 0.62, lit)) * hx + (1.0 - smoothstep(0.3, 0.4, lit)) * hy;
-        outgoingLight *= 1.0 - 0.38 * clamp(sh, 0.0, 1.0);
+        outgoingLight *= 1.0 - 0.34 * clamp(sh, 0.0, 1.0) * (1.0 - smoothstep(3.0, 8.0, length(vViewPosition))); /* pen lines only close up: far away they read as dirt */
         outgoingLight = mix(outgoingLight, vec3(0.16, 0.09, 0.06), smoothstep(0.7, 0.86, f) * 0.85);
         float g = dot(outgoingLight, vec3(0.3, 0.55, 0.15)); outgoingLight = mix(vec3(g), outgoingLight, 0.8) * vec3(1.04, 1.0, 0.92);` : ''}
         ${mode === 'clay' ? 'outgoingLight = mix(outgoingLight, outgoingLight * vec3(1.06, 0.98, 0.9), 0.6);' : ''}
@@ -185,7 +185,7 @@ function charMaterial(map, cloth, mode) {
    The toon cast is the default. A persiflage style is a satirical caricature: a bigger head with a sculpted nose, ears, jowls
    and brow (ps2c.js buildHead B.px), a face painted over in that style (pxFace) and its own surface (charMaterial mode).
    Each person gets their own exaggeration from their look (older, heavier, balder people get more of it). */
-export const CHAR_STYLE = (() => { try { return new URLSearchParams(location.search).get('charstyle') || localStorage.getItem('spiceMasterEddy.charStyle') || 'toon'; } catch (e) { return 'toon'; } })();
+export const CHAR_STYLE = (() => { try { return new URLSearchParams(location.search).get('charstyle') || localStorage.getItem('spiceMasterEddy.charStyle') || 'spotprent'; } catch (e) { return 'spotprent'; } })();
 const rnd = (seed) => { let h = 2166136261; for (const ch of seed) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; };
 const INKC = 'rgba(40,22,16,';
 function softF(y) { return (cx, cy, rx, ry, col) => { const g = y.createRadialGradient(cx, cy, 0, cx, cy, 1); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); y.save(); y.translate(cx, cy); y.scale(rx, ry); y.fillStyle = g; y.fillRect(-1, -1, 2, 2); y.restore(); }; }
