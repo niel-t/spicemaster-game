@@ -162,9 +162,9 @@ function charMaterial(map, cloth, mode, jig) {
 
   mat.onBeforeCompile = (sh) => {
     if (jig) { /* butt jiggle: each cheek (a soft ellipsoid behind the hips, in rest space) is pushed by its own spring (jiggleStep) */
-      sh.uniforms.uJigL = jig.L; sh.uniforms.uJigR = jig.R;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uJigL; uniform vec3 uJigR;\nfloat cheek(vec3 p, float sx) { vec3 d = (p - vec3(sx * 0.075, 0.86, -0.11)) / vec3(0.1, 0.13, 0.12); float m = 1.0 - clamp(dot(d, d), 0.0, 1.0); return m * m * smoothstep(0.0, -0.07, p.z); }')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += uJigL * cheek(position, 1.0) + uJigR * cheek(position, -1.0);');
+      sh.uniforms.uJigL = jig.L; sh.uniforms.uJigR = jig.R; sh.uniforms.uJigBL = jig.BL; sh.uniforms.uJigBR = jig.BR; // BL / BR: the bust, same idea on the chest
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uJigL; uniform vec3 uJigR; uniform vec3 uJigBL; uniform vec3 uJigBR;\nfloat bust(vec3 p, float sx) { vec3 d = (p - vec3(sx * 0.08, 1.275, 0.15)) / vec3(0.085, 0.1, 0.13); float m = 1.0 - clamp(dot(d, d), 0.0, 1.0); return m * m * smoothstep(0.05, 0.12, p.z); }\nfloat cheek(vec3 p, float sx) { vec3 d = (p - vec3(sx * 0.075, 0.86, -0.11)) / vec3(0.1, 0.13, 0.12); float m = 1.0 - clamp(dot(d, d), 0.0, 1.0); return m * m * smoothstep(0.0, -0.07, p.z); }')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += uJigL * cheek(position, 1.0) + uJigR * cheek(position, -1.0) + uJigBL * bust(position, 1.0) + uJigBR * bust(position, -1.0);');
     }
     sh.uniforms.uRim = U_RIM; sh.uniforms.uRimK = U_RIMK; sh.uniforms.uFill = U_FILL;
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim; uniform float uRimK; uniform float uFill;')
@@ -310,7 +310,7 @@ export function finishModel(md) {
   if (!look.glam) grain(bc); /* bare skin stays smooth */
   if (look.pxMat === 'clay' || look.pxMat === 'latex') skinGrain(hc, look.pxMat === 'clay' ? 0.12 : 0.1);
   [shrink(bc), shrink(hc)].forEach((cv, i) => {
-    const jig = i === 0 && look.jiggle ? (md.jig = { L: { value: new THREE.Vector3() }, R: { value: new THREE.Vector3() } }) : null;
+    const jig = i === 0 && look.jiggle ? (md.jig = { L: { value: new THREE.Vector3() }, R: { value: new THREE.Vector3() }, BL: { value: new THREE.Vector3() }, BR: { value: new THREE.Vector3() } }) : null;
     const mat = charMaterial(canvasTex(cv), i === 0, look.pxMat, jig);
     if (look.glam && i === 0) mat.normalMap = null; // no cloth weave on skin
     const m = new THREE.SkinnedMesh(geos[i], mat);
@@ -585,22 +585,30 @@ function visibleInScene(o) { for (let n = o; n; n = n.parent) { if (!n.visible) 
 // sync every live character's bones to its pose; runs right before each render (scene.onBeforeRender)
 const frustum = new THREE.Frustum(), pv = new THREE.Matrix4(), ball = new THREE.Sphere();
 const JV = new THREE.Vector3(), JA = new THREE.Vector3(), JQ = new THREE.Quaternion();
-const JIG = [{ k: 190, c: 5.5 }, { k: 160, c: 5 }]; // the two cheeks ring at slightly different rates, so they don't move as one block
+// two soft masses per anchor: the seat rides the pelvis, the bust rides the chest. Each side rings at its own rate so they don't move as one block
+const JIG = [
+  { bone: 'pelvis', at: [0, 0.95, -0.06], gain: 2.4, lim: [0.018, 0.045, 0.025], sp: [{ k: 190, c: 5.5, u: 'L' }, { k: 160, c: 5, u: 'R' }] },
+  { bone: 'chest', at: [0, 1.28, 0.12], gain: 1.7, lim: [0.012, 0.03, 0.014], sp: [{ k: 250, c: 6.5, u: 'BL' }, { k: 215, c: 6, u: 'BR' }] },
+];
 function jiggleStep(p, W, now) {
   const q = p.userData.ps2, md = q.md; if (!md.jig) return;
-  const j = q.jg || (q.jg = { t: now, pos: null, vel: new THREE.Vector3(), s: [0, 1].map(() => ({ x: new THREE.Vector3(), v: new THREE.Vector3() })) });
+  const j = q.jg || (q.jg = { t: now, g: JIG.map(() => ({ pos: null, vel: new THREE.Vector3(), s: [0, 1].map(() => ({ x: new THREE.Vector3(), v: new THREE.Vector3() })) })) });
   const dt = Math.min(1 / 30, (now - j.t) / 1000); j.t = now; if (dt <= 0) return;
-  const pv = P.M4.ap(W[0], [0, 0.95, -0.06]); JV.set(pv[0], pv[1], pv[2]).applyMatrix4(p.userData.body.matrixWorld);
-  if (!j.pos) { j.pos = JV.clone(); return; }
-  const vel = JA.copy(JV).sub(j.pos).divideScalar(dt); j.pos.copy(JV);
-  const acc = vel.clone().sub(j.vel).divideScalar(dt); j.vel.copy(vel);
-  acc.clampLength(0, 60).applyQuaternion(p.userData.body.getWorldQuaternion(JQ).invert()); // into the body's own frame
-  for (let i = 0; i < 2; i++) {
-    const c = j.s[i], { k, c: damp } = JIG[i];
-    for (let n = 0; n < 2; n++) { const h = dt / 2; c.v.addScaledVector(c.x, -k * h).addScaledVector(c.v, -damp * h).addScaledVector(acc, -h * 2.4); c.x.addScaledVector(c.v, h); }
-    c.x.y = clamp(c.x.y, -0.045, 0.045); c.x.x = clamp(c.x.x, -0.018, 0.018); c.x.z = clamp(c.x.z, -0.025, 0.025);
-  }
-  md.jig.L.value.copy(j.s[0].x); md.jig.R.value.copy(j.s[1].x);
+  p.userData.body.getWorldQuaternion(JQ).invert();
+  JIG.forEach((G, gi) => {
+    const g = j.g[gi], pv = P.M4.ap(W[P.BI[G.bone]], G.at); JV.set(pv[0], pv[1], pv[2]).applyMatrix4(p.userData.body.matrixWorld);
+    if (!g.pos) { g.pos = JV.clone(); return; }
+    const vel = JA.copy(JV).sub(g.pos).divideScalar(dt); g.pos.copy(JV);
+    const acc = vel.clone().sub(g.vel).divideScalar(dt); g.vel.copy(vel);
+    acc.clampLength(0, 60).applyQuaternion(JQ); // into the body's own frame
+    const amp = G.bone === 'chest' ? (q.look.bustJig ?? 1) : 1; // a bigger bust swings further
+    G.sp.forEach((S, i) => {
+      const c = g.s[i];
+      for (let n = 0; n < 2; n++) { const h = dt / 2; c.v.addScaledVector(c.x, -S.k * h).addScaledVector(c.v, -S.c * h).addScaledVector(acc, -h * G.gain * amp); c.x.addScaledVector(c.v, h); }
+      c.x.x = clamp(c.x.x, -G.lim[0] * amp, G.lim[0] * amp); c.x.y = clamp(c.x.y, -G.lim[1] * amp, G.lim[1] * amp); c.x.z = clamp(c.x.z, -G.lim[2] * amp, G.lim[2] * amp);
+      md.jig[S.u].value.copy(c.x);
+    });
+  });
 }
 export function syncCharacters(camera) {
   const now = performance.now();

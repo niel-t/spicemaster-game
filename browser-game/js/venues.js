@@ -81,7 +81,7 @@ const LOOK = {
   tryshtahn: { tex: 512, skin: hex01(0xc8906a), hair: hex01(0x1a1410), hs: 'buzz', stubble: 1, stache: 1, smile: 1, calm: 1, hat: 'wrap', hatC: hex01(0x1c2a5a), body: 'big', watch: 1, B: { nowatch: false },
     shirt: hex01(0x14161c), jacket: hex01(0x14161c), pants: hex01(0x14161c), shoes: hex01(0x0e0c0a), tee: 1,
     shirtPaint: { shirt: [0x14, 0x16, 0x1c], pants: [0x14, 0x16, 0x1c], skin: [0xf6, 0xf6, 0xf2], belt: [0x0e, 0x0c, 0x0a], vDepth: 1.42, chain: false, sleeves: 'long', buttons: true } },
-  dancer: (skin, hair, outfit, hs, lingerie, extra) => ({ ...(extra || {}), paintBody: (cv) => paintLingerie(cv, skin, lingerie || outfit), tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, jiggle: 1, glam: 1, B: { nowatch: true, gluteK: 4.4, hourglass: 1, bustK: 1.3 },
+  dancer: (skin, hair, outfit, hs, lingerie, extra, bust = 1.3) => ({ ...(extra || {}), bustJig: 0.7 + bust * 0.3, paintBody: (cv) => paintLingerie(cv, skin, lingerie || outfit), tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, jiggle: 1, glam: 1, B: { nowatch: true, gluteK: 4.4, hourglass: 1, bustK: bust },
     shirt: hex01(outfit), jacket: hex01(outfit), pants: hex01(outfit), shoes: hex01(0x111111), tee: 1, /* a stage catsuit: no skirt tube over the hips */
     shirtPaint: { shirt: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], pants: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], skin: [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], neck: 'crew', sleeves: 'rolled', buttons: false } }),
 };
@@ -89,11 +89,11 @@ LOOK.statue = { tex: 512, fem: 1, skin: hex01(0xf2f0ea), hair: hex01(0xe8e4dc), 
   shirt: hex01(0xf4f2ee), jacket: hex01(0xf4f2ee), pants: hex01(0xf4f2ee), shoes: hex01(0xf2f0ea), tee: 1, skirt: hex01(0xf4f2ee),
   shirtPaint: { shirt: [0xf4, 0xf2, 0xee], pants: [0xf4, 0xf2, 0xee], skin: [0xf2, 0xf0, 0xea], neck: 'crew', sleeves: 'long', buttons: false } }; // a marble figure in a draped robe
 const DANCERS = [
-  { name: 'Brie', skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, lingerie: 0xe8287a, extra: { lips: hex01(0xe02a6a), shadow: hex01(0x9a4a8a), iris: hex01(0x3a7aba) }, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
-  { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, lingerie: 0x1c1a24, extra: { lips: hex01(0xb81428), shadow: hex01(0x3a2a3a), iris: hex01(0x4a8a5a), mole: 1 }, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
-  { name: 'Edam', skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, lingerie: 0xc8141e, extra: { lips: hex01(0xc21830), shadow: hex01(0xb8862a), iris: hex01(0x6a4a2a) }, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
+  { name: 'Brie', bust: 1.0, skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, lingerie: 0xe8287a, extra: { lips: hex01(0xe02a6a), shadow: hex01(0x9a4a8a), iris: hex01(0x3a7aba) }, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
+  { name: 'Feta', bust: 1.45, skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, lingerie: 0x1c1a24, extra: { lips: hex01(0xb81428), shadow: hex01(0x3a2a3a), iris: hex01(0x4a8a5a), mole: 1 }, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
+  { name: 'Edam', bust: 1.9, skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, lingerie: 0xc8141e, extra: { lips: hex01(0xc21830), shadow: hex01(0xb8862a), iris: hex01(0x6a4a2a) }, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
 ];
-export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra)); // dev/characters.html ?set=dancers
+export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra, d.bust)); // dev/characters.html ?set=dancers
 const DANCE = 50, ENTRY = 200;
 
 export function createVenues(deps) {
@@ -230,7 +230,7 @@ export function createVenues(deps) {
   // the people
   const creplach = deps.makePerson(LOOK.creplach); creplach.position.set(K.door + 1.45, 0, K.part + 0.75); creplach.rotation.y = 0; scene.add(creplach);
   const jossi = deps.makePerson(LOOK.jossi, 0.92); const js = K.seats[2]; jossi.position.set(js.x, 0, js.z); jossi.rotation.y = js.ry + Math.PI; scene.add(jossi); deps.sit(jossi, 0.5);
-  const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
+  const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra, d.bust)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
   const extras = [0, 4].map((k, i) => { const s = K.seats[k], p = deps.passerBy(700 + i * 13); p.position.set(s.x, 0, s.z); p.rotation.y = s.ry + Math.PI; scene.add(p); deps.sit(p, 0.5); return p; });
 
   const paid = () => C().paidDay === day();
