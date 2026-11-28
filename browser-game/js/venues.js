@@ -15,7 +15,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 // stage lingerie, painted over the body sheet (characters.js layout: torso rows 0-290 from Y 1.51 down to 0.8, u 256 = centre front,
 // 0/512 = centre back; sleeves 290-380, cuffs 381-399 (also the neck band: a choker), legs 440-512): smooth skin, a plunge balconette
-// bra with a lace edge, a high-cut Brazilian brief on a thin waistband, a garter belt with straps, sheer stockings with lace tops.
+// bra with a lace edge, a thong on a thin waistband, a garter belt with straps, sheer stockings with lace tops.
 // No nudity: the bra and the brief are always on.
 function paintLingerie(cv, skin, col) {
   const x = cv.getContext('2d'), W = cv.width, k = W / 512, ty = (Y) => (1.51 - Y) / 0.71 * 290 * k, fx = (m) => (256 + m * 340) * k;
@@ -48,14 +48,17 @@ function paintLingerie(cv, skin, col) {
   laceFill(() => { x.beginPath(); x.rect(0, gb0, W, gb1 - gb0); }, rgb(cl)); const edge = []; for (let u = 0; u <= W; u += 7 * k) edge.push([u, gb1]); scallop(edge, 2.6 * k, rgb(dk)); x.fillStyle = rgb(dk, 0.7); x.fillRect(0, gb0, W, 1.5 * k);
   for (const m of [-0.15, 0.15, -0.5, 0.5]) { x.strokeStyle = rgb(dk); x.lineWidth = 3.4 * k; x.beginPath(); x.moveTo(fx(m), gb1); x.lineTo(fx(m), 291 * k); x.stroke(); x.strokeStyle = rgb(lt, 0.7); x.lineWidth = 1 * k; x.stroke(); }
   // --- brief: a string waistband; the front panel is a deep V, the back a Brazilian cut over the middle of the seat
-  const low = (u) => { const m = Math.abs(mOf(u)); const f = m < 0.3 ? Math.min(1, Math.max(0, (m - 0.035) / 0.2)) : Math.min(1, Math.max(0, (0.75 - m - 0.05) / 0.26)); return 0.795 + 0.115 * Math.pow(f, 0.8); }; // lower edge of the cloth at u
+  // lower edge of the cloth at u: a narrow V at the front, bare hips, and at the back only the thong's small triangle and its string
+  const low = (u) => { const m = Math.abs(mOf(u)); const f = m < 0.3 ? Math.min(1, Math.max(0, (m - 0.022) / 0.15)) : Math.pow(Math.min(1, Math.max(0, (0.753 - m - 0.012) / 0.07)), 0.55); return 0.795 + 0.118 * Math.pow(f, 0.8); };
   const brief = () => { x.beginPath(); x.moveTo(0, ty(0.925)); x.lineTo(W, ty(0.925)); for (let u = W; u >= 0; u -= 2 * k) x.lineTo(u, Math.max(ty(0.925), ty(low(u)) + 3 * k)); x.closePath(); };
   laceFill(brief, rgb(cl));
-  x.save(); brief(); x.clip(); blob(fx(0), ty(0.84), 22 * k, 26 * k, rgb(cl, 0.9)); blob(fx(0), ty(0.86), 12 * k, 14 * k, rgb(lt, 0.4)); for (const u of [0, W]) { blob(u, ty(0.85), 40 * k, 30 * k, rgb(cl, 0.85)); blob(u, ty(0.88), 3 * k, 30 * k, rgb(dk, 0.7)); } x.restore(); // satin centre panels, the seam at the back
+  x.save(); brief(); x.clip(); blob(fx(0), ty(0.84), 22 * k, 26 * k, rgb(cl, 0.9)); blob(fx(0), ty(0.86), 12 * k, 14 * k, rgb(lt, 0.4)); x.restore(); // a satin front panel
   x.strokeStyle = rgb(dk); x.lineWidth = 2 * k; x.beginPath(); for (let u = 0; u <= W; u += 2 * k) { const yy = Math.max(ty(0.925), ty(low(u)) + 3 * k); if (!u) x.moveTo(u, yy); else x.lineTo(u, yy); } x.stroke();
   x.fillStyle = rgb(cl); x.fillRect(0, ty(0.925) - 2 * k, W, 4 * k); x.fillStyle = rgb(lt, 0.6); x.fillRect(0, ty(0.925) - 2 * k, W, 1 * k); // the string
   x.fillStyle = rgb(lt); for (const s of [-1, 1]) { x.beginPath(); x.ellipse(fx(s * 0.014), ty(0.925), 4 * k, 2.4 * k, s * 0.4, 0, 7); x.fill(); }
-  for (const u of [fx(-0.55), fx(0.55)]) blob(u, ty(0.84), 34 * k, 22 * k, rgb(skl, 0.35)); // a highlight on each bare cheek
+  for (const u of [fx(-0.58), fx(0.58)]) { blob(u, ty(0.85), 44 * k, 26 * k, rgb(skl, 0.4)); blob(u, ty(0.8), 50 * k, 5 * k, rgb(skd, 0.4)); } // a highlight on each bare cheek, the crease under it
+  for (const s of [-1, 1]) { blob(fx(s * 0.2), ty(0.96), 16 * k, 26 * k, rgb(skd, 0.3)); blob(fx(s * 0.075), ty(1.1), 5 * k, 34 * k, rgb(skd, 0.28)); blob(fx(s * 0.04), ty(1.11), 9 * k, 26 * k, rgb(skl, 0.3)); } // hip-bone hollows and the soft lines of a toned belly
+  x.fillStyle = '#e8eef8'; x.beginPath(); x.arc(fx(0), ty(1.035), 2.2 * k, 0, 7); x.fill(); x.fillStyle = rgb(lt); x.beginPath(); x.arc(fx(0), ty(1.022), 1.6 * k, 0, 7); x.fill(); // a navel piercing
   // --- arms: bare, a lace wrist band; the cuff rows double as the neck band, so that is a choker
   x.fillStyle = rgb(sk); x.fillRect(0, 290 * k, W, 110 * k); blob(128 * k, 320 * k, 120 * k, 20 * k, rgb(skl, 0.25));
   x.fillStyle = rgb(dk); x.fillRect(0, 381 * k, W, 5 * k); x.fillStyle = rgb(lt, 0.5); x.fillRect(0, 381 * k, W, 1 * k);
@@ -66,8 +69,10 @@ function paintLingerie(cv, skin, col) {
   x.save(); x.globalAlpha = 0.9; laceFill(() => { x.beginPath(); x.rect(0, 0, 0, 0); }, 'rgba(0,0,0,0)'); x.restore();
   x.fillStyle = rgb(dk); x.fillRect(0, 448 * k, W, 7 * k); x.strokeStyle = rgb(lt, 0.45); x.lineWidth = 0.8 * k; for (let u = 0; u < W; u += 5 * k) { x.beginPath(); x.moveTo(u, 448 * k); x.lineTo(u + 4 * k, 455 * k); x.moveTo(u + 4 * k, 448 * k); x.lineTo(u, 455 * k); x.stroke(); }
   const hem = []; for (let u = 0; u <= W; u += 6 * k) hem.push([u, 448 * k]); scallop(hem, 2.2 * k, rgb(dk));
-  for (const u of [128 * k, 384 * k]) blob(u, 480 * k, 26 * k, 34 * k, 'rgba(255,255,255,.14)');
-  x.strokeStyle = rgb(dk, 0.75); x.lineWidth = 1.4 * k; for (const u of [1 * k, 256 * k, W - 1 * k]) { x.beginPath(); x.moveTo(u, 455 * k); x.lineTo(u, 512 * k); x.stroke(); }
+  // the leg's own shading (u 256 = the front of the leg, 0/512 = the back): a long sheen down thigh and shin, darker sides, a knee, a back seam
+  { const gg = x.createLinearGradient(0, 0, W, 0); gg.addColorStop(0, 'rgba(0,0,0,.2)'); gg.addColorStop(0.22, 'rgba(0,0,0,.28)'); gg.addColorStop(0.5, 'rgba(255,255,255,.2)'); gg.addColorStop(0.78, 'rgba(0,0,0,.28)'); gg.addColorStop(1, 'rgba(0,0,0,.2)'); x.fillStyle = gg; x.fillRect(0, 440 * k, W, 72 * k); }
+  blob(256 * k, 462 * k, 22 * k, 14 * k, 'rgba(255,255,255,.2)'); blob(256 * k, 494 * k, 14 * k, 14 * k, 'rgba(255,255,255,.2)'); blob(256 * k, 477 * k, 26 * k, 3 * k, 'rgba(0,0,0,.2)');
+  x.strokeStyle = rgb(dk, 0.8); x.lineWidth = 1.4 * k; for (const u of [1 * k, W - 1 * k]) { x.beginPath(); x.moveTo(u, 455 * k); x.lineTo(u, 512 * k); x.stroke(); }
 }
 
 // looks (js/characters.js fields)
@@ -89,9 +94,9 @@ LOOK.statue = { tex: 512, fem: 1, skin: hex01(0xf2f0ea), hair: hex01(0xe8e4dc), 
   shirt: hex01(0xf4f2ee), jacket: hex01(0xf4f2ee), pants: hex01(0xf4f2ee), shoes: hex01(0xf2f0ea), tee: 1, skirt: hex01(0xf4f2ee),
   shirtPaint: { shirt: [0xf4, 0xf2, 0xee], pants: [0xf4, 0xf2, 0xee], skin: [0xf2, 0xf0, 0xea], neck: 'crew', sleeves: 'long', buttons: false } }; // a marble figure in a draped robe
 const DANCERS = [
-  { name: 'Brie', bust: 1.0, skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, lingerie: 0xe8287a, extra: { lips: hex01(0xe02a6a), shadow: hex01(0x9a4a8a), iris: hex01(0x3a7aba) }, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
-  { name: 'Feta', bust: 1.45, skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, lingerie: 0x1c1a24, extra: { lips: hex01(0xb81428), shadow: hex01(0x3a2a3a), iris: hex01(0x4a8a5a), mole: 1 }, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
-  { name: 'Edam', bust: 1.9, skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, lingerie: 0xc8141e, extra: { lips: hex01(0xc21830), shadow: hex01(0xb8862a), iris: hex01(0x6a4a2a) }, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
+  { name: 'Brie', bust: 1.3, skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, lingerie: 0xe8287a, extra: { lips: hex01(0xe02a6a), shadow: hex01(0x9a4a8a), iris: hex01(0x3a7aba) }, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
+  { name: 'Feta', bust: 1.65, skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, lingerie: 0x1c1a24, extra: { lips: hex01(0xb81428), shadow: hex01(0x3a2a3a), iris: hex01(0x4a8a5a), mole: 1 }, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
+  { name: 'Edam', bust: 2.05, skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, lingerie: 0xc8141e, extra: { lips: hex01(0xc21830), shadow: hex01(0xb8862a), iris: hex01(0x6a4a2a) }, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
 ];
 export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra, d.bust)); // dev/characters.html ?set=dancers
 const DANCE = 50, ENTRY = 200;

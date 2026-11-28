@@ -267,7 +267,7 @@ function styleLook(look) {
   if (!STY || look.toon === false || look.noPx || look.pxMat) return look;
   const r = rnd(JSON.stringify([look.skin, look.hair, look.hs, look.body, look.shirt])), hair = look.hair, old = !!(hair && hair[0] > 0.6 && Math.abs(hair[0] - hair[2]) < 0.16);
   if (look.glam) { /* glamour instead of caricature: a small nose, big made-up eyes, no jowls or wrinkles; the ink look stays */
-    const L = { ...look, eyeK: 1.18, irisK: 1.12, lidK: 1.08, noNose: true, pxFace: faceGlam, headScale: look.headScale ?? 1.14, pxMat: STY.mat, noseC: look.skin.map((v) => v * 0.97) };
+    const L = { ...look, eyeK: 1.18, irisK: 1.12, lidK: 1.08, noNose: true, pxFace: faceGlam, headScale: look.headScale ?? 1.07, pxMat: STY.mat, noseC: look.skin.map((v) => v * 0.97) };
     L.B = { ...(look.B || {}), px: { nose: 0.7, ear: 0.85, jaw: 0, brow: 0.3, chin: 0.7, noseW: 0.85 } };
     return L;
   }
