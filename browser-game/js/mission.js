@@ -1540,7 +1540,7 @@ export function initMission(ctx) {
     setTimeout(() => {
       const fl = opts.defend && SIEGE_LOOKS[opts.defend.looks] ? opts.defend.looks : null;
       if (!LV || LV.id !== id || (LV.looksKey || null) !== fl) { buildLevel(fl ? { ...LEVELS[id], foeLooks: SIEGE_LOOKS[fl].foeLooks, foeCap: SIEGE_LOOKS[fl].foeCap, faction: SIEGE_LOOKS[fl].faction, factionName: SIEGE_LOOKS[fl].factionName, looksKey: fl } : LEVELS[id]); }
-      HEIST = opts.heist || null; DEF = opts.defend || null;
+      HEIST = opts.heist || null; DEF = opts.defend || null; ONFOOT = !!opts.onFoot && !HEIST && !DEF; // walked up from the open world: no van pulling up
       REMIX = DEF ? null : HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
       if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
         if (HEIST.extra) for (const i of enemies.map((e, k) => k).filter((k) => !REMIX.keep.has(k)).slice(0, HEIST.extra)) REMIX.keep.add(i); } // suspicion: more guards
@@ -2490,7 +2490,7 @@ export function initMission(ctx) {
   function setMod(k) { state.mods[k] = 1; applyMods(); meshOf = null; if (M.active) syncHeld(); }
   // ================================================================== ARRIVAL (Neon Vice: every mission opens with you pulling up)
   // The Oofmobiel drives in along the street, parks out front, Eddy climbs out and walks to the door. E / Space / click skips it.
-  let ARR = null;
+  let ARR = null, ONFOOT = false; // ONFOOT: the raid began at the joint's door in the open world (js/roam.js, js/wijk.js), so Eddy is already there
   const lbCss = document.createElement('style'); lbCss.textContent = `
     #nvLbT,#nvLbB{position:fixed;left:0;right:0;height:0;background:#000;z-index:7;transition:height .35s;pointer-events:none;overflow:hidden}
     #nvLbT{top:0}#nvLbB{bottom:0;display:flex;align-items:center;justify-content:flex-end;padding:0 22px;box-sizing:border-box}
@@ -2536,6 +2536,8 @@ export function initMission(ctx) {
     const I = !HEIST && !DEF && INTROS[LV.id], full = !!I && !REMIX && !ownsLevel(LV.id) && !(state.introSeen && state.introSeen[LV.id]) && !!ctx.dialogue;
     ARR = { ph: full ? 'intro' : 'drive', t: 0, t0: performance.now(), x0: OX + LV.van.from, then }; // skipping goes by wall time (t restarts every phase)
     van.position.set(ARR.x0, 0, van.position.z); player.visible = false; letterbox(true); M.snap = true;
+    if (ONFOOT && !full) { // on foot: straight in, the Oofmobiel is already parked round the corner; the dossier stays up a moment
+      endArrive(); sfx('door'); if (I) { introCard(LV.id, true); setTimeout(() => { if (!ARR) hideIntro(); }, 3200); } return; }
     if (I) setTimeout(() => { if (ARR && M.active) introCard(LV.id, !full); }, full ? 350 : 150);
     if (full) lbBot.innerHTML = `<span>${inputMode() === 'touch' ? '' : glyph('Escape') + ' · OVERSLAAN'}</span>`; // E / Space now turn the call's lines
     if (!full) driveSound();
@@ -2552,7 +2554,7 @@ export function initMission(ctx) {
     const A = ARR; A.t += dt;
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) bannerEl.style.opacity = 0; }
     if (A.ph === 'intro') { // the dossier is up; the call starts once the camera has settled, the van rolls in when it ends
-      if (!A.called && A.t > 0.9) { A.called = true; ctx.dialogue(INTROS[LV.id].call, () => { if (ARR !== A || A.ph !== 'intro') return; markSeen(LV.id); hideIntro(); A.ph = 'drive'; A.t = 0; driveSound(); lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`; }); }
+      if (!A.called && A.t > 0.9) { A.called = true; ctx.dialogue(INTROS[LV.id].call, () => { if (ARR !== A || A.ph !== 'intro') return; markSeen(LV.id); if (ONFOOT) { endArrive(); sfx('door'); return; } hideIntro(); A.ph = 'drive'; A.t = 0; driveSound(); lbBot.innerHTML = `<span>${glyph('skip')} · OVERSLAAN</span>`; }); }
       return; }
     if (A.ph === 'drive') {
       const u = Math.min(1, A.t / 2.4), e = 1 - Math.pow(1 - u, 3);

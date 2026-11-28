@@ -3531,7 +3531,7 @@ const wijkOpen = (k) => (k === 'almere' ? !!(blokaas && blokaas.almereOpen()) : 
 const PA_DOOR = { x: 31, z: -59.9 }; // Freddy Sr.'s front door on the Komijnstraat (js/pahuis.js)
 const makePa = () => makePerson({ ps2: LOOKS.eddySr, headKind: 'sr', shirt: 0x232a40, front: 'sr', pants: 0x4a4a52, shoes: 0x2a2018, belly: 0.6, skin: 0xdc9c82, scale: 0.96 }); // a district opens when the story reaches it
 const wijkOf = (id) => { const j = ACT_JOINTS.find((x) => x[1] === id); return !j ? null : PARA.includes(j) ? 'sand' : NOSH.includes(j) ? 'nosh' : ABD.includes(j) || FINAL.includes(j) ? 'docks' : 'lampas'; };
-const raidOnFoot = (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); };
+const raidOnFoot = (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, { ...(rx ? { remix: rx } : {}), onFoot: true }); }; // knocked on the joint's door in the open world: straight in, no van drive-in
 function afterDrive(res) {
   clearPlayerSplats(); clock.getDelta();
   if (res.arrived) {
@@ -3708,7 +3708,7 @@ politie = createPolitie({ THREE, scene, player, state, lam, RC, lifeWin, toast, 
 roam = createRoam({ lampPool, THREE, scene, player, state, streetPiece, ST, kerbMat, groundMat, lamp, tree, bollard, house, spanWidths, solid, solids, fadeables, car, kit, box, lam, signTex, addInteract, dialogue, choice, toast,
   busy: () => !!(mission.active || tripOn()) || state.inDialogue || choiceOpen, SROW, RC, FAR, WALK, HOME: { x0: -70, x1: 84 }, low: IS_PHONE, snapCam: () => window.__sme.snapCam(),
   owns: (id) => owns(id), retaken: (id) => econ.isRetaken(id), canRoam: () => state.step === 'free' && !tutorial.active(), setArea: (t) => { $('area').textContent = t; },
-  raid: (id) => { if (!econ.canRaid()) { raidRefused(); return; } const rx = owns(id) ? { ...mission.remixFor(id, econ.ensure().day), retake: econ.isRetaken(id) } : null; if (rx && rx.retake) { const km = econ.retakeMod(); if (km) rx.mod = km; } mission.enter(id, rx ? { remix: rx } : {}); },
+  raid: (id) => raidOnFoot(id),
   clientLine: (cid) => { const c = CLIENTS.find((x) => x.id === cid); if (!c) return null; const b = BLENDS.find((x) => x.id === c.blend), have = Math.floor((econ.ensure().blends[c.blend] || { kg: 0 }).kg), st = brep ? brep.tierOf(brep.get(cid)).name : ''; return [c.who, `${c.kg} kg ${b ? b.name : c.blend} every market day, Eddy. ${have >= c.kg ? 'I see you have it on the shelf. Good.' : `You have ${have} kg. Don\u2019t make me call the Lampas.`}${st ? ` (The buurt: ${st}.)` : ''}`]; } });
 wijk = createWijk({ onEnter: (t) => { if (spoed) spoed.onEnter(t); if (blokaas) blokaas.onEnter(t); }, makePa, animate: (p, v, dt) => animate(p, v, dt), beep, airJob: () => (freddy ? freddy.airJob() : null), lampPool, THREE, scene, player, state, house, spanWidths, solid, solids, fadeables, car, kit, lam, lamp, tree, bollard, ST, kerbMat, groundMat, signTex, addInteract, toast, dialogue, choice,
   setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), setArea: (t) => { $('area').textContent = t; }, makeVan: () => oof.clone(true), low: IS_PHONE,
