@@ -1,7 +1,7 @@
 // The two ends of the longer street (2026-11-24):
 //  - West: CLUB MONIQUE, Eddy Jr.'s favourite strip club. A reception room with the bouncer, Creplach (a rabbi, strict, deadpan),
-//    who wants W 200 a night to let you through. Inside: a bar, a centre stage with three dancers (Brie, Feta and Edam), and on
-//    a front seat Jossi, Eddy's friend, always there and always angling for the next lapdance. A lapdance is a fade-out and a
+//    who wants W 200 a night to let you through. Inside: a bar, a centre stage with three dancers (Brie, Feta and Edam) who each run a string of moves, and on
+//    a front seat Jossi, Eddy's friend, always there and always angling for the next dance. Tip a dancer and she comes over; the privé booth shows a lap dance up close; the paid extras happen behind a shut curtain, with a
 //    text card: no nudity, stage lingerie only.
 //  - East: TRYSHTAHN AUTO. A big empty plot off the street, then a round glass showroom with three cars on turntables: the boxy
 //    Kaasland Kombi, the sporty Stuttgart 911-ish Zuidwester, and a golden Rolls-ish Koninklijke. Tryshtahn stands up front and always
@@ -9,6 +9,35 @@
 //    Buying cars comes later.
 // state.club = { paidDay, visits, dances }, state.dealer = { seen } are saved with the game.
 import { hex01 } from './characters.js';
+
+// ---- dance moves: a pose laid over the idle through the character's `extra` hook (characters.js poseOf), plus a root offset.
+// st = { move, t (seconds into the move), w (0..1 blend in/out) }
+const AX = [1, 0, 0], AZ = [0, 0, 1], AY = [0, 1, 0];
+export const DANCE_MOVES = ['sway', 'roll', 'drop', 'shake', 'spin', 'lap'];
+export function danceExtra(st) {
+  return (R, rot) => {
+    const t = st.t, w = st.w, m = st.move, s = Math.sin, hip = (x, z) => { rot('pelvis', AX, x * w); rot('pelvis', AZ, z * w); rot('spine', AX, -x * 0.8 * w); rot('spine', AZ, -z * 0.85 * w); rot('chest', AZ, -z * 0.2 * w); };
+    const armsUp = (k) => { rot('uarmL', AZ, 2.0 * k * w); rot('uarmR', AZ, -2.0 * k * w); rot('farmL', AZ, 1.3 * k * w); rot('farmR', AZ, -1.3 * k * w); };
+    const knees = (k, spread = 0) => { for (const [sd, sg] of [['L', 1], ['R', -1]]) { rot('thigh' + sd, AX, -k * w); rot('shin' + sd, AX, k * 1.55 * w); if (spread) rot('thigh' + sd, AZ, sg * spread * w); } };
+    const lean = (a) => { rot('pelvis', AX, a * w); rot('thighL', AX, -a * w); rot('thighR', AX, -a * w); }; // tip the hips forward, legs stay under her
+    if (m === 'sway') { hip(0, s(t * 3.2) * 0.2); armsUp(0.8 + 0.08 * s(t * 1.6)); knees(0.12 + 0.06 * s(t * 6.4)); }
+    else if (m === 'roll') { hip(s(t * 3.4) * 0.17, Math.cos(t * 3.4) * 0.19); armsUp(0.25); knees(0.18); rot('head', AZ, s(t * 1.7) * 0.15 * w); }
+    else if (m === 'drop') { const d = dropDepth(t); knees(0.1 + 1.15 * d, 0.3 * d); rot('spine', AX, 0.12 * d * w); hip(0, s(t * 6) * 0.08 * (1 - d)); armsUp(0.4 * (1 - d)); }
+    else if (m === 'shake') { knees(0.32); lean(0.5); rot('spine', AX, 0.22 * w); rot('chest', AX, -0.3 * w); rot('head', AX, -0.35 * w); rot('pelvis', AZ, s(t * 17) * 0.085 * w); rot('spine', AZ, -s(t * 17) * 0.07 * w); rot('uarmL', AX, -0.5 * w); rot('uarmR', AX, -0.5 * w); }
+    else if (m === 'spin') { rot('thighL', AX, -1.0 * w); rot('shinL', AX, 1.35 * w); rot('spine', AX, -0.22 * w); rot('head', AX, -0.25 * w); armsUp(0.75); rot('thighR', AX, 0.15 * w); }
+    else if (m === 'lap') { const d = 0.55 + 0.2 * s(t * 2.4); knees(0.1 + 0.75 * d, 0.22); lean(0.34); rot('spine', AX, 0.1 * w); rot('chest', AX, -0.25 * w); rot('pelvis', AZ, s(t * 4.8) * 0.16 * w); rot('spine', AZ, -s(t * 4.8) * 0.13 * w); rot('uarmL', AX, -0.35 * w); rot('uarmR', AX, -0.35 * w); }
+  };
+}
+function dropDepth(t) { const c = (t % 3.2) / 3.2; return c < 0.25 ? Math.pow(Math.sin(c / 0.25 * Math.PI / 2), 2) : c < 0.5 ? 1 - 0.25 * Math.abs(Math.sin((c - 0.25) / 0.25 * Math.PI * 2)) : c < 0.75 ? Math.pow(Math.cos((c - 0.5) / 0.25 * Math.PI / 2), 2) : 0; }
+// how far the move lowers / bounces the whole body (metres, in the body's own scale)
+export function danceY(st) {
+  const t = st.t, w = st.w, m = st.move;
+  if (m === 'drop') return -0.4 * dropDepth(t) * w;
+  if (m === 'shake') return (-0.07 + Math.abs(Math.sin(t * 8.5)) * 0.035) * w;
+  if (m === 'lap') return (-0.24 - 0.09 * Math.sin(t * 2.4) + Math.abs(Math.sin(t * 4.8)) * 0.03) * w;
+  if (m === 'spin') return 0.1 * w;
+  return Math.abs(Math.sin(t * 3.2)) * 0.05 * w;
+}
 
 const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -262,18 +291,149 @@ export function createVenues(deps) {
     [['Jossi', 'I\'ve been here since four. I live here now. Creplach brings me soup.'], ['Eddy Jr.', 'Creplach brings you soup?'], ['Jossi', 'Kreplach soup. From Creplach. It\'s a whole thing. SHHH, Edam is starting!']],
   ];
   addInteract({ pos: () => (inBack(player.position) ? jossi.position : far), r: 1.6, enabled: () => inBack(player.position), label: () => 'Talk to Jossi', act: () => { dialogue(JOSSI[(C().jossiK = ((C().jossiK | 0) + 1)) % JOSSI.length]); } });
-  // lapdances: a fade to black and a text card
   let card = null;
-  function lapdance(d) {
-    if (state.money < DANCE) { dialogue([[d.name, 'Sweetie. ' + fmt(DANCE) + '. Come back when you\'re liquid.']]); return; }
-    addMoney(-DANCE); C().dances++; if (deps.save) deps.save();
-    if (!card) { card = document.createElement('div'); card.style.cssText = 'position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;background:#000;opacity:0;transition:opacity .6s;cursor:pointer'; document.body.appendChild(card); }
-    card.innerHTML = `<div style="max-width:560px;text-align:center;color:#ffd6f0;font:20px/1.5 Rubik,Arial;padding:20px"><div style="font:900 34px Bungee,'Arial Black';color:#ff5ac8;text-shadow:0 0 14px #ff3ab8;margin-bottom:12px">${d.name.toUpperCase()}</div>${d.card}<div style="margin-top:18px;font-size:12px;color:#a07a9a">click to continue</div></div>`;
-    card.style.display = 'flex'; requestAnimationFrame(() => { card.style.opacity = 1; }); state.inDialogue = true;
-    [392, 494, 587, 494].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'sine', 0.03), 300 + i * 260));
-    card.onclick = () => { card.style.opacity = 0; setTimeout(() => { card.style.display = 'none'; state.inDialogue = false; dialogue([['Jossi', pick([`EDDY! You got ${d.name}?! I've been asking for ${d.name} for an HOUR!`, `${d.name}?! Eddy, that's MY ${d.name}! ...Was it nice? Don't tell me. Tell me.`, 'Next one\'s mine. NEXT ONE IS MINE.'])]]); }, 600); };
+  // ================================================================== the show: dance moves, tips, the privé booth
+  // --- the booth in the north-west corner behind the stage: a couch on the back wall, velvet side walls, a curtain across the front
+  const BO = { cx: -61.0, x0: -62.6, x1: -59.4, zb: -20.9, zf: -18.7, seatZ: -20.38 };
+  {
+    const velvet = lam({ color: 0x6a0a34 }), dark = lam({ color: 0x1a0c18 }), gold = lam({ color: 0xd8a83a, emissive: 0x3a2a00 });
+    for (const x of [BO.x0, BO.x1]) { box(0.1, 2.5, BO.zf - BO.zb, velvet, x, 1.25, (BO.zf + BO.zb) / 2, club); solid(x - 0.08, x + 0.08, BO.zb, BO.zf); cyl(0.05, 0.05, 2.6, gold, x, 1.3, BO.zf, club, 8); }
+    box(BO.x1 - BO.x0, 2.5, 0.06, lam({ color: 0x3a0820 }), BO.cx, 1.25, BO.zb + 0.04, club, false); // padded back wall
+    for (let k = 0; k < 6; k++) cyl(0.03, 0.03, 0.03, gold, BO.x0 + 0.5 + k * 0.44, 1.5 + (k % 2) * 0.5, BO.zb + 0.09, club, 6).rotation.x = Math.PI / 2;
+    box(2.7, 0.45, 0.8, velvet, BO.cx, 0.22, BO.zb + 0.5, club); box(2.7, 0.75, 0.16, velvet, BO.cx, 0.82, BO.zb + 0.16, club, false); for (const sx of [-1.3, 1.3]) box(0.14, 0.34, 0.8, velvet, BO.cx + sx, 0.6, BO.zb + 0.5, club, false);
+    solid(BO.cx - 1.35, BO.cx + 1.35, BO.zb, BO.zb + 0.9);
+    box(BO.x1 - BO.x0 + 0.1, 0.07, 0.07, gold, BO.cx, 2.55, BO.zf, club, false); // the curtain rail
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.42), new THREE.MeshBasicMaterial({ map: signTex([{ t: 'PRIVÉ', size: 70 }], '#120a14', '#ff5ac8', 320, 90) })); sign.position.set(BO.cx, 2.86, BO.zf + 0.02); club.add(sign);
+    box(1.6, 0.02, 1.4, dark, BO.cx, 0.012, BO.zb + 1.5, club, false); // a rug
+    BO.light = new THREE.PointLight(0xff4aa8, 0, 6, 1.4); BO.light.position.set(BO.cx, 2.2, BO.zb + 1.2); club.add(BO.light);
+    // the curtain: two halves that hang open at the sides and draw shut
+    BO.curt = [-1, 1].map((s) => { const m = box(1.6, 2.45, 0.06, lam({ color: 0x8a0e3e, emissive: 0x18020a }), 0, 1.25, BO.zf, club, false); m.userData.s = s; return m; }); BO.shut = 0;
+    // hearts that rise over the booth when the curtain is shut
+    const hT = deps.canvasTex(64, 64, (g) => { g.clearRect(0, 0, 64, 64); g.fillStyle = '#ff5aa8'; g.beginPath(); g.moveTo(32, 54); g.bezierCurveTo(4, 34, 8, 8, 32, 22); g.bezierCurveTo(56, 8, 60, 34, 32, 54); g.fill(); });
+    BO.hearts = [0, 1, 2, 3, 4, 5, 6].map((k) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: hT, transparent: true, depthWrite: false })); m.scale.set(0.3, 0.3, 1); m.visible = false; m.userData.k = k; club.add(m); return m; });
   }
-  dancers.forEach((p) => addInteract({ pos: () => (inBack(player.position) ? p.position : far), r: 2.4, enabled: () => inBack(player.position) && !(card && card.style.display === 'flex'), label: () => `Lapdance from ${p.userData.dancer.name} · ${fmt(DANCE)}`, act: () => lapdance(p.userData.dancer) }));
+  function setCurtain(c) { BO.shut = c; const w = BO.x1 - BO.x0; for (const m of BO.curt) { const s = m.userData.s, k = 0.16 + 0.84 * c * 0.5 / 0.5; m.scale.x = (0.16 + (0.5 - 0.16) * c) * w / 1.6; m.position.x = BO.cx + s * (w / 2 - m.scale.x * 0.8); } }
+  setCurtain(0);
+  // --- every dancer runs her own string of moves round her pole
+  const SEQ = ['sway', 'spin', 'roll', 'drop', 'sway', 'shake', 'roll', 'spin', 'drop', 'shake'];
+  const DUR = { sway: 6, roll: 6, spin: 4.2, drop: 6.4, shake: 5, lap: 5 };
+  const setMove = (u, mv, dur) => { if (u.st.move !== mv) { u.st.move = mv; u.st.t = 0; u.st.w = 0; } u.mvT = dur ?? DUR[mv]; };
+  dancers.forEach((p, i) => { const u = p.userData.dancer; u.st = { move: 'sway', t: i * 1.3, w: 1 }; u.a = u.ph; u.mvI = i * 3; u.mvT = 2 + i * 1.7; u.face = 0; p.userData.ps2.extra = danceExtra(u.st); });
+  const turnTo = (p, a, k) => { p.rotation.y += Math.atan2(Math.sin(a - p.rotation.y), Math.cos(a - p.rotation.y)) * Math.min(1, k); };
+  function stageDance(p, dt) {
+    const u = p.userData.dancer, st = u.st; st.t += dt; st.w = Math.min(1, st.w + dt * 2.6);
+    let tx, tz, face;
+    if (u.tip) { // tipped: over to the edge of the stage nearest Eddy, a drop facing him, then a shake with her back to him
+      u.tip.t -= dt; const dx = player.position.x - K.stage.x, dz = player.position.z - K.stage.z, dl = Math.hypot(dx, dz) || 1; tx = K.stage.x + dx / dl * (K.stage.r - 0.45); tz = K.stage.z + dz / dl * (K.stage.r - 0.45);
+      const toHim = Math.atan2(dx, dz), half = u.tip.t > u.tip.d * 0.5; setMove(u, half ? 'drop' : 'shake', 9); face = half ? toHim : toHim + Math.PI;
+      if (u.tip.t <= 0) { u.tip = null; u.mvT = 0; }
+    } else {
+      u.mvT -= dt; if (u.mvT <= 0) { u.mvI++; setMove(u, SEQ[u.mvI % SEQ.length]); }
+      const m = st.move, sp = m === 'spin' ? 3.3 : m === 'sway' || m === 'roll' ? 0.55 : 0, r = m === 'spin' ? 0.3 : 0.44;
+      u.a += dt * sp * st.w; tx = u.pole.x + Math.sin(u.a) * r; tz = u.pole.z + Math.cos(u.a) * r;
+      face = m === 'spin' ? u.a + Math.PI / 2 : m === 'shake' ? Math.PI : m === 'drop' ? 0 : u.a * 0.35 + Math.sin(st.t * 0.7) * 0.5; // a drop faces the front row, a shake shows them her back
+    }
+    const k = Math.min(1, dt * (u.tip ? 2.2 : 5)); p.position.x += (tx - p.position.x) * k; p.position.z += (tz - p.position.z) * k; p.position.y = 0.5 + danceY(st) * 0.93;
+    turnTo(p, face, dt * (st.move === 'spin' ? 12 : 3.5));
+    if (deps.animate) deps.animate(p, dt);
+  }
+  // --- tips: notes thrown at the stage
+  const billT = deps.canvasTex(64, 32, (g) => { g.fillStyle = '#3f9a52'; g.fillRect(0, 0, 64, 32); g.strokeStyle = '#d8f2c8'; g.lineWidth = 2; g.strokeRect(3, 3, 58, 26); g.fillStyle = '#eaffd8'; g.font = '900 20px Arial'; g.textAlign = 'center'; g.fillText('W', 32, 23); });
+  const billM = new THREE.MeshBasicMaterial({ map: billT, side: THREE.DoubleSide }), billG = new THREE.PlaneGeometry(0.2, 0.1), bills = [];
+  function throwBills(n, p) {
+    for (let i = 0; i < n; i++) {
+      while (bills.length >= 48) { const o = bills.shift(); club.remove(o.m); }
+      const m = new THREE.Mesh(billG, billM), T = 0.8 + Math.random() * 0.5, g = 3.4; m.position.set(player.position.x, 1.25, player.position.z);
+      const ex = p.position.x + (Math.random() - 0.5) * 1.1, ez = p.position.z + (Math.random() - 0.5) * 1.1;
+      club.add(m); bills.push({ m, v: new THREE.Vector3((ex - m.position.x) / T, (0.55 - 1.25) / T + 0.5 * g * T, (ez - m.position.z) / T), g, wait: i * 0.07, life: 45, sp: 4 + Math.random() * 6, down: false });
+    }
+  }
+  function billsStep(dt) {
+    for (let i = bills.length - 1; i >= 0; i--) { const b = bills[i], m = b.m;
+      if (b.wait > 0) { b.wait -= dt; m.visible = false; continue; } m.visible = true;
+      if (!b.down) { b.v.y -= b.g * dt; m.position.addScaledVector(b.v, dt); m.position.x += Math.sin(b.life * 9 + i) * dt * 0.5; m.rotation.x += dt * b.sp; m.rotation.z += dt * b.sp * 0.6;
+        const fl = Math.hypot(m.position.x - K.stage.x, m.position.z - K.stage.z) < K.stage.r ? 0.515 + i * 0.0004 : 0.03; if (m.position.y <= fl && b.v.y < 0) { m.position.y = fl; b.down = true; m.rotation.set(-Math.PI / 2, 0, Math.random() * 6.3); } }
+      b.life -= dt; if (b.life <= 0) { club.remove(m); bills.splice(i, 1); } }
+  }
+  const TIP_SAY = { Brie: ['For me? You\'re sweet, spice boy.', 'Aww. Watch this one.'], Feta: ['Mm. Keep them coming.', 'That buys you a look. Just a look.'], Edam: ['Now THAT is how you say hello.', 'Rain, baby. I like the weather in here.'] };
+  function tip(p, amt) {
+    const d = p.userData.dancer;
+    if (state.money < amt) { dialogue([[d.name, 'Sweetie, that wallet is empty. I can hear it from here.']]); return; }
+    addMoney(-amt); const c = C(); c.tips = c.tips && typeof c.tips === 'object' ? c.tips : {}; c.tips[d.name] = (c.tips[d.name] | 0) + amt; if (deps.save) deps.save();
+    throwBills(amt >= 100 ? 14 : 3, p); const dur = amt >= 100 ? 11 : 6; d.tip = { t: dur, d: dur };
+    beep(880, 0.06, 'triangle', 0.04); setTimeout(() => beep(1175, 0.08, 'triangle', 0.04), 90);
+    toast(d.name.toUpperCase(), pick(TIP_SAY[d.name] || ['Thanks, sweetie.']), 2.6);
+    if (amt >= 100 && Math.random() < 0.6) setTimeout(() => { if (!sc && !state.inDialogue) toast('JOSSI', pick(['A HUNDRED?! Eddy, who ARE you?', 'I tip in coins. COINS, Eddy. Don\'t make me look bad.']), 2.6); }, 3200);
+  }
+  // --- the privé booth: Eddy on the couch, the dancer in front of him, the camera up close. With extras the curtain shuts and stays shut.
+  const PRIVE = 150, EXTRA = 500;
+  const EXTRA_CARD = {
+    Brie: 'The curtain closes. Seven minutes later Eddy Jr. comes out with his glasses on upside down and one shoe missing. Brie hands him the shoe. "Call me, spice boy."',
+    Feta: 'The curtain closes. Nobody knows what happened in there. Eddy Jr. knows. Eddy Jr. will never talk about it, and never stop thinking about it.',
+    Edam: 'The curtain closes. The whole booth moves a metre to the left. Creplach looks at his watch, twice. Eddy Jr. comes out a changed man, and ' + fmt(EXTRA) + ' lighter.',
+  };
+  let sc = null, veil = null, cap = null;
+  const fade = (cb) => { if (!veil) { veil = document.createElement('div'); veil.style.cssText = 'position:fixed;inset:0;z-index:54;background:#000;opacity:0;pointer-events:none;transition:opacity .4s'; document.body.appendChild(veil); } veil.style.opacity = 1; setTimeout(() => { cb(); veil.style.opacity = 0; }, 450); };
+  const caption = (html) => { if (!cap) { cap = document.createElement('div'); cap.style.cssText = 'position:fixed;left:50%;bottom:7%;transform:translateX(-50%);z-index:53;padding:8px 18px;border-radius:999px;background:rgba(20,6,16,.72);color:#ffd6f0;font:700 15px Rubik,Arial;border:1px solid #ff5ac8;cursor:pointer;display:none;text-align:center'; cap.addEventListener('click', (e) => { e.stopPropagation(); if (sc && sc.phase === 'dance' && sc.t > 1.5) sc.t = sc.dur; }); document.body.appendChild(cap); } cap.style.display = html ? 'block' : 'none'; if (html) cap.innerHTML = html; };
+  function prive(p, extra) {
+    const d = p.userData.dancer, cost = extra ? EXTRA : PRIVE;
+    if (state.money < cost) { dialogue([[d.name, `The booth is ${fmt(cost)}, sweetie. Come back when you're liquid.`]]); return; }
+    addMoney(-cost); const c = C(); c.dances++; if (extra) c.extras = (c.extras | 0) + 1; if (deps.save) deps.save();
+    sc = { p, d, extra, phase: 'in', t: 0, dur: 19, cut: 0 }; state.inDialogue = true; d.tip = null;
+    fade(() => { player.position.set(BO.cx, 0, BO.seatZ); player.rotation.y = 0; deps.sit(player, 0.5); p.position.set(BO.cx, 0, BO.seatZ + 1.1); p.rotation.y = Math.PI; setMove(d, 'sway', 99); sc.phase = 'dance'; sc.t = 0; BO.light.intensity = 1.8; caption(`PRIVÉ · ${d.name.toUpperCase()} <span style="opacity:.6;font-weight:400">· click to end</span>`); });
+  }
+  function endPrive() {
+    const { p, d, extra } = sc; sc.phase = 'out'; caption('');
+    fade(() => {
+      const u = player.userData; u.seated = false; u.body.position.y = 0; u.legs.forEach((l) => { l.rotation.x = 0; }); player.position.set(BO.cx, 0, BO.zf + 1.0); player.rotation.y = 0;
+      p.position.set(d.pole.x, 0.5, d.pole.z); d.mvT = 0; setCurtain(0); clubHi.visible = false; BO.light.intensity = 0; for (const h of BO.hearts) h.visible = false; sc = null; state.inDialogue = false;
+      const jos = ['Jossi', pick([`EDDY! You got ${d.name}?! I've been asking for ${d.name} for an HOUR!`, `${d.name}?! Eddy, that's MY ${d.name}! ...Was it nice? Don't tell me. Tell me.`, 'Next one\'s mine. NEXT ONE IS MINE.'])];
+      if (extra) showCard(d.name, EXTRA_CARD[d.name] || EXTRA_CARD.Brie, () => dialogue([['Creplach', 'I saw nothing. I heard nothing. That is also what you saw and heard.'], jos]));
+      else dialogue([['Eddy Jr.', '(' + d.card + ')'], jos]);
+    });
+  }
+  function priveStep(dt) {
+    const { p, d } = sc; state.inDialogue = true; sc.t += dt; clubHi.visible = true; // the upper walls and the roof are back while the camera is down in the room
+    if (sc.phase === 'dance') {
+      const t = sc.t, st = d.st; st.t += dt; st.w = Math.min(1, st.w + dt * 2.4);
+      // four beats: a sway in front of him, a lap dance with her back to him, hip rolls up close, a shake to finish
+      const beat = t < 4.5 ? ['sway', 1.1, Math.PI] : t < 9.5 ? ['lap', 0.72, 0] : t < 14 ? ['roll', 0.8, Math.PI] : ['shake', 0.9, 0];
+      if (st.move !== beat[0]) { st.move = beat[0]; st.t = 0; st.w = 0; }
+      p.position.x = BO.cx + Math.sin(t * 1.1) * 0.05; p.position.z += (BO.seatZ + beat[1] - p.position.z) * Math.min(1, dt * 2.5); p.position.y = danceY(st) * 0.93; turnTo(p, beat[2], dt * 3.2);
+      player.position.set(BO.cx, 0, BO.seatZ); player.rotation.y = 0;
+      if (deps.animate) deps.animate(p, dt);
+      if (t >= sc.dur) { if (sc.extra) { sc.phase = 'curtain'; sc.t = 0; sc.sq = 0; caption(''); st.move = 'sway'; } else endPrive(); }
+    } else if (sc.phase === 'curtain') { // the extras happen behind the curtain: all you get is the curtain, the hearts and the couch springs
+      const t = sc.t; setCurtain(Math.min(1, t / 0.8)); const wob = Math.min(1, t / 2) * (t < 7 ? 1 : Math.max(0, 8 - t));
+      for (const m of BO.curt) { m.position.z = BO.zf + Math.sin(t * 13 + m.userData.s) * 0.035 * wob; m.rotation.y = Math.sin(t * 9 + m.userData.s * 2) * 0.03 * wob; }
+      for (const h of BO.hearts) { const k = h.userData.k, c = ((t * 0.45 + k / 7) % 1); h.visible = t > 1; h.position.set(BO.cx + Math.sin(k * 2.4 + t) * 1.1, 2.3 + c * 1.6, BO.zf - 0.6 + Math.cos(k * 1.7) * 0.5); h.material.opacity = 1 - c; const s = 0.22 + c * 0.2; h.scale.set(s, s, 1); }
+      sc.sq -= dt; if (sc.sq <= 0 && t > 1 && t < 7.4) { sc.sq = Math.max(0.16, 0.5 - t * 0.05); sc.sqN = (sc.sqN | 0) + 1; beep(sc.sqN % 2 ? 620 : 520, 0.04, 'square', 0.02); }
+      p.position.set(BO.cx, 0, BO.seatZ + 0.7); player.position.set(BO.cx, 0, BO.seatZ);
+      if (t >= 8.4) { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.16, 'triangle', 0.04), i * 110)); endPrive(); }
+    }
+  }
+  // the camera while a privé scene runs (main.js asks every frame): three close angles in turn, or the shut curtain from outside
+  const camP = new THREE.Vector3(), camL = new THREE.Vector3();
+  function cam() {
+    if (!sc || sc.phase === 'in') return null;
+    const z = sc.p.position.z, t = sc.t;
+    if (sc.phase === 'curtain' || (sc.phase === 'out' && sc.extra)) { camP.set(BO.cx + Math.sin(t * 0.3) * 0.3, 1.5, BO.zf + 3.9); camL.set(BO.cx, 1.75, BO.zf); }
+    else { const k = Math.floor(t / 4.75) % 4, dr = (t % 4.75) / 4.75;
+      if (k === 0) { camP.set(BO.cx + 1.2 - dr * 0.5, 1.5, BO.zf + 1.9); camL.set(BO.cx, 1.0, BO.seatZ + 0.5); } // from the opening, drifting
+      else if (k === 1) { camP.set(BO.x0 + 0.4, 0.95 + dr * 0.25, z + 0.55); camL.set(BO.cx, 0.9, z - 0.1); } // low from the side, on her
+      else if (k === 2) { camP.set(BO.cx + 0.42, 1.52, BO.seatZ - 0.28); camL.set(BO.cx - 0.05, 1.05 - dr * 0.15, z); } // over Eddy's shoulder
+      else { camP.set(BO.x1 - 0.45, 1.25, z + 0.9 - dr * 0.5); camL.set(BO.cx, 0.85, z); } } // from the other side, sliding past
+    return { pos: camP, look: camL };
+  }
+  function showCard(name, text, done) {
+    if (!card) { card = document.createElement('div'); card.style.cssText = 'position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;background:#000;opacity:0;transition:opacity .6s;cursor:pointer'; document.body.appendChild(card); }
+    card.innerHTML = `<div style="max-width:560px;text-align:center;color:#ffd6f0;font:20px/1.5 Rubik,Arial;padding:20px"><div style="font:900 34px Bungee,'Arial Black';color:#ff5ac8;text-shadow:0 0 14px #ff3ab8;margin-bottom:12px">${name.toUpperCase()}</div>${text}<div style="margin-top:18px;font-size:12px;color:#a07a9a">click to continue</div></div>`;
+    card.style.display = 'flex'; requestAnimationFrame(() => { card.style.opacity = 1; }); state.inDialogue = true;
+    card.onclick = () => { card.style.opacity = 0; setTimeout(() => { card.style.display = 'none'; state.inDialogue = false; if (done) done(); }, 600); };
+  }
+  const MENU_SAY = { Brie: 'Hi! You\'re the spice one, right? Jossi talks about you all the time.', Feta: 'You\'re staring. That\'s fine. Staring is free. The rest is not.', Edam: 'Well, look who found his way to the front. What will it be, baby?' };
+  dancers.forEach((p) => addInteract({ pos: () => (inBack(player.position) && !sc ? p.position : far), r: 2.7, enabled: () => inBack(player.position) && !sc && !(card && card.style.display === 'flex'), label: () => `${p.userData.dancer.name} · tip or privé`,
+    act: () => { const d = p.userData.dancer; choice(d.name, MENU_SAY[d.name] || 'Hi, sweetie.', [`Tip ${fmt(20)}`, `Make it rain ${fmt(100)}`, `Privé booth ${fmt(PRIVE)}`, `Privé with extras ${fmt(EXTRA)}`, 'Just looking'], (i) => { if (i === 0) tip(p, 20); else if (i === 1) tip(p, 100); else if (i === 2) prive(p, false); else if (i === 3) prive(p, true); }); } }));
   addInteract({ pos: () => (inBack(player.position) ? V3(K.x0 + 2.6, -16.0) : far), r: 1.8, enabled: () => inBack(player.position), label: () => 'A jenever at the bar · W 10', act: () => { if (state.money < 10) return; addMoney(-10); dialogue([['Eddy Jr.', pick(['(Jenever. It burns. It burns in a good way.)', '(The bartender doesn\'t talk. The bartender pours.)', '(Jossi waves from the front row with both hands. Eddy waves back with one.)'])]]); } });
 
   // ================================================================== TRYSHTAHN AUTO
@@ -373,8 +533,10 @@ export function createVenues(deps) {
     // the rope opens for the night once you've paid
     const open = paid(); K.gate.off = open; K.rope.visible = !open;
     if (!open && inBack(p)) { p.z = K.part + 0.6; } // no sneaking in round Creplach
-    // dancers sway round their poles; Jossi leans forward and back
-    for (const d of dancers) { const u = d.userData.dancer, a = t * 0.8 + u.ph; d.position.set(u.pole.x + Math.sin(a) * 0.38, 0.5 + Math.abs(Math.sin(t * 2.2 + u.ph)) * 0.07, u.pole.z + Math.cos(a) * 0.38); d.rotation.y = a + Math.PI / 2 + Math.sin(t * 3 + u.ph) * 0.3; if (deps.animate) deps.animate(d, dt); }
+    // the dancers run their moves (js above); a privé scene takes one of them to the booth
+    for (const d of dancers) { if (sc && sc.p === d) continue; stageDance(d, dt); }
+    if (sc) priveStep(dt);
+    billsStep(dt);
     jossi.rotation.x = Math.sin(t * 1.3) * 0.06;
     if (!ic && K.dotsOn) { K.dotsOn = false; for (const d of K.dots) d.m.visible = false; } // nobody inside: nothing to draw
     if (ic) { K.dotsOn = true; // the disco: the mirror ball turns, the spots sweep the floor, the lights cycle through colours
@@ -387,5 +549,5 @@ export function createVenues(deps) {
     if (onLot(p) && !D().seen && !D().hinted) { D().hinted = 1; toast('TRYSHTAHN AUTO', 'Somebody is buying a car inside. Walk in and listen.', 3); }
   }
   const inside = () => inClub(player.position) || inShow(player.position);
-  return { update, inside, inClub, inShow, club: K, show: S, cars, creplach, jossi, tryshtahn, dancers };
+  return { update, inside, inClub, inShow, cam, club: K, show: S, cars, creplach, jossi, tryshtahn, dancers, test: { tip, prive, booth: BO, scene: () => sc } };
 }

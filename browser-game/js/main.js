@@ -3466,6 +3466,7 @@ function tick() {
   else if (mOn) { const mc = mission.cameraFor(zoom); if (mission.snap) { camPos.copy(mc.pos); mission.snap = false; } camPos.lerp(mc.pos, Math.min(1, dt * 5)); camLook.copy(camPos).sub(mc.pos).add(mc.look); }
   else camLook.lerp(lookAt, Math.min(1, dt * 6));
   if (inricht && inricht.active()) { const ic = inricht.cam(); camPos.copy(ic.pos); camLook.copy(ic.look); } // (the plan view holds still: dragging needs a steady floor)
+  { const vc = venues && venues.cam && !mOn ? venues.cam() : null; if (vc) { camPos.copy(vc.pos); camLook.copy(vc.look); } } // Club Monique's privé booth: close-up shots (js/venues.js)
   camera.position.copy(camPos); camera.lookAt(camLook);
   if (sun.shadow.autoUpdate || (++shadowTick & 1)) { sun.position.set(player.position.x - 18, 30, player.position.z + 14); sun.target.position.copy(player.position); sun.shadow.needsUpdate = true; } // (the light only moves when its map is redrawn, so shadows never swim)
   if (aeroWorld) aeroWorld.tick(dt);

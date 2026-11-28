@@ -7,7 +7,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { makePS2Person, ps2Animate, installCharacters, lookFromPerson, bloody, LOOKS } from '../js/characters.js';
 import { REG_CAST } from '../js/regulars.js';
-import { DANCER_LOOKS } from '../js/venues.js';
+import { DANCER_LOOKS, danceExtra, danceY } from '../js/venues.js';
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -66,6 +66,7 @@ function tick() {
     if (sit !== !!u.seated) { u.seated = sit; u.body.position.y = sit ? 0.47 - 0.9 : 0; u.legs.forEach((l) => { l.rotation.x = sit ? -1.45 : 0; }); }
     seats[people.indexOf(p)].visible = sit; seats[people.indexOf(p)].rotation.y = angle; seats[people.indexOf(p)].position.z = -Math.cos(angle) * 0.12; seats[people.indexOf(p)].position.x = p.position.x - Math.sin(angle) * 0.12;
     if (sit) u.legs.forEach((l) => { l.rotation.x = -1.45; });
+    if (q.get('dance')) { const st = p.userData.dst || (p.userData.dst = { move: q.get('dance'), t: +(q.get('dt0') || 0) + people.indexOf(p) * 0.4, w: 1 }); st.t += dt; p.userData.ps2.extra = p.userData.ps2.extra || danceExtra(st); p.position.y = danceY(st); } // ?dance=sway|roll|drop|shake|spin|lap
     if (q.get('bounce')) p.position.y = Math.abs(Math.sin(performance.now() / 1000 * 2.2 + people.indexOf(p))) * 0.07 * +q.get('bounce');
     ps2Animate(p, SPEED[mode] ? +(q.get('speed') || SPEED[mode]) : 0, dt);
     if (mode === 'aim' || mode === 'aimrun') p.userData.arms[0].rotation.x += (-1.45 - p.userData.arms[0].rotation.x) * 0.3;
