@@ -59,7 +59,7 @@ import { createBuurtFolk } from './buurtfolk.js'; // the shopkeepers of the bloc
 import { createRegulars, REG_FACES } from './regulars.js'; // de vaste gezichten: eight street regulars with portraits (2026-11-27)
 import { createBuurt, bizSign, bizBySign, place as placeBiz, BIZ } from './buurt.js'; // every business on the block, their ads and the buurtkaart // the week, the seasons, the weather and Krant voor het Kaasvolk
 import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
-import { createBlokaas, BLK_FACES } from './blokaas.js'; // the rivals from Almere: Hans & Connie Blokaas, binoculars across the street (2026-11-28)
+import { createBlokaas, BLK_FACES } from './blokaas.js'; // the rivals from Almere: Hans & Conny Blokaas, binoculars across the street (2026-11-28)
 import { createActivists } from './activists.js'; // the protesters' picket on the pavement, and what Pa, Shooki and Razim think of it
 import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
 import { createBalloons } from './balloons.js';
@@ -2441,10 +2441,10 @@ function passerBy(seed, opt = {}) {
   const r = (k) => (Math.sin(seed * 97.13 + k * 13.7) * 43758.5453) % 1, ri = (n, k) => Math.floor(Math.abs(r(k)) * n);
   const lk = opt.look || {}; // a street-folk archetype's clothes (js/streetfolk.js)
   const female = lk.female ?? opt.female ?? (ri(2, 20) === 0), kid = !!opt.kid, police = !!opt.police;
-  const skin = SKINS[ri(SKINS.length, 1)], hair = lk.grey ? ['#c8c8c4', '#e8e6e0', '#9a9a96'][ri(3, 2)] : HAIRS[ri(HAIRS.length, 2)];
+  const skin = lk.skin || SKINS[ri(SKINS.length, 1)], hair = lk.hair ? lk.hair : lk.grey ? ['#c8c8c4', '#e8e6e0', '#9a9a96'][ri(3, 2)] : HAIRS[ri(HAIRS.length, 2)];
   const head = { skin, hair, brow: hair, hairLine: 84 + ri(10, 3), sideLine: 116, backLine: 150, mouth: ri(2, 4) ? 'smile' : 'laugh', iris: ['#4a2e1c', '#3a5a7a', '#2a2a2a'][ri(3, 5)], glasses: !kid && ri(5, 6) === 0,
     long: female ? ri(4, 7) !== 0 : ri(6, 7) === 0, bun: female && ri(3, 8) === 0, bald: !female && !kid && !police && ri(7, 9) === 0 };
-  if (lk.bun) { head.bun = true; head.long = false; } if (lk.glasses) head.glasses = true; if (lk.grey && !female) head.bald = ri(2, 9) === 0;
+  if (lk.bun) { head.bun = true; head.long = false; } if (lk.glasses) head.glasses = true; if (lk.glasses === false) head.glasses = false; if (lk.long !== undefined) head.long = lk.long; if (lk.bald === false) head.bald = false; if (lk.grey && !female) head.bald = ri(2, 9) === 0;
   if (head.bald) head.hairLine = 40;
   if (female) head.mouth = 'smile';
   const shirt = police ? '#1d2a4ap' : lk.shirt || SHIRTS[ri(SHIRTS.length, 10)] + (ri(4, 11) === 0 ? 's' : '');
@@ -3617,7 +3617,7 @@ activists = createActivists({ keepOut, bell: ringBell, knock: (vx, vz, up) => bu
   busy: () => state.inDialogue || state.inPC || choiceOpen || mission.active || tripOn() || state.step === 'title' || !!(phone && phone.isOpen) || isPaused(),
   hidden: () => state.step === 'title' || mission.active || tripOn() || !!(woning && woning.inside()) });
 blokaas = createBlokaas({ scene, lam, box, passerBy, personBubble, animate, player, dad, state, econ, folk, addInteract, dialogue, choice, toast, beep, signTex, save: () => writeSave(),
-  addMoney, money: () => state.money, rank: () => rankNow(), fact: (k, data) => world && world.note(k, data), wijk: () => wijk,
+  solid, addMoney, money: () => state.money, rank: () => rankNow(), fact: (k, data) => world && world.note(k, data), wijk: () => wijk,
   route: (x, z, label) => { if (!buurt) return; if (x == null) buurt.clearRoute(); else buurt.setPoint(x, z, label); },
   busyAway: () => state.inDialogue || state.inPC || choiceOpen || mission.active || !!(phone && phone.isOpen) || isPaused(), // in a district (tripOn) Eddy can still talk
   freddy: () => freddy, phone: () => phone, metShooki: () => npcs.met('shooki'), inspectorDue: () => garage.inspectorDue(), activistsHere: () => !!(activists && activists.state().here && !activists.state().gone),
@@ -3710,7 +3710,7 @@ roam = createRoam({ lampPool, THREE, scene, player, state, streetPiece, ST, kerb
   owns: (id) => owns(id), retaken: (id) => econ.isRetaken(id), canRoam: () => state.step === 'free' && !tutorial.active(), setArea: (t) => { $('area').textContent = t; },
   raid: (id) => raidOnFoot(id),
   clientLine: (cid) => { const c = CLIENTS.find((x) => x.id === cid); if (!c) return null; const b = BLENDS.find((x) => x.id === c.blend), have = Math.floor((econ.ensure().blends[c.blend] || { kg: 0 }).kg), st = brep ? brep.tierOf(brep.get(cid)).name : ''; return [c.who, `${c.kg} kg ${b ? b.name : c.blend} every market day, Eddy. ${have >= c.kg ? 'I see you have it on the shelf. Good.' : `You have ${have} kg. Don\u2019t make me call the Lampas.`}${st ? ` (The buurt: ${st}.)` : ''}`]; } });
-wijk = createWijk({ jointSize: (id) => { const d = mission.LEVELS[id]; return d ? { W: d.W, sx: d.start[0] } : null; }, prebuild: (id) => mission.prebuild(id), shiftCam: (dx, dz) => { camPos.x += dx; camPos.z += dz; camLook.x += dx; camLook.z += dz; }, onEnter: (t) => { if (spoed) spoed.onEnter(t); if (blokaas) blokaas.onEnter(t); }, makePa, animate: (p, v, dt) => animate(p, v, dt), beep, airJob: () => (freddy ? freddy.airJob() : null), lampPool, THREE, scene, player, state, house, spanWidths, solid, solids, fadeables, car, kit, lam, lamp, tree, bollard, ST, kerbMat, groundMat, signTex, addInteract, toast, dialogue, choice,
+wijk = createWijk({ jointSize: (id) => { const d = mission.LEVELS[id]; return d ? { W: d.W, sx: d.start[0] } : null; }, prebuild: (id) => mission.prebuild(id), shiftCam: (dx, dz) => { camPos.x += dx; camPos.z += dz; camLook.x += dx; camLook.z += dz; }, onEnter: (t) => { if (spoed) spoed.onEnter(t); if (blokaas) blokaas.onEnter(t); }, shopBuild: (key, nm, h) => !!(blokaas && blokaas.shopBuild(key, nm, h)), makePa, animate: (p, v, dt) => animate(p, v, dt), beep, airJob: () => (freddy ? freddy.airJob() : null), lampPool, THREE, scene, player, state, house, spanWidths, solid, solids, fadeables, car, kit, lam, lamp, tree, bollard, ST, kerbMat, groundMat, signTex, addInteract, toast, dialogue, choice,
   setBounds: (b) => { BOUNDS.cur = b; }, snapCam: () => window.__sme.snapCam(), setArea: (t) => { $('area').textContent = t; }, makeVan: () => oof.clone(true), low: IS_PHONE,
   fadeTo: (fn, hold = 120) => { const f = $('wijkFade') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'wijkFade' }); f.style.cssText = 'position:fixed;inset:0;background:#120a04;opacity:1;pointer-events:none;transition:opacity .35s;z-index:40'; setTimeout(() => { try { fn(); } finally { setTimeout(() => { f.style.opacity = '0'; }, hold); } }, 380); },
   route: (x, z, label) => { if (!buurt) return; if (x == null) buurt.clearRoute(); else buurt.setPoint(x, z, label); },

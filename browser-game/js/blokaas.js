@@ -1,8 +1,8 @@
-// Blokaas Specijeren (2026-11-28): Eddy's rival spice mixer, from Almere, across the IJmeer. Hans and Connie Blokaas run it,
+// Blokaas Specijeren (2026-11-28): Eddy's rival spice mixer, from Almere, across the IJmeer. Hans and Conny Blokaas run it,
 // a husband and wife who have never paid full price for anything (Tristan 2026-11-28: Hans is autistic and nearing
-// retirement; Connie always plays the victim, about the business and about her private life). Hans is precise, literal
+// retirement; Conny always plays the victim, about the business and about her private life). Hans is precise, literal
 // and lives by his routines: he counts everything, says exactly what is true and has no use for small talk, which is
-// also why a straight question gets a straight answer out of him. The jokes are about stinginess and Connie's moaning,
+// also why a straight question gets a straight answer out of him. The jokes are about stinginess and Conny's moaning,
 // never about who Hans is. They undercut everybody, sell a "smaakje" nobody else has, and they want Eddy & Zn small again. On some market days they stand on the far pavement, right across the street
 // from the warehouse, with a pair of kringloop binoculars and a notebook, counting every sack that goes in.
 //
@@ -10,7 +10,7 @@
 //   1  the first sighting (day 3+, once there is a mixing table): Eddy walks over, they introduce themselves, sort of
 //   2  they poach a client (two days later, rank Mengmeester): it pays 20% less until Eddy can match their "smaakje"
 //      Three clues give their recipe away: a coffee and a straight question get a straight answer out of Hans (fenegriek), sneaking up behind them while they
-//      gossip (Ve-tsin), and Connie's shopping list (a Maboota smack makes her drop it, or a text she sends to the wrong
+//      gossip (Ve-tsin), and Conny's shopping list (a Maboota smack makes her drop it, or a text she sends to the wrong
 //      number a couple of days after the other two)
 //   3  recipe cracked: fenegriek on the Kruidenbeurs, Polder Shoarma on the mixing table, the client comes back
 //   4  once the Lampas are beaten, Almere opens (A1, A6): the showdown at their hall on Bedrijventerrein De Zuinige Vaart
@@ -23,39 +23,43 @@ import { makeBikeModel } from './bikes.js';
 import { mergeStatic } from './richtex.js';
 
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
-const HANS = 'Hans Blokaas', CONNIE = 'Connie Blokaas';
-export const BLK_FACES = { [HANS]: './assets/face_hans.jpg', [CONNIE]: './assets/face_connie.jpg', [`${HANS} (telefoon)`]: './assets/face_hans.jpg', [`${CONNIE} (telefoon)`]: './assets/face_connie.jpg' };
+const HANS = 'Hans Blokaas', CONNY = 'Conny Blokaas';
+export const BLK_FACES = { [HANS]: './assets/face_hans.jpg', [CONNY]: './assets/face_conny.jpg', [`${HANS} (telefoon)`]: './assets/face_hans.jpg', [`${CONNY} (telefoon)`]: './assets/face_conny.jpg' };
+// their 3D looks, from Tristan's photos (2026-11-28): Hans with swept brown-grey hair, a grey jacket over a blue checked
+// shirt; Conny with wavy brown shoulder-length hair and a pink floral top
+const HANS_LOOK = { look: { shirt: '#6a6a5e', pants: 0x3a3c44, shoes: 0x3a2a1a, hair: '#8c7a5e', skin: 0xe8b090, bald: false, glasses: false } };
+const CONNY_LOOK = { look: { female: true, shirt: '#f0c4cc', pants: 0x2a2a34, shoes: 0x2a2a2a, hair: '#8a5a30', skin: 0xf0c0a4, long: true, glasses: false } };
 const GC = '#cbb8ec', WC = '#efc6e6'; // their balloon colours: rival lilac
 
 // ---------- what they say ----------
 // counting, from behind the binoculars (Eddy in sight, a fair way off)
-const SPY_G = ['Zestien zakken komijn sinds tien over acht. Connie, schrijf op: zestien.', 'Het licht in de loods brandt al drie uur en twaalf minuten. Overdag.', 'Bestelbus. Motor draait. Veertien over twee. Noteren.', 'Een nieuwe pallet. Een tweedehands pallet kost de helft. Dat is een feit.', 'Hij geeft zijn personeel koffie. Dat zijn ongeveer tweehonderd kopjes per maand.', 'Om half één eten wij een boterham. Het is nu vijf voor half.', 'Nog tweehonderdveertien werkdagen tot mijn pensioen. Tweehonderddertien na vandaag.']; // Hans: exact, factual, on schedule
-const SPY_W = ['Ik sta hier met mijn knie, Hans. Niemand die vraagt hoe het met mijn knie gaat.', 'Zíjn vader had het ook altijd makkelijk. Wij hebben nooit iets cadeau gekregen.', 'Mijn zus heeft weer niet gebeld. Typisch. En dan zeggen ze dat ík moeilijk doe.', 'Weet je wel hoeveel belasting wij betalen? Niemand die daar aan denkt.', 'Altijd moeten wíj het opknappen. Altijd.', 'Ik heb vannacht weer geen oog dichtgedaan. Door hem. En door de buren.', 'Al dertig jaar worden wij gepest door de grote jongens. Dertig jaar.']; // Connie: always the victim
+const SPY_G = ['Zestien zakken komijn sinds tien over acht. Conny, schrijf op: zestien.', 'Het licht in de loods brandt al drie uur en twaalf minuten. Overdag.', 'Bestelbus. Motor draait. Veertien over twee. Noteren.', 'Een nieuwe pallet. Een tweedehands pallet kost de helft. Dat is een feit.', 'Hij geeft zijn personeel koffie. Dat zijn ongeveer tweehonderd kopjes per maand.', 'Om half één eten wij een boterham. Het is nu vijf voor half.', 'Nog tweehonderdveertien werkdagen tot mijn pensioen. Tweehonderddertien na vandaag.']; // Hans: exact, factual, on schedule
+const SPY_W = ['Ik sta hier met mijn knie, Hans. Niemand die vraagt hoe het met mijn knie gaat.', 'Zíjn vader had het ook altijd makkelijk. Wij hebben nooit iets cadeau gekregen.', 'Mijn zus heeft weer niet gebeld. Typisch. En dan zeggen ze dat ík moeilijk doe.', 'Weet je wel hoeveel belasting wij betalen? Niemand die daar aan denkt.', 'Altijd moeten wíj het opknappen. Altijd.', 'Ik heb vannacht weer geen oog dichtgedaan. Door hem. En door de buren.', 'Al dertig jaar worden wij gepest door de grote jongens. Dertig jaar.']; // Conny: always the victim
 // Eddy walks straight at them: suddenly they are birdwatching
-const CAUGHT = ['Wij observeren vogels. Dat klopt niet helemaal. Wij observeren jouw loods.', 'Dit is de openbare weg. Staan is hier toegestaan. Ik heb het nagekeken.', 'Hoe durf je ons zo aan te staren? Wij zijn gewoon twee oude mensen. Met een verrekijker.', 'Connie, hij ziet ons. Ik zei toch dat hij ons zou zien.', 'Zie je nou, Hans? Nu worden wíj weer weggekeken. Altijd wij.', 'Dat is een verrekijker. 8 keer 42. Kringloop, vijf Wilder.'];
+const CAUGHT = ['Wij observeren vogels. Dat klopt niet helemaal. Wij observeren jouw loods.', 'Dit is de openbare weg. Staan is hier toegestaan. Ik heb het nagekeken.', 'Hoe durf je ons zo aan te staren? Wij zijn gewoon twee oude mensen. Met een verrekijker.', 'Conny, hij ziet ons. Ik zei toch dat hij ons zou zien.', 'Zie je nou, Hans? Nu worden wíj weer weggekeken. Altijd wij.', 'Dat is een verrekijker. 8 keer 42. Kringloop, vijf Wilder.'];
 // their gossip when they think nobody is listening (before the poaching: just setting things up)
 const GOSSIP = [
-  [['g', 'Hij heeft nu zes vaste klanten, Connie. Ik heb ze geteld.'], ['w', 'Zes! En wij moeten knokken voor elke kilo. Het is gewoon niet eerlijk.'], ['g', 'Over twee weken pakken we er één af. Twintig procent goedkoper. Dat heb ik uitgerekend.'], ['w', 'Eindelijk eens iets voor óns.']],
+  [['g', 'Hij heeft nu zes vaste klanten, Conny. Ik heb ze geteld.'], ['w', 'Zes! En wij moeten knokken voor elke kilo. Het is gewoon niet eerlijk.'], ['g', 'Over twee weken pakken we er één af. Twintig procent goedkoper. Dat heb ik uitgerekend.'], ['w', 'Eindelijk eens iets voor óns.']],
   [['w', 'Weet je wat zo\'n bestelbus kost aan diesel?'], ['g', 'Elf Wilder per honderd kilometer, bij dit gewicht.'], ['w', 'En wij moeten fietsen. Achtentwintig kilometer. Met mijn knie.'], ['g', 'Achtentwintig komma vier.']],
   [['g', 'Zijn vader heeft ons in vierennegentig weggestuurd. Op 3 maart. Een donderdag.'], ['w', 'Weggestuurd! Na alles wat wij voor die man hebben gedaan.'], ['g', 'Wij hadden zes jaar lang proefzakjes gehaald.'], ['w', 'Precies. Trouwe klanten waren we.']],
 ];
-const OVERHEAR = [['g', 'Die jongen gebruikt alleen echte kruiden, Connie. Honderd procent. Dat is inefficiënt.'], ['w', 'Wij moeten wel, Hans. Anders redden we het niet. Een flinke snuf Ve-tsin erdoor en niemand proeft het verschil.'], ['g', 'Vijf gram Ve-tsin per kilo. Kost 0,3 cent. Smaakt naar meer.'], ['w', 'Niet zo hard. Straks hoort iemand het en dan zijn wíj weer de schuldigen.']];
-const NOTICED = ['Hans... er staat iemand achter ons. Dat is precies wat ik bedoel. Nooit privacy.', 'Er staat iemand achter ons, Connie. Al vierentwintig seconden.', 'Afluisteren! Bij twee oude mensen! Hoe haal je het in je hoofd.'];
+const OVERHEAR = [['g', 'Die jongen gebruikt alleen echte kruiden, Conny. Honderd procent. Dat is inefficiënt.'], ['w', 'Wij moeten wel, Hans. Anders redden we het niet. Een flinke snuf Ve-tsin erdoor en niemand proeft het verschil.'], ['g', 'Vijf gram Ve-tsin per kilo. Kost 0,3 cent. Smaakt naar meer.'], ['w', 'Niet zo hard. Straks hoort iemand het en dan zijn wíj weer de schuldigen.']];
+const NOTICED = ['Hans... er staat iemand achter ons. Dat is precies wat ik bedoel. Nooit privacy.', 'Er staat iemand achter ons, Conny. Al vierentwintig seconden.', 'Afluisteren! Bij twee oude mensen! Hoe haal je het in je hoofd.'];
 const COFFEE = [['g', 'Koffie. Zwart. Wij drinken om tien uur koffie, dus dat komt goed uit. Is er een koekje bij?'], ['w', 'Eindelijk iemand die eens iets voor ons doet. Ik giet hem over in de thermos. Voor morgen. Morgen heb ik het vast weer zwaar.']];
-const FLEE = ['Connie. Fietsen. Nu.', 'Mijn thermos! Die was van mijn moeder! Zij is ook al dood, weet je!', 'Geweld! Tegen gepensioneerden! Bijna-gepensioneerden!', 'Dit is mishandeling! Ik ga het iedereen vertellen! Mijn zus ook, als ze ooit belt!', 'Dit stond niet op de planning.'];
-const SMS_ADS = ['Blokaas Specijeren: kipkruiden voor de prijs van zand. Afhalen in Almere. Bezorgen kost geld.', 'GRATIS proefzakje! Af te halen in Almere-Buiten. Reiskosten voor eigen rekening.', 'Actie: 2e zak halve prijs (de kleine zak). Blokaas Specijeren.', 'Beste Eddy, uw kruiden zijn 23,6 procent te duur. Dat hebben wij berekend. Groet, Hans Blokaas', 'Wij zijn maar een klein familiebedrijfje. Iedereen is altijd tegen ons. Koop daarom bij Blokaas. Liefs, Connie', 'Laatste kans: 5% korting bij contante betaling. Gepast, graag.', 'Blokaas: dertig jaar zuinig. Proef het verschil (niet te hard proeven, het is maar een snufje).'];
+const FLEE = ['Conny. Fietsen. Nu.', 'Mijn thermos! Die was van mijn moeder! Zij is ook al dood, weet je!', 'Geweld! Tegen gepensioneerden! Bijna-gepensioneerden!', 'Dit is mishandeling! Ik ga het iedereen vertellen! Mijn zus ook, als ze ooit belt!', 'Dit stond niet op de planning.'];
+const SMS_ADS = ['Blokaas Specijeren: kipkruiden voor de prijs van zand. Afhalen in Almere. Bezorgen kost geld.', 'GRATIS proefzakje! Af te halen in Almere-Buiten. Reiskosten voor eigen rekening.', 'Actie: 2e zak halve prijs (de kleine zak). Blokaas Specijeren.', 'Beste Eddy, uw kruiden zijn 23,6 procent te duur. Dat hebben wij berekend. Groet, Hans Blokaas', 'Wij zijn maar een klein familiebedrijfje. Iedereen is altijd tegen ons. Koop daarom bij Blokaas. Liefs, Conny', 'Laatste kans: 5% korting bij contante betaling. Gepast, graag.', 'Blokaas: dertig jaar zuinig. Proef het verschil (niet te hard proeven, het is maar een snufje).'];
 const SMS_FOOT = '(sms kost ons 9 cent, niet terugsturen)';
 
 // ---------- Pa, Shooki, Razim ----------
 function paTalk(kind, s) {
   const cl = s.cname || 'one of your clients';
-  if (kind === 'meet') return [['Eddy Jr.', 'Pa, there was a couple across the street with binoculars. Spying on the loods. They said their name is Blokaas.'], ['Freddy Sr.', 'Blokaas! Hans and Connie? From Almere? Ai, ai, ai.'], ['Freddy Sr.', 'In 1994 they bought one kilo of paprika from me. One kilo. Then every week they came back for a proefzakje. Free samples. For six years, jongen. They built a whole company on my free samples.'], ['Freddy Sr.', 'Hans is a strange one, but honest in his way. He knows every price in Kaasland by heart, back to 1980. Ask him something, he tells you. Exactly. Even when Connie kicks him under the table.'], ['Freddy Sr.', 'And Connie... Connie will tell you how hard her life is. Her knee, her sister, the tax office, me. For thirty years everybody has been mean to Connie. Meanwhile she takes the sugar from the café.'], ['Freddy Sr.', 'Be careful with them. A cheap man is never cheap for the people around him.']];
-  if (kind === 'poach') return [['Freddy Sr.', `They took ${cl}? With a discount, of course. Hans sells by the gram and Connie weighs the gram.`], ['Eddy Jr.', 'They say they have a "smaakje" I don\'t have.'], ['Freddy Sr.', 'Every cheap mix has one trick, jongen. Find the trick, and the trick is finished.'], ['Freddy Sr.', 'Hans cannot lie well, jongen. Ask him a straight question over something free. And Connie talks when she thinks nobody listens. She is always complaining to somebody.']];
+  if (kind === 'meet') return [['Eddy Jr.', 'Pa, there was a couple across the street with binoculars. Spying on the loods. They said their name is Blokaas.'], ['Freddy Sr.', 'Blokaas! Hans and Conny? From Almere? Ai, ai, ai.'], ['Freddy Sr.', 'In 1994 they bought one kilo of paprika from me. One kilo. Then every week they came back for a proefzakje. Free samples. For six years, jongen. They built a whole company on my free samples.'], ['Freddy Sr.', 'Hans is a strange one, but honest in his way. He knows every price in Kaasland by heart, back to 1980. Ask him something, he tells you. Exactly. Even when Conny kicks him under the table.'], ['Freddy Sr.', 'And Conny... Conny will tell you how hard her life is. Her knee, her sister, the tax office, me. For thirty years everybody has been mean to Conny. Meanwhile she takes the sugar from the café.'], ['Freddy Sr.', 'Be careful with them. A cheap man is never cheap for the people around him.']];
+  if (kind === 'poach') return [['Freddy Sr.', `They took ${cl}? With a discount, of course. Hans sells by the gram and Conny weighs the gram.`], ['Eddy Jr.', 'They say they have a "smaakje" I don\'t have.'], ['Freddy Sr.', 'Every cheap mix has one trick, jongen. Find the trick, and the trick is finished.'], ['Freddy Sr.', 'Hans cannot lie well, jongen. Ask him a straight question over something free. And Conny talks when she thinks nobody listens. She is always complaining to somebody.']];
   if (kind === 'recipe') return [['Eddy Jr.', 'Fenegriek, Pa. And Ve-tsin on top.'], ['Freddy Sr.', 'Fenegriek! Smells like curry, costs nothing, makes the kip smell rich. Clever. And then the Ve-tsin, hah.'], ['Freddy Sr.', 'Your grandfather called Ve-tsin "de leugen in een zakje". You use the fenegriek, honest, and you leave the lie in their sack.']];
-  if (kind === 'exposed') return [['Freddy Sr.', 'Blokaas in the Krant! Connie will tell the whole of Almere that the big bad spice boss bullied two pensioners. She will read it in the library first. For free.'], ['Freddy Sr.', 'Thirty years I waited for this, jongen. Go and make your Polder Shoarma. Make it good.']];
+  if (kind === 'exposed') return [['Freddy Sr.', 'Blokaas in the Krant! Conny will tell the whole of Almere that the big bad spice boss bullied two pensioners. She will read it in the library first. For free.'], ['Freddy Sr.', 'Thirty years I waited for this, jongen. Go and make your Polder Shoarma. Make it good.']];
   if (kind === 'bought') return [['Freddy Sr.', 'You paid them? Hm.'], ['Freddy Sr.', '...Good. A Blokaas with money in the sock is quiet for a year. They are busy counting it.']];
   if (kind === 'smack') return [['Freddy Sr.', 'With the Maboota? Eddy. They are pensioners.'], ['Eddy Jr.', 'They were spying, Pa.'], ['Freddy Sr.', '...Did they leave anything behind when they ran? Then it was a little bit worth it.']];
-  if (kind === 'coffee') return [['Eddy Jr.', 'I gave the Blokaas a coffee.'], ['Freddy Sr.', 'Free coffee for Hans Blokaas? Did he tell you what time it was when he drank it? He always does. And Connie told you about her knee.']];
+  if (kind === 'coffee') return [['Eddy Jr.', 'I gave the Blokaas a coffee.'], ['Freddy Sr.', 'Free coffee for Hans Blokaas? Did he tell you what time it was when he drank it? He always does. And Conny told you about her knee.']];
   return [['Freddy Sr.', 'The Blokaas again? On my pavement? With the binoculars?'], ['Freddy Sr.', 'Let them look, jongen. Looking is free. Copying is hard. They never could.']];
 }
 function shookiTalk(kind, s) {
@@ -67,7 +71,7 @@ function shookiTalk(kind, s) {
   if (kind === 'bought') return [['Shooki', 'You paid them to go away, bro?'], ['Shooki', 'Respect. That is what rich people do. Rich people pay people to go away. You are rich people now.']];
   if (kind === 'smack') return [['Shooki', 'Bro! You chased two pensioners down the Kipkruidenkade?'], ['Shooki', 'And they were FASTER than you. On opafietsen. I have it on the dashcam, bro. I watched it nine times.']];
   if (kind === 'coffee') return [['Shooki', 'Bro, you gave the Blokaas coffee? They came to the Kangoo after and asked for a refill. For the thermos. For tomorrow.']];
-  return [['Shooki', 'Bro, the binoculars are back. Hans did not wave, he wrote down what time I parked. Connie waved me over to say nobody ever waves at her.']];
+  return [['Shooki', 'Bro, the binoculars are back. Hans did not wave, he wrote down what time I parked. Conny waved me over to say nobody ever waves at her.']];
 }
 const RAZIM = 'Razim (telefoon)';
 function razimTalk(kind) {
@@ -80,10 +84,10 @@ const RAZIM_TXT = (kind) => (kind === 'smack' ? ['eddy u hit the blokaas??', 'ha
 // ---------- the Krant ----------
 const STORY = {
   meet: { p: 4.5, head: 'Pensioners "birdwatching" on the Kipkruidenkade', body: 'With binoculars aimed at a spice warehouse. "There is a very rare bird here," said the man, who would not give his name. His wife gave it for him: Blokaas. From Almere.' },
-  poach: { p: 5.5, head: 'Almere spice firm muscles into Kipkruidenkwartier', body: 'Blokaas Specijeren undercuts local suppliers by twenty percent. "We are just a small family business and everybody is always against us," says co-owner Connie Blokaas, from the passenger seat of the company car.' },
+  poach: { p: 5.5, head: 'Almere spice firm muscles into Kipkruidenkwartier', body: 'Blokaas Specijeren undercuts local suppliers by twenty percent. "We are just a small family business and everybody is always against us," says co-owner Conny Blokaas, from the passenger seat of the company car.' },
   smack: { p: 6.5, head: 'Pensioners chased off the Kipkruidenkade', body: 'Two elderly cyclists fled "at remarkable speed" after a scuffle outside a spice warehouse. A thermos was found in the gutter. It has not been claimed. It is reportedly still warm.' },
   recipe: { p: 4, head: 'Local spice trader launches "Polder Shoarma"', body: 'Snackbar owners talk of "a smell of curry, but honest". The competition from Almere declined to comment, then asked whether the comment would be paid.' },
-  exposed: { p: 9.5, head: 'Almere spice firm\'s "secret" turns out to be flavour powder', body: 'Blokaas Specijeren cut its famous Polderkruiden with Ve-tsin. Hans Blokaas: "Ve-tsin is monosodium glutamate. That is correct." Connie Blokaas: "We are the real victims here." Snackbars in Kipkruidenkwartier are switching back to a family business.' },
+  exposed: { p: 9.5, head: 'Almere spice firm\'s "secret" turns out to be flavour powder', body: 'Blokaas Specijeren cut its famous Polderkruiden with Ve-tsin. Hans Blokaas: "Ve-tsin is monosodium glutamate. That is correct." Conny Blokaas: "We are the real victims here." Snackbars in Kipkruidenkwartier are switching back to a family business.' },
   bought: { p: 5, head: 'Almere snackbars switch suppliers', body: 'A dozen snackbars in Almere-Buiten now buy from Eddy & Zn. Their old supplier is said to be "very happy with the price". He was seen counting it twice on a bench.' },
 };
 const LETTERS = [
@@ -100,32 +104,32 @@ export function createBlokaas(d) {
 
   // ---------- the stake-out: built the first time they come (two people, binoculars, a notebook, a thermos, two old bikes) ----------
   const SPOT = { x: -3.0, z: 11.35 }; // the far pavement, right across from the warehouse's loading door
-  let root = null, hans, connie, fg, fw, bino, cup, bikes, built = false;
+  let root = null, hans, conny, fg, fw, bino, cup, bikes, built = false;
   function build() {
     if (built) return; built = true;
     root = new THREE.Group(); root.position.set(SPOT.x, 0, SPOT.z); root.visible = false; scene.add(root);
-    hans = passerBy(9011, { look: { shirt: '#6a6a4a', pants: 0x4a4840, shoes: 0x5a3a1a, grey: true, glasses: true } });
-    connie = passerBy(9017, { look: { female: true, shirt: '#9a7ab8', pants: 0x3a3a48, shoes: 0x2a2a2a, grey: true, glasses: true } });
-    root.add(hans, connie);
-    hans.position.set(0, 0, 0); hans.rotation.y = Math.PI - 0.35; connie.position.set(-0.85, 0, 0.15); connie.rotation.y = Math.PI + 0.45;
-    fg = folk.pose(hans, ['photo', 'photo']); fw = folk.pose(connie, ['cup', 'board']);
+    hans = passerBy(9011, HANS_LOOK);
+    conny = passerBy(9017, CONNY_LOOK);
+    root.add(hans, conny);
+    hans.position.set(0, 0, 0); hans.rotation.y = Math.PI - 0.35; conny.position.set(-0.85, 0, 0.15); conny.rotation.y = Math.PI + 0.45;
+    fg = folk.pose(hans, ['photo', 'photo']); fw = folk.pose(conny, ['cup', 'board']);
     // the binoculars: two barrels and a bridge, at the eyes (or hanging at the chest when he pretends not to look)
     bino = new THREE.Group(); bino.scale.setScalar(1.35); hans.userData.body.add(bino);
     { const blk = lam({ color: 0x2a2e2a }), lens = lam({ color: 0x6a8aa0, emissive: 0x101820 });
       for (const sx of [-0.045, 0.045]) { const b0 = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 0.13, 10), blk); b0.rotation.x = Math.PI / 2; b0.position.set(sx, 0, 0.06); bino.add(b0); const l = new THREE.Mesh(new THREE.CircleGeometry(0.03, 10), lens); l.position.set(sx, 0, 0.126); bino.add(l); }
       box(0.05, 0.03, 0.05, blk, 0, 0, 0.05, bino, false); }
-    // Connie's notebook at her chest, the cup in her hand, the thermos and a folding stool at her feet
-    const nb = new THREE.Group(); connie.userData.body.add(nb); nb.position.set(0.02, 1.05 * (connie.userData.body.scale.y || 1), 0.27); nb.rotation.x = -0.8;
+    // Conny's notebook at her chest, the cup in her hand, the thermos and a folding stool at her feet
+    const nb = new THREE.Group(); conny.userData.body.add(nb); nb.position.set(0.02, 1.05 * (conny.userData.body.scale.y || 1), 0.27); nb.rotation.x = -0.8;
     box(0.16, 0.22, 0.02, lam({ color: 0x2a4a7a }), 0, 0, 0, nb, false); box(0.14, 0.2, 0.004, lam({ color: 0xf4f0e0 }), 0, 0, 0.012, nb, false);
-    cup = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.08, 10), lam({ color: 0xc8202a })); folk.hold(connie, 0, cup, 0, -0.7, 0.08);
+    cup = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.08, 10), lam({ color: 0xc8202a })); folk.hold(conny, 0, cup, 0, -0.7, 0.08);
     bikes = new THREE.Group(); root.add(bikes); // everything that stands still, merged below (phones: ~50 draw calls -> a handful)
     const th = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.32, 12), lam({ color: 0x3a6a3a })); th.position.set(-0.5, 0.16, 0.5); bikes.add(th);
     box(0.36, 0.03, 0.3, lam({ color: 0x3a5a8a }), -1.45, 0.42, 0.25, bikes, false); for (const s2 of [-1, 1]) { const leg = box(0.02, 0.48, 0.02, lam({ color: 0x9a9a9a }), -1.45 + s2 * 0.15, 0.21, 0.25, bikes, false); leg.rotation.z = s2 * 0.35; }
     // two old bikes on their stands behind them: an opafiets with a crate and a transportfiets (Almere to here: 28 km)
     const b1 = makeBikeModel(THREE, 10, 0x2a3a2a), b2 = makeBikeModel(THREE, 11, 0x4a2a3a); b1.position.set(1.4, 0, 0.55); b2.position.set(2.5, 0, 0.75); b1.rotation.y = b2.rotation.y = Math.PI / 2 + 0.15; bikes.add(b1, b2);
     mergeStatic(bikes);
-    for (const p of [hans, connie]) p.userData.base = { pos: p.position.clone(), ry: p.rotation.y };
-    addInteract({ obj: hans, pos: () => tmpV.set(SPOT.x - 0.4, 0, SPOT.z), r: 2.1, enabled: () => !!root && root.visible && flee <= 0 && !d.busy(), label: () => (S().met ? 'Hans & Connie Blokaas · talk' : 'The couple with the binoculars · talk'), act: talk });
+    for (const p of [hans, conny]) p.userData.base = { pos: p.position.clone(), ry: p.rotation.y };
+    addInteract({ obj: hans, pos: () => tmpV.set(SPOT.x - 0.4, 0, SPOT.z), r: 2.1, enabled: () => !!root && root.visible && flee <= 0 && !d.busy(), label: () => (S().met ? 'Hans & Conny Blokaas · talk' : 'The couple with the binoculars · talk'), act: talk });
   }
   const tmpV = new THREE.Vector3();
 
@@ -140,9 +144,9 @@ export function createBlokaas(d) {
     if (s.here && ((d.inspectorDue && d.inspectorDue()) || (d.activistsHere && d.activistsHere()))) s.here = false; // one show on the pavement at a time
     // the story moves on with the days
     if (s.stage === 1 && dd >= (s.d1 || 0) + 2 && d.rank() >= 1) poach();
-    if (s.stage === 2 && s.clues.fen && s.clues.vetsin && !s.clues.lijst && dd >= (s.c2day || dd) + 2) { // Connie texts her shopping list to the wrong number
-      sms(['Hans, bestel bij De Zuinige Vaart: 40 kg fenegriek, 5 kg Ve-tsin. NIET bij de dure groothandel. Vrijdag is de koffie gratis. x C'], CONNIE);
-      setTimeout(() => clue('lijst', 'Connie texted her shopping list to the wrong number: <b>40 kg fenegriek, 5 kg Ve-tsin, Groothandel De Zuinige Vaart, Almere</b>.'), 5200);
+    if (s.stage === 2 && s.clues.fen && s.clues.vetsin && !s.clues.lijst && dd >= (s.c2day || dd) + 2) { // Conny texts her shopping list to the wrong number
+      sms(['Hans, bestel bij De Zuinige Vaart: 40 kg fenegriek, 5 kg Ve-tsin. NIET bij de dure groothandel. Vrijdag is de koffie gratis. x C'], CONNY);
+      setTimeout(() => clue('lijst', 'Conny texted her shopping list to the wrong number: <b>40 kg fenegriek, 5 kg Ve-tsin, Groothandel De Zuinige Vaart, Almere</b>.'), 5200);
     }
     if (s.stage >= 1 && s.stage < 5) {
       if (Math.random() < 0.35) sms([rnd(SMS_ADS)]);
@@ -160,8 +164,8 @@ export function createBlokaas(d) {
     queue('poach');
     note('poach');
     setTimeout(() => {
-      toast('BLOKAAS PAKT EEN KLANT', `<b>${c.name}</b> now buys the cheap Blokaas Polderkruiden, "with a smaakje", and pays you 20% less until you can match it. <br>Find out what's in their mix: catch them across the street. Hans answers a straight question (buy him a coffee first), and Connie spills things when she thinks nobody's listening.`, 9);
-      sms([`Beste Eddy, ${c.name} neemt voortaan bij ons af. 20% goedkoper, en wij hebben een smaakje. Groetjes, Hans & Connie`]);
+      toast('BLOKAAS PAKT EEN KLANT', `<b>${c.name}</b> now buys the cheap Blokaas Polderkruiden, "with a smaakje", and pays you 20% less until you can match it. <br>Find out what's in their mix: catch them across the street. Hans answers a straight question (buy him a coffee first), and Conny spills things when she thinks nobody's listening.`, 9);
+      sms([`Beste Eddy, ${c.name} neemt voortaan bij ons af. 20% goedkoper, en wij hebben een smaakje. Groetjes, Hans & Conny`]);
     }, 2500);
     d.save();
   }
@@ -178,7 +182,7 @@ export function createBlokaas(d) {
     s.stage = 3; state.blokaasRecept = true;
     dialogue([['Eddy Jr.', 'Fenegriek for the smell, Ve-tsin so nobody tastes how cheap the rest is. That is their whole "smaakje".'], ['Eddy Jr.', 'I can do the fenegriek. Real paprika, real komijn, and no powder. Polder Shoarma, Eddy & Zn style.']], () => {
       toast('RECIPE CRACKED: POLDER SHOARMA', `Fenegriek is on the Kruidenbeurs now, and <b>Polder Shoarma</b> is on the mixing table. ${s.cname ? `<b>${s.cname}</b> is back, at your old price.` : ''} ${state.act1 ? 'Their hall is in Almere: A1, then the A6 over the IJmeer. It is on the map.' : 'Their hall is in Almere. Once the Lampas are dealt with, you will have time for a trip over the IJmeer.'}`, 9);
-      sms(['Wie heeft er gepraat?? HANS.'], CONNIE);
+      sms(['Wie heeft er gepraat?? HANS.'], CONNY);
     });
     queue('recipe'); note('recipe');
     d.save();
@@ -225,15 +229,15 @@ export function createBlokaas(d) {
     if ((smsGap -= dt) > 0) return;
     const m = smsQ.shift(), s = S(), el = smsCard();
     s.sms.push({ t: m.t, from: m.from, d: day() }); if (s.sms.length > 30) s.sms.splice(0, s.sms.length - 30); s.unread = (s.unread || 0) + 1;
-    el.querySelector('img').src = m.from === CONNIE ? './assets/face_connie.jpg' : './assets/face_hans.jpg';
-    el.querySelector('.bk-f').textContent = `SMS · ${m.from.toUpperCase()}`; el.querySelector('.bk-t').textContent = m.t; el.querySelector('small').textContent = m.from === CONNIE ? '(niet voor jou bedoeld?)' : SMS_FOOT;
+    el.querySelector('img').src = m.from === CONNY ? './assets/face_conny.jpg' : './assets/face_hans.jpg';
+    el.querySelector('.bk-f').textContent = `SMS · ${m.from.toUpperCase()}`; el.querySelector('.bk-t').textContent = m.t; el.querySelector('small').textContent = m.from === CONNY ? '(niet voor jou bedoeld?)' : SMS_FOOT;
     el.style.display = 'flex'; smsShow = 5.5; smsGap = 2; beep(1320, 0.05, 'square', 0.03); setTimeout(() => beep(1320, 0.05, 'square', 0.03), 120);
     d.save();
   }
 
   // ---------- per frame on the home street ----------
   let chatT = 4, flee = 0, seq = null, alert = 0, caughtCd = 0;
-  const say = (who, t) => personBubble(who === 'w' ? connie : hans, t, who === 'w' ? WC : GC, who === 'w' ? 'Connie' : 'Hans');
+  const say = (who, t) => personBubble(who === 'w' ? conny : hans, t, who === 'w' ? WC : GC, who === 'w' ? 'Conny' : 'Hans');
   function tickB(o, dt) { const b = o && o.userData.bubble, u = b && b.userData; if (u && u.life > 0 && (u.life -= dt) <= 0) b.visible = false; }
   function play(lines, then) { seq = { lines: lines.slice(), t: 0, then }; } // a little conversation in balloons, one line every ~2.4 s
   function update(dt) {
@@ -244,7 +248,7 @@ export function createBlokaas(d) {
     const on = (!!s.here && !s.gone || flee > 0) && d.ready() && !d.hidden();
     if (!on) { if (root) root.visible = false; return; }
     build(); root.visible = true;
-    tickB(hans, dt); tickB(connie, dt); tickB(player, dt);
+    tickB(hans, dt); tickB(conny, dt); tickB(player, dt);
     if (flee > 0) { fleeTick(dt); return; }
     const P = player.position, dx = P.x - SPOT.x, dz = P.z - SPOT.z, dist = Math.hypot(dx, dz), busy = d.busy();
     const behind = dz > 0.45 && dist < 3.4; // on the canal side of them: they are looking the other way
@@ -254,13 +258,13 @@ export function createBlokaas(d) {
     bino.position.set(0, (up ? 1.52 : 1.13) * (hans.userData.body.scale.y || 1), up ? 0.2 : 0.24); bino.rotation.x = up ? 0 : 1.2;
     fg.hands[0] = fg.hands[1] = up ? 'photo' : null;
     { const want = up ? Math.PI - 0.35 + Math.sin(performance.now() / 2400) * 0.25 : Math.atan2(dx, dz); hans.rotation.y += Math.atan2(Math.sin(want - hans.rotation.y), Math.cos(want - hans.rotation.y)) * Math.min(1, dt * 2.5); }
-    { const want = seen ? Math.atan2(P.x - SPOT.x + 0.85, P.z - SPOT.z - 0.15) : Math.PI + 0.45; connie.rotation.y += Math.atan2(Math.sin(want - connie.rotation.y), Math.cos(want - connie.rotation.y)) * Math.min(1, dt * 2.5); }
-    animate(hans, 0, dt); animate(connie, 0, dt);
+    { const want = seen ? Math.atan2(P.x - SPOT.x + 0.85, P.z - SPOT.z - 0.15) : Math.PI + 0.45; conny.rotation.y += Math.atan2(Math.sin(want - conny.rotation.y), Math.cos(want - conny.rotation.y)) * Math.min(1, dt * 2.5); }
+    animate(hans, 0, dt); animate(conny, 0, dt);
     if (busy) return;
     // Eddy steps out on to the street on a spying day: he notices the glint across the road (once a day)
     if (s.cue !== s.day && P.z > -7 && P.z < 2 && Math.abs(P.x - SPOT.x) < 16) {
       s.cue = s.day; d.save();
-      personBubble(player, s.met ? rnd(['Hm. The Blokaas again. Across the street.', 'Binoculars at two o\'clock. Hans and Connie.', 'Of course. The Blokaas are back.']) : 'Huh? Somebody across the street is watching the loods. With binoculars.', '#ffd36b', 'Eddy Jr.');
+      personBubble(player, s.met ? rnd(['Hm. The Blokaas again. Across the street.', 'Binoculars at two o\'clock. Hans and Conny.', 'Of course. The Blokaas are back.']) : 'Huh? Somebody across the street is watching the loods. With binoculars.', '#ffd36b', 'Eddy Jr.');
       if (!s.met) toast('SOMEBODY IS WATCHING', 'Two people on the far pavement, right across from your loading door, with binoculars and a notebook. Go and ask what they want.', 6);
     }
     if (caughtCd > 0) caughtCd -= dt;
@@ -294,7 +298,7 @@ export function createBlokaas(d) {
     const s = S(); if (d.busy()) return;
     if (!s.met) { meet(); return; }
     const opts = ['What are you doing here?', `Offer them a coffee (W 2)`, 'Leave them to it'];
-    choice('Hans & Connie Blokaas', `<i>${s.stage >= 5 ? (s.how === 'bought' ? 'The opera glasses come down, very slowly.' : 'Hans hides behind the binoculars. Connie glares at you over hers.') : 'Two pairs of binoculars, one notebook, one thermos.'}</i><br><small style="opacity:.75">Blokaas Specijeren · Almere-Buiten</small>`, opts, (i) => {
+    choice('Hans & Conny Blokaas', `<i>${s.stage >= 5 ? (s.how === 'bought' ? 'The opera glasses come down, very slowly.' : 'Hans hides behind the binoculars. Conny glares at you over hers.') : 'Two pairs of binoculars, one notebook, one thermos.'}</i><br><small style="opacity:.75">Blokaas Specijeren · Almere-Buiten</small>`, opts, (i) => {
       if (i === 0) ask();
       else if (i === 1) coffee();
     });
@@ -304,100 +308,129 @@ export function createBlokaas(d) {
     dialogue([
       ['Eddy Jr.', 'Can I help you? You have been staring at my warehouse for an hour.'],
       [HANS, 'Eén uur en zeven minuten. Wij staan hier sinds vijf over half twaalf.'],
-      [CONNIE, 'Hans! ...Wij staan hier gewoon even uit te rusten. Met mijn knie mag ik niet te lang lopen, weet je.'],
+      [CONNY, 'Hans! ...Wij staan hier gewoon even uit te rusten. Met mijn knie mag ik niet te lang lopen, weet je.'],
       ['Eddy Jr.', 'They are pointed at my loading door.'],
-      [HANS, 'Dat klopt. Hans Blokaas. Dit is mijn vrouw Connie. Blokaas Specijeren, Bedrijventerrein De Zuinige Vaart 14, Almere-Buiten.'],
-      [CONNIE, 'Wij mengen ook kruiden. Al dertig jaar. En al dertig jaar maken jullie, de grote jongens, het ons onmogelijk.'],
+      [HANS, 'Dat klopt. Hans Blokaas. Dit is mijn vrouw Conny. Blokaas Specijeren, Bedrijventerrein De Zuinige Vaart 14, Almere-Buiten.'],
+      [CONNY, 'Wij mengen ook kruiden. Al dertig jaar. En al dertig jaar maken jullie, de grote jongens, het ons onmogelijk.'],
       [HANS, 'Onze kipkruiden zijn 23,6 procent goedkoper dan de jouwe. En wij hebben een smaakje dat jij niet hebt.'],
       ['Eddy Jr.', 'So you came all the way from Almere to look at me.'],
-      [CONNIE, 'Op de fiets! Achtentwintig kilometer! Met mijn knie! Denk je dat wij dat leuk vinden?'],
+      [CONNY, 'Op de fiets! Achtentwintig kilometer! Met mijn knie! Denk je dat wij dat leuk vinden?'],
       [HANS, 'Achtentwintig komma vier. Wij komen terug. Dinsdag of donderdag, als het droog is. Kijken is gratis.'],
     ], () => {
       s.met = true; s.stage = Math.max(1, s.stage); s.d1 = day(); queue('meet'); note('meet');
-      toast('RIVALS: BLOKAAS SPECIJEREN', 'A spice mixer from Almere. Hans Blokaas counts everything and is nearly retired; Connie is always the victim. Cheaper than you, and proud of it. They will be back with the binoculars.', 7);
+      toast('RIVALS: BLOKAAS SPECIJEREN', 'A spice mixer from Almere. Hans Blokaas counts everything and is nearly retired; Conny is always the victim. Cheaper than you, and proud of it. They will be back with the binoculars.', 7);
       d.save();
     });
   }
   function ask() {
     const s = S();
     const pool = s.stage >= 5 ? (s.how === 'exposed'
-      ? [[[CONNIE, 'Door jou staan wij in de krant. Weet je wel wat dat met mij doet? Ik slaap niet meer. Mijn zus belt ook niet.'], [HANS, 'De krant kost een Wilder vijftig. Wij hebben hem in de bibliotheek gelezen. Pagina één, kolom twee.']], [[CONNIE, 'Wij kijken alleen nog. Wij leren. Wat doe jij met je fenegriek?'], ['Eddy Jr.', 'I pay for it, Connie.'], [CONNIE, 'Bah.']]]
-      : [[[HANS, 'Wij houden ons aan het contract. Geen verrekijker binnen vijfhonderd meter. Dit is een operakijker. Dat staat er niet in.'], ['Eddy Jr.', 'Hans.'], [HANS, 'Ik heb het contract drie keer gelezen.']], [[CONNIE, 'Het geld staat op de spaarrekening. 0,4 procent. Wij zijn heel gelukkig.']]])
-      : s.stage >= 3 ? [[['Eddy Jr.', 'Fenegriek, Hans. I know.'], [HANS, 'Dat klopt. Twee schepjes per kilo.'], [CONNIE, 'HANS! ...Zie je nou? Hij misbruikt jouw eerlijkheid. Iedereen misbruikt ons.']], [['Eddy Jr.', 'Ve-tsin, Connie. Really?'], [CONNIE, 'Ve-tsin is ook een kruid.'], [HANS, 'Een soort kruid.'], [CONNIE, 'Een poedertje.']]]
-      : s.stage === 2 ? [[['Eddy Jr.', 'You took my client.'], [HANS, 'Hij kwam vanzelf. Op maandag om negen uur. Voor twintig procent minder.'], [CONNIE, 'Mogen wíj ook eens een klantje hebben? Na dertig jaar ploeteren?']], [['Eddy Jr.', 'What is in your mix, Connie?'], [CONNIE, 'Dat is geheim.'], [HANS, 'Het is een heel goedkoop geheim.'], [CONNIE, 'HANS.']]]
-      : [[['Eddy Jr.', 'Back again?'], [HANS, 'Ja. Het is een marktdag. Op marktdagen kijken wij.']], [['Eddy Jr.', 'Don\'t you have your own business to run?'], [CONNIE, 'Wat denk jij nou? Dat het makkelijk is? Ik heb de verwarming uit moeten zetten. Zo ver is het gekomen. Het personeel sneller.']], [['Eddy Jr.', 'How is business in Almere?'], [HANS, 'Omzet plus vier komma één procent ten opzichte van vorig jaar.'], [CONNIE, 'Slecht! Heel slecht! Wij redden het nauwelijks.'], [HANS, 'Plus vier komma één, Connie.']]];
+      ? [[[CONNY, 'Door jou staan wij in de krant. Weet je wel wat dat met mij doet? Ik slaap niet meer. Mijn zus belt ook niet.'], [HANS, 'De krant kost een Wilder vijftig. Wij hebben hem in de bibliotheek gelezen. Pagina één, kolom twee.']], [[CONNY, 'Wij kijken alleen nog. Wij leren. Wat doe jij met je fenegriek?'], ['Eddy Jr.', 'I pay for it, Conny.'], [CONNY, 'Bah.']]]
+      : [[[HANS, 'Wij houden ons aan het contract. Geen verrekijker binnen vijfhonderd meter. Dit is een operakijker. Dat staat er niet in.'], ['Eddy Jr.', 'Hans.'], [HANS, 'Ik heb het contract drie keer gelezen.']], [[CONNY, 'Het geld staat op de spaarrekening. 0,4 procent. Wij zijn heel gelukkig.']]])
+      : s.stage >= 3 ? [[['Eddy Jr.', 'Fenegriek, Hans. I know.'], [HANS, 'Dat klopt. Twee schepjes per kilo.'], [CONNY, 'HANS! ...Zie je nou? Hij misbruikt jouw eerlijkheid. Iedereen misbruikt ons.']], [['Eddy Jr.', 'Ve-tsin, Conny. Really?'], [CONNY, 'Ve-tsin is ook een kruid.'], [HANS, 'Een soort kruid.'], [CONNY, 'Een poedertje.']]]
+      : s.stage === 2 ? [[['Eddy Jr.', 'You took my client.'], [HANS, 'Hij kwam vanzelf. Op maandag om negen uur. Voor twintig procent minder.'], [CONNY, 'Mogen wíj ook eens een klantje hebben? Na dertig jaar ploeteren?']], [['Eddy Jr.', 'What is in your mix, Conny?'], [CONNY, 'Dat is geheim.'], [HANS, 'Het is een heel goedkoop geheim.'], [CONNY, 'HANS.']]]
+      : [[['Eddy Jr.', 'Back again?'], [HANS, 'Ja. Het is een marktdag. Op marktdagen kijken wij.']], [['Eddy Jr.', 'Don\'t you have your own business to run?'], [CONNY, 'Wat denk jij nou? Dat het makkelijk is? Ik heb de verwarming uit moeten zetten. Zo ver is het gekomen. Het personeel sneller.']], [['Eddy Jr.', 'How is business in Almere?'], [HANS, 'Omzet plus vier komma één procent ten opzichte van vorig jaar.'], [CONNY, 'Slecht! Heel slecht! Wij redden het nauwelijks.'], [HANS, 'Plus vier komma één, Conny.']]];
     dialogue(rnd(pool));
   }
   function coffee() {
     const s = S();
     if (d.money() < 2) { toast('NO WILDERS', 'Not even two Wilders for a coffee. The Blokaas would be proud.', 3); return; }
-    if (s.coffeeDay === day()) { dialogue([[HANS, 'Wij hebben vandaag al koffie gehad. Om tien uur. Eén keer per dag.'], [CONNIE, 'Doe hem maar in de thermos. Wij hebben zo weinig.']], () => d.addMoney(-2)); return; }
+    if (s.coffeeDay === day()) { dialogue([[HANS, 'Wij hebben vandaag al koffie gehad. Om tien uur. Eén keer per dag.'], [CONNY, 'Doe hem maar in de thermos. Wij hebben zo weinig.']], () => d.addMoney(-2)); return; }
     d.addMoney(-2); s.coffeeDay = day();
-    const lines = COFFEE.map(([w, t]) => [w === 'w' ? CONNIE : HANS, t]);
+    const lines = COFFEE.map(([w, t]) => [w === 'w' ? CONNY : HANS, t]);
     if (s.stage === 2 && !s.clues.fen) {
-      lines.push(['Eddy Jr.', 'Hans. Straight question. What is the smaakje in your Polderkruiden?'], [HANS, 'Fenegriek. Twee schepjes per kilo. Gemalen, niet geroosterd. Ruikt naar kerrie, kost 0,7 Wilder per kilo.'], [CONNIE, 'HANS! Waarom vertel je hem dat nou?'], [HANS, 'Hij vroeg het.'], [CONNIE, 'Zie je nou? Zo wordt er altijd misbruik van ons gemaakt.']);
+      lines.push(['Eddy Jr.', 'Hans. Straight question. What is the smaakje in your Polderkruiden?'], [HANS, 'Fenegriek. Twee schepjes per kilo. Gemalen, niet geroosterd. Ruikt naar kerrie, kost 0,7 Wilder per kilo.'], [CONNY, 'HANS! Waarom vertel je hem dat nou?'], [HANS, 'Hij vroeg het.'], [CONNY, 'Zie je nou? Zo wordt er altijd misbruik van ons gemaakt.']);
       dialogue(lines, () => clue('fen', 'Asked straight, over a coffee, Hans answered straight: <b>two scoops of fenegriek per kilo</b>. That is the curry smell in their Polderkruiden.'));
     } else dialogue(lines, () => { if (Math.random() < 0.5) queue('coffee'); });
     d.save();
   }
 
-  // ---------- the Maboota: they run for their bikes, Connie drops her shopping list ----------
+  // ---------- the Maboota: they run for their bikes, Conny drops her shopping list ----------
   function melee(f) {
     if (!root || !root.visible || flee > 0) return false;
     const P = player.position, w = new THREE.Vector3(SPOT.x - 0.4, 0, SPOT.z), dv = w.clone().sub(P); dv.y = 0;
     if (dv.length() > 2.0 || dv.normalize().dot(f) < 0.1) return false;
     const s = S(); flee = 4.2; s.gone = true; seq = null;
     say('g', rnd(FLEE)); setTimeout(() => { if (root.visible) say('w', rnd(FLEE)); }, 500);
-    const hit = rnd([hans, connie]); hit.userData.body.rotation.x = -0.4;
-    if (s.stage === 2 && !s.clues.lijst) setTimeout(() => clue('lijst', 'Connie dropped her shopping list running for the bikes: <b>40 kg fenegriek, 5 kg Ve-tsin, Groothandel De Zuinige Vaart, Almere</b>.'), 1200);
+    const hit = rnd([hans, conny]); hit.userData.body.rotation.x = -0.4;
+    if (s.stage === 2 && !s.clues.lijst) setTimeout(() => clue('lijst', 'Conny dropped her shopping list running for the bikes: <b>40 kg fenegriek, 5 kg Ve-tsin, Groothandel De Zuinige Vaart, Almere</b>.'), 1200);
     else setTimeout(() => toast('DROPPED IN THE RUSH', rnd(['A booklet of coupons: "Gratis koffie bij de woonboulevard (bij besteding vanaf W 40)".', 'A bag of sugar cubes, clearly from a café.', 'Four ketchup sachets and a hotel shampoo.']), 4), 1200);
     if (s.met) { queue('smack'); note('smack'); }
     d.save(); return true;
   }
   function fleeTick(dt) {
     flee -= dt;
-    for (const p of [hans, connie]) { p.position.x += 5.2 * dt; p.rotation.y = Math.PI / 2; p.userData.body.rotation.x *= 0.9; animate(p, 5.2, dt); }
+    for (const p of [hans, conny]) { p.position.x += 5.2 * dt; p.rotation.y = Math.PI / 2; p.userData.body.rotation.x *= 0.9; animate(p, 5.2, dt); }
     bikes.position.x += 5.2 * dt;
-    if (flee <= 0) { root.visible = false; for (const p of [hans, connie]) { p.position.copy(p.userData.base.pos); p.rotation.y = p.userData.base.ry; } bikes.position.x = 0; }
+    if (flee <= 0) { root.visible = false; for (const p of [hans, conny]) { p.position.copy(p.userData.base.pos); p.rotation.y = p.userData.base.ry; } bikes.position.x = 0; }
   }
 
   // ---------- Almere: the showdown at their hall (js/wijk.js WIJKEN.almere, Blokaas Specijeren is one of its shop fronts) ----------
   let hall = null;
   const almereOpen = () => S().stage >= 3 && !!state.act1;
+  // their hall, from Tristan's photo: a blue corrugated steel shed on a white brick plinth, a grey roller door, a small
+  // side door, a low white-brick office on the right with a blue fascia and a glass entrance, the name on a white board.
+  // wijk.js calls this for the shop front instead of a canal house. h: { x (centre), w, zf (front face z), zb (back z) }
+  let ribTex = null;
+  function shopBuild(key, nm, h) {
+    if (key !== 'almere' || nm !== 'Blokaas Specijeren') return false;
+    if (!ribTex) { const c = document.createElement('canvas'); c.width = 64; c.height = 8; const x = c.getContext('2d'); for (let i = 0; i < 64; i++) { const k = Math.sin(i / 64 * Math.PI * 8); x.fillStyle = `rgb(${66 + k * 14},${108 + k * 18},${150 + k * 20})`; x.fillRect(i, 0, 1, 8); } ribTex = new THREE.CanvasTexture(c); ribTex.wrapS = ribTex.wrapT = THREE.RepeatWrapping; ribTex.colorSpace = THREE.SRGBColorSpace; }
+    const g = new THREE.Group(), W = h.w, D = h.zf - h.zb, x0 = h.x - W / 2, zc = (h.zf + h.zb) / 2, wa = W * 0.36, wm = W - wa, HM = 6.4, HO = 3.4;
+    const rib = (w, hh) => { const t = ribTex.clone(); t.needsUpdate = true; t.repeat.set(w / 2.2, 1); return lam({ map: t }); };
+    const mx = x0 + wm / 2, ox = x0 + wm + wa / 2;
+    // main shed: ribbed blue walls, a white brick plinth, a flat roof
+    { const m = new THREE.Mesh(new THREE.BoxGeometry(wm, HM, D), [rib(D), rib(D), lam({ color: 0x5a6068 }), lam({ color: 0x5a6068 }), rib(wm), rib(wm)]); m.position.set(mx, HM / 2, zc); m.castShadow = m.receiveShadow = true; g.add(m); }
+    box(wm + 0.04, 1.2, D + 0.04, lam({ color: 0xe8e6e0 }), mx, 0.6, zc, g, false);
+    box(wm + 0.3, 0.18, D + 0.3, lam({ color: 0x2a5a9a }), mx, HM + 0.09, zc, g, false); // the blue edge along the roof
+    box(2.9, 3.3, 0.12, lam({ color: 0xd0d2d4 }), mx - wm * 0.08, 1.65, h.zf + 0.06, g, false); // roller door
+    for (let y = 0.25; y < 3.3; y += 0.22) box(2.9, 0.025, 0.02, lam({ color: 0xa8aaac }), mx - wm * 0.08, y, h.zf + 0.13, g, false);
+    box(3.1, 0.55, 0.3, lam({ color: 0xc0c2c4 }), mx - wm * 0.08, 3.55, h.zf + 0.15, g, false); // the roll housing
+    box(0.9, 2.1, 0.08, lam({ color: 0x9a9ea2 }), x0 + wm - 0.8, 1.05, h.zf + 0.05, g, false); // side door
+    box(0.4, 0.5, 0.3, lam({ color: 0x8a8e92 }), x0 + 0.9, HM + 0.45, zc, g, false); // the vent on the roof
+    { const s = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(3.2, wm * 0.62), 0.9), lam({ map: d.signTex([{ t: 'BLOKAAS', size: 64 }, { t: 'specijeren · groothandel · Almere', size: 22 }], '#ffffff', '#1a3a7a', 512, 144) })); s.position.set(x0 + Math.min(3.2, wm * 0.62) / 2 + 0.3, HM - 1.2, h.zf + 0.07); g.add(s); }
+    // the office: white brick, two windows, blue fascia, the glass entrance on the corner
+    box(wa, HO, D * 0.7, lam({ color: 0xe4e2dc }), ox, HO / 2, h.zf - D * 0.35, g, true);
+    box(wa + 0.1, 0.45, D * 0.7 + 0.1, lam({ color: 0x2a5aa0 }), ox, HO + 0.2, h.zf - D * 0.35, g, false);
+    for (const dx of [-0.32, 0.05]) { box(wa * 0.26, 1.1, 0.06, lam({ color: 0x3a4a5a }), ox + dx * wa, 1.9, h.zf + 0.03, g, false); box(wa * 0.28, 0.06, 0.1, lam({ color: 0xf4f4f4 }), ox + dx * wa, 1.32, h.zf + 0.05, g, false); }
+    box(wa * 0.3, 2.6, 0.06, lam({ color: 0x5a7a9a, transparent: true, opacity: 0.75 }), ox + wa * 0.33, 1.3, h.zf + 0.03, g, false); // glass door
+    scene.add(g);
+    if (d.solid) d.solid(x0, x0 + W, h.zb, h.zf);
+    return true;
+  }
   function onEnter(t) {
     if (!t || t.key !== 'almere') return;
     const door = t.shops && t.shops['Blokaas Specijeren'] && t.shops['Blokaas Specijeren'].door; if (!door) return;
     if (!hall) {
       hall = { g: new THREE.Group(), door };
-      const g2 = passerBy(9011, { look: { shirt: '#6a6a4a', pants: 0x4a4840, shoes: 0x5a3a1a, grey: true, glasses: true } }), w2 = passerBy(9017, { look: { female: true, shirt: '#9a7ab8', pants: 0x3a3a48, shoes: 0x2a2a2a, grey: true, glasses: true } });
+      const g2 = passerBy(9011, HANS_LOOK), w2 = passerBy(9017, CONNY_LOOK);
       g2.position.set(door.x - 1.3, 0, door.z + 0.6); w2.position.set(door.x + 0.2, 0, door.z + 0.7); g2.rotation.y = 0.2; w2.rotation.y = -0.3; hall.g.add(g2, w2); hall.ppl = [g2, w2];
-      const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.5), lam({ map: d.signTex([{ t: 'BEL KAPOT', size: 40 }, { t: 'klop zachtjes, de deur is duur', size: 20 }], '#f4f0e0', '#3a2458', 512, 170) })); sg.position.set(door.x + 1.1, 1.7, door.z - 0.55); hall.g.add(sg);
+      const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.5), lam({ map: d.signTex([{ t: 'BEL KAPOT', size: 40 }, { t: 'klop zachtjes, de deur is duur', size: 20 }], '#f4f0e0', '#3a2458', 512, 170) })); sg.position.set(door.x - 1.25, 1.6, door.z - 0.5); hall.g.add(sg);
       scene.add(hall.g); t.objs.push(hall.g); // hidden with the town when Eddy leaves
-      addInteract({ pos: () => new THREE.Vector3(door.x - 0.5, 0, door.z + 0.6), r: 2.2, enabled: () => !!(d.wijk() && d.wijk().town === t) && !d.busyAway() && hall.g.visible, label: () => (S().stage >= 5 ? 'Hans & Connie Blokaas · say hello' : 'Blokaas Specijeren · have it out with them'), act: showdown });
+      addInteract({ pos: () => new THREE.Vector3(door.x - 0.5, 0, door.z + 0.6), r: 2.2, enabled: () => !!(d.wijk() && d.wijk().town === t) && !d.busyAway() && hall.g.visible, label: () => (S().stage >= 5 ? 'Hans & Conny Blokaas · say hello' : 'Blokaas Specijeren · have it out with them'), act: showdown });
     }
     hall.g.visible = true;
     if (d.route && S().stage < 5) d.route(door.x, door.z, 'Blokaas Specijeren');
   }
   function showdown() {
     const s = S();
-    if (s.stage >= 5) { dialogue(rnd([[[CONNIE, 'Jij weer. Kom je ons nog verder de grond in trappen? Parkeren is hier tenminste gratis.']], [[HANS, 'De hal is gebouwd in 2011. Achthonderd vierkante meter. Nooit verwarmd. Over 214 werkdagen ga ik met pensioen.']]])); return; }
-    if (s.stage < 3) { dialogue([[CONNIE, 'Wat kom jij hier doen? Ons nog meer pijn doen?'], [HANS, 'Wij gaan om vijf uur dicht. Het is tien voor vijf.']]); return; }
+    if (s.stage >= 5) { dialogue(rnd([[[CONNY, 'Jij weer. Kom je ons nog verder de grond in trappen? Parkeren is hier tenminste gratis.']], [[HANS, 'De hal is gebouwd in 2011. Achthonderd vierkante meter. Nooit verwarmd. Over 214 werkdagen ga ik met pensioen.']]])); return; }
+    if (s.stage < 3) { dialogue([[CONNY, 'Wat kom jij hier doen? Ons nog meer pijn doen?'], [HANS, 'Wij gaan om vijf uur dicht. Het is tien voor vijf.']]); return; }
     dialogue([
-      [CONNIE, 'Kijk eens wie daar is. De grote kruidenbaas. Kom je twee oude mensen pesten?'],
+      [CONNY, 'Kijk eens wie daar is. De grote kruidenbaas. Kom je twee oude mensen pesten?'],
       [HANS, 'Met de bus. Diesel. Elf Wilder per honderd kilometer.'],
       ['Eddy Jr.', 'You stood outside my warehouse with binoculars. You took my client with fenegriek and a sack of Ve-tsin.'],
-      [CONNIE, 'Spioneren? Wij? Wíj zijn hier de slachtoffers! Jij hebt een loods, personeel, een bus...'],
-      [HANS, 'Ve-tsin is mononatriumglutamaat. Het is legaal. Het is geen kruid. Dat klopt.'], [CONNIE, 'Hans!'],
+      [CONNY, 'Spioneren? Wij? Wíj zijn hier de slachtoffers! Jij hebt een loods, personeel, een bus...'],
+      [HANS, 'Ve-tsin is mononatriumglutamaat. Het is legaal. Het is geen kruid. Dat klopt.'], [CONNY, 'Hans!'],
       ['Eddy Jr.', 'This ends today.'],
     ], () => {
       const money = d.money();
-      choice('Blokaas Specijeren', 'Connie has her notebook out. Hans has his hand on his wallet, out of habit.', ['Tip off the Krant: the Ve-tsin', `Buy their Almere clients (W 750)${money < 750 ? ' · not enough' : ''}`, 'Not today'], (i) => {
+      choice('Blokaas Specijeren', 'Conny has her notebook out. Hans has his hand on his wallet, out of habit.', ['Tip off the Krant: the Ve-tsin', `Buy their Almere clients (W 750)${money < 750 ? ' · not enough' : ''}`, 'Not today'], (i) => {
         if (i === 0) {
-          dialogue([['Eddy Jr.', 'I have Connie\'s shopping list. Five kilo of Ve-tsin. The Krant voor het Kaasvolk will love it.'], [CONNIE, 'Dat durf je niet. Na alles wat wij hebben meegemaakt.'], ['Eddy Jr.', 'It is free publicity, Connie. You love free.'], [HANS, 'Dat is waar. Connie, pak de fietsen.']], () => settle('exposed'));
+          dialogue([['Eddy Jr.', 'I have Conny\'s shopping list. Five kilo of Ve-tsin. The Krant voor het Kaasvolk will love it.'], [CONNY, 'Dat durf je niet. Na alles wat wij hebben meegemaakt.'], ['Eddy Jr.', 'It is free publicity, Conny. You love free.'], [HANS, 'Dat is waar. Conny, pak de fietsen.']], () => settle('exposed'));
         } else if (i === 1) {
           if (money < 750) { toast('NOT ENOUGH WILDERS', 'W 750. Hans can smell exactly how much you have, and it is less.', 3.5); return; }
           d.addMoney(-750);
-          dialogue([['Eddy Jr.', 'Seven hundred and fifty Wilders. For your client list here in Almere, and you stay out of Kipkruidenkwartier.'], [HANS, '...Contant?'], ['Eddy Jr.', 'Contant.'], [CONNIE, 'Zevenhonderdvijftig... Voor alles wat wij hebben moeten doorstaan? Nou ja. Hans, tel het.'], [HANS, 'Zevenhonderdvijftig. Klopt. Afgesproken. Geen verrekijker binnen vijfhonderd meter.'], [CONNIE, '(zachtjes) Een operakijker is geen verrekijker, Hans.']], () => settle('bought'));
+          dialogue([['Eddy Jr.', 'Seven hundred and fifty Wilders. For your client list here in Almere, and you stay out of Kipkruidenkwartier.'], [HANS, '...Contant?'], ['Eddy Jr.', 'Contant.'], [CONNY, 'Zevenhonderdvijftig... Voor alles wat wij hebben moeten doorstaan? Nou ja. Hans, tel het.'], [HANS, 'Zevenhonderdvijftig. Klopt. Afgesproken. Geen verrekijker binnen vijfhonderd meter.'], [CONNY, '(zachtjes) Een operakijker is geen verrekijker, Hans.']], () => settle('bought'));
         }
       });
     });
@@ -424,7 +457,7 @@ export function createBlokaas(d) {
   function phoneScreen(ctx) {
     const s = S();
     return { t: 'Blokaas Specijeren', items: [
-      { l: 'Bellen', act: () => ctx.say(s.stage >= 3 && Math.random() < 0.5 ? '"Met Connie. ...Jij." *klik*' : '"U belt met Blokaas Specijeren. Deze voicemail kost ons geld. Wees kort. Piep."') },
+      { l: 'Bellen', act: () => ctx.say(s.stage >= 3 && Math.random() < 0.5 ? '"Met Conny. ...Jij." *klik*' : '"U belt met Blokaas Specijeren. Deze voicemail kost ons geld. Wees kort. Piep."') },
       { l: 'Berichten', r: `${s.sms.length}`, go: 'blokaasSms' },
     ], foot: 'Almere-Buiten · gepast betalen' };
   }
@@ -437,9 +470,9 @@ export function createBlokaas(d) {
     const s = S();
     const what = s.stage >= 5 ? (s.how === 'exposed' ? 'Exposed in the Krant. They still mix, quietly, and still come and look.' : 'Bought off. Their Almere snackbars buy from you now.') : s.stage >= 3 ? 'You know their recipe now. Time to have it out with them.' : s.stage === 2 ? `They took <b>${s.cname || 'a client'}</b>. Find out what is in their mix first (${nClues()}/3 clues).` : 'Cheaper than you, and proud of it.';
     const go = almereOpen() ? (van ? '<button class="b95" id="goAlm">Drive to Almere (A1, A6)</button>' : '<i>Drive there in the Oofmobiel.</i>') : s.stage >= 3 ? '<i>Beat the Lampas first. Then you will have time for Almere.</i>' : '';
-    return `<b>Blokaas Specijeren</b>: Hans and Connie Blokaas's spice hall on Bedrijventerrein De Zuinige Vaart, Almere-Buiten. Over the IJmeer on the A6. ${what} ${go}`;
+    return `<b>Blokaas Specijeren</b>: Hans and Conny Blokaas's spice hall on Bedrijventerrein De Zuinige Vaart, Almere-Buiten. Over the IJmeer on the A6. ${what} ${go}`;
   }
-  return { update, tick, debrief, melee, sellBias, stories, smallAd, extraContacts, phoneScreen, smsScreen, mapState, mapInfo, almereOpen, onEnter, state: S, here: () => !!(root && root.visible),
+  return { shopBuild, update, tick, debrief, melee, sellBias, stories, smallAd, extraContacts, phoneScreen, smsScreen, mapState, mapInfo, almereOpen, onEnter, state: S, here: () => !!(root && root.visible),
     // test hooks
     spawn: () => { const s = S(); s.day = day(); s.here = true; s.gone = false; s.heard = false; }, clue, poach, crack, settle, talk };
 }

@@ -211,7 +211,7 @@ export function createWijk(deps) {
     const step = Math.max(1, Math.floor((spots.length - 1) / Math.max(1, loose.length)));
     t.shops = {}; const shopQ = (W.shops || []).slice(); // De Peperpijp: the customers' shop fronts, every other one from the third on
     spots.forEach((h, i) => { const j = i >= 1 && (i - 1) % step === 0 ? loose[(i - 1) / step] : null; // (the first shop front is right at the afrit: too easy)
-      if (!j && shopQ.length && i >= 2 && i % 2 === 0) { const nm = shopQ.shift(); place(h, nm.toUpperCase()); const zs = h.zc + HZ; t.shops[nm] = { door: { x: O.x + h.x + (h.w * 0.9 / 2 - 0.72), z: O.z + h.zc + 4.5 + 0.6 }, kerb: { x: O.x + h.x, z: O.z + zs - RW + 1.1 }, w: h.w }; return; }
+      if (!j && shopQ.length && i >= 2 && i % 2 === 0) { const nm = shopQ.shift(); if (!(deps.shopBuild && deps.shopBuild(key, nm, { x: O.x + h.x, w: h.w, zf: O.z + h.zc + 4.5, zb: O.z + h.zc - 4.5 }))) place(h, nm.toUpperCase()); /* (js/blokaas.js builds its own hall) */ const zs = h.zc + HZ; t.shops[nm] = { door: { x: O.x + h.x + (h.w * 0.9 / 2 - 0.72), z: O.z + h.zc + 4.5 + 0.6 }, kerb: { x: O.x + h.x, z: O.z + zs - RW + 1.1 }, w: h.w }; return; }
       if (j) { place(h, j.name.toUpperCase(), true); addJoint(h, j); }
       else place(h, W.signs[(h.k + i) % W.signs.length]); });
     // the block interiors: gardens behind a wall along the dwarsstraten; the plein is open
