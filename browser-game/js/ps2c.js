@@ -271,6 +271,8 @@ function torsoRows(B){const BP=B.fem?BODYP.fem:BODYP.male;
  const SHx=B.shoulders||0,BEL=B.belly||0;for(const r of T){const y=r[0],up=clamp((y-1.15)/0.25,0,1)*(y>1.48?0.4:1);r[1]*=1+SHx*up;const bb=Math.exp(-Math.pow((y-1.02)/0.14,2));r[2]+=BEL*bb;r[3]+=BEL*0.6*bb;r[1]+=BEL*0.35*bb;}
  if(B.hipTaper)for(const r of T)if(r[0]<0.95){r[1]*=B.hipTaper;r[2]*=B.hipTaper;} /* Spice Master: tucked-in shirts, hips sit inside the legs */
  if(B.pads)for(const r of T)if(r[0]>1.3&&r[0]<1.5)r[1]*=r[0]>1.44?1.1:1.06;
+ /* Spice Master: an hourglass figure (B.hourglass): a drawn-in waist and slighter shoulders */
+ if(B.fem&&B.hourglass)for(const r of T){if(r[0]>=0.99&&r[0]<=1.21){const k=r[0]>1.05&&r[0]<1.15?0.86:0.93;r[1]*=k;r[2]*=k;}else if(r[0]>1.3&&r[0]<1.5)r[1]*=0.95;}
  /* Spice Master: a rounder seat for B.gluteK (Club Monique dancers): a tucked-under lower ring and an extra ring through the cheeks */
  if(B.fem&&B.gluteK&&T[0][0]===0.8){const r0=T[0];T.splice(0,1,[0.745,r0[1]*0.8,r0[2]*0.8,0.006,r0[4]],[0.79,r0[1]*1.0,r0[2]*1.04,0,r0[4]],[0.85,r0[1]*1.06,r0[2]*1.08,-0.004,r0[4]]);}
  return T;}
@@ -278,7 +280,7 @@ function buildBody(B){const M=newMesh(),X=[1,0,0],Y=[0,1,0],Z=[0,0,1],BP=B.fem?B
  const tv=y=>((TY1-y)/(TY1-TY0)*ROW.t)/512;
  /* torso: big frame, chest wider than the hips, padded 80s shoulders, open collar */
  const T=torsoRows(B),BUST=BP.bust||{},SHx=B.shoulders||0;
- loft(M,T.map(r=>({c:[0,r[0],r[3]],s:X,f:Z,rx:r[1],rz:r[2],v:tv(Math.max(r[0],0.802)),w:r[4],mod:(p,ph)=>{if(r[0]>1.44&&r[0]<1.48){p[1]+=0.006*Math.cos(2*ph);}if(B.fem){const b=BUST[r[0]];if(b){const c=Math.max(0,Math.cos(ph));p[2]+=b*c*c*Math.exp(-Math.pow((Math.abs(Math.sin(ph))-0.42)/0.3,2));}if(BP.glute&&r[0]>0.85&&r[0]<0.95&&!B.gluteK){const k=Math.max(0,-Math.cos(ph));p[2]-=BP.glute*k*k;}if(BP.glute&&B.gluteK&&r[0]>0.79&&r[0]<0.95){const k=Math.max(0,-Math.cos(ph)),cl=1-0.75*Math.exp(-Math.pow(Math.sin(ph)/0.14,2)),wy=r[0]<0.76?0.45:r[0]<0.82?0.9:r[0]<0.87?1:0.7;p[2]-=BP.glute*B.gluteK*k*k*cl*wy;}return p;}if(Math.cos(ph)>0.2&&r[0]>1.05&&r[0]<1.4)p[2]+=0.008*Math.cos(ph);return p;}})),BP.segs,{capA:{dir:[0,-1,0],uv:[0.5,0.555]},capB:{dir:[0,1,0],uv:[0.5,0.002],lift:-0.012}});
+ loft(M,T.map(r=>({c:[0,r[0],r[3]],s:X,f:Z,rx:r[1],rz:r[2],v:tv(Math.max(r[0],0.802)),w:r[4],mod:(p,ph)=>{if(r[0]>1.44&&r[0]<1.48){p[1]+=0.006*Math.cos(2*ph);}if(B.fem){const b=(BUST[r[0]]||0)*(B.bustK||1);if(b){const c=Math.max(0,Math.cos(ph));p[2]+=b*c*c*Math.exp(-Math.pow((Math.abs(Math.sin(ph))-0.42)/0.3,2));}if(BP.glute&&r[0]>0.85&&r[0]<0.95&&!B.gluteK){const k=Math.max(0,-Math.cos(ph));p[2]-=BP.glute*k*k;}if(BP.glute&&B.gluteK&&r[0]>0.79&&r[0]<0.95){const k=Math.max(0,-Math.cos(ph)),cl=1-0.75*Math.exp(-Math.pow(Math.sin(ph)/0.14,2)),wy=r[0]<0.76?0.45:r[0]<0.82?0.9:r[0]<0.87?1:0.7;p[2]-=BP.glute*B.gluteK*k*k*cl*wy;}return p;}if(Math.cos(ph)>0.2&&r[0]>1.05&&r[0]<1.4)p[2]+=0.008*Math.cos(ph);return p;}})),BP.segs,{capA:{dir:[0,-1,0],uv:[0.5,0.555]},capB:{dir:[0,1,0],uv:[0.5,0.002],lift:-0.012}});
  /* lapel ridge: a thin raised strip so the lapels catch light (PS2 games modelled these as a few polys) */
  if(!B.fem)for(const s of [1,-1]){GRP++;const pts=[];for(const Y of [1.18,1.3,1.45]){const vw=0.012+(Y-1.12)*0.36,xx=s*(vw+0.04),zz=Math.sqrt(Math.max(0,1-Math.pow(xx/(Y>1.38?0.24:0.25),2)))*0.156+0.008+(Y<1.4?0.008:0);pts.push([xx,Y,zz]);}
   const uvp=p=>[0.5+p[0]*340/512,((TY1-p[1])/(TY1-TY0)*ROW.t)/512];const w=W1(BI.chest),ids=[];for(const p of pts){ids.push(addV(M,V.add(p,[-s*0.03,0,0.004]),uvp(V.add(p,[-s*0.03,0,0])),w),addV(M,V.add(p,[s*0.03,0,0.006]),uvp(V.add(p,[s*0.03,0,0])),w));}
@@ -289,8 +291,11 @@ function buildBody(B){const M=newMesh(),X=[1,0,0],Y=[0,1,0],Z=[0,0,1],BP=B.fem?B
  for(const s of [1,-1]){const v0=M.p.length/3;const sh=s>0?SH:mir(SH),el=s>0?EL:mir(EL),wr=s>0?WR:mir(WR),ad=[AD[0]*s,AD[1],0],side=V.norm(V.cross(ad,Z)).map(v=>-v*s),fwd=Z;
   const ua=BI[s>0?'uarmL':'uarmR'],fa=BI[s>0?'farmL':'farmR'],hb=BI[s>0?'handL':'handR'];const sv=t=>(ROW.s0+t*(ROW.s1-ROW.s0))/512;
   const at=(base,dir,t)=>V.add(base,V.mul(dir,t));
-  loft(M,[{c:V.add(at(sh,ad,0.0),[-s*0.012,-0.012,0]),rx:0.074,rz:0.08,v:sv(0),w:[[ua,0.6],[BI.chest,0.4]]},{c:at(sh,ad,0.06),rx:0.082,rz:0.084,v:sv(0.15),w:W1(ua)},{c:at(sh,ad,0.2),rx:0.076,rz:0.078,v:sv(0.4),w:W1(ua)},
-   {c:el,rx:0.068,rz:0.07,v:sv(0.55),w:W2(ua,fa,0.5)},{c:at(el,ad,0.1),rx:0.064,rz:0.064,v:sv(0.72),w:W1(fa)},{c:at(wr,ad,-0.02),rx:0.056,rz:0.057,v:sv(0.98),w:W1(fa)}].map((r,k)=>Object.assign(r,{s:side,f:fwd,rx:r.rx*BP.arm[k],rz:r.rz*BP.arm[k]})),8,{u0:0,u1:1});
+  const AR=[{c:V.add(at(sh,ad,0.0),[-s*0.012,-0.012,0]),rx:0.074,rz:0.08,v:sv(0),w:[[ua,0.6],[BI.chest,0.4]]},{c:at(sh,ad,0.06),rx:0.082,rz:0.084,v:sv(0.15),w:W1(ua)},{c:at(sh,ad,0.2),rx:0.076,rz:0.078,v:sv(0.4),w:W1(ua)},
+   {c:el,rx:0.068,rz:0.07,v:sv(0.55),w:W2(ua,fa,0.5)},{c:at(el,ad,0.1),rx:0.064,rz:0.064,v:sv(0.72),w:W1(fa)},{c:at(wr,ad,-0.02),rx:0.056,rz:0.057,v:sv(0.98),w:W1(fa)}].map((r,k)=>Object.assign(r,{s:side,f:fwd,rx:r.rx*BP.arm[k],rz:r.rz*BP.arm[k]}));
+  /* Spice Master hourglass: slim arms and a rounded shoulder instead of the open sleeve head */
+  if(B.hourglass){for(const r of AR){r.rx*=0.9;r.rz*=0.9;}AR[0].rx*=0.86;AR[0].rz*=0.9;AR.unshift({c:V.add(sh,[-s*0.034,0.006,0]),rx:0.024,rz:0.034,v:sv(0),w:[[ua,0.5],[BI.chest,0.5]],s:side,f:fwd});}
+  loft(M,AR,8,{u0:0,u1:1});
   loft(M,[{c:at(wr,ad,-0.035),rx:0.05,rz:0.051,v:(ROW.c0+1)/512,w:W1(fa)},{c:at(wr,ad,0.012),rx:0.049,rz:0.05,v:(ROW.c1-1)/512,w:W2(fa,hb,0.3)}].map(r=>Object.assign(r,{s:side,f:fwd,rx:r.rx*BP.cuff,rz:r.rz*BP.cuff})),8,{u0:0,u1:1});
   if(!B.nowatch&&s===(B.watch||1)){/* gold watch: link bracelet, raised case with bezel, champagne dial, crown */
    const gv=SW.gold[1];loft(M,[{c:at(wr,ad,-0.064),rx:0.058,rz:0.059},{c:at(wr,ad,-0.034),rx:0.058,rz:0.059}].map(r=>Object.assign(r,{s:side,f:fwd,w:W1(fa),v:gv})),12,{uvf:(u,r)=>[150/512+u*140/512,r===undefined?gv:gv]});

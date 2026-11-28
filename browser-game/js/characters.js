@@ -209,6 +209,24 @@ function faceSpotprent(y, F) { // newspaper caricature: pen lines and cross-hatc
   const nf = old ? 4 : L.fem ? 0 : 2; for (let k = 0; k < nf; k++) { const yy = V(1.752) - k * 4.2; line(0.4, 0.75, [C - 15, yy + r() * 1.5, C - 5, yy - 1.8, C, yy, C + 6, yy + 1.4, C + 15, yy - r() * 1.5]); } // forehead lines
   if (!L.fem || old) line(0.55, 0.9, [C - 5, V(1.618), C, V(1.612), C + 5, V(1.618)]); // chin crease
 }
+function faceGlam(y, F) { // glamour (look.glam: Club Monique's dancers): no caricature lines; smoky lids, lashes, blush and full glossy lips
+  const { C, V, L, SKIN, rgb } = F, ey = V(1.705), soft = softF(y), lip = L.lips ? L.lips.map((v) => v * 255) : [200, 36, 70], sh = L.shadow ? L.shadow.map((v) => v * 255) : [90, 50, 110];
+  const ew = 7.4 * (L.eyeK || 1), ex = 12.2;
+  for (const s of [1, -1]) {
+    const cx = C + s * ex;
+    soft(cx + s * 1.5, ey - 6.5, ew * 1.25, 4.6, rgb(sh, 0.6)); soft(cx + s * 4, ey - 4, ew * 0.8, 3, rgb(sh.map((v) => v * 0.5), 0.45)); // smoky lid
+    y.strokeStyle = 'rgba(20,10,8,1)'; y.lineCap = 'round'; y.lineWidth = 1.5; y.beginPath(); y.moveTo(cx + s * (ew - 1.5), ey - 2.2); y.quadraticCurveTo(cx + s * (ew + 1.5), ey - 2.2, cx + s * (ew + 4.2), ey - 4.6); y.stroke(); // winged liner
+    y.lineWidth = 0.8; for (let k = 0; k < 4; k++) { const t = 0.15 + k * 0.25, lx = cx + s * ew * t; y.beginPath(); y.moveTo(lx, ey - 5.2 + t * 2.2); y.lineTo(lx + s * (1.2 + k * 0.5), ey - 8.4 + t * 2.4); y.stroke(); } // lashes
+    soft(cx + s * 8.5, V(1.668), 9, 5.5, 'rgba(236,110,120,.5)'); // blush high on the cheekbone
+    soft(cx + s * 6, V(1.684), 5, 2.2, 'rgba(255,246,236,.45)'); // highlighter
+  }
+  const my = V(1.645) + 0.6, hw = 7.6;
+  y.fillStyle = rgb(lip); y.beginPath(); y.moveTo(C - hw, my); y.quadraticCurveTo(C - 3.4, my - 4.4, C - 1.2, my - 2.8); y.quadraticCurveTo(C, my - 2.2, C + 1.2, my - 2.8); y.quadraticCurveTo(C + 3.4, my - 4.4, C + hw, my); // cupid's bow
+  y.quadraticCurveTo(C + 4, my + 5.6, C, my + 5.4); y.quadraticCurveTo(C - 4, my + 5.6, C - hw, my); y.closePath(); y.fill();
+  y.strokeStyle = rgb(lip.map((v) => v * 0.45), 0.9); y.lineWidth = 0.9; y.beginPath(); y.moveTo(C - hw, my); y.quadraticCurveTo(C, my + 1.6, C + hw, my); y.stroke(); // the parting, a slight smile
+  soft(C - 1.5, my + 2.8, 3.4, 1.3, 'rgba(255,255,255,.6)'); // gloss
+  if (L.mole) { y.fillStyle = 'rgba(40,20,14,.9)'; y.beginPath(); y.arc(C + 9.5, my - 3.5, 0.8, 0, 7); y.fill(); }
+}
 function faceRubber(y, F) { // latex satire puppet: airbrushed blotches, deep sculpted creases, ruddy cheeks, a sheen
   const { C, V, L, SKIN, rgb } = F, r = rnd(JSON.stringify(L.skin) + 'r'), ey = V(1.705), soft = softF(y);
   const dk = SKIN.map((v) => v * 0.5), lt = SKIN.map((v) => Math.min(255, v * 1.2 + 14));
@@ -248,6 +266,11 @@ const q1 = (v) => Math.round(v * 10) / 10; // quantised so heads still share geo
 function styleLook(look) {
   if (!STY || look.toon === false || look.noPx || look.pxMat) return look;
   const r = rnd(JSON.stringify([look.skin, look.hair, look.hs, look.body, look.shirt])), hair = look.hair, old = !!(hair && hair[0] > 0.6 && Math.abs(hair[0] - hair[2]) < 0.16);
+  if (look.glam) { /* glamour instead of caricature: a small nose, big made-up eyes, no jowls or wrinkles; the ink look stays */
+    const L = { ...look, eyeK: 1.18, irisK: 1.12, lidK: 1.08, noNose: true, pxFace: faceGlam, headScale: look.headScale ?? 1.14, pxMat: STY.mat, noseC: look.skin.map((v) => v * 0.97) };
+    L.B = { ...(look.B || {}), px: { nose: 0.7, ear: 0.85, jaw: 0, brow: 0.3, chin: 0.7, noseW: 0.85 } };
+    return L;
+  }
   const heavy = look.body === 'fat' ? 1.6 : look.body === 'stocky' || look.body === 'big' ? 1.25 : 1, k = look.pxK || {};
   const px = { ...STY.px, nose: q1(STY.px.nose * (0.85 + r() * 0.4) * (old ? 1.12 : 1) * (k.nose || 1)), droop: q1((old ? 0.006 : r() * 0.004) * 1000) / 1000, hook: r() > 0.7 ? 1 : 0,
     noseW: q1(0.9 + r() * 0.3), ear: q1(STY.px.ear * (0.9 + r() * 0.25) * (look.hs ? 1 : 1.12) * (k.ear || 1)), jaw: Math.round(STY.px.jaw * heavy * (old ? 1.3 : 1) * (k.jaw || 1) * 1000) / 1000 };
@@ -284,11 +307,12 @@ export function finishModel(md) {
   const key = JSON.stringify(cfg.B);
   let geos = geoCache.get(key);
   if (!geos) { geos = [geometry(P.buildBody(cfg.B)), geometry(P.buildHead(cfg.B))]; geoCache.set(key, geos); }
-  grain(bc);
+  if (!look.glam) grain(bc); /* bare skin stays smooth */
   if (look.pxMat === 'clay' || look.pxMat === 'latex') skinGrain(hc, look.pxMat === 'clay' ? 0.12 : 0.1);
   [shrink(bc), shrink(hc)].forEach((cv, i) => {
     const jig = i === 0 && look.jiggle ? (md.jig = { L: { value: new THREE.Vector3() }, R: { value: new THREE.Vector3() } }) : null;
     const mat = charMaterial(canvasTex(cv), i === 0, look.pxMat, jig);
+    if (look.glam && i === 0) mat.normalMap = null; // no cloth weave on skin
     const m = new THREE.SkinnedMesh(geos[i], mat);
     m.bind(md.skeleton, new THREE.Matrix4());
     m.boundingSphere = SPHERE.clone(); // fixed sphere: no per-vertex skinning pass to compute one

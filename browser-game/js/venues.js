@@ -14,50 +14,60 @@ const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 // stage lingerie, painted over the body sheet (characters.js layout: torso rows 0-290 from Y 1.51 down to 0.8, u 256 = centre front,
-// 0/512 = centre back; sleeves 290-380, cuffs 381-399, legs 440-512): bare skin, a lace-trimmed bra, high-cut briefs with a garter belt,
-// sheer stockings with a lace top. No nudity: the bra and briefs are always on.
+// 0/512 = centre back; sleeves 290-380, cuffs 381-399 (also the neck band: a choker), legs 440-512): smooth skin, a plunge balconette
+// bra with a lace edge, a high-cut Brazilian brief on a thin waistband, a garter belt with straps, sheer stockings with lace tops.
+// No nudity: the bra and the brief are always on.
 function paintLingerie(cv, skin, col) {
   const x = cv.getContext('2d'), W = cv.width, k = W / 512, ty = (Y) => (1.51 - Y) / 0.71 * 290 * k, fx = (m) => (256 + m * 340) * k;
   const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`, sk = [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], cl = [(col >> 16) & 255, (col >> 8) & 255, col & 255];
-  const dk = cl.map((v) => v * 0.45), lt = cl.map((v) => Math.min(255, v * 1.25 + 30)), skd = sk.map((v) => v * 0.8);
-  // bare skin everywhere (torso, sleeves, cuffs), with soft modelling: a darker spine, under-bust and side shading
-  x.fillStyle = rgb(sk); x.fillRect(0, 0, W, 400 * k);
+  const dark = cl[0] + cl[1] + cl[2] < 150, dk = dark ? [8, 6, 10] : cl.map((v) => v * 0.45), lt = dark ? [110, 100, 124] : cl.map((v) => Math.min(255, v * 1.25 + 40)), skd = sk.map((v, i) => v * [0.8, 0.72, 0.7][i]), skl = sk.map((v) => Math.min(255, v * 1.1 + 8));
   const blob = (cx, cy, rx, ry, c) => { const g = x.createRadialGradient(cx, cy, 0, cx, cy, 1); g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0)'); x.save(); x.translate(cx, cy); x.scale(rx, ry); x.fillStyle = g; x.fillRect(-1, -1, 2, 2); x.restore(); };
-  for (const u of [0, W]) blob(u, ty(1.2), 26 * k, 120 * k, rgb(skd, 0.35));
-  for (const s of [-1, 1]) { blob(fx(s * 0.37), ty(1.15), 40 * k, 90 * k, rgb(skd, 0.3)); blob(fx(s * 0.07), ty(1.24), 30 * k, 10 * k, rgb(skd, 0.35)); }
-  blob(fx(0), ty(1.05), 10 * k, 16 * k, rgb(skd, 0.45)); // navel
-  const lace = (y0, y1, x0, x1, down) => { // scalloped lace edge along a band
-    x.fillStyle = rgb(dk, 0.85); for (let u = x0; u < x1; u += 9 * k) { x.beginPath(); x.arc(u + 4.5 * k, down ? y1 : y0, 4.5 * k, down ? 0 : Math.PI, down ? Math.PI : 0); x.fill(); }
-    x.strokeStyle = rgb(lt, 0.35); x.lineWidth = 1 * k; for (let u = x0; u < x1; u += 6 * k) { x.beginPath(); x.moveTo(u, y0); x.lineTo(u + 3 * k, y1); x.stroke(); }
-  };
-  const satin = (y0, y1, x0, x1) => { const g = x.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, rgb(lt)); g.addColorStop(0.45, rgb(cl)); g.addColorStop(1, rgb(cl.map((v) => v * 0.75))); x.fillStyle = g; x.fillRect(x0, y0, x1 - x0, y1 - y0); };
-  // bra: a band all the way round under the bust, two cups at the front, straps over the shoulders to the back
-  satin(ty(1.25), ty(1.215), 0, W); lace(ty(1.25), ty(1.215), 0, W, true);
+  const mOf = (u) => (u / k - 256) / 340; // metres round the body from the centre front; the centre back is about +-0.75
+  // smooth warm skin with soft modelling: spine, shoulder blades, collar bones, a toned belly, the small of the back
+  x.fillStyle = rgb(sk); x.fillRect(0, 0, W, 400 * k);
+  for (const u of [0, W]) { blob(u, ty(1.2), 10 * k, 130 * k, rgb(skd, 0.5)); blob(u, ty(0.97), 26 * k, 12 * k, rgb(skd, 0.4)); }
+  for (const s of [-1, 1]) { blob(fx(s * 0.37), ty(1.12), 34 * k, 80 * k, rgb(skd, 0.32)); blob(fx(s * 0.6), ty(1.36), 30 * k, 22 * k, rgb(skl, 0.3)); blob(fx(s * 0.09), ty(1.455), 34 * k, 5 * k, rgb(skd, 0.35)); blob(fx(s * 0.05), ty(1.08), 8 * k, 40 * k, rgb(skl, 0.25)); }
+  x.strokeStyle = rgb(skd, 0.4); x.lineWidth = 2 * k; x.beginPath(); x.moveTo(fx(0), ty(1.17)); x.lineTo(fx(0), ty(1.0)); x.stroke(); blob(fx(0), ty(1.04), 4 * k, 6 * k, rgb(skd, 0.7)); // belly line and navel
+  const scallop = (pts, r, c) => { x.fillStyle = c; for (const [px, py] of pts) { x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); } };
+  const laceFill = (path, c) => { x.save(); path(); x.clip(); x.fillStyle = c; x.fillRect(0, 0, W, 300 * k); x.strokeStyle = rgb(lt, dark ? 0.3 : 0.4); x.lineWidth = 0.8 * k; for (let d = -300; d < 812; d += 7) { x.beginPath(); x.moveTo(d * k, 0); x.lineTo((d + 150) * k, 300 * k); x.moveTo((d + 150) * k, 0); x.lineTo(d * k, 300 * k); x.stroke(); } x.restore(); };
+  // --- bra: a thin band round the back, plunge cups with a scalloped lace top edge, thin straps, a bow
+  x.fillStyle = rgb(cl); x.fillRect(0, ty(1.235), W, ty(1.218) - ty(1.235)); x.fillStyle = rgb(dk, 0.6); x.fillRect(0, ty(1.221), W, 1.5 * k);
   for (const s of [-1, 1]) {
-    const cx = fx(s * 0.075), cy = ty(1.3);
-    x.fillStyle = rgb(cl); x.beginPath(); x.moveTo(fx(s * 0.008), ty(1.24)); x.quadraticCurveTo(fx(s * 0.02), ty(1.34), fx(s * 0.06), ty(1.37)); x.quadraticCurveTo(fx(s * 0.13), ty(1.36), fx(s * 0.16), ty(1.24)); x.closePath(); x.fill();
-    blob(cx - s * 6 * k, cy - 6 * k, 16 * k, 12 * k, rgb(lt, 0.55)); // satin sheen on the cup
-    x.strokeStyle = rgb(dk); x.lineWidth = 2.5 * k; x.beginPath(); x.moveTo(fx(s * 0.008), ty(1.24)); x.quadraticCurveTo(fx(s * 0.02), ty(1.34), fx(s * 0.06), ty(1.37)); x.quadraticCurveTo(fx(s * 0.13), ty(1.36), fx(s * 0.16), ty(1.24)); x.stroke();
-    x.strokeStyle = rgb(cl); x.lineWidth = 5 * k; x.beginPath(); x.moveTo(fx(s * 0.07), ty(1.37)); x.lineTo(fx(s * 0.09), 0); x.stroke(); // front strap
-    const bu = s < 0 ? 0 : W; x.beginPath(); x.moveTo(bu - s * -1 * 0, 0); x.moveTo(fx(s * 0.62), 0); x.lineTo(fx(s * 0.66), ty(1.25)); x.stroke(); // back strap
+    const cup = () => { x.beginPath(); x.moveTo(fx(s * 0.012), ty(1.228)); x.quadraticCurveTo(fx(s * 0.03), ty(1.29), fx(s * 0.105), ty(1.335)); x.quadraticCurveTo(fx(s * 0.165), ty(1.32), fx(s * 0.185), ty(1.235)); x.quadraticCurveTo(fx(s * 0.1), ty(1.195), fx(s * 0.012), ty(1.228)); x.closePath(); };
+    laceFill(cup, rgb(cl));
+    blob(fx(s * 0.1), ty(1.275), 20 * k, 13 * k, rgb(lt, 0.5)); blob(fx(s * 0.1), ty(1.225), 26 * k, 6 * k, rgb(dk, 0.45)); // sheen, underwire shade
+    x.strokeStyle = rgb(dk); x.lineWidth = 2 * k; cup(); x.stroke();
+    const top = []; for (let t = 0; t <= 1; t += 0.125) { const a = 1 - t, px = a * a * fx(s * 0.012) + 2 * a * t * fx(s * 0.03) + t * t * fx(s * 0.105), py = a * a * ty(1.228) + 2 * a * t * ty(1.29) + t * t * ty(1.335); top.push([px, py]); } scallop(top, 2.6 * k, rgb(dk));
+    x.strokeStyle = rgb(cl); x.lineWidth = 2.6 * k; x.beginPath(); x.moveTo(fx(s * 0.105), ty(1.335)); x.lineTo(fx(s * 0.115), 0); x.moveTo(fx(s * 0.6), 0); x.lineTo(fx(s * 0.62), ty(1.235)); x.stroke(); // straps, front and back
+    blob(fx(s * 0.045), ty(1.31), 12 * k, 16 * k, rgb(skl, 0.35)); // a soft highlight above the cup
   }
-  blob(fx(0), ty(1.27), 5 * k, 12 * k, rgb(skd, 0.5)); // cleavage shadow
-  x.fillStyle = rgb(lt); x.beginPath(); x.arc(fx(0), ty(1.245), 3.5 * k, 0, 7); x.fill(); // a little bow
-  // briefs: high-cut, a V at the front, full at the back (u 0/512), a waistband with a garter belt above
-  satin(ty(0.93), ty(0.9), 0, W); lace(ty(0.93), ty(0.9), 0, W, false);
-  // high-cut at the hips (m about +-0.3), full at the front and over the seat
-  const cut = (u) => { const m = (u / k - 256) / 340, d = Math.min(Math.abs(Math.abs(m) - 0.3), 0.5), f = Math.max(0, 1 - d / 0.13); return 0.8 + 0.07 * f * f; };
-  x.fillStyle = rgb(cl); x.beginPath(); x.moveTo(0, ty(0.9)); for (let u = 0; u <= W; u += 3 * k) x.lineTo(u, ty(cut(u)) + 2 * k); x.lineTo(W, ty(0.9)); x.closePath(); x.fill();
-  x.fillStyle = rgb(sk); x.beginPath(); x.moveTo(0, ty(0.8) + 3 * k); for (let u = 0; u <= W; u += 3 * k) x.lineTo(u, ty(cut(u)) + 2 * k); x.lineTo(W, ty(0.8) + 3 * k); x.closePath(); x.fill();
-  blob(fx(0), ty(0.85), 34 * k, 10 * k, rgb(lt, 0.35)); for (const u of [0, W]) blob(u, ty(0.85), 70 * k, 14 * k, rgb(lt, 0.3));
-  x.strokeStyle = rgb(dk, 0.9); x.lineWidth = 2 * k; x.beginPath(); for (let u = 0; u <= W; u += 3 * k) { const y = ty(cut(u)) + 2 * k; if (!u) x.moveTo(u, y); else x.lineTo(u, y); } x.stroke();
-  for (const m of [-0.16, 0.16, -0.44, 0.44]) { x.strokeStyle = rgb(dk); x.lineWidth = 3 * k; x.beginPath(); x.moveTo(fx(m), ty(0.9)); x.lineTo(fx(m), ty(0.8)); x.stroke(); } // garter straps
-  // sleeves and cuffs: bare arms; a lace wrist band
-  x.fillStyle = rgb(sk); x.fillRect(0, 290 * k, W, 110 * k); x.fillStyle = rgb(dk, 0.8); x.fillRect(0, 381 * k, W, 6 * k);
-  // legs: sheer stockings (skin seen through a darker tint), a lace top band and a back seam
-  const g = x.createLinearGradient(0, 440 * k, 0, 512 * k); g.addColorStop(0, rgb(sk)); g.addColorStop(0.12, rgb(sk)); g.addColorStop(0.16, rgb(sk.map((v, i) => v * 0.55 + dk[i] * 0.25))); g.addColorStop(1, rgb(sk.map((v, i) => v * 0.45 + dk[i] * 0.25)));
-  x.fillStyle = g; x.fillRect(0, 440 * k, W, 72 * k); lace(445 * k, 451 * k, 0, W, true);
-  x.strokeStyle = rgb(dk, 0.7); x.lineWidth = 1.5 * k; for (const u of [2 * k, 256 * k, W - 2 * k]) { x.beginPath(); x.moveTo(u, 452 * k); x.lineTo(u, 512 * k); x.stroke(); }
+  blob(fx(0), ty(1.275), 4 * k, 16 * k, rgb(skd, 0.6)); // cleavage
+  x.fillStyle = rgb(lt); for (const s of [-1, 1]) { x.beginPath(); x.ellipse(fx(s * 0.012), ty(1.226), 4 * k, 2.4 * k, s * 0.4, 0, 7); x.fill(); } x.fillStyle = rgb(dk); x.beginPath(); x.arc(fx(0), ty(1.226), 1.6 * k, 0, 7); x.fill(); // bow
+  // --- garter belt: a narrow lace band on the hips with four straps
+  const gb0 = ty(0.985), gb1 = ty(0.955);
+  laceFill(() => { x.beginPath(); x.rect(0, gb0, W, gb1 - gb0); }, rgb(cl)); const edge = []; for (let u = 0; u <= W; u += 7 * k) edge.push([u, gb1]); scallop(edge, 2.6 * k, rgb(dk)); x.fillStyle = rgb(dk, 0.7); x.fillRect(0, gb0, W, 1.5 * k);
+  for (const m of [-0.15, 0.15, -0.5, 0.5]) { x.strokeStyle = rgb(dk); x.lineWidth = 3.4 * k; x.beginPath(); x.moveTo(fx(m), gb1); x.lineTo(fx(m), 291 * k); x.stroke(); x.strokeStyle = rgb(lt, 0.7); x.lineWidth = 1 * k; x.stroke(); }
+  // --- brief: a string waistband; the front panel is a deep V, the back a Brazilian cut over the middle of the seat
+  const low = (u) => { const m = Math.abs(mOf(u)); const f = m < 0.3 ? Math.min(1, Math.max(0, (m - 0.035) / 0.2)) : Math.min(1, Math.max(0, (0.75 - m - 0.05) / 0.26)); return 0.795 + 0.115 * Math.pow(f, 0.8); }; // lower edge of the cloth at u
+  const brief = () => { x.beginPath(); x.moveTo(0, ty(0.925)); x.lineTo(W, ty(0.925)); for (let u = W; u >= 0; u -= 2 * k) x.lineTo(u, Math.max(ty(0.925), ty(low(u)) + 3 * k)); x.closePath(); };
+  laceFill(brief, rgb(cl));
+  x.save(); brief(); x.clip(); blob(fx(0), ty(0.84), 22 * k, 26 * k, rgb(cl, 0.9)); blob(fx(0), ty(0.86), 12 * k, 14 * k, rgb(lt, 0.4)); for (const u of [0, W]) { blob(u, ty(0.85), 40 * k, 30 * k, rgb(cl, 0.85)); blob(u, ty(0.88), 3 * k, 30 * k, rgb(dk, 0.7)); } x.restore(); // satin centre panels, the seam at the back
+  x.strokeStyle = rgb(dk); x.lineWidth = 2 * k; x.beginPath(); for (let u = 0; u <= W; u += 2 * k) { const yy = Math.max(ty(0.925), ty(low(u)) + 3 * k); if (!u) x.moveTo(u, yy); else x.lineTo(u, yy); } x.stroke();
+  x.fillStyle = rgb(cl); x.fillRect(0, ty(0.925) - 2 * k, W, 4 * k); x.fillStyle = rgb(lt, 0.6); x.fillRect(0, ty(0.925) - 2 * k, W, 1 * k); // the string
+  x.fillStyle = rgb(lt); for (const s of [-1, 1]) { x.beginPath(); x.ellipse(fx(s * 0.014), ty(0.925), 4 * k, 2.4 * k, s * 0.4, 0, 7); x.fill(); }
+  for (const u of [fx(-0.55), fx(0.55)]) blob(u, ty(0.84), 34 * k, 22 * k, rgb(skl, 0.35)); // a highlight on each bare cheek
+  // --- arms: bare, a lace wrist band; the cuff rows double as the neck band, so that is a choker
+  x.fillStyle = rgb(sk); x.fillRect(0, 290 * k, W, 110 * k); blob(128 * k, 320 * k, 120 * k, 20 * k, rgb(skl, 0.25));
+  x.fillStyle = rgb(dk); x.fillRect(0, 381 * k, W, 5 * k); x.fillStyle = rgb(lt, 0.5); x.fillRect(0, 381 * k, W, 1 * k);
+  // --- legs: bare thigh, then a lace stocking top and sheer stockings with a back seam and a soft sheen down the shin
+  x.fillStyle = rgb(sk); x.fillRect(0, 440 * k, W, 72 * k);
+  const st = sk.map((v, i) => v * 0.5 + dk[i] * 0.3 + 6), g = x.createLinearGradient(0, 452 * k, 0, 512 * k); g.addColorStop(0, rgb(st)); g.addColorStop(1, rgb(st.map((v) => v * 0.85)));
+  x.fillStyle = g; x.fillRect(0, 452 * k, W, 60 * k);
+  x.save(); x.globalAlpha = 0.9; laceFill(() => { x.beginPath(); x.rect(0, 0, 0, 0); }, 'rgba(0,0,0,0)'); x.restore();
+  x.fillStyle = rgb(dk); x.fillRect(0, 448 * k, W, 7 * k); x.strokeStyle = rgb(lt, 0.45); x.lineWidth = 0.8 * k; for (let u = 0; u < W; u += 5 * k) { x.beginPath(); x.moveTo(u, 448 * k); x.lineTo(u + 4 * k, 455 * k); x.moveTo(u + 4 * k, 448 * k); x.lineTo(u, 455 * k); x.stroke(); }
+  const hem = []; for (let u = 0; u <= W; u += 6 * k) hem.push([u, 448 * k]); scallop(hem, 2.2 * k, rgb(dk));
+  for (const u of [128 * k, 384 * k]) blob(u, 480 * k, 26 * k, 34 * k, 'rgba(255,255,255,.14)');
+  x.strokeStyle = rgb(dk, 0.75); x.lineWidth = 1.4 * k; for (const u of [1 * k, 256 * k, W - 1 * k]) { x.beginPath(); x.moveTo(u, 455 * k); x.lineTo(u, 512 * k); x.stroke(); }
 }
 
 // looks (js/characters.js fields)
@@ -71,7 +81,7 @@ const LOOK = {
   tryshtahn: { tex: 512, skin: hex01(0xc8906a), hair: hex01(0x1a1410), hs: 'buzz', stubble: 1, stache: 1, smile: 1, calm: 1, hat: 'wrap', hatC: hex01(0x1c2a5a), body: 'big', watch: 1, B: { nowatch: false },
     shirt: hex01(0x14161c), jacket: hex01(0x14161c), pants: hex01(0x14161c), shoes: hex01(0x0e0c0a), tee: 1,
     shirtPaint: { shirt: [0x14, 0x16, 0x1c], pants: [0x14, 0x16, 0x1c], skin: [0xf6, 0xf6, 0xf2], belt: [0x0e, 0x0c, 0x0a], vDepth: 1.42, chain: false, sleeves: 'long', buttons: true } },
-  dancer: (skin, hair, outfit, hs, lingerie) => ({ paintBody: (cv) => paintLingerie(cv, skin, lingerie || outfit), tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, jiggle: 1, B: { nowatch: true, gluteK: 4.4 },
+  dancer: (skin, hair, outfit, hs, lingerie, extra) => ({ ...(extra || {}), paintBody: (cv) => paintLingerie(cv, skin, lingerie || outfit), tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, jiggle: 1, glam: 1, B: { nowatch: true, gluteK: 4.4, hourglass: 1, bustK: 1.3 },
     shirt: hex01(outfit), jacket: hex01(outfit), pants: hex01(outfit), shoes: hex01(0x111111), tee: 1, /* a stage catsuit: no skirt tube over the hips */
     shirtPaint: { shirt: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], pants: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], skin: [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], neck: 'crew', sleeves: 'rolled', buttons: false } }),
 };
@@ -79,11 +89,11 @@ LOOK.statue = { tex: 512, fem: 1, skin: hex01(0xf2f0ea), hair: hex01(0xe8e4dc), 
   shirt: hex01(0xf4f2ee), jacket: hex01(0xf4f2ee), pants: hex01(0xf4f2ee), shoes: hex01(0xf2f0ea), tee: 1, skirt: hex01(0xf4f2ee),
   shirtPaint: { shirt: [0xf4, 0xf2, 0xee], pants: [0xf4, 0xf2, 0xee], skin: [0xf2, 0xf0, 0xea], neck: 'crew', sleeves: 'long', buttons: false } }; // a marble figure in a draped robe
 const DANCERS = [
-  { name: 'Brie', skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, lingerie: 0xe8287a, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
-  { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, lingerie: 0x1c1a24, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
-  { name: 'Edam', skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, lingerie: 0xc8141e, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
+  { name: 'Brie', skin: 0xf2d0b8, hair: 0xe8c46a, outfit: 0xe83a8a, lingerie: 0xe8287a, extra: { lips: hex01(0xe02a6a), shadow: hex01(0x9a4a8a), iris: hex01(0x3a7aba) }, hs: 'long', card: 'Brie dances to "Gouda Vibrations". Eddy Jr. holds his breath for the entire song. Jossi claps on the wrong beat.' },
+  { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, lingerie: 0x1c1a24, extra: { lips: hex01(0xb81428), shadow: hex01(0x3a2a3a), iris: hex01(0x4a8a5a), mole: 1 }, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
+  { name: 'Edam', skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, lingerie: 0xc8141e, extra: { lips: hex01(0xc21830), shadow: hex01(0xb8862a), iris: hex01(0x6a4a2a) }, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
 ];
-export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie)); // dev/characters.html ?set=dancers
+export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra)); // dev/characters.html ?set=dancers
 const DANCE = 50, ENTRY = 200;
 
 export function createVenues(deps) {
@@ -220,7 +230,7 @@ export function createVenues(deps) {
   // the people
   const creplach = deps.makePerson(LOOK.creplach); creplach.position.set(K.door + 1.45, 0, K.part + 0.75); creplach.rotation.y = 0; scene.add(creplach);
   const jossi = deps.makePerson(LOOK.jossi, 0.92); const js = K.seats[2]; jossi.position.set(js.x, 0, js.z); jossi.rotation.y = js.ry + Math.PI; scene.add(jossi); deps.sit(jossi, 0.5);
-  const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
+  const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
   const extras = [0, 4].map((k, i) => { const s = K.seats[k], p = deps.passerBy(700 + i * 13); p.position.set(s.x, 0, s.z); p.rotation.y = s.ry + Math.PI; scene.add(p); deps.sit(p, 0.5); return p; });
 
   const paid = () => C().paidDay === day();
