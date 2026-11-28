@@ -15,7 +15,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 // stage lingerie, painted over the body sheet (characters.js layout: torso rows 0-290 from Y 1.51 down to 0.8, u 256 = centre front,
 // 0/512 = centre back; sleeves 290-380, cuffs 381-399 (also the neck band: a choker), legs 440-512): smooth skin, a plunge balconette
-// bra with a lace edge, a thong on a thin waistband, a garter belt with straps, sheer stockings with lace tops.
+// bra with a lace edge, a thong on a thin waistband, sheer hold-up stockings with lace tops.
 // No nudity: the bra and the brief are always on.
 function paintLingerie(cv, skin, col) {
   const x = cv.getContext('2d'), W = cv.width, k = W / 512, ty = (Y) => (1.51 - Y) / 0.71 * 290 * k, fx = (m) => (256 + m * 340) * k;
@@ -43,11 +43,7 @@ function paintLingerie(cv, skin, col) {
   }
   blob(fx(0), ty(1.275), 4 * k, 16 * k, rgb(skd, 0.6)); // cleavage
   x.fillStyle = rgb(lt); for (const s of [-1, 1]) { x.beginPath(); x.ellipse(fx(s * 0.012), ty(1.226), 4 * k, 2.4 * k, s * 0.4, 0, 7); x.fill(); } x.fillStyle = rgb(dk); x.beginPath(); x.arc(fx(0), ty(1.226), 1.6 * k, 0, 7); x.fill(); // bow
-  // --- garter belt: a narrow lace band on the hips with four straps
-  const gb0 = ty(0.985), gb1 = ty(0.955);
-  laceFill(() => { x.beginPath(); x.rect(0, gb0, W, gb1 - gb0); }, rgb(cl)); const edge = []; for (let u = 0; u <= W; u += 7 * k) edge.push([u, gb1]); scallop(edge, 2.6 * k, rgb(dk)); x.fillStyle = rgb(dk, 0.7); x.fillRect(0, gb0, W, 1.5 * k);
-  for (const m of [-0.15, 0.15, -0.5, 0.5]) { x.strokeStyle = rgb(dk); x.lineWidth = 3.4 * k; x.beginPath(); x.moveTo(fx(m), gb1); x.lineTo(fx(m), 291 * k); x.stroke(); x.strokeStyle = rgb(lt, 0.7); x.lineWidth = 1 * k; x.stroke(); }
-  // --- brief: a string waistband; the front panel is a deep V, the back a Brazilian cut over the middle of the seat
+  // --- thong: a string waistband, a deep V front panel, a small triangle and string at the back (no garter belt: the stockings are hold-ups)
   // lower edge of the cloth at u: a narrow V at the front, bare hips, and at the back only the thong's small triangle and its string
   const low = (u) => { const m = Math.abs(mOf(u)); const f = m < 0.3 ? Math.min(1, Math.max(0, (m - 0.022) / 0.15)) : Math.pow(Math.min(1, Math.max(0, (0.753 - m - 0.012) / 0.07)), 0.55); return 0.795 + 0.118 * Math.pow(f, 0.8); };
   const brief = () => { x.beginPath(); x.moveTo(0, ty(0.925)); x.lineTo(W, ty(0.925)); for (let u = W; u >= 0; u -= 2 * k) x.lineTo(u, Math.max(ty(0.925), ty(low(u)) + 3 * k)); x.closePath(); };
@@ -64,15 +60,15 @@ function paintLingerie(cv, skin, col) {
   x.fillStyle = rgb(dk); x.fillRect(0, 381 * k, W, 5 * k); x.fillStyle = rgb(lt, 0.5); x.fillRect(0, 381 * k, W, 1 * k);
   // --- legs: bare thigh, then a lace stocking top and sheer stockings with a back seam and a soft sheen down the shin
   x.fillStyle = rgb(sk); x.fillRect(0, 440 * k, W, 72 * k);
-  const st = sk.map((v, i) => v * 0.5 + dk[i] * 0.3 + 6), g = x.createLinearGradient(0, 452 * k, 0, 512 * k); g.addColorStop(0, rgb(st)); g.addColorStop(1, rgb(st.map((v) => v * 0.85)));
-  x.fillStyle = g; x.fillRect(0, 452 * k, W, 60 * k);
+  const st = sk.map((v, i) => v * 0.5 + dk[i] * 0.3 + 6), g = x.createLinearGradient(0, 463 * k, 0, 512 * k); g.addColorStop(0, rgb(st)); g.addColorStop(1, rgb(st.map((v) => v * 0.85)));
+  x.fillStyle = g; x.fillRect(0, 463 * k, W, 49 * k);
   x.save(); x.globalAlpha = 0.9; laceFill(() => { x.beginPath(); x.rect(0, 0, 0, 0); }, 'rgba(0,0,0,0)'); x.restore();
-  x.fillStyle = rgb(dk); x.fillRect(0, 448 * k, W, 7 * k); x.strokeStyle = rgb(lt, 0.45); x.lineWidth = 0.8 * k; for (let u = 0; u < W; u += 5 * k) { x.beginPath(); x.moveTo(u, 448 * k); x.lineTo(u + 4 * k, 455 * k); x.moveTo(u + 4 * k, 448 * k); x.lineTo(u, 455 * k); x.stroke(); }
-  const hem = []; for (let u = 0; u <= W; u += 6 * k) hem.push([u, 448 * k]); scallop(hem, 2.2 * k, rgb(dk));
+  x.fillStyle = rgb(dk); x.fillRect(0, 459 * k, W, 7 * k); x.strokeStyle = rgb(lt, 0.45); x.lineWidth = 0.8 * k; for (let u = 0; u < W; u += 5 * k) { x.beginPath(); x.moveTo(u, 459 * k); x.lineTo(u + 4 * k, 466 * k); x.moveTo(u + 4 * k, 459 * k); x.lineTo(u, 466 * k); x.stroke(); }
+  const hem = []; for (let u = 0; u <= W; u += 6 * k) hem.push([u, 459 * k]); scallop(hem, 2.2 * k, rgb(dk));
   // the leg's own shading (u 256 = the front of the leg, 0/512 = the back): a long sheen down thigh and shin, darker sides, a knee, a back seam
   { const gg = x.createLinearGradient(0, 0, W, 0); gg.addColorStop(0, 'rgba(0,0,0,.2)'); gg.addColorStop(0.22, 'rgba(0,0,0,.28)'); gg.addColorStop(0.5, 'rgba(255,255,255,.2)'); gg.addColorStop(0.78, 'rgba(0,0,0,.28)'); gg.addColorStop(1, 'rgba(0,0,0,.2)'); x.fillStyle = gg; x.fillRect(0, 440 * k, W, 72 * k); }
   blob(256 * k, 462 * k, 22 * k, 14 * k, 'rgba(255,255,255,.2)'); blob(256 * k, 494 * k, 14 * k, 14 * k, 'rgba(255,255,255,.2)'); blob(256 * k, 477 * k, 26 * k, 3 * k, 'rgba(0,0,0,.2)');
-  x.strokeStyle = rgb(dk, 0.8); x.lineWidth = 1.4 * k; for (const u of [1 * k, W - 1 * k]) { x.beginPath(); x.moveTo(u, 455 * k); x.lineTo(u, 512 * k); x.stroke(); }
+  x.strokeStyle = rgb(dk, 0.8); x.lineWidth = 1.4 * k; for (const u of [1 * k, W - 1 * k]) { x.beginPath(); x.moveTo(u, 466 * k); x.lineTo(u, 512 * k); x.stroke(); }
 }
 
 // looks (js/characters.js fields)
