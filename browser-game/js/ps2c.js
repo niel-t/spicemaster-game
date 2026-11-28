@@ -361,7 +361,14 @@ function buildHead(B){TOONHAIR=!!(B&&B.toon);const M=newMesh(),X=[1,0,0],Z=[0,0,
  loft(M,R.map(r=>({c:[0,r[0],r[3]],s:X,f:Z,rx:r[1],rz:r[2],sq:r[4],v:tv(r[0]),w:r[0]<1.6?W2(BI.neck,BI.head,clamp((r[0]-1.5)/0.1,0,1)):W1(BI.head),
   mod:(p,ph)=>{const c=Math.cos(ph);if(c>0.5){p[2]-=(c-0.5)*0.03;}const k=Math.max(0,c);const key=r[0];p[2]+=((nose[key]||0)*Math.pow(k,24)+(brow[key]||0)*k*k+(chin[key]||0)*Math.pow(k,4));return p;}})),16,{capB:{dir:[0,1,0],uv:[0.5,0.004],lift:0.012}});
  if(B&&B.cigar){const cu=[12/512,3/512],eu=[38/512,3/512],w=W1(BI.head);loft(M,[{c:[0.03,1.64,0.1],rx:0.009,rz:0.009},{c:[0.06,1.632,0.175],rx:0.0095,rz:0.0095}].map(r=>Object.assign(r,{s:[1,0,0],f:[0,1,0],w,v:cu[1]})),6,{uvf:()=>cu});loft(M,[{c:[0.06,1.632,0.175],rx:0.0096,rz:0.0096},{c:[0.062,1.6315,0.185],rx:0.0092,rz:0.0092}].map(r=>Object.assign(r,{s:[1,0,0],f:[0,1,0],w,v:eu[1]})),6,{uvf:()=>eu,capB:{dir:[0,0,1],uv:eu}});}
- if(B&&B.hs==='long'&&FH){/* women's long feathered hair: full back and sides to the shoulder blades, a flicked fringe and face-framing wings */
+ if(B&&B.hs==='long'&&FH&&B.hairK==='bob'){/* Spice Master: a sleek chin-length bob with a blunt fringe, a touch longer at the front */
+  hairShell(M,[[1.8,0.118,0.116,-0.012],[1.74,0.134,0.124,-0.016],[1.68,0.14,0.126,-0.018],[1.62,0.142,0.124,-0.018],[1.575,0.138,0.118,-0.016],[1.555,0.126,0.108,-0.014]],16,{open:1.742,c0:0.5,curl:0,bottom:1});
+  for(const s of [1,-1])hairLock(M,s,[[0.1,1.78,0.07,0.02],[0.122,1.7,0.066,0.024],[0.126,1.62,0.064,0.024],[0.118,1.55,0.066,0.018],[0.108,1.525,0.07,0.008]]);}
+ else if(B&&B.hs==='long'&&FH&&B.hairK==='pony'){/* Spice Master: hair pulled back into a high ponytail that swings down to the shoulder blades; two loose strands at the face */
+  hairLock(M,1,[[0,1.845,-0.06,0.05],[0,1.885,-0.115,0.05],[0,1.86,-0.175,0.046],[0,1.76,-0.205,0.044],[0,1.62,-0.2,0.04],[0,1.48,-0.18,0.032],[0,1.38,-0.165,0.016]]);
+  {const bu=[28/512,3/512],w=W1(BI.head);loft(M,[[1.862,-0.088],[1.878,-0.108]].map(q=>({c:[0,q[0],q[1]],s:[1,0,0],f:[0,1,-0.6],rx:0.04,rz:0.04,w,v:bu[1]})),8,{uvf:()=>bu});} /* the scrunchie */
+  for(const s of [1,-1])hairLock(M,s,[[0.088,1.775,0.085,0.008],[0.108,1.71,0.082,0.011],[0.114,1.64,0.078,0.009],[0.108,1.585,0.08,0.004]]);}
+ else if(B&&B.hs==='long'&&FH){/* women's long feathered hair: full back and sides to the shoulder blades, a flicked fringe and face-framing wings */
   hairShell(M,[[1.79,0.122,0.118,-0.014],[1.72,0.132,0.114,-0.026],[1.64,0.136,0.104,-0.04],[1.56,0.132,0.09,-0.056],[1.48,0.126,0.074,-0.07],[1.4,0.122,0.06,-0.08],[1.35,0.126,0.05,-0.084]],14,{open:1.77,c0:0.4,curl:0.015,bottom:1});
   for(const s of [1,-1])hairLock(M,s,[[0.09,1.79,0.06,0.02],[0.118,1.73,0.05,0.026],[0.13,1.66,0.03,0.028],[0.124,1.58,0.02,0.026],[0.13,1.5,0.008,0.022],[0.15,1.45,-0.004,0.012]]);}
  else if(B&&B.hs==='long'){/* long hair: falls behind the head past the shoulders, framing the face */

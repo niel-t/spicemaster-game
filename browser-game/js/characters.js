@@ -211,20 +211,21 @@ function faceSpotprent(y, F) { // newspaper caricature: pen lines and cross-hatc
 }
 function faceGlam(y, F) { // glamour (look.glam: Club Monique's dancers): no caricature lines; smoky lids, lashes, blush and full glossy lips
   const { C, V, L, SKIN, rgb } = F, ey = V(1.705), soft = softF(y), lip = L.lips ? L.lips.map((v) => v * 255) : [200, 36, 70], sh = L.shadow ? L.shadow.map((v) => v * 255) : [90, 50, 110];
-  const ew = 7.4 * (L.eyeK || 1), ex = 12.2;
+  const G = L.glamF || {}, ew = 7.4 * (L.eyeK || 1), ex = 12.2, wing = G.wing ?? 1, lash = G.lash ?? 1;
   for (const s of [1, -1]) {
     const cx = C + s * ex;
     soft(cx + s * 1.5, ey - 6.5, ew * 1.25, 4.6, rgb(sh, 0.6)); soft(cx + s * 4, ey - 4, ew * 0.8, 3, rgb(sh.map((v) => v * 0.5), 0.45)); // smoky lid
-    y.strokeStyle = 'rgba(20,10,8,1)'; y.lineCap = 'round'; y.lineWidth = 1.5; y.beginPath(); y.moveTo(cx + s * (ew - 1.5), ey - 2.2); y.quadraticCurveTo(cx + s * (ew + 1.5), ey - 2.2, cx + s * (ew + 4.2), ey - 4.6); y.stroke(); // winged liner
-    y.lineWidth = 0.8; for (let k = 0; k < 4; k++) { const t = 0.15 + k * 0.25, lx = cx + s * ew * t; y.beginPath(); y.moveTo(lx, ey - 5.2 + t * 2.2); y.lineTo(lx + s * (1.2 + k * 0.5), ey - 8.4 + t * 2.4); y.stroke(); } // lashes
+    y.strokeStyle = 'rgba(20,10,8,1)'; y.lineCap = 'round'; y.lineWidth = 1.5; y.beginPath(); y.moveTo(cx + s * (ew - 1.5), ey - 2.2); y.quadraticCurveTo(cx + s * (ew + 1.5), ey - 2.2, cx + s * (ew + 1.5 + 2.7 * wing), ey - 2.2 - 2.4 * wing * (G.wingUp ?? 1)); y.stroke(); // winged liner
+    y.lineWidth = 0.8; for (let k = 0; k < 4; k++) { const t = 0.15 + k * 0.25, lx = cx + s * ew * t; y.beginPath(); y.moveTo(lx, ey - 5.2 + t * 2.2); y.lineTo(lx + s * (1.2 + k * 0.5) * lash, ey - 5.2 + t * 2.2 - (3.2 - t * 0.2) * lash); y.stroke(); } // lashes
     soft(cx + s * 8.5, V(1.668), 9, 5.5, 'rgba(236,110,120,.5)'); // blush high on the cheekbone
     soft(cx + s * 6, V(1.684), 5, 2.2, 'rgba(255,246,236,.45)'); // highlighter
   }
-  const my = V(1.645) + 0.6, hw = 7.6;
-  y.fillStyle = rgb(lip); y.beginPath(); y.moveTo(C - hw, my); y.quadraticCurveTo(C - 3.4, my - 4.4, C - 1.2, my - 2.8); y.quadraticCurveTo(C, my - 2.2, C + 1.2, my - 2.8); y.quadraticCurveTo(C + 3.4, my - 4.4, C + hw, my); // cupid's bow
-  y.quadraticCurveTo(C + 4, my + 5.6, C, my + 5.4); y.quadraticCurveTo(C - 4, my + 5.6, C - hw, my); y.closePath(); y.fill();
-  y.strokeStyle = rgb(lip.map((v) => v * 0.45), 0.9); y.lineWidth = 0.9; y.beginPath(); y.moveTo(C - hw, my); y.quadraticCurveTo(C, my + 1.6, C + hw, my); y.stroke(); // the parting, a slight smile
-  soft(C - 1.5, my + 2.8, 3.4, 1.3, 'rgba(255,255,255,.6)'); // gloss
+  const my = V(1.645) + 0.6, hw = 7.6 * (G.lipW ?? 1), up = G.lipUp ?? 1, lo = G.lipLo ?? 1, bow = G.bow ?? 1;
+  y.fillStyle = rgb(lip); y.beginPath(); y.moveTo(C - hw, my); y.quadraticCurveTo(C - 3.4, my - 4.4 * up, C - 1.2, my - 2.8 * up); y.quadraticCurveTo(C, my - (2.8 - 0.6 * bow) * up, C + 1.2, my - 2.8 * up); y.quadraticCurveTo(C + 3.4, my - 4.4 * up, C + hw, my); // cupid's bow
+  y.quadraticCurveTo(C + 4, my + 5.6 * lo, C, my + 5.4 * lo); y.quadraticCurveTo(C - 4, my + 5.6 * lo, C - hw, my); y.closePath(); y.fill();
+  y.strokeStyle = rgb(lip.map((v) => v * 0.45), 0.9); y.lineWidth = 0.9; y.beginPath(); y.moveTo(C - hw, my); y.quadraticCurveTo(C, my + (G.smile ?? 1.6), C + hw, my); y.stroke(); // the parting, a slight smile
+  soft(C - 1.5, my + 2.8 * lo, 3.4, 1.3 * lo, 'rgba(255,255,255,.6)'); // gloss
+  if (G.freckles) { y.fillStyle = 'rgba(150,90,60,.5)'; const r = rnd('fr'); for (let i = 0; i < 26; i++) { y.beginPath(); y.arc(C + (r() - 0.5) * 34, V(1.682) + (r() - 0.5) * 9, 0.45, 0, 7); y.fill(); } }
   if (L.mole) { y.fillStyle = 'rgba(40,20,14,.9)'; y.beginPath(); y.arc(C + 9.5, my - 3.5, 0.8, 0, 7); y.fill(); }
 }
 function faceRubber(y, F) { // latex satire puppet: airbrushed blotches, deep sculpted creases, ruddy cheeks, a sheen
@@ -267,8 +268,9 @@ function styleLook(look) {
   if (!STY || look.toon === false || look.noPx || look.pxMat) return look;
   const r = rnd(JSON.stringify([look.skin, look.hair, look.hs, look.body, look.shirt])), hair = look.hair, old = !!(hair && hair[0] > 0.6 && Math.abs(hair[0] - hair[2]) < 0.16);
   if (look.glam) { /* glamour instead of caricature: a small nose, big made-up eyes, no jowls or wrinkles; the ink look stays */
-    const L = { ...look, eyeK: 1.18, irisK: 1.12, lidK: 1.08, noNose: true, pxFace: faceGlam, headScale: look.headScale ?? 1.07, pxMat: STY.mat, noseC: look.skin.map((v) => v * 0.97) };
-    L.B = { ...(look.B || {}), px: { nose: 0.7, ear: 0.85, jaw: 0, brow: 0.3, chin: 0.7, noseW: 0.85 } };
+    const gf = look.glamF || {};
+    const L = { ...look, eyeK: gf.eye ?? 1.18, irisK: gf.iris ?? 1.12, lidK: gf.lid ?? 1.08, noNose: true, pxFace: faceGlam, headScale: look.headScale ?? 1.07, pxMat: STY.mat, noseC: look.skin.map((v) => v * 0.97) };
+    L.B = { ...(look.B || {}), px: { nose: gf.nose ?? 0.7, ear: 0.85, jaw: gf.jaw ?? 0, brow: 0.3, chin: gf.chin ?? 0.7, noseW: gf.noseW ?? 0.85, hook: gf.hook || 0, droop: gf.droop || 0 } };
     return L;
   }
   const heavy = look.body === 'fat' ? 1.6 : look.body === 'stocky' || look.body === 'big' ? 1.25 : 1, k = look.pxK || {};
