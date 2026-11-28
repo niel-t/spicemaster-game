@@ -130,6 +130,9 @@ export function createWijk(deps) {
     const n0 = scene.children.length, s0 = deps.solids.length, f0 = deps.fadeables.length;
     const track = () => { for (let i = n0; i < scene.children.length; i++) t.objs.push(scene.children[i]); for (let i = s0; i < deps.solids.length; i++) t.sols.push(deps.solids[i]); for (let i = f0; i < deps.fadeables.length; i++) t.houses.push(deps.fadeables[i]); return (towns[key] = t); };
     if (W.custom) { buildAir(t); return track(); }
+    // a district is as long as its joints need: every joint gets a row of shops to itself (three rows a block, less the plein)
+    const nB = Math.max(deps.low ? 3 : 4, Math.ceil((deps.joints(key).length + 1) / 3)), XS = Array.from({ length: nB + 1 }, (q, i) => i * 76), BLK = XS.slice(1).map((x, i) => [XS[i] + 6, x - 6]), XE = XS[XS.length - 1];
+    const RECT = { x0: -5.6, x1: XE + 5.6, z0: SZ[0] - RW - PV + 0.4, z1: SZ[SZ.length - 1] + RW + PV - 0.4 }; t.XS = XS;
     t.rect = XS.length > 2 ? { ...RECT, z0: SA - RW - PV - 9.3 } : RECT; t.vanAt = { x: XS[0] + 1, z: SA + RW - 1.2 }; t.oprit = { x: XE, z: SA + 1 }; t.lines = SZ.map((zs) => ({ x0: -4, x1: XE + 4, lanes: [zs - 0.5, zs + 2.5], walks: [zs - RW - 1.3, zs + RW + 1.5] }));
     const g = new THREE.Group(), K = deps.kit(), WH = 0xf4f2ec, X0 = XS[0] - 6, X1 = XE + 6, L = X1 - X0, ZN = SZ[SZ.length - 1];
     // the dwarsstraten that run north into the first street end at a rotonde, with a plein and a landmark behind it
@@ -366,5 +369,5 @@ export function createWijk(deps) {
   }
   let lineKey = null, lineOut = null;
   const streets = () => { if (!T) return null; if (lineKey !== T) { lineKey = T; lineOut = T.lines.map((l) => ({ x0: T.O.x + l.x0, x1: T.O.x + l.x1, lanes: l.lanes.map((z) => T.O.z + z), walks: l.walks.map((z) => T.O.z + z), rings: l.rings && l.rings.map((r) => ({ x: T.O.x + r.x, z: T.O.z + r.z })), ring: RING_WIJK })); } return lineOut; };
-  return { enter, leave, travel, snelweg, streets, update, AIR, WIJKEN, XS, SZ, vehicle: () => veh, get active() { return !!T; }, get town() { return T; }, towns, rect: RECT, origin: (key) => origin(WIJKEN[key]) };
+  return { enter, leave, travel, snelweg, streets, update, AIR, WIJKEN, get XS() { return T && T.XS ? T.XS : XS; }, SZ, vehicle: () => veh, get active() { return !!T; }, get town() { return T; }, towns, rect: RECT, origin: (key) => origin(WIJKEN[key]) };
 }
