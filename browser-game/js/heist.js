@@ -39,6 +39,8 @@ export function createHeists(deps) {
     h.runs = +h.runs || 0; h.clean = +h.clean || 0; h.freePlans = +h.freePlans || 0; h.dailyBest = h.dailyBest || {};
     if ((state.ngp || 0) !== (h.ngpSeen || 0)) { h.ngpSeen = state.ngp || 0; h.susp = {}; h.plans = {}; } // New Game+: the factions forget who robbed them
     if (h.day !== day()) roll(h);
+    // an extra target from another module (js/blokaas.js: the Blokaas hall in Almere), refreshed on every look at the board
+    h.targets = h.targets.filter((t) => !t.ext); { const x = deps.extraTarget && deps.extraTarget(); if (x) h.targets.push({ ...x, ext: true }); }
     return h;
   }
   function roll(h) { // tonight's targets, seeded by the market day
@@ -96,6 +98,8 @@ export function createHeists(deps) {
     const extra = Math.min(4, h.susp[t.faction] || 0);
     if (deps.closePC) deps.closePC();
     const kind = t.kind || 'kratten';
+    if (t.ext) { deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day(), lockpick: !!h.tools.lockpick, shoes: !!h.tools.shoes, nv: !!h.tools.nv || !!(state.gear && state.gear.nvg), faction: t.faction, kind: t.kind, docs: t.docs, absent: t.absent, extra: 0, theme: t.theme, to: t.to,
+      onEnd: (res) => { h.runs++; if (!res.loud && (res.docs || []).length) h.clean++; if (t.onEnd) t.onEnd(res); setTimeout(() => { econ.advance('on a Nachtklus'); if (deps.save) deps.save(); }, 4500); if (deps.save) deps.save(); } }); return; }
     deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, shoes: !!h.tools.shoes, nv: !!h.tools.nv || !!(state.gear && state.gear.nvg), faction: t.faction, safe: !!t.safe, special: t.tutorial ? 'grill' : kind === 'recept' ? 'book' : null, kind, blackout: kind === 'stroom', cashX: (t.daily ? 2 : 1) * (kind === 'stroom' ? 1.5 : 1), extra: kind === 'spook' ? Math.max(2, extra) : extra, onEnd: (res) => ended(t, res) });
   }
   function ended(t, res) {
@@ -140,7 +144,7 @@ export function createHeists(deps) {
     for (const [n, t] of h.targets.entries()) {
       const planned = h.plans[t.id] === day() || t.tutorial, s = h.susp[t.faction] || 0;
       const lock = lockOf(t), J = JOBS[t.kind];
-      out += `<tr${lock ? ' style="opacity:.6"' : ''}><td><b>${t.title}</b><br><small>${FNAME[t.faction] || ''}${t.tutorial ? ' · tutorial' : J && t.kind !== 'kratten' ? ` · <b>${J.name}</b>` : ''}</small></td><td><small>${t.note}</small></td><td><small>${t.kind === 'stroom' ? 'torches' : s ? `on edge (+${Math.min(4, s)})` : 'skeleton crew'}</small></td><td>${lock ? `<small style="color:#888">🔒 ${lock}</small>` : `${planned ? '<small style="color:#070">floor plan ✓</small><br>' : `<button class="b95" data-hplan="${n}">${h.freePlans ? `Free floor plan (${h.freePlans} left)` : `Floor plan ${fmt(PLAN_COST)}`}</button><br>`}<button class="b95" data-hgo="${n}" style="margin-top:4px">Go tonight</button>`}</td></tr>`;
+      out += `<tr${lock ? ' style="opacity:.6"' : ''}><td><b>${t.title}</b><br><small>${FNAME[t.faction] || ''}${t.tutorial ? ' · tutorial' : J && t.kind !== 'kratten' ? ` · <b>${J.name}</b>` : ''}</small></td><td><small>${t.note}</small></td><td><small>${t.guards || (t.kind === 'stroom' ? 'torches' : s ? `on edge (+${Math.min(4, s)})` : 'skeleton crew')}</small></td><td>${lock ? `<small style="color:#888">🔒 ${lock}</small>` : `${planned ? '<small style="color:#070">floor plan ✓</small><br>' : `<button class="b95" data-hplan="${n}">${h.freePlans ? `Free floor plan (${h.freePlans} left)` : `Floor plan ${fmt(PLAN_COST)}`}</button><br>`}<button class="b95" data-hgo="${n}" style="margin-top:4px">Go tonight</button>`}</td></tr>`;
     }
     out += '</table>';
     const hot = hotCount();

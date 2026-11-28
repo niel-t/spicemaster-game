@@ -33,6 +33,7 @@ import uitjesbuurt from './levels/uitjesbuurt.js';
 import frietwijk from './levels/frietwijk.js';
 import sauzenbuurt from './levels/sauzenbuurt.js';
 import knoflooksteeg from './levels/knoflooksteeg.js';
+import blokaashal from './levels/blokaashal.js';
 import mayonaisemarkt from './levels/mayonaisemarkt.js';
 import halvekipplein from './levels/halvekipplein.js';
 import bitterbalbuurt from './levels/bitterbalbuurt.js';
@@ -70,7 +71,7 @@ import { NOSHGEY } from './levels/noshgey.js';
 import { ABDAVISSIES } from './levels/docks.js';
 const SIEGE_LOOKS = { noshgey: NOSHGEY, abdavissies: ABDAVISSIES }; // a rival siege dresses the attackers in that faction's colours
 
-export const LEVELS = { warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen, couscouskade, zaatarmarkt, sumaksteeg, harissahof, dadelplein, kasbahalgara };
+export const LEVELS = { blokaashal, warehouse, spekbuurt, kroketkade, uitjesbuurt, frietwijk, sauzenbuurt, knoflooksteeg, mayonaisemarkt, halvekipplein, bitterbalbuurt, pindasausplein, joppiehaven, frikandelhaven, havermelkhaven, kombuchakwartier, gembergracht, avocadoakkers, glutenvrijegaarde, quinoaplantage, oatoase, speltpolder, komijnkade, kaneelsilos, paprikapakhuis, kruidnagelkade, peperhaven, kurkumaloods, saffraanpier, nootmuskade, smokkelsloot, containerchaos, kardemomdok, goudenmolen, couscouskade, zaatarmarkt, sumaksteeg, harissahof, dadelplein, kasbahalgara };
 
 export function initMission(ctx) {
   const { THREE, scene, camera, player, state, box, cyl, lam, makePerson, animate, toast, beep, addMoney,
@@ -696,6 +697,21 @@ export function initMission(ctx) {
       disarm: ['Je pistool... is van mij.', 'Pols. Draaien. Klaar.', 'Dat hoort hier niet.'],
       down: ['STEVEN ZEEGAAL IS DOWN', 'Direct-to-video. Again.'],
     },
+    // the Blokaas break-in (2026-11-28): Hans and Conny run the hall day and night. Unarmed; being seen is the danger, not a fight
+    hans: {
+      name: 'HANS BLOKAAS', hp: 1, speed: 0.8, dodge: 0, mass: 1.3, score: 0,
+      look: { head: { skin: 0xe8b090, hair: '#8c7a5e', brow: '#6a5a44', hairLine: 84, mouth: 'smile', iris: '#4a6a7a' }, front: '#6a6a5e', shirt: 0x6a6a5e, pants: 0x3a3c44, shoes: 0x3a2a1a },
+      alert: ['Inbreker. Om 02:14. Ik noteer het.', 'U bent hier niet geautoriseerd.', 'Dit staat niet in het rooster.', 'Conny. Er is iemand in de hal.'],
+      hurt: ['Au. Dat was niet nodig.', 'Ik ga dit melden.'],
+      down: ['HANS IS DOWN', 'He will remember the exact time.'],
+    },
+    conny: {
+      name: 'CONNY BLOKAAS', hp: 1, speed: 0.85, dodge: 0, mass: 1.2, score: 0,
+      look: { head: { skin: 0xf0c0a4, hair: '#8a5a30', brow: '#6a4422', hairLine: 96, mouth: 'smile', iris: '#5a7a6a', long: true }, front: '#f0c4cc', shirt: 0xf0c4cc, pants: 0x2a2a34, shoes: 0x2a2a2a, skirt: 0x2a2a34 },
+      alert: ['HANS! Inbrekers! Waarom overkomt ons dit altijd?!', 'Weet je wel hoe hard wij werken?!', 'Na alles wat wij hebben meegemaakt!', 'Ik bel de politie! En mijn zus!'],
+      hurt: ['Mijn rug! Mijn knie!', 'Zie je nou! Slachtoffer!'],
+      down: ['CONNY IS DOWN', 'She will tell everyone. Everyone.'],
+    },
   };
   const enemies = [];
   // sight lines (Neon Vice, Easy): a red laser while a gunman aims at you, and yellow vision cones on the floor, cut off by walls.
@@ -1124,7 +1140,7 @@ export function initMission(ctx) {
   const CONE_C = { idle: 0xf2c14e, search: 0xe8862c, chase: 0xff2a3a };
   function heistSetup() {
     for (const c of HS.cones) root.remove(c); HS.cones.length = 0;
-    if (HS.safe) root.remove(HS.safe.g); if (HS.special) root.remove(HS.special.g);
+    if (HS.safe) root.remove(HS.safe.g); if (HS.special) root.remove(HS.special.g); for (const dc of HS.docs || []) root.remove(dc.g);
     stealthClear();
     Object.assign(HS, { bag: [], banked: [], cash: 0, alarm: 0, loud: false, safe: null, special: null, pick: 0, quietShots: 0, kos: 0, lit: 1, fixT: 0, failed: false });
     nightVision(false); spySuit(!!HEIST);
@@ -1152,6 +1168,16 @@ export function initMission(ctx) {
       const pages = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.05, 0.23), lam({ color: 0xf2ead8 })); pages.position.y = 0.8; pages.rotation.y = 0.3; g.add(pages);
       const glow = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 24), new THREE.MeshBasicMaterial({ color: 0xe8a33d, transparent: true, opacity: 0.7 })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.04; g.add(glow);
       root.add(g); HS.special = { g, glow, taken: false, kind: 'book' };
+    }
+    HS.docs = [];
+    if (HEIST.docs && LV.docs) for (const dc of HEIST.docs) { // the Blokaas break-in: their paperwork, one folder each
+      const at = LV.docs[dc.id]; if (!at) continue;
+      const g = new THREE.Group(); g.position.copy(L(at[0], at[1]));
+      const stand = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.78, 0.42), lam({ color: 0x8a8e92 })); stand.position.y = 0.39; g.add(stand);
+      const folder = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.38), lam({ color: dc.col || 0x2a5aa0, emissive: 0x0a0a14 })); folder.position.y = 0.81; folder.rotation.y = 0.25; g.add(folder);
+      const paper = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.02, 0.34), lam({ color: 0xf4f0e4 })); paper.position.y = 0.85; paper.rotation.y = 0.25; g.add(paper);
+      const glow = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 24), new THREE.MeshBasicMaterial({ color: 0xcbb8ec, transparent: true, opacity: 0.7 })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.04; g.add(glow);
+      root.add(g); HS.docs.push({ ...dc, g, glow, taken: false });
     }
     if (HEIST.safe) { // a safe in the boss's room (or by the last crate)
       const b = enemies.find((e) => e.userData.foe.boss), src = b ? b.userData.foe.spawn : (LV.loot && LV.loot.at(-1)) || LV.start;
@@ -1204,7 +1230,7 @@ export function initMission(ctx) {
     if (!HEIST || HS.loud) return;
     HS.alarm = Math.min(100, HS.alarm + n);
     if (HS.alarm >= 100) {
-      HS.loud = true; if (HEIST.kind === 'spook') { HS.failed = true; banner('CONTRACT BLOWN', 'A ghost contract dies with the alarm. Get out: whatever you carry still sells.', 3.5); } else banner('ALARM!', "They know you're here. It's a loud raid now: grab what you can and get to the van.", 3.5); sfx('alert');
+      HS.loud = true; if (HEIST.kind === 'blokaas') { HS.failed = true; banner('GESNAPT', 'Hans has the exact time written down and Conny is on the phone. Run for the Oofmobiel with what you have.', 3.8); } else if (HEIST.kind === 'spook') { HS.failed = true; banner('CONTRACT BLOWN', 'A ghost contract dies with the alarm. Get out: whatever you carry still sells.', 3.5); } else banner('ALARM!', "They know you're here. It's a loud raid now: grab what you can and get to the van.", 3.5); sfx('alert');
       if (HS.dark && HS.fuse && HS.fuse.cut && !HEIST.blackout) powerBack('THE LIGHTS COME BACK ON');
       for (const e of enemies) { const f = e.userData.foe; if (f.alive && f.down <= 0 && f.state !== 'chase') { f.state = 'search'; f.sx = player.position.x; f.sz = player.position.z; f.searchT = 0; f.path = null; } }
     } else if (why) popup(player.position, why, '#ff7a1a');
@@ -1220,6 +1246,7 @@ export function initMission(ctx) {
     if (chased) heistAlarm(dt * 22); else if (!HS.loud) HS.alarm = Math.max(0, HS.alarm - dt * 2);
     stealthTick(dt);
     if (HS.special && !HS.special.taken) HS.special.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006) * 0.3;
+    for (const dc of HS.docs || []) if (!dc.taken) dc.glow.material.opacity = 0.4 + Math.sin(performance.now() * 0.006 + dc.g.position.x) * 0.3;
     heistHud();
   }
   const heistEl = document.createElement('div');
@@ -1248,8 +1275,11 @@ export function initMission(ctx) {
       HS.special.taken = true; HS.special.g.visible = false; HS.bag.push('book');
       popup(player.position, 'THE RECIPE BOOK!', '#ffd23a', true); sfx('pick'); return true;
     }
+    for (const dc of HS.docs || []) if (!dc.taken && near(dc.g, 1.3)) { // paperwork is light: it never fills the bag
+      dc.taken = true; dc.g.visible = false; HS.bag.push('doc:' + dc.id); popup(player.position, dc.name.toUpperCase(), '#cbb8ec', true); sfx('pick'); alertNoise(player.position, 1); return true;
+    }
     for (const l of lootCrates) if (!l.taken && near(l.c)) {
-      if (HS.bag.length >= cap) { toast('BAG FULL', 'Carry it out to the Oofmobiel, then come back for more.', 2.2); return true; }
+      if (HS.bag.filter((x) => !String(x).startsWith('doc:')).length >= cap) { toast('BAG FULL', 'Carry it out to the Oofmobiel, then come back for more.', 2.2); return true; }
       l.taken = true; l.c.visible = l.glow.visible = false; HS.bag.push('crate'); popup(player.position, '+1 CRATE (HOT)', '#ffd23a'); sfx('pick'); return true;
     }
     if (HS.safe && !HS.safe.open && near(HS.safe.g, 1.4)) {
@@ -1263,7 +1293,7 @@ export function initMission(ctx) {
   function heistVan() { // at the Oofmobiel: stash the bag, or drive home with the haul
     const inBag = HS.bag.filter((x) => x !== '-');
     if (inBag.length) { HS.banked.push(...inBag); HS.bag.length = 0; toast('IN THE VAN', `Stashed. ${HS.banked.length} item(s) in the Oofmobiel. Go back for more, or drive home.`, 2.5); sfx('pick'); heistHud(); return; }
-    const res = { crates: HS.banked.filter((x) => x === 'crate').length, grill: HS.banked.includes('grill'), book: HS.banked.includes('book'), bugs: HS.bugs.filter((b) => b.done).length, bugsOf: HS.bugs.length, kos: HS.kos, dark: HS.dark, cash: HS.cash, loud: HS.loud, alarm: Math.round(HS.alarm), kills: R.kills, ghost: !HS.loud && R.kills === 0 && HS.alarm < 35, level: LV.id, title: HEIST.title, kind: HEIST.kind || 'kratten', failed: HS.failed };
+    const res = { docs: HS.banked.filter((x) => String(x).startsWith('doc:')).map((x) => x.slice(4)), crates: HS.banked.filter((x) => x === 'crate').length, grill: HS.banked.includes('grill'), book: HS.banked.includes('book'), bugs: HS.bugs.filter((b) => b.done).length, bugsOf: HS.bugs.length, kos: HS.kos, dark: HS.dark, cash: HS.cash, loud: HS.loud, alarm: Math.round(HS.alarm), kills: R.kills, ghost: !HS.loud && R.kills === 0 && HS.alarm < 35, level: LV.id, title: HEIST.title, kind: HEIST.kind || 'kratten', failed: HS.failed };
     const done = HEIST.onEnd; exit(); if (done) setTimeout(() => done(res), 600);
   }
 
@@ -1421,6 +1451,7 @@ export function initMission(ctx) {
     if (k === 'bug') { const n = HS.bugs.filter((b) => b.done).length; return n >= HS.bugs.length ? 'BUGS PLANTED ✓ · BACK TO THE VAN' : `PLANT THE BUGS ${n}/${HS.bugs.length}`; }
     if (k === 'spook') return HS.failed ? '' : `GHOST CONTRACT · NO ALARM, NO KILLS${R.kills ? ' · BLOWN' : ''}`;
     if (k === 'stroom') return 'BLACKOUT · TORCHES SEE FAR';
+    if (k === 'blokaas') { const all = (HS.docs || []).length, got = (HS.docs || []).filter((d) => d.taken).length; return HS.failed ? 'GESNAPT · TO THE VAN' : `PAPERWORK ${got}/${all}${got && HS.bag.some((x) => String(x).startsWith('doc:')) ? ' · TO THE VAN' : ''}`; }
     return HS.kos ? `SLEEPING GUARDS ${HS.kos}` : '';
   }
   // E (or ACTIE) goes through heistGrab -> stealthUse(); the [E] prompts below also make them clickable / tappable
@@ -1569,7 +1600,8 @@ export function initMission(ctx) {
       REMIX = DEF ? null : HEIST ? rollRemix({ seed: hashStr(`${id}#heist#${opts.heist.day || 0}`), mod: 'nacht' }) : opts.remix && ownsLevel(id) ? rollRemix(opts.remix) : null;
       TOD = !HEIST && !DEF && ctx.tod ? ctx.tod() : null; CROWD = TOD && !(REMIX && REMIX.daily) && state.step === 'free' ? rollCrowd(id, TOD) : null;
       if (HEIST) { REMIX.loot = new Set(lootCrates.map((l, i) => i)); // every crate is up for grabs
-        if (HEIST.extra) for (const i of enemies.map((e, k) => k).filter((k) => !REMIX.keep.has(k)).slice(0, HEIST.extra)) REMIX.keep.add(i); } // suspicion: more guards
+        if (HEIST.extra) for (const i of enemies.map((e, k) => k).filter((k) => !REMIX.keep.has(k)).slice(0, HEIST.extra)) REMIX.keep.add(i); // suspicion: more guards
+        if (HEIST.absent) enemies.forEach((e, k) => { if (HEIST.absent.includes(e.userData.foe.type)) REMIX.keep.delete(k); }); } // who is not in tonight (the Blokaas: plane spotting)
       const mood = LV.mood;
       M.active = true; root.visible = true; hubLights(true); clearPlayerSplats();
       saved.bg = scene.background.clone(); saved.fog = [scene.fog.color.clone(), scene.fog.near, scene.fog.far]; saved.hemi = hemi.intensity; saved.sun = sun.intensity; saved.hemiC = [hemi.color.clone(), hemi.groundColor.clone()];

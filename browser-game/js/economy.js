@@ -21,7 +21,7 @@ export const INGREDIENTS = [
   { id: 'zaatar', name: "Za'atar", base: 14, supply: 25, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
   { id: 'harissa', name: 'Harissa', base: 12, supply: 30, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
   // fenegriek: the Blokaas' "smaakje". On the market once Eddy has worked out their recipe (js/blokaas.js, gate: state.blokaasRecept)
-  { id: 'fenegriek', name: 'Fenegriek', base: 7, supply: 30, from: 'Groothandel De Zuinige Vaart (Almere)', gate: 'blokaasRecept' },
+  { id: 'fenegriek', name: 'Fenegriek', base: 7, supply: 12, from: 'Blokaas Specijeren (Almere): small lots only', gate: 'blokaasRecept' }, // js/blokaas.js raises it once Eddy has their supplier list
 ];
 export const GRADES = [
   { id: 'lampas', name: 'Lampas', mult: 0.6, stars: 1, note: 'cheap, diluted, smells of flour' },
@@ -788,12 +788,13 @@ export function createEconomy(deps) {
     const e = ensure(), g = INGREDIENTS.find((x) => x.id === id);
     if (!ingOpen(g, state)) return { ok: false, why: g.gate === 'blokaasRecept' ? 'Nobody you know sells this yet.' : 'Only the Paravim bring this, and they do not trade with you yet.' };
     kg = Math.min(kg, orderRoom(), g.supply ? e.supply[id] : Infinity);
-    if (kg <= 0) return { ok: false, why: orderRoom() <= 0 ? (inboundKg() ? 'The warehouse is full once the orders on their way arrive.' : 'The warehouse is full.') : 'Sold out for today.' };
+    if (kg <= 0) { if (orderRoom() > 0 && deps.onBuy) deps.onBuy(id, 99); return { ok: false, why: orderRoom() <= 0 ? (inboundKg() ? 'The warehouse is full once the orders on their way arrive.' : 'The warehouse is full.') : g.id === 'fenegriek' ? 'Sold out for today: the Blokaas only pack so much.' : 'Sold out for today.' }; }
     const cost = expressCost(price(id, gradeId) * kg, express);
     if (state.money < cost) return { ok: false, why: `Not enough Wilders (${fmt(cost)}).` };
     const day = order(id, gradeId, kg, express);
     if (g.supply) e.supply[id] -= kg;
     deps.addMoney(-cost, el);
+    if (deps.onBuy) deps.onBuy(id, kg); // js/blokaas.js: Hans and Conny moan about big fenegriek orders
     if (deps.save) deps.save();
     return { ok: true, kg, cost, day };
   }

@@ -21,6 +21,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { makeBikeModel } from './bikes.js';
 import { mergeStatic } from './richtex.js';
+import { INGREDIENTS, BLENDS } from './economy.js';
 
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 const HANS = 'Hans Blokaas', CONNY = 'Conny Blokaas';
@@ -33,8 +34,8 @@ const GC = '#cbb8ec', WC = '#efc6e6'; // their balloon colours: rival lilac
 
 // ---------- what they say ----------
 // counting, from behind the binoculars (Eddy in sight, a fair way off)
-const SPY_G = ['Zestien zakken komijn sinds tien over acht. Conny, schrijf op: zestien.', 'Het licht in de loods brandt al drie uur en twaalf minuten. Overdag.', 'Bestelbus. Motor draait. Veertien over twee. Noteren.', 'Een nieuwe pallet. Een tweedehands pallet kost de helft. Dat is een feit.', 'Hij geeft zijn personeel koffie. Dat zijn ongeveer tweehonderd kopjes per maand.', 'Om half één eten wij een boterham. Het is nu vijf voor half.', 'Nog tweehonderdveertien werkdagen tot mijn pensioen. Tweehonderddertien na vandaag.']; // Hans: exact, factual, on schedule
-const SPY_W = ['Ik sta hier met mijn knie, Hans. Niemand die vraagt hoe het met mijn knie gaat.', 'Zíjn vader had het ook altijd makkelijk. Wij hebben nooit iets cadeau gekregen.', 'Mijn zus heeft weer niet gebeld. Typisch. En dan zeggen ze dat ík moeilijk doe.', 'Weet je wel hoeveel belasting wij betalen? Niemand die daar aan denkt.', 'Altijd moeten wíj het opknappen. Altijd.', 'Ik heb vannacht weer geen oog dichtgedaan. Door hem. En door de buren.', 'Al dertig jaar worden wij gepest door de grote jongens. Dertig jaar.']; // Conny: always the victim
+const SPY_G = ['Zestien zakken komijn sinds tien over acht. Conny, schrijf op: zestien.', 'Het licht in de loods brandt al drie uur en twaalf minuten. Overdag.', 'Bestelbus. Motor draait. Veertien over twee. Noteren.', 'Een nieuwe pallet. Een tweedehands pallet kost de helft. Dat is een feit.', 'Hij geeft zijn personeel koffie. Dat zijn ongeveer tweehonderd kopjes per maand.', 'Om half één eten wij een boterham. Het is nu vijf voor half.', 'Nog tweehonderdveertien werkdagen tot mijn pensioen. Tweehonderddertien na vandaag.', 'Weer een vrachtwagen. Hij bestelt veel te veel. Dat is niet efficiënt.']; // Hans: exact, factual, on schedule
+const SPY_W = ['Ik sta hier met mijn knie, Hans. Niemand die vraagt hoe het met mijn knie gaat.', 'Zíjn vader had het ook altijd makkelijk. Wij hebben nooit iets cadeau gekregen.', 'Mijn zus heeft weer niet gebeld. Typisch. En dan zeggen ze dat ík moeilijk doe.', 'Weet je wel hoeveel belasting wij betalen? Niemand die daar aan denkt.', 'Altijd moeten wíj het opknappen. Altijd.', 'Ik heb vannacht weer geen oog dichtgedaan. Door hem. En door de buren.', 'Al dertig jaar worden wij gepest door de grote jongens. Dertig jaar.', 'Moet je zien hoeveel hij bestelt. En wíj mogen het dan weer zakken.']; // Conny: always the victim
 // Eddy walks straight at them: suddenly they are birdwatching
 const CAUGHT = ['Wij observeren vogels. Dat klopt niet helemaal. Wij observeren jouw loods.', 'Dit is de openbare weg. Staan is hier toegestaan. Ik heb het nagekeken.', 'Hoe durf je ons zo aan te staren? Wij zijn gewoon twee oude mensen. Met een verrekijker.', 'Conny, hij ziet ons. Ik zei toch dat hij ons zou zien.', 'Zie je nou, Hans? Nu worden wíj weer weggekeken. Altijd wij.', 'Dat is een verrekijker. 8 keer 42. Kringloop, vijf Wilder.'];
 // their gossip when they think nobody is listening (before the poaching: just setting things up)
@@ -59,6 +60,9 @@ function paTalk(kind, s) {
   if (kind === 'exposed') return [['Freddy Sr.', 'Blokaas in the Krant! Conny will tell the whole of Almere that the big bad spice boss bullied two pensioners. She will read it in the library first. For free.'], ['Freddy Sr.', 'Thirty years I waited for this, jongen. Go and make your Polder Shoarma. Make it good.']];
   if (kind === 'bought') return [['Freddy Sr.', 'You paid them? Hm.'], ['Freddy Sr.', '...Good. A Blokaas with money in the sock is quiet for a year. They are busy counting it.']];
   if (kind === 'smack') return [['Freddy Sr.', 'With the Maboota? Eddy. They are pensioners.'], ['Eddy Jr.', 'They were spying, Pa.'], ['Freddy Sr.', '...Did they leave anything behind when they ran? Then it was a little bit worth it.']];
+  if (kind === 'heist') return [['Eddy Jr.', 'Pa. I was in the Blokaas hall last night. Their whole office.'], ['Freddy Sr.', 'In Almere? At night? ...Was Hans at his desk?'], ['Eddy Jr.', 'Counting.'], ['Freddy Sr.', 'Of course. That man counted my paperclips in 1994. Did you put everything back straight? He will know if a folder is one centimetre off.']];
+  if (kind === 'caught') return [['Freddy Sr.', 'Hans called me. At six in the morning. He told me the exact minute you broke in.'], ['Freddy Sr.', 'And Conny got on the line and cried for twenty minutes. About you, her knee, and her sister. Mostly her sister.'], ['Freddy Sr.', 'Next time, jongen: Saturday. On Saturday Hans goes to look at aeroplanes.']];
+  if (kind === 'moan') return [['Eddy Jr.', 'Pa, the Blokaas say I order too much fenegriek. Their own customer!'], ['Freddy Sr.', 'Hah. Thirty years they want to be big, and when the big order comes they cry. Hans has one scale, jongen. One. He calibrates it every morning at six.'], ['Freddy Sr.', 'Find out where THEY buy it. Then you do not need them.']];
   if (kind === 'coffee') return [['Eddy Jr.', 'I gave the Blokaas a coffee.'], ['Freddy Sr.', 'Free coffee for Hans Blokaas? Did he tell you what time it was when he drank it? He always does. And Conny told you about her knee.']];
   return [['Freddy Sr.', 'The Blokaas again? On my pavement? With the binoculars?'], ['Freddy Sr.', 'Let them look, jongen. Looking is free. Copying is hard. They never could.']];
 }
@@ -70,6 +74,9 @@ function shookiTalk(kind, s) {
   if (kind === 'exposed') return [['Shooki', 'Bro, you are in the paper again. Well, THEY are. You are the hero of the paper. Slide nine.'], ['Shooki', 'Hans says Ve-tsin is "a sort of herb". Bro, it is a powder. My nephew knows that and he is six.']];
   if (kind === 'bought') return [['Shooki', 'You paid them to go away, bro?'], ['Shooki', 'Respect. That is what rich people do. Rich people pay people to go away. You are rich people now.']];
   if (kind === 'smack') return [['Shooki', 'Bro! You chased two pensioners down the Kipkruidenkade?'], ['Shooki', 'And they were FASTER than you. On opafietsen. I have it on the dashcam, bro. I watched it nine times.']];
+  if (kind === 'heist') return [['Shooki', 'Bro. BRO. You were inside? Did you see the famous scale? Hans talks about that scale like it is his son.'], ['Shooki', 'Next time take me. I wait in the Kangoo. With the engine off. Hans can hear diesel from two kilometres.']];
+  if (kind === 'caught') return [['Shooki', 'Bro, Conny posted on Facebook. "Inbraak bij ons, niemand denkt aan ons." Four hundred comments, bro. Three hundred are from her.']];
+  if (kind === 'moan') return [['Shooki', 'Bro, Hans texted me too. "Uw collega bestelt te veel." I am not your colleague bro, I am your cousin. He wrote back: "Genoteerd."']];
   if (kind === 'coffee') return [['Shooki', 'Bro, you gave the Blokaas coffee? They came to the Kangoo after and asked for a refill. For the thermos. For tomorrow.']];
   return [['Shooki', 'Bro, the binoculars are back. Hans did not wave, he wrote down what time I parked. Conny waved me over to say nobody ever waves at her.']];
 }
@@ -88,6 +95,8 @@ const STORY = {
   smack: { p: 6.5, head: 'Pensioners chased off the Kipkruidenkade', body: 'Two elderly cyclists fled "at remarkable speed" after a scuffle outside a spice warehouse. A thermos was found in the gutter. It has not been claimed. It is reportedly still warm.' },
   recipe: { p: 4, head: 'Local spice trader launches "Polder Shoarma"', body: 'Snackbar owners talk of "a smell of curry, but honest". The competition from Almere declined to comment, then asked whether the comment would be paid.' },
   exposed: { p: 9.5, head: 'Almere spice firm\'s "secret" turns out to be flavour powder', body: 'Blokaas Specijeren cut its famous Polderkruiden with Ve-tsin. Hans Blokaas: "Ve-tsin is monosodium glutamate. That is correct." Conny Blokaas: "We are the real victims here." Snackbars in Kipkruidenkwartier are switching back to a family business.' },
+  heist: { p: 5.5, head: 'Almere spice firm: "Somebody was in our office"', body: 'Nothing was broken, says Hans Blokaas. "But folder 4 was 1.2 centimetres to the left." Conny Blokaas: "This always happens to us. Always."' },
+  caught: { p: 7, head: 'Break-in at Almere spice firm foiled', body: 'Hans Blokaas logged the intruder at "02:14 exactly". His wife Conny says she has not slept since, "not that anyone asks". The police have "a description, very precise".' },
   bought: { p: 5, head: 'Almere snackbars switch suppliers', body: 'A dozen snackbars in Almere-Buiten now buy from Eddy & Zn. Their old supplier is said to be "very happy with the price". He was seen counting it twice on a bench.' },
 };
 const LETTERS = [
@@ -153,6 +162,7 @@ export function createBlokaas(d) {
       if (Math.random() < 0.25) s.letter = dd;
     }
     if (s.stage >= 5 && s.how === 'bought') { d.addMoney(60); s.paid = (s.paid || 0) + 60; } // the Almere snackbars Eddy took over pay every day
+    if (s.docs && s.docs.klanten) { d.addMoney(50); s.paid = (s.paid || 0) + 50; } // three more, from the stolen customer cards
     d.save();
   }
 
@@ -240,8 +250,10 @@ export function createBlokaas(d) {
   const say = (who, t) => personBubble(who === 'w' ? conny : hans, t, who === 'w' ? WC : GC, who === 'w' ? 'Conny' : 'Hans');
   function tickB(o, dt) { const b = o && o.userData.bubble, u = b && b.userData; if (u && u.life > 0 && (u.life -= dt) <= 0) b.visible = false; }
   function play(lines, then) { seq = { lines: lines.slice(), t: 0, then }; } // a little conversation in balloons, one line every ~2.4 s
+  let perkSig = '';
   function update(dt) {
     tickSms(dt);
+    { const sg = JSON.stringify(S().docs || {}); if (sg !== perkSig) { perkSig = sg; perks(); } } // after a load too
     if (d.ready()) roll();
     const s = S();
     if (s.due.razim && s.razimIn > 0 && d.ready() && !d.busy() && !d.hidden()) { s.razimIn -= dt; if (s.razimIn <= 0) callRazim(); }
@@ -444,6 +456,71 @@ export function createBlokaas(d) {
     d.save();
   }
 
+
+  // ---------- Blokaas as a supplier (Tristan 2026-11-28): they cannot ramp up. Fenegriek comes from them in small lots, and
+  // when Eddy orders a lot Hans quotes article 4 of their terms and Conny cries about her back. Eddy can't stand it.
+  const MOAN_H = ['U bestelde {kg} kg fenegriek. Ons maximum is 12 kg per dag. Dat staat in artikel 4 van onze voorwaarden.', 'Bestelling ontvangen om {t}. Te veel. Wij hebben één weegschaal.', 'Wij kunnen niet opschalen. Dat hebben wij in 1998 ook al gezegd. Groet, Hans', '{kg} kg is niet volgens het rooster. Het rooster is heilig.'];
+  const MOAN_C = ['Eddy, weet je wel wat je ons aandoet met zulke bestellingen? Ik sta de hele nacht te zakken. Met mijn rug.', 'Alweer zo veel?! Denk je dat wij een fabriek zijn?! Wij zijn maar met z\'n tweeën!', 'Door jouw bestelling heb ik mijn zus niet kunnen bellen. Niet dat zij ooit belt.', 'Waarom moet het altijd ons overkomen? Andere klanten bestellen gewoon een beetje.'];
+  const FRUSTRATED = ['Te veel?! Ik ben hun grootste klant!', 'Twaalf kilo per dag... hoe moet ik zo groeien?!', 'Ze willen mijn geld niet eens. Ongelooflijk.', 'Artikel 4. Natuurlijk. Artikel 4.'];
+  function perks() { // what the stolen paperwork changed, re-applied after loading
+    const s = S(), fen = INGREDIENTS.find((g) => g.id === 'fenegriek'), pol = BLENDS.find((b) => b.id === 'polder');
+    const direct = !!(s.docs && s.docs.leveranciers);
+    if (fen) { fen.supply = direct ? 45 : 12; fen.base = direct ? 5.5 : 7; fen.from = direct ? 'Groothandel De Zuinige Vaart (direct, their supplier)' : 'Blokaas Specijeren (Almere): small lots only'; }
+    if (pol && s.docs && s.docs.recepten) { pol.value = 68; pol.note = 'The full Blokaas recipe book, done honestly: real fenegriek, toasted, no Ve-tsin. Snackbars pay more for it.'; }
+  }
+  function onOrder(id, kg) {
+    if (id !== 'fenegriek') return;
+    const s = S(); if (s.docs && s.docs.leveranciers) return; // buying straight from their supplier now
+    s.ordered = s.ordered && s.ordered.d === day() ? s.ordered : { d: day(), kg: 0 }; s.ordered.kg += kg;
+    if (s.ordered.kg < 10 || s.moanDay === day()) return;
+    s.moanDay = day(); s.moans = (s.moans || 0) + 1;
+    const t = `${10 + Math.floor(Math.random() * 7)}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`;
+    if (Math.random() < 0.5) sms([rnd(MOAN_H).replace('{kg}', Math.round(s.ordered.kg)).replace('{t}', t)], HANS); else sms([rnd(MOAN_C)], CONNY);
+    setTimeout(() => { if (!d.busy() && !d.hidden()) personBubble(player, rnd(FRUSTRATED), '#ffd36b', 'Eddy Jr.'); }, 6500);
+    if (s.moans === 1 || s.moans === 4) queue('moan');
+    d.save();
+  }
+
+  // ---------- the night break-in (js/heist.js Plannenbord, js/levels/blokaashal.js) ----------
+  // Hans and Conny are in the hall day and night, unless Hans is out spotting planes (Lelystad has night flights) or they
+  // stayed out late spying on Eddy's warehouse.
+  const DOCS = [
+    { id: 'recepten', name: 'Receptenmap', col: 0xc8302a, prize: 'Their whole recipe book: your <b>Polder Shoarma</b> gets the full treatment and sells for more.' },
+    { id: 'leveranciers', name: 'Leverancierslijst', col: 0x2a5aa0, prize: 'Their supplier: <b>Groothandel De Zuinige Vaart</b>. You buy fenegriek direct now: 45 kg a day, cheaper, and no more moaning.' },
+    { id: 'klanten', name: 'Klantenbak', col: 0x2a8a4a, prize: 'Their customer cards: three Almere snackbars switch to you, <b>+W 50 every market day</b>.' },
+    { id: 'bestellingen', name: 'Map "EDDY (TE VEEL!)"', col: 0xe8a33d, prize: 'Every order you ever placed, with Conny\'s comments in the margin. "Te veel." "Veel te veel." "Waarom wij?" Shooki will love it.' },
+    { id: 'logboek', name: "Hans' spotterslogboek", col: 0x5a5a5a, prize: "Hans's plane-spotting log, 1987 to now: every registration that ever landed at Lelystad. Worthless. You read it all the way home anyway." },
+  ];
+  function night() { // tonight, seeded by the day: who is home
+    const s = S(), dd = day(), r = ((dd * 9301 + 49297) % 233280) / 233280;
+    if (s.here && s.day === dd) return { absent: ['hans', 'conny'], guards: 'nobody: they stayed out late spying on your loods', line: 'They spent the day across from your loods and they are not back yet. The hall is empty.' };
+    if (r < 0.3) return { absent: ['hans'], guards: 'only Conny', line: 'Hans is at Lelystad with his flask and his notebook, spotting night flights. Only Conny walks the hall.' };
+    return { absent: [], guards: 'Hans in the office, Conny in the hall', line: 'Both of them are in. Hans counts in the office, Conny walks the hall and complains to nobody.' };
+  }
+  function heistTarget() {
+    const s = S(); if (!almereOpen()) return null;
+    s.docs = s.docs || {};
+    const left = DOCS.filter((x) => !s.docs[x.id]); if (!left.length) return null;
+    const n = night();
+    return { id: 'blokaashal', title: 'Blokaas Specijeren · inbraak', faction: 'blokaas', kind: 'blokaas', theme: 'almere', to: 'Almere', guards: n.guards, absent: n.absent,
+      note: `Their hall on De Zuinige Vaart, at night. Take their paperwork (${left.length} of ${DOCS.length} folders still there) without being seen. ${n.line}`,
+      docs: left.map(({ id, name, col }) => ({ id, name, col })), onEnd: heistEnd };
+  }
+  function heistEnd(res) {
+    const s = S(); s.docs = s.docs || {};
+    const got = (res.docs || []).filter((id) => !s.docs[id]), lines = [];
+    for (const id of got) { s.docs[id] = day(); const D = DOCS.find((x) => x.id === id); if (D) lines.push(`<b>${D.name}</b>: ${D.prize}`); }
+    if (got.includes('bestellingen') && econ.addRep) econ.addRep(40);
+    if (res.crates) { const e = econ.ensure(), k = 'fenegriek:std'; e.stock[k] = +((e.stock[k] || 0) + res.crates * 5).toFixed(2); lines.push(`${res.crates * 5} kg of their fenegriek in your warehouse.`); }
+    perks();
+    if (res.failed || res.loud) { const fine = 150; d.addMoney(-fine); lines.push(`Hans logged you at the exact minute and Conny called the police: a <b>W ${fine}</b> fine in the post.`); queue('caught'); note('caught'); }
+    else if (got.length) { if (econ.addRep) econ.addRep(80 + got.length * 20); queue('heist'); note('heist'); lines.push('Nobody saw you. Hans will find folder 4 slightly out of line in the morning.'); }
+    if (!lines.length) lines.push('You drove home from Almere with nothing. The hall is still there. So are they.');
+    toast(res.failed || res.loud ? 'BLOKAAS · GESNAPT' : 'BLOKAAS · INBRAAK', lines.join('<br>'), 9);
+    d.save();
+  }
+  perks();
+
   // ---------- hooks for the rest of the game ----------
   const sellBias = (cid) => (S().stage === 2 && S().cid === cid ? 0.8 : 1); // the poached client pays 20% less
   function stories(y) { // facts from yesterday -> the Krant (js/kaasweer.js)
@@ -472,7 +549,7 @@ export function createBlokaas(d) {
     const go = almereOpen() ? (van ? '<button class="b95" id="goAlm">Drive to Almere (A1, A6)</button>' : '<i>Drive there in the Oofmobiel.</i>') : s.stage >= 3 ? '<i>Beat the Lampas first. Then you will have time for Almere.</i>' : '';
     return `<b>Blokaas Specijeren</b>: Hans and Conny Blokaas's spice hall on Bedrijventerrein De Zuinige Vaart, Almere-Buiten. Over the IJmeer on the A6. ${what} ${go}`;
   }
-  return { shopBuild, update, tick, debrief, melee, sellBias, stories, smallAd, extraContacts, phoneScreen, smsScreen, mapState, mapInfo, almereOpen, onEnter, state: S, here: () => !!(root && root.visible),
+  return { onOrder, heistTarget, heistEnd, perks, shopBuild, update, tick, debrief, melee, sellBias, stories, smallAd, extraContacts, phoneScreen, smsScreen, mapState, mapInfo, almereOpen, onEnter, state: S, here: () => !!(root && root.visible),
     // test hooks
     spawn: () => { const s = S(); s.day = day(); s.here = true; s.gone = false; s.heard = false; }, clue, poach, crack, settle, talk };
 }
