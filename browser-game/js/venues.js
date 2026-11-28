@@ -24,8 +24,8 @@ const LOOK = {
   tryshtahn: { tex: 512, skin: hex01(0xc8906a), hair: hex01(0x1a1410), hs: 'buzz', stubble: 1, stache: 1, smile: 1, calm: 1, hat: 'wrap', hatC: hex01(0x1c2a5a), body: 'big', watch: 1, B: { nowatch: false },
     shirt: hex01(0x14161c), jacket: hex01(0x14161c), pants: hex01(0x14161c), shoes: hex01(0x0e0c0a), tee: 1,
     shirtPaint: { shirt: [0x14, 0x16, 0x1c], pants: [0x14, 0x16, 0x1c], skin: [0xf6, 0xf6, 0xf2], belt: [0x0e, 0x0c, 0x0a], vDepth: 1.42, chain: false, sleeves: 'long', buttons: true } },
-  dancer: (skin, hair, outfit, hs) => ({ tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, B: { nowatch: true },
-    shirt: hex01(outfit), jacket: hex01(outfit), pants: hex01(outfit), shoes: hex01(0x111111), tee: 1, skirt: hex01(outfit),
+  dancer: (skin, hair, outfit, hs) => ({ tex: 512, fem: 1, skin: hex01(skin), hair: hex01(hair), hs, smile: 1, calm: 1, body: 'slim', heels: 1, jiggle: 1, B: { nowatch: true, gluteK: 1.8 },
+    shirt: hex01(outfit), jacket: hex01(outfit), pants: hex01(outfit), shoes: hex01(0x111111), tee: 1, /* a stage catsuit: no skirt tube over the hips */
     shirtPaint: { shirt: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], pants: [(outfit >> 16) & 255, (outfit >> 8) & 255, outfit & 255], skin: [(skin >> 16) & 255, (skin >> 8) & 255, skin & 255], neck: 'crew', sleeves: 'rolled', buttons: false } }),
 };
 LOOK.statue = { tex: 512, fem: 1, skin: hex01(0xf2f0ea), hair: hex01(0xe8e4dc), hs: 'long', calm: 1, body: 'slim', B: { nowatch: true },
@@ -36,6 +36,7 @@ const DANCERS = [
   { name: 'Feta', skin: 0xc89070, hair: 0x1a1410, outfit: 0x3ad8e8, hs: 'long', card: 'Feta does a slow spin and a sequin lands in Eddy Jr.\'s hair. He keeps it. He will always keep it.' },
   { name: 'Edam', skin: 0x8a5a3a, hair: 0x1a1410, outfit: 0xf2c14e, hs: 'big', card: 'Edam dances like the rent is due. Eddy Jr. forgets his own name, the warehouse and most of the alphabet.' },
 ];
+export const DANCER_LOOKS = () => DANCERS.map((d) => LOOK.dancer(d.skin, d.hair, d.outfit, d.hs)); // dev/characters.html ?set=dancers
 const DANCE = 50, ENTRY = 200;
 
 export function createVenues(deps) {
@@ -312,7 +313,7 @@ export function createVenues(deps) {
     const open = paid(); K.gate.off = open; K.rope.visible = !open;
     if (!open && inBack(p)) { p.z = K.part + 0.6; } // no sneaking in round Creplach
     // dancers sway round their poles; Jossi leans forward and back
-    for (const d of dancers) { const u = d.userData.dancer, a = t * 0.8 + u.ph; d.position.set(u.pole.x + Math.sin(a) * 0.38, 0.5 + Math.abs(Math.sin(t * 2.2 + u.ph)) * 0.05, u.pole.z + Math.cos(a) * 0.38); d.rotation.y = a + Math.PI / 2 + Math.sin(t * 3 + u.ph) * 0.3; if (deps.animate) deps.animate(d, dt); }
+    for (const d of dancers) { const u = d.userData.dancer, a = t * 0.8 + u.ph; d.position.set(u.pole.x + Math.sin(a) * 0.38, 0.5 + Math.abs(Math.sin(t * 2.2 + u.ph)) * 0.07, u.pole.z + Math.cos(a) * 0.38); d.rotation.y = a + Math.PI / 2 + Math.sin(t * 3 + u.ph) * 0.3; if (deps.animate) deps.animate(d, dt); }
     jossi.rotation.x = Math.sin(t * 1.3) * 0.06;
     if (!ic && K.dotsOn) { K.dotsOn = false; for (const d of K.dots) d.m.visible = false; } // nobody inside: nothing to draw
     if (ic) { K.dotsOn = true; // the disco: the mirror ball turns, the spots sweep the floor, the lights cycle through colours

@@ -152,7 +152,7 @@ function clayTex() { // soft lumpy modelling marks as a normal map (clay style),
 function skinGrain(cv, a) { // pores / clay grain on the head sheet below the swatch strip
   grain(document.createElement('canvas')); const x = cv.getContext('2d'); x.save(); x.globalCompositeOperation = 'soft-light'; x.globalAlpha = a; x.fillStyle = x.createPattern(NOISE, 'repeat'); x.fillRect(0, 16, cv.width, cv.height - 16); x.restore();
 }
-function charMaterial(map, cloth, mode) {
+function charMaterial(map, cloth, mode, jig) {
   const head = !cloth;
   const mat = mode === 'latex' && head ? new THREE.MeshPhongMaterial({ map, shininess: 34, specular: new THREE.Color(0x4a3c36) })
     : mode === 'clay' ? new THREE.MeshLambertMaterial({ map })
@@ -161,6 +161,11 @@ function charMaterial(map, cloth, mode) {
   else if (cloth && !LITE) { const k = mode === 'latex' ? 0.5 : 0.35; mat.normalMap = weaveTex(); mat.normalScale.set(k, k); }
 
   mat.onBeforeCompile = (sh) => {
+    if (jig) { /* butt jiggle: each cheek (a soft ellipsoid behind the hips, in rest space) is pushed by its own spring (jiggleStep) */
+      sh.uniforms.uJigL = jig.L; sh.uniforms.uJigR = jig.R;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uJigL; uniform vec3 uJigR;\nfloat cheek(vec3 p, float sx) { vec3 d = (p - vec3(sx * 0.07, 0.89, -0.09)) / vec3(0.09, 0.11, 0.1); float m = 1.0 - clamp(dot(d, d), 0.0, 1.0); return m * m * smoothstep(0.0, -0.07, p.z); }')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += uJigL * cheek(position, 1.0) + uJigR * cheek(position, -1.0);');
+    }
     sh.uniforms.uRim = U_RIM; sh.uniforms.uRimK = U_RIMK; sh.uniforms.uFill = U_FILL;
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim; uniform float uRimK; uniform float uFill;')
       .replace('#include <opaque_fragment>', `{ vec3 vd = normalize(vViewPosition); float f = 1.0 - clamp(dot(normal, vd), 0.0, 1.0);
@@ -177,7 +182,7 @@ function charMaterial(map, cloth, mode) {
         ${mode === 'latex' ? 'outgoingLight += diffuseColor.rgb * vec3(0.10, 0.03, 0.02) * (1.0 - clamp(dot(normal, vd), 0.0, 1.0));' : ''} }
       #include <opaque_fragment>`);
   };
-  mat.customProgramCacheKey = () => 'smeChar' + (mode || '') + (head ? 'H' : '') + (mat.normalMap ? 'N' : '');
+  mat.customProgramCacheKey = () => 'smeChar' + (mode || '') + (head ? 'H' : '') + (mat.normalMap ? 'N' : '') + (jig ? 'J' : '');
   return mat;
 }
 
@@ -281,7 +286,8 @@ export function finishModel(md) {
   grain(bc);
   if (look.pxMat === 'clay' || look.pxMat === 'latex') skinGrain(hc, look.pxMat === 'clay' ? 0.12 : 0.1);
   [shrink(bc), shrink(hc)].forEach((cv, i) => {
-    const mat = charMaterial(canvasTex(cv), i === 0, look.pxMat);
+    const jig = i === 0 && look.jiggle ? (md.jig = { L: { value: new THREE.Vector3() }, R: { value: new THREE.Vector3() } }) : null;
+    const mat = charMaterial(canvasTex(cv), i === 0, look.pxMat, jig);
     const m = new THREE.SkinnedMesh(geos[i], mat);
     m.bind(md.skeleton, new THREE.Matrix4());
     m.boundingSphere = SPHERE.clone(); // fixed sphere: no per-vertex skinning pass to compute one
@@ -553,6 +559,24 @@ function visibleInScene(o) { for (let n = o; n; n = n.parent) { if (!n.visible) 
 
 // sync every live character's bones to its pose; runs right before each render (scene.onBeforeRender)
 const frustum = new THREE.Frustum(), pv = new THREE.Matrix4(), ball = new THREE.Sphere();
+const JV = new THREE.Vector3(), JA = new THREE.Vector3(), JQ = new THREE.Quaternion();
+const JIG = [{ k: 190, c: 5.5 }, { k: 160, c: 5 }]; // the two cheeks ring at slightly different rates, so they don't move as one block
+function jiggleStep(p, W, now) {
+  const q = p.userData.ps2, md = q.md; if (!md.jig) return;
+  const j = q.jg || (q.jg = { t: now, pos: null, vel: new THREE.Vector3(), s: [0, 1].map(() => ({ x: new THREE.Vector3(), v: new THREE.Vector3() })) });
+  const dt = Math.min(1 / 30, (now - j.t) / 1000); j.t = now; if (dt <= 0) return;
+  const pv = P.M4.ap(W[0], [0, 0.95, -0.06]); JV.set(pv[0], pv[1], pv[2]).applyMatrix4(p.userData.body.matrixWorld);
+  if (!j.pos) { j.pos = JV.clone(); return; }
+  const vel = JA.copy(JV).sub(j.pos).divideScalar(dt); j.pos.copy(JV);
+  const acc = vel.clone().sub(j.vel).divideScalar(dt); j.vel.copy(vel);
+  acc.clampLength(0, 60).applyQuaternion(p.userData.body.getWorldQuaternion(JQ).invert()); // into the body's own frame
+  for (let i = 0; i < 2; i++) {
+    const c = j.s[i], { k, c: damp } = JIG[i];
+    for (let n = 0; n < 2; n++) { const h = dt / 2; c.v.addScaledVector(c.x, -k * h).addScaledVector(c.v, -damp * h).addScaledVector(acc, -h * 2.4); c.x.addScaledVector(c.v, h); }
+    c.x.y = clamp(c.x.y, -0.035, 0.035); c.x.x = clamp(c.x.x, -0.015, 0.015); c.x.z = clamp(c.x.z, -0.02, 0.02);
+  }
+  md.jig.L.value.copy(j.s[0].x); md.jig.R.value.copy(j.s[1].x);
+}
 export function syncCharacters(camera) {
   const now = performance.now();
   // finish queued extras within a small time budget per frame (always at least one)
@@ -565,6 +589,7 @@ export function syncCharacters(camera) {
     if (!p.userData.ps2.md.done) continue;
     if (camera) { ball.copy(SPHERE).applyMatrix4(p.userData.body.matrixWorld); if (!frustum.intersectsSphere(ball)) continue; } // off screen: keep the last pose
     const u = p.userData, W = poseOf(p, now), bones = u.ps2.md.bones;
+    if (u.ps2.md.jig) jiggleStep(p, W, now);
     for (let i = 0; i < bones.length; i++) { bones[i].matrix.fromArray(W[i]); bones[i].matrixWorldNeedsUpdate = true; bones[i].updateMatrixWorld(); }
     // the head proxy follows the head bone so hats, poop splats and props parented to it ride along
     u.head.matrix.fromArray(W[P.BI.head]).multiply(headOff);
