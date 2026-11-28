@@ -59,7 +59,7 @@ import { createBuurtFolk } from './buurtfolk.js'; // the shopkeepers of the bloc
 import { createRegulars, REG_FACES } from './regulars.js'; // de vaste gezichten: eight street regulars with portraits (2026-11-27)
 import { createBuurt, bizSign, bizBySign, place as placeBiz, BIZ } from './buurt.js'; // every business on the block, their ads and the buurtkaart // the week, the seasons, the weather and Krant voor het Kaasvolk
 import { createKaasdows, ICONS as KD_ICONS } from './kaasdows.js'; // the PC's desktop shell: icons, start menu, window frame, boot screen, startup chime
-import { createBlokaas, BLK_FACES } from './blokaas.js'; // the rivals from Almere: Gert & Wilma Blokaas, binoculars across the street (2026-11-28)
+import { createBlokaas, BLK_FACES } from './blokaas.js'; // the rivals from Almere: Hans & Connie Blokaas, binoculars across the street (2026-11-28)
 import { createActivists } from './activists.js'; // the protesters' picket on the pavement, and what Pa, Shooki and Razim think of it
 import { createStreetFolk } from './streetfolk.js'; // passers-by as archetypes: props, poses, habits, their own [E]
 import { createBalloons } from './balloons.js';

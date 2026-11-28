@@ -211,11 +211,11 @@ Object.assign(CAST, {
   slager: { skin: '#e8a68a', shade: '#c4806a', w: 1.06, hair: 'bald', hc: '#8a6a50', brows: 'angry', bc: '#7a5a40', eyes: 'narrow', iris: '#4a5a6a', nose: 'big', mouth: 'frown', clothes: 'butcher', extras: ['stubble', 'arms'], tint: ['#f0a87a', '#d8604a', '#6a1a14'] },
   fluister: { skin: '#dcaa8c', shade: '#b8866c', w: 0.9, hair: 'stringy', hc: '#8a8478', hat: 'beanie', hatc: '#2e3034', brows: 'raised', bc: '#5a5448', eyes: 'wide', iris: '#4a3a2a', nose: 'big', mouth: 'smirk', clothes: 'oliveCoat', extras: ['stubble', 'wrinkles', 'whisper', 'thermos'], tint: ['#d8c08a', '#a8804a', '#3a2814'] },
 });
-// ---- the rivals (2026-11-28): Gert & Wilma Blokaas of Blokaas Specijeren, Almere (js/blokaas.js). Lilac backdrop, the rival colour on the map
+// ---- the rivals (2026-11-28): Hans & Connie Blokaas of Blokaas Specijeren, Almere (js/blokaas.js). Lilac backdrop, the rival colour on the map
 const RIVAL = ['#e6d8f4', '#a888d0', '#3a2458'];
 Object.assign(CAST, {
-  gert: { skin: '#eab896', shade: '#c89276', w: 0.86, hair: 'greySides', hc: '#bcb8b0', brows: 'sly', bc: '#9a968e', eyes: 'narrow', iris: '#5a6a7a', glasses: 'thin', nose: 'big', mouth: 'smirk', clothes: 'oliveCoat', extras: ['wrinkles', 'binoculars'], tint: RIVAL },
-  wilma: { skin: '#f0c8ac', shade: '#d0a08a', w: 0.94, hair: 'bob', hc: '#cfc8b8', brows: 'angry', bc: '#a8a090', eyes: 'normal', iris: '#4a5a4a', glasses: 'round', mouth: 'smirk', clothes: 'cardigan', extras: ['wrinkles', 'beads', 'tin'], tint: RIVAL },
+  hans: { skin: '#eab896', shade: '#c89276', w: 0.86, hair: 'greySides', hc: '#bcb8b0', brows: 'sly', bc: '#9a968e', eyes: 'narrow', iris: '#5a6a7a', glasses: 'thin', nose: 'big', mouth: 'smirk', clothes: 'oliveCoat', extras: ['wrinkles', 'binoculars'], tint: RIVAL },
+  connie: { skin: '#f0c8ac', shade: '#d0a08a', w: 0.94, hair: 'bob', hc: '#cfc8b8', brows: 'angry', bc: '#a8a090', eyes: 'normal', iris: '#4a5a4a', glasses: 'round', mouth: 'smirk', clothes: 'cardigan', extras: ['wrinkles', 'beads', 'tin'], tint: RIVAL },
 });
 
 function cast(key, m, blink) {

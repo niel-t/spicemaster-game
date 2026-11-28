@@ -2,7 +2,7 @@
 // look, with drawn frames for the mouth (closed grin, half open, wide laugh) and for blinking. While a line is on screen the
 // mouth flips between frames in a talking rhythm; they blink every few seconds, the head bobs and tilts a little, and they
 // breathe while listening. Frames: face_xx.jpg (mouth closed), face_xx_m1 / _m2, and the same with _b (eyes shut).
-const ANIM = ['./assets/face_sr.jpg', './assets/face_jr.jpg', ...['shooki', 'jossi', 'truus', 'haring', 'bram', 'sjonnie', 'visser', 'lotte', 'dirk', 'rinus', 'mo', 'bakker', 'naknik1', 'naknik2', 'creplach', 'joop', 'kevin', 'slager', 'fluister', 'gert', 'wilma'].map((k) => `./assets/face_${k}.jpg`)]; // drawn with talking frames (tools/portraits/faces.js, cast.js)
+const ANIM = ['./assets/face_sr.jpg', './assets/face_jr.jpg', ...['shooki', 'jossi', 'truus', 'haring', 'bram', 'sjonnie', 'visser', 'lotte', 'dirk', 'rinus', 'mo', 'bakker', 'naknik1', 'naknik2', 'creplach', 'joop', 'kevin', 'slager', 'fluister', 'hans', 'connie'].map((k) => `./assets/face_${k}.jpg`)]; // drawn with talking frames (tools/portraits/faces.js, cast.js)
 const W = 256, H = 320;
 
 export function createPortraits(img) {
