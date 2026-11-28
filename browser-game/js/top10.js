@@ -1,22 +1,23 @@
 // De Kaasland Top 10 (2026-11-28): a weekly league of the country's spice traders, printed in the Krant voor het Kaasvolk
-// every Maandag, next to the week's bills. Eddy is ranked on what he earned that week (the same figure as Cijfers'
-// "this week"), with a buurt bonus (up to +10% when the buurten like him, down to -10% when they hate him) and a
-// "wanbetaler" mark (-10%) when the gemeente's bills are still open. Against him: the four gangs, who shrink as he takes
-// their joints and puff up when their heat squeezes tolls out of him; Blokaas Specijeren (Hans & Conny, Almere), whose
+// every Maandag, next to the week's bills. Ranked on kilos sold (Tristan: "Top 10 should be based on kilos sold"): for
+// Eddy every kilo of blend that leaves the shelf for a buyer that week (clients, the district joints, Shooki's runs,
+// vaste klanten, stamklanten, spoed jobs, the Groothandel). Against him: the four gangs, who shrink as he takes their
+// joints and puff up when their heat is high; Blokaas Specijeren (Hans & Conny, Almere: cheap kilos by the pallet), whose
 // fortunes follow their storyline (js/blokaas.js); Steven Zeegaal's dojo-spice brand, which never recovers from the
 // Bitterbalbuurt cellar; and a handful of made-up traders up and down the country, each with their own reasons to move.
-// Every trading day has a Dagdoel: the Wilders Eddy needs today to pass the trader above him by Zondag (or to keep the
-// one below him off). Hit it for a small payout; hit all seven for a bonus on Maandag.
+// Every trading day has a Dagdoel: the kilos Eddy needs to sell today to pass the trader above him by Zondag (or to keep
+// the one below him off). Hit it for a small payout; hit all seven for a bonus on Maandag.
 // Climbing pays: a one-off reward the first time he reaches the Top 10, Top 5, Top 3 and #1, W 100 for every place
 // gained, and while he is in the published list the clients pay a little more (the Top 10 sticker on the van).
-// Shooki and Pa (Freddy Sr.) have something to say about it every Maandag.
-// state.top10 = { seed, week, pub, table: [{ id, s, pos, prev, why }], pos, best, hist: [{ w, pos, s }], got: {}, dd, hits: { w, n } }
+// Shooki and Pa (Freddy Sr.) have something to say about it every Maandag; Pa also has words for open bills.
+// state.top10 = { seed, kg: { w, n, day, today }, week, pub, table: [{ id, s, pos, prev, why }], pos, best, hist: [{ w, pos, s }], got: {}, dd, hits: { w, n } }
 
 const fmt = (n) => 'W ' + Math.round(n).toLocaleString('nl-NL');
+const kgf = (n) => Math.round(n).toLocaleString('nl-NL') + ' kg';
 const rng32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const hashStr = (s) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const r10 = (n) => Math.round(n / 10) * 10;
+const r5 = (n) => Math.round(n / 5) * 5;
 
 // the gangs: [faction, joints in the game, boss, what high heat looks like]
 const GANG = {
@@ -25,35 +26,35 @@ const GANG = {
   abdavissies: { n: 11, boss: 'De Abdavis', done: 'act3', heat: 'holding your shipments at the docks' },
   paravim: { n: 6, boss: 'Ras al Gara', done: 'paravim', heat: 'debt collectors at the door, money in their pocket' },
 };
-// base: a normal week's omzet in Wilders. vol: how much a week swings. up/down/same: what the paper says when they move.
+// base: kilos sold in a normal week. vol: how much a week swings. up/down/same: what the paper says when they move.
 export const RIVALS = [
-  { id: 'abdavissies', name: 'Abdavissies Import', where: 'De Duistere Dokken', base: 42000, vol: 0.08, gang: 'abdavissies',
+  { id: 'abdavissies', name: 'Abdavissies Import', where: 'De Duistere Dokken', base: 2600, vol: 0.08, gang: 'abdavissies',
     up: ['a container "fell off" a ship again', 'bought up every kurkuma ship in the harbour'], down: ['customs found the false bottom', 'a crane dropped a pallet of saffraan in the IJ'], same: ['nobody at the docks wants to talk about it'] },
-  { id: 'lampas', name: 'De Lampas', where: 'Oud-Vettenburg', base: 30000, vol: 0.07, gang: 'lampas',
+  { id: 'lampas', name: 'De Lampas', where: 'Oud-Vettenburg', base: 1900, vol: 0.07, gang: 'lampas',
     up: ['flour in the paprika again, but cheap', 'dumped cheap knoflook on every market'], down: ['the snackbars taste the flour', 'two drivers quit to sell frikandellen'], same: ['the same sad Kip Shoarma at the same sad price'] },
-  { id: 'noshgey', name: 'Noshgey Kariot', where: 'Hipsterheuvel', base: 24000, vol: 0.12, gang: 'noshgey',
+  { id: 'noshgey', name: 'Noshgey Kariot', where: 'Hipsterheuvel', base: 1500, vol: 0.12, gang: 'noshgey',
     up: ['"artisanal" masala in a jam jar for W 14', 'an influencer put their turmeric latte on a billboard'], down: ['the oat-milk masala trend is over', 'their kombucha exploded in the warehouse'], same: ['still explaining what "small batch" means'] },
-  { id: 'paravim', name: 'Paravim', where: 'De Zandwijk', base: 19000, vol: 0.1, gang: 'paravim',
+  { id: 'paravim', name: 'Paravim', where: 'De Zandwijk', base: 1200, vol: 0.1, gang: 'paravim',
     up: ['a caravan of ras el hanout made it through', 'the souk had its best week in years'], down: ['a sandstorm (indoors, nobody knows how)', 'the camel strike'], same: ['the souk haggles, the numbers stand still'] },
-  { id: 'kemal', name: 'Kruidenkoning Kemal', where: 'Zaandam · cash & carry', base: 13500, vol: 0.07,
+  { id: 'kemal', name: 'Kruidenkoning Kemal', where: 'Zaandam · cash & carry', base: 850, vol: 0.07,
     up: ['opened a second cash & carry next to the windmills', 'buy two kilo, get a free mortar'], down: ['his son ran the shop for a week', 'roadworks on the A8 again'], same: ['"the King is happy, the King says nothing"'] },
-  { id: 'peper', name: 'Van der Peper & Zn.', where: 'Delfshaven · since 1888', base: 10500, vol: 0.05, fade: 0.008,
+  { id: 'peper', name: 'Van der Peper & Zn.', where: 'Delfshaven · since 1888', base: 600, vol: 0.05, fade: 0.008,
     up: ['grandpa Van der Peper found an old order book'], down: ['still only sells peper, and only black', 'the zoon wants to sell the shop'], same: ['five generations of peper, and it shows'] },
-  { id: 'blokaas', name: 'Blokaas Specijeren', where: 'Almere-Buiten · Hans & Conny', base: 7800, vol: 0.02,
+  { id: 'blokaas', name: 'Blokaas Specijeren', where: 'Almere-Buiten · Hans & Conny', base: 720, vol: 0.02,
     up: ['cut the paprika with something even cheaper', 'Conny got a discount by crying at the wholesaler'], down: ['Hans counted the pallets twice; Conny says the whole market is against them', 'the hall heater was on for ten minutes'], same: ['exactly the same as last week, Hans checked'] },
-  { id: 'zeegaal', name: 'Zeegaal Zen Kruiden', where: 'Steven Zeegaal · "Hard to Kruid"', base: 6000, vol: 0.22,
+  { id: 'zeegaal', name: 'Zeegaal Zen Kruiden', where: 'Steven Zeegaal · "Hard to Kruid"', base: 380, vol: 0.22,
     up: ['a new infomercial: Steven karate-chops a bag of kurkuma', '"Under Seasoning" sauce in every petrol station'], down: ['Steven kicked the shop counter in half', 'the ponytail lotion line flopped'], same: ['Steven stared at the camera for the whole infomercial'] },
-  { id: 'noot', name: 'Gebroeders Nootmuskaat', where: 'Rotterdam · twins', base: 4500, vol: 0.1,
+  { id: 'noot', name: 'Gebroeders Nootmuskaat', where: 'Rotterdam · twins', base: 290, vol: 0.1,
     up: ['the twins stopped arguing for a whole Tuesday'], down: ['the twins split the warehouse with tape down the middle', 'one twin sold the van to the other twin'], same: ['still arguing about whose name goes first'] },
-  { id: 'masala', name: 'Mevrouw Masala', where: 'Utrecht · market stalls', base: 3500, vol: 0.08,
+  { id: 'masala', name: 'Mevrouw Masala', where: 'Utrecht · market stalls', base: 220, vol: 0.08,
     up: ['a queue at her stall on the Vredenburg', 'her garam masala won a prize at the braderie'], down: ['rain on every market day', 'the council moved her stall behind the bins'], same: ['steady, like her stall: in the same spot since 1991'] },
-  { id: 'kaneel', name: 'De Kaneelfabriek', where: 'Zwolle · speculaas season', base: 2600, vol: 0.06, winter: 2.4,
+  { id: 'kaneel', name: 'De Kaneelfabriek', where: 'Zwolle · speculaas season', base: 160, vol: 0.06, winter: 2.4,
     up: ['speculaas season: the ovens run day and night'], down: ['nobody wants kaneel after Sinterklaas', 'the summer slump: kaneel on ice cream did not catch on'], same: ['the ovens tick over'] },
-  { id: 'frituur', name: 'Frituurland Groothandel', where: 'Leeuwarden', base: 2200, vol: 0.06,
+  { id: 'frituur', name: 'Frituurland Groothandel', where: 'Leeuwarden', base: 140, vol: 0.06,
     up: ['every snackbar in Friesland reordered at once'], down: ['the Elfstedentocht was cancelled again'], same: ['frikandel spice, frikandel spice, frikandel spice'] },
-  { id: 'sjaak', name: 'Sambal Sjaak', where: 'Den Haag · one van', base: 1600, vol: 0.15,
+  { id: 'sjaak', name: 'Sambal Sjaak', where: 'Den Haag · one van', base: 100, vol: 0.15,
     up: ['sold out at the Tong Tong Fair', 'his sambal made a TV chef cry'], down: ['the van broke down on the Utrechtsebaan', 'too spicy for the Scheveningen boulevard'], same: ['one van, one man, a lot of sambal'] },
-  { id: 'piet', name: 'Peperbaron Piet', where: 'Hoorn · big plans', base: 1100, vol: 0.2,
+  { id: 'piet', name: 'Peperbaron Piet', where: 'Hoorn · big plans', base: 70, vol: 0.2,
     up: ['Piet put a second table on his market stall'], down: ['Piet spent the week on his business plan', 'Piet called himself "baron" in front of the tax man'], same: ['still a market stall, still big plans'] },
 ];
 const MILES = [ // first time in: cash + rep
@@ -63,7 +64,7 @@ const MILES = [ // first time in: cash + rep
   { k: 'top1', pos: 1, w: 15000, rep: 500, name: 'Nummer één van Kaasland' },
 ];
 const DD_PAY = [60, 120, 250, 400, 600]; // the Dagdoel, by rank (same scale as Shooki's goals)
-const DD_MIN = [150, 300, 600, 1000, 1500];
+const DD_MIN = [5, 10, 20, 35, 60]; // kg
 const stickerOf = (pos) => (!pos || pos > 10 ? 1 : pos === 1 ? 1.06 : pos <= 3 ? 1.04 : pos <= 5 ? 1.03 : 1.02);
 const WD_TAG = ['Krantendag', null, null, null, 'Vrijdag: the snackbars run flat out', 'Zaterdag: busiest day of the week', 'Zondag: the list closes tonight'];
 
@@ -82,7 +83,10 @@ export function createTop10(deps) {
   const weekOf = (d) => Math.floor((d - 1) / 7) + 1;
   const wd = (d = day()) => (Math.max(1, d) - 1) % 7;
   const rank = () => clamp(deps.rank ? deps.rank() : 0, 0, 4);
-  const weekSoFar = () => { const st = deps.stats && deps.stats(); return st ? st.ensure().week || 0 : 0; };
+  // kilos sold this week, and today (the clients' deliveries come in the night report and count for the day before)
+  const K = () => { const s = S(), wk = weekOf(day()); if (!s.kg || typeof s.kg !== 'object' || s.kg.w !== wk) s.kg = { w: wk, n: 0, day: day(), today: 0 }; if (s.kg.day !== day()) { s.kg.day = day(); s.kg.today = 0; } return s.kg; };
+  const weekSoFar = () => K().n;
+  function sold(kg) { if (!(kg > 0 || kg < 0) || !deps.eligible || !deps.eligible()) return; const k = K(); k.n = Math.max(0, k.n + kg); k.today = Math.max(0, k.today + kg); }
 
   // ---------------------------------------------------------------- the rivals' week
   function drive(r) { // what the game world does to a rival this week: { m, why }
@@ -107,16 +111,13 @@ export function createTop10(deps) {
   function rivalScore(r, wk) {
     const R = rng32(hashStr(`top10#${S().seed}#${wk}#${r.id}`)), noise = 1 + (R() * 2 - 1) * r.vol;
     const grow = r.fade ? Math.max(0.6, 1 - r.fade * (wk - 1)) : Math.min(1.5, 1 + 0.015 * (wk - 1));
-    const d = drive(r); return { s: r10(r.base * grow * noise * d.m), why: d.why, R };
+    const d = drive(r); return { s: r5(r.base * grow * noise * d.m), why: d.why, R };
   }
   // ---------------------------------------------------------------- Eddy's week
-  const buurtBonus = () => clamp(deps.brepAvg ? deps.brepAvg() : 0, -100, 100) / 100 * 0.1;
-  function eddyScore(earned) {
-    const bb = buurtBonus(), late = deps.owing && deps.owing() > 0;
-    const s = r10(Math.max(0, earned) * (1 + bb) * (late ? 0.9 : 1)), why = [`${fmt(earned)} earned`];
-    if (Math.abs(bb) >= 0.005) why.push(`buurt ${bb > 0 ? '+' : '−'}${Math.round(Math.abs(bb) * 100)}%`);
-    if (late) why.push('open bills: wanbetaler −10%');
-    return { s, why, late };
+  function eddyScore(kg) {
+    const late = deps.owing && deps.owing() > 0, why = [`${kgf(kg)} sold`];
+    if (late) why.push('open bills at the gemeente');
+    return { s: Math.round(Math.max(0, kg)), why, late };
   }
   const eddyRow = () => ({ id: 'eddy', name: 'Eddy Jr.', where: `Kipkruidenkade · ${deps.rankName ? deps.rankName() : 'Hulpje'}` });
   const info = (id) => (id === 'eddy' ? eddyRow() : RIVALS.find((r) => r.id === id) || { name: id, where: '' });
@@ -137,7 +138,7 @@ export function createTop10(deps) {
       if (!why) { const was = prevS[r.id], dir = was == null ? 'same' : x.s > was * 1.04 ? 'up' : x.s < was * 0.96 ? 'down' : 'same'; why = r[dir][Math.floor(x.R() * r[dir].length)]; }
       return { id: r.id, s: x.s, why };
     });
-    const E = eddyScore(weekSoFar()); rows.push({ id: 'eddy', s: E.s, why: E.why.join(' · ') });
+    const E = eddyScore(s.kg ? s.kg.n : 0); rows.push({ id: 'eddy', s: E.s, why: E.why.join(' · ') });
     const had = s.table.length > 0;
     rows.sort((a, b) => b.s - a.s); rows.forEach((x, i) => { x.pos = i + 1; x.prev = prevPos[x.id] || null; x.nw = !x.prev && (had || x.id === 'eddy'); });
     const me = rows.find((x) => x.id === 'eddy'), was = s.pos || null;
@@ -168,18 +169,18 @@ export function createTop10(deps) {
     if (above) {
       const need = (above.s - mine + 10) / left, ai = proj.indexOf(above); rival = above.id;
       if (need <= avg * 2.5) { n = need; label = ai === 9 && (!lm || lm.pos > 10) ? `get into the Top 10 (pass ${info(above.id).name})` : `pass ${info(above.id).name} by Zondag`; }
-      else { n = avg * 1.2; label = `beat your average (${info(above.id).name} is ${fmt(above.s - mine)} ahead)`; }
+      else { n = avg * 1.2; label = `beat your average (${info(above.id).name} is ${kgf(above.s - mine)} ahead)`; }
     } else { const gap = below ? Math.max(0, below.s - mine) : 0; n = gap / left + avg * 0.3; rival = below ? below.id : null; label = `stay number one (${below ? info(below.id).name : 'nobody'} is chasing)`; }
-    n = Math.max(DD_MIN[rank()], Math.ceil(n / 10) * 10);
-    s.dd = { day: d, n, base: weekSoFar(), rival, label, done: false };    if (deps.save) deps.save();
+    n = Math.max(DD_MIN[rank()], Math.ceil(n / 5) * 5);
+    s.dd = { day: d, n, rival, label, done: false };    if (deps.save) deps.save();
   }
-  const ddProg = () => { const s = S(); return s.dd ? Math.max(0, weekSoFar() - s.dd.base) : 0; };
+  const ddProg = () => { const s = S(), k = s.kg; return s.dd && k && s.dd.day === k.day ? k.today : 0; }; // raw: onDay settles before the counter rolls over
   function settleDD(quiet) { // the clients pay at night, so a goal is settled when the next day starts as well
     const s = S(), dd = s.dd; if (!dd || dd.done || ddProg() < dd.n) return false;
     dd.done = true; const w = DD_PAY[rank()]; deps.addMoney(w); if (deps.addRep) deps.addRep(3);
     const wk = weekOf(dd.day); if (s.hits.w !== wk) s.hits = { w: wk, n: 0 }; s.hits.n++;
     if (deps.beep) deps.beep(988, 0.07, 'triangle', 0.04);
-    if (!quiet) deps.toast('DAGDOEL GEHAALD', `${fmt(dd.n)} earned today: ${dd.label}. +${fmt(w)}${s.hits.n > 1 ? ` · ${s.hits.n} this week` : ''}.`, 4);
+    if (!quiet) deps.toast('DAGDOEL GEHAALD', `${kgf(dd.n)} sold today: ${dd.label}. +${fmt(w)}${s.hits.n > 1 ? ` · ${s.hits.n} this week` : ''}.`, 4);
     else s.ddLate = { day: dd.day, w };
     if (deps.save) deps.save(); return true;
   }
@@ -187,9 +188,15 @@ export function createTop10(deps) {
   // a market day began (called after the bills, before Cijfers closes the week)
   function onDay(d) {
     if (!deps.eligible || !deps.eligible()) return;
+    const s = S(); if (!s.kg || typeof s.kg !== 'object') s.kg = { w: weekOf(d - 1), n: 0, day: d - 1, today: 0 };
+    const k = s.kg, rep = econ.ensure().report; let night = 0; // the night's deliveries (clients, joints, vaste klanten, stamklanten) count for yesterday
+    if (rep && Array.isArray(rep.rows)) for (const r of rep.rows) if (r.pay > 0 && r.kg > 0) night += r.kg;
+    if (k.day === d - 1) { k.n += night; k.today += night; }
     settleDD(true);
     if (wd(d) === 0) publish(d);
+    if (k.w !== weekOf(d)) { k.w = weekOf(d); k.n = 0; } k.day = d; k.today = 0;
   }
+
 
   // ---------------------------------------------------------------- what Shooki and Pa say
   function comments(r) {
@@ -238,7 +245,7 @@ export function createTop10(deps) {
   const mv = (x) => (x.nw ? '<span class="t10-nw">NIEUW</span>' : !x.prev ? '' : x.prev > x.pos ? `<span class="t10-up">▲${x.prev - x.pos}</span>` : x.prev < x.pos ? `<span class="t10-dn">▼${x.pos - x.prev}</span>` : '<span style="color:#a08a6a">=</span>');
   function listHTML(rows, opts = {}) {
     const top = rows.slice(0, 10), me = rows.find((x) => x.id === 'eddy');
-    const tr = (x) => { const I = info(x.id); return `<tr class="${x.id === 'eddy' ? 'me' : ''}"><td class="p">${x.pos}</td><td class="m">${mv(x)}</td><td>${I.name}${opts.why ? `<br><small>${x.why || I.where}</small>` : ` <small>${I.where}</small>`}</td><td class="s">${fmt(x.s)}</td></tr>`; };
+    const tr = (x) => { const I = info(x.id); return `<tr class="${x.id === 'eddy' ? 'me' : ''}"><td class="p">${x.pos}</td><td class="m">${mv(x)}</td><td>${I.name}${opts.why ? `<br><small>${x.why || I.where}</small>` : ` <small>${I.where}</small>`}</td><td class="s">${kgf(x.s)}</td></tr>`; };
     return `<table class="t10-list">${top.map(tr).join('')}${me && me.pos > 10 ? `<tr><td colspan="4" style="text-align:center;color:#a08a6a">…</td></tr>${tr(me)}` : ''}</table>`;
   }
   function showCard() {
@@ -261,7 +268,7 @@ export function createTop10(deps) {
     const s = S(), dd = s.dd; if (!dd || dd.day !== day() || !live()) return '';
     const p = Math.min(dd.n, ddProg()), pct = Math.round(p / dd.n * 100), tag = WD_TAG[wd()];
     return `<div class="vd-t10${dd.done ? ' ok' : ''}"><div class="k"><span>Top 10 · dagdoel</span><span>${s.pos ? `#${s.pos}` : 'nieuw'}</span></div>
-      <div>${dd.done ? '✓ ' : ''}Earn <b>${fmt(dd.n)}</b> today: ${dd.label}</div>${dd.done ? '' : `<div class="bar"><i style="width:${pct}%"></i></div><small>${fmt(p)} so far${tag ? ` · ${tag}` : ''} · tonight's client pay counts · +${fmt(DD_PAY[rank()])}</small>`}</div>`;
+      <div>${dd.done ? '✓ ' : ''}Sell <b>${kgf(dd.n)}</b> today: ${dd.label}</div>${dd.done ? '' : `<div class="bar"><i style="width:${pct}%"></i></div><small>${kgf(p)} so far${tag ? ` · ${tag}` : ''} · tonight's client deliveries count · +${fmt(DD_PAY[rank()])}</small>`}</div>`;
   }
 
   // ---------------------------------------------------------------- the Krant
@@ -269,26 +276,26 @@ export function createTop10(deps) {
     const s = S(); if (s.pub !== d || !s.table.length) return [];
     const me = s.table.find((x) => x.id === 'eddy'), top = s.table[0], movers = s.table.filter((x) => x.prev && x.id !== 'eddy').sort((a, b) => Math.abs(b.prev - b.pos) - Math.abs(a.prev - a.pos)), mv1 = movers[0];
     const head = me.pos === 1 ? 'Kipkruidenkade boy tops the Kaasland Top 10' : me.prev && me.pos < me.prev ? `Top 10: Eddy Jr. climbs to number ${me.pos}` : me.prev && me.pos > me.prev ? `Top 10: ${info(s.table[me.pos - 2].id).name} passes Eddy Jr.` : me.pos <= 10 ? `Kaasland Top 10: Eddy Jr. at number ${me.pos}` : `${info(top.id).name} top the Kaasland Top 10 again`;
-    const body = `${info(top.id).name} lead the week with ${fmt(top.s)}${top.why ? ` (${top.why})` : ''}.${mv1 && mv1.prev !== mv1.pos ? ` Biggest mover: ${info(mv1.id).name}, ${mv1.prev > mv1.pos ? 'up' : 'down'} ${Math.abs(mv1.prev - mv1.pos)}: ${mv1.why}.` : ''} Eddy Jr. of the Kipkruidenkade: number ${me.pos} with ${fmt(me.s)}.`;
+    const body = `${info(top.id).name} lead the week with ${kgf(top.s)}${top.why ? ` (${top.why})` : ''}.${mv1 && mv1.prev !== mv1.pos ? ` Biggest mover: ${info(mv1.id).name}, ${mv1.prev > mv1.pos ? 'up' : 'down'} ${Math.abs(mv1.prev - mv1.pos)}: ${mv1.why}.` : ''} Eddy Jr. of the Kipkruidenkade: number ${me.pos} with ${kgf(me.s)}.`;
     return [{ p: me.pos <= 3 || (me.prev && me.prev > 10 && me.pos <= 10) ? 9.5 : 7.5, head, body }];
   }
   function paperBox(d) {
     const s = S(); if (!live()) return '';
     const c = wd(d), next = c === 0 ? 7 : 7 - c;
-    if (!s.table.length) return `<div class="kk-box"><h4>Kaasland Top 10</h4><p>Every Maandag this paper ranks the spice traders of Kaasland on the week's omzet. Your first week counts: the list comes out in ${next} day${next > 1 ? 's' : ''}.</p></div>`;
+    if (!s.table.length) return `<div class="kk-box"><h4>Kaasland Top 10</h4><p>Every Maandag this paper ranks the spice traders of Kaasland on kilos sold that week. Your first week counts: the list comes out in ${next} day${next > 1 ? 's' : ''}.</p></div>`;
     const rows = s.table, me = rows.find((x) => x.id === 'eddy');
-    return `<div class="kk-box kk-t10"><h4>Kaasland Top 10 · week ${s.week}</h4><ol>${rows.slice(0, 10).map((x) => `<li${x.id === 'eddy' ? ' class="me"' : ''}><span>${info(x.id).name}</span><b>${fmt(x.s)}</b></li>`).join('')}</ol>${me.pos > 10 ? `<p class="kk-dim">${me.pos}. Eddy Jr. · ${fmt(me.s)}</p>` : ''}<p class="kk-dim">Next list: ${c === 0 ? 'next Maandag' : `Maandag, in ${next} day${next > 1 ? 's' : ''}`}.</p></div>`;
+    return `<div class="kk-box kk-t10"><h4>Kaasland Top 10 · week ${s.week}</h4><ol>${rows.slice(0, 10).map((x) => `<li${x.id === 'eddy' ? ' class="me"' : ''}><span>${info(x.id).name}</span><b>${kgf(x.s)}</b></li>`).join('')}</ol>${me.pos > 10 ? `<p class="kk-dim">${me.pos}. Eddy Jr. · ${kgf(me.s)}</p>` : ''}<p class="kk-dim">Next list: ${c === 0 ? 'next Maandag' : `Maandag, in ${next} day${next > 1 ? 's' : ''}`}.</p></div>`;
   }
   if (!document.getElementById('t10kk')) { const k = document.createElement('style'); k.id = 't10kk'; k.textContent = '.kk-t10 ol{margin:0;padding:0 0 0 20px;font-size:12px}.kk-t10 li{padding:1px 0;border-bottom:1px dotted #d8cba8}.kk-t10 li span{display:inline-block;max-width:70%}.kk-t10 li b{float:right;font-weight:600}.kk-t10 li.me{background:#ffe7a8;font-weight:700}'; document.head.appendChild(k); }
 
   // ---------------------------------------------------------------- Overzicht tab (js/hub.js)
   function html() {
     const s = S(), dd = s.dd, wk = weekOf(day()), proj = projection(wk), myI = proj.findIndex((x) => x.me);
-    let h = `<div class="well" style="background:linear-gradient(180deg,#fff8ea,#fbe9c8);border-color:#e8c088"><b>Kaasland Top 10</b> · printed in the Krant every <b>Maandag</b>, ranking the spice traders on the week's omzet. Yours is what you earned this week, +/− up to 10% for what the buurten think of you, −10% with open bills.</div>`;
+    let h = `<div class="well" style="background:linear-gradient(180deg,#fff8ea,#fbe9c8);border-color:#e8c088"><b>Kaasland Top 10</b> · printed in the Krant every <b>Maandag</b>, ranking the spice traders on kilos sold that week. Yours is every kilo of blend that goes out to a buyer: clients, joints, vaste klanten, stamklanten, spoed jobs and the Groothandel. The clients' kilos are counted when they are delivered, at night.</div>`;
     if (!live()) return h + '<div class="well" style="margin-top:8px">Your name goes on the list once the mixing table is running.</div>';
     const E = eddyScore(weekSoFar());
-    h += `<div class="well" style="margin-top:8px"><b>This week so far:</b> ${fmt(E.s)} <small>(${E.why.join(' · ')})</small>${wd() ? ` · against the others' usual week that is <b>number ${myI + 1}</b>${myI > 0 ? `, ${fmt(proj[myI - 1].s - E.s)} behind ${info(proj[myI - 1].id).name}` : ''}` : ' · a new week: everybody starts at zero today'}.`;
-    if (dd && dd.day === day()) h += `<br><b>Dagdoel:</b> earn ${fmt(dd.n)} today, ${dd.label}. ${dd.done ? '<span class="pos">Done.</span>' : `${fmt(Math.min(dd.n, ddProg()))} so far.`} <small>(${s.hits.w === wk ? s.hits.n : 0}/7 this week; all seven pay a bonus on Maandag)</small>`;
+    h += `<div class="well" style="margin-top:8px"><b>This week so far:</b> ${kgf(E.s)} sold${E.late ? ' <small>(open bills: Pa will read about it)</small>' : ''}${wd() ? ` · against the others' usual week that is <b>number ${myI + 1}</b>${myI > 0 ? `, ${kgf(proj[myI - 1].s - E.s)} behind ${info(proj[myI - 1].id).name}` : ''}` : ' · a new week: everybody starts at zero today'}.`;
+    if (dd && dd.day === day()) h += `<br><b>Dagdoel:</b> sell ${kgf(dd.n)} today, ${dd.label}. ${dd.done ? '<span class="pos">Done.</span>' : `${kgf(Math.min(dd.n, ddProg()))} so far.`} <small>(${s.hits.w === wk ? s.hits.n : 0}/7 this week; all seven pay a bonus on Maandag)</small>`;
     h += '</div>';
     if (s.table.length) h += `<div style="margin-top:8px"><b>Week ${s.week}</b> <small>(published day ${s.pub})</small>${listHTML(s.table, { why: true })}</div>`;
     else h += '<div class="well" style="margin-top:8px">The first list with your name in it comes out on Maandag.</div>';
@@ -308,11 +315,11 @@ export function createTop10(deps) {
     const s = S();
     if (!s.dd || s.dd.day !== day()) { if (s.dd && !s.dd.done && s.dd.day === day() - 1) settleDD(true); rollDD(); }
     else if (!s.dd.done) settleDD(false);
-    if (s.ddLate && !deps.busy()) { const L = s.ddLate; s.ddLate = null; deps.toast('DAGDOEL GEHAALD', `Last night's client pay did it: yesterday's Top 10 goal is in. +${fmt(L.w)}${s.hits.n > 1 ? ` · ${s.hits.n} this week` : ''}.`, 4); }
+    if (s.ddLate && !deps.busy()) { const L = s.ddLate; s.ddLate = null; deps.toast('DAGDOEL GEHAALD', `Last night's client deliveries did it: yesterday's Top 10 goal is in. +${fmt(L.w)}${s.hits.n > 1 ? ` · ${s.hits.n} this week` : ''}.`, 4); }
     if (pending && !cardOpen && !deps.busy()) showCard();
   }
   const sellBias = () => (live() ? stickerOf(S().pos) : 1);
   const isOpen = () => cardOpen;
   function escape() { if (cardOpen) { closeCard(false); return true; } return false; }
-  return { ensure: S, onDay, update, publish, projection, rollDD, settleDD, vandaagHTML, stories, paperBox, html, sellBias, isOpen, escape, comments, RIVALS, get pending() { return pending; } };
+  return { ensure: S, sold, onDay, update, publish, projection, rollDD, settleDD, vandaagHTML, stories, paperBox, html, sellBias, isOpen, escape, comments, RIVALS, get pending() { return pending; } };
 }

@@ -628,7 +628,7 @@ export function createEconomy(deps) {
     if (j.kind === 'spoed') {
       const cur = blendOf(j.blend); if (cur.kg < j.kg) return `You need ${j.kg} kg ${BLENDS.find((x) => x.id === j.blend).name} in stock (you have ${Math.floor(cur.kg)}).`;
       if (today().plan === 'raid') return 'Today is a raid day. Deliver it tomorrow.';
-      cur.kg -= j.kg; if (cur.kg <= 0) delete e.blends[j.blend]; else e.blends[j.blend] = cur;
+      cur.kg -= j.kg; if (cur.kg <= 0) delete e.blends[j.blend]; else e.blends[j.blend] = cur; if (deps.onKg) deps.onKg(j.kg);
       work('levering'); finishJob(j, el); return null;
     }
     if (j.kind === 'deal') {
@@ -644,10 +644,10 @@ export function createEconomy(deps) {
     const cur = blendOf(j.blend), B = BLENDS.find((x) => x.id === j.blend);
     if (cur.kg < j.kg) return `You need ${j.kg} kg ${B ? B.name : j.blend} in stock (you have ${Math.floor(cur.kg)}).`;
     if (today().plan === 'raid') return 'Today is a raid day. Deliver it tomorrow.';
-    const q = cur.q; cur.kg -= j.kg; if (cur.kg <= 0.001) delete ensure().blends[j.blend]; else ensure().blends[j.blend] = cur;
+    const q = cur.q; cur.kg -= j.kg; if (cur.kg <= 0.001) delete ensure().blends[j.blend]; else ensure().blends[j.blend] = cur; if (deps.onKg) deps.onKg(j.kg);
     work('levering'); if (deps.save) deps.save(); return { q };
   }
-  function spoedBack(blend, kg, q) { const e = ensure(), cur = e.blends[blend] || { kg: 0, q }; cur.q = cur.kg > 0 ? (cur.q * cur.kg + q * kg) / (cur.kg + kg) : q; cur.kg += kg; e.blends[blend] = cur; if (deps.save) deps.save(); }
+  function spoedBack(blend, kg, q) { const e = ensure(), cur = e.blends[blend] || { kg: 0, q }; cur.q = cur.kg > 0 ? (cur.q * cur.kg + q * kg) / (cur.kg + kg) : q; cur.kg += kg; e.blends[blend] = cur; if (deps.onKg) deps.onKg(-kg); if (deps.save) deps.save(); }
   function spoedPaid(n, day, pay, rep, el, note) {
     const e = ensure(), j = e.day === day ? (e.jobs || [])[n] : null;
     if (j) { j.done = true; j.run = null; }
@@ -730,7 +730,7 @@ export function createEconomy(deps) {
     kg = Math.min(kg, cur.kg, e.wholesaleLeft);
     if (kg <= 0) return { ok: false, why: cur.kg <= 0 ? 'Nothing in stock.' : 'The Groothandel has bought enough for today.' };
     const pay = Math.round(wholesalePrice(id) * kg);
-    cur.kg -= kg; e.wholesaleLeft -= kg; if (cur.kg <= 0) delete e.blends[id]; else e.blends[id] = cur;
+    cur.kg -= kg; e.wholesaleLeft -= kg; if (cur.kg <= 0) delete e.blends[id]; else e.blends[id] = cur; if (deps.onKg) deps.onKg(kg); // the Kaasland Top 10 counts kilos sold (js/top10.js)
     deps.addMoney(pay, el); if (deps.save) deps.save();
     return { ok: true, kg, pay };
   }
