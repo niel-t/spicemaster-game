@@ -262,9 +262,9 @@ export function createVenues(deps) {
   }
   // the people
   const creplach = deps.makePerson(LOOK.creplach); creplach.position.set(K.door + 1.45, 0, K.part + 0.75); creplach.rotation.y = 0; scene.add(creplach);
-  const jossi = deps.makePerson(LOOK.jossi, 0.92); const js = K.seats[2]; jossi.position.set(js.x, 0, js.z); jossi.rotation.y = js.ry + Math.PI; scene.add(jossi); deps.sit(jossi, 0.5);
+  const jossi = deps.makePerson(LOOK.jossi, 0.92); const js = K.seats[2]; jossi.position.set(js.x, 0, js.z); jossi.rotation.y = js.ry; /* facing the stage (the seat's back is on the far side) */ scene.add(jossi); deps.sit(jossi, 0.5);
   const dancers = DANCERS.map((d, i) => { const p = deps.makePerson(LOOK.dancer(d.skin, d.hair, d.outfit, d.hs, d.lingerie, d.extra, d.bust, d.hairK)); const pole = K.poles[i]; p.position.set(pole.x, 0.5, pole.z); scene.add(p); p.userData.dancer = { ...d, pole, ph: i * 2.1 }; return p; });
-  const extras = [0, 4].map((k, i) => { const s = K.seats[k], p = deps.passerBy(700 + i * 13); p.position.set(s.x, 0, s.z); p.rotation.y = s.ry + Math.PI; scene.add(p); deps.sit(p, 0.5); return p; });
+  const extras = [0, 4].map((k, i) => { const s = K.seats[k], p = deps.passerBy(700 + i * 13); p.position.set(s.x, 0, s.z); p.rotation.y = s.ry; scene.add(p); deps.sit(p, 0.5); return p; });
 
   const paid = () => C().paidDay === day();
   const CREP_HI = ['Shoes clean? Shirt tucked in? Hm. Close enough.', 'Hands where I can see them. The girls dance. You sit.', 'No photos. No touching. No singing along.', 'You again. Go on. Behave.'];
@@ -311,6 +311,39 @@ export function createVenues(deps) {
     // hearts that rise over the booth when the curtain is shut
     const hT = deps.canvasTex(64, 64, (g) => { g.clearRect(0, 0, 64, 64); g.fillStyle = '#ff5aa8'; g.beginPath(); g.moveTo(32, 54); g.bezierCurveTo(4, 34, 8, 8, 32, 22); g.bezierCurveTo(56, 8, 60, 34, 32, 54); g.fill(); });
     BO.hearts = [0, 1, 2, 3, 4, 5, 6].map((k) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: hT, transparent: true, depthWrite: false })); m.scale.set(0.3, 0.3, 1); m.visible = false; m.userData.k = k; club.add(m); return m; });
+  }
+  // --- shadow play on the shut curtain: a lamp behind it throws Eddy on the couch and the dancer on his lap as soft silhouettes
+  // (a canvas redrawn while the curtain phase runs; kissing, a hair toss and Eddy's flailing arm, nothing more)
+  {
+    const cv = document.createElement('canvas'); cv.width = 384; cv.height = 288; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(BO.x1 - BO.x0 - 0.1, 2.4), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 })); m.position.set(BO.cx, 1.25, BO.zf + 0.09); m.visible = false; club.add(m);
+    BO.sil = { cv, g: cv.getContext('2d'), tex, m };
+  }
+  function drawSil(t, d) {
+    const { g, tex } = BO.sil, INK = 'rgba(34,0,14,.86)'; g.clearRect(0, 0, 384, 288);
+    const gl = g.createRadialGradient(200, 150, 10, 200, 150, 190); gl.addColorStop(0, 'rgba(255,190,130,.5)'); gl.addColorStop(0.6, 'rgba(255,120,110,.16)'); gl.addColorStop(1, 'rgba(255,120,110,0)'); g.fillStyle = gl; g.fillRect(0, 0, 384, 288); // the lamp's glow
+    g.save(); g.shadowColor = INK; g.shadowBlur = 7; g.fillStyle = INK; g.strokeStyle = INK; g.lineCap = 'round'; g.lineJoin = 'round';
+    const dot = (x, y, r, ry) => { g.beginPath(); g.ellipse(x, y, r, ry || r, 0, 0, 7); g.fill(); }, limb = (w, ...p) => { g.lineWidth = w; g.beginPath(); g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.stroke(); };
+    const k = 0.5 + 0.5 * Math.sin(t * 1.5), sw = Math.sin(t * 3.1) * 3, kiss = k > 0.86; // k: 0 = she leans back and tosses her hair, 1 = she leans in for a kiss
+    g.beginPath(); g.roundRect(40, 226, 304, 62, 10); g.fill(); // the couch
+    // Eddy, seated, facing right: round body, curls, glasses, one arm that doesn't know where to go
+    dot(150, 196, 44, 50); dot(160, 118, 25); for (const [cx, cy, r] of [[142, 100, 11], [154, 93, 11], [168, 93, 10], [137, 112, 9], [180, 98, 8]]) dot(cx, cy, r);
+    dot(185, 122, 5); g.fillRect(176, 110, 16, 3); limb(26, 160, 232, 238, 236, 246, 284);
+    const fa = -1.9 + Math.sin(t * 6.5) * 0.5 * (kiss ? 0.2 : 1); limb(13, 138, 160, 138 + Math.cos(fa) * 34, 160 + Math.sin(fa) * 34, 138 + Math.cos(fa) * 34 + Math.cos(fa - 0.7) * 28, 160 + Math.sin(fa) * 34 + Math.sin(fa - 0.7) * 28);
+    // the dancer on his lap, facing him
+    const hx = 232 + sw, hy = 204, sx = hx + 30 - 50 * k, sy = hy - 80, nx = sx - 6 * k + 2, ny = sy - 30, b = d.bust || 1.3;
+    dot(hx + 8, hy + 2, 27, 23); g.lineWidth = 28; g.beginPath(); g.moveTo(hx, hy); g.quadraticCurveTo(hx + 12 - 10 * k, hy - 44, sx, sy); g.stroke(); // hips, the curve of her back
+    dot(sx - 12 + (hx - sx) * 0.3, sy + 26, 8 + 5 * b); // bust
+    limb(21, hx - 4, hy + 6, hx - 52, hy + 14); limb(12, hx - 52, hy + 14, hx - 36, hy + 62, hx - 26, hy + 66); limb(3, hx - 36, hy + 62, hx - 40, hy + 76); // thigh over his lap, shin, a heel
+    limb(9, sx - 2, sy + 6, 176 + 20 * (1 - k), 146 - 6 * k); // her arm round his neck
+    limb(11, sx, sy, nx, ny); dot(nx, ny - 4, 17);
+    const toss = Math.cos(t * 1.5); // hair: each dancer's own shape
+    if (d.hairK === 'pony') { g.lineWidth = 9; g.beginPath(); g.moveTo(nx + 10, ny - 16); g.quadraticCurveTo(nx + 40 + toss * 14, ny - 24, nx + 34 + toss * 22, ny + 34); g.stroke(); dot(nx + 11, ny - 16, 7); }
+    else if (d.hairK === 'bob') { g.beginPath(); g.roundRect(nx - 16, ny - 24, 40, 40, 12); g.fill(); }
+    else { dot(nx + 6, ny - 12, 27); g.lineWidth = 22; g.beginPath(); g.moveTo(nx + 16, ny); g.quadraticCurveTo(nx + 28 + toss * 8, ny + 26, nx + 22 + toss * 12, ny + 52); g.stroke(); }
+    g.restore();
+    if (kiss) { const hy2 = 70 - ((t * 60) % 26); g.fillStyle = 'rgba(255,120,170,.9)'; g.beginPath(); g.moveTo(182, hy2 + 16); g.bezierCurveTo(166, hy2 + 4, 170, hy2 - 10, 182, hy2 - 2); g.bezierCurveTo(194, hy2 - 10, 198, hy2 + 4, 182, hy2 + 16); g.fill(); }
+    tex.needsUpdate = true;
   }
   function setCurtain(c) { BO.shut = c; const w = BO.x1 - BO.x0; for (const m of BO.curt) { const s = m.userData.s, k = 0.16 + 0.84 * c * 0.5 / 0.5; m.scale.x = (0.16 + (0.5 - 0.16) * c) * w / 1.6; m.position.x = BO.cx + s * (w / 2 - m.scale.x * 0.8); } }
   setCurtain(0);
@@ -386,7 +419,7 @@ export function createVenues(deps) {
     const { p, d, extra } = sc; sc.phase = 'out'; caption('');
     fade(() => {
       const u = player.userData; u.seated = false; u.body.position.y = 0; u.legs.forEach((l) => { l.rotation.x = 0; }); player.position.set(BO.cx, 0, BO.zf + 1.0); player.rotation.y = 0;
-      p.position.set(d.pole.x, 0.5, d.pole.z); d.mvT = 0; setCurtain(0); clubHi.visible = false; BO.light.intensity = 0; for (const h of BO.hearts) h.visible = false; sc = null; state.inDialogue = false;
+      p.position.set(d.pole.x, 0.5, d.pole.z); d.mvT = 0; setCurtain(0); BO.sil.m.visible = false; clubHi.visible = false; BO.light.intensity = 0; for (const h of BO.hearts) h.visible = false; sc = null; state.inDialogue = false;
       const jos = ['Jossi', pick([`EDDY! You got ${d.name}?! I've been asking for ${d.name} for an HOUR!`, `${d.name}?! Eddy, that's MY ${d.name}! ...Was it nice? Don't tell me. Tell me.`, 'Next one\'s mine. NEXT ONE IS MINE.'])];
       if (extra) showCard(d.name, EXTRA_CARD[d.name] || EXTRA_CARD.Brie, () => dialogue([['Creplach', 'I saw nothing. I heard nothing. That is also what you saw and heard.'], jos]));
       else dialogue([['Eddy Jr.', '(' + d.card + ')'], jos]);
@@ -404,7 +437,8 @@ export function createVenues(deps) {
       if (deps.animate) deps.animate(p, dt);
       if (t >= sc.dur) { if (sc.extra) { sc.phase = 'curtain'; sc.t = 0; sc.sq = 0; caption(''); st.move = 'sway'; } else endPrive(); }
     } else if (sc.phase === 'curtain') { // the extras happen behind the curtain: all you get is the curtain, the hearts and the couch springs
-      const t = sc.t; setCurtain(Math.min(1, t / 0.8)); const wob = Math.min(1, t / 2) * (t < 7 ? 1 : Math.max(0, 8 - t));
+      const t = sc.t; setCurtain(Math.min(1, t / 0.8)); { const sm = BO.sil.m; sm.visible = t > 0.9 && t < 8.3; if (sm.visible) { sm.material.opacity = Math.min(1, (t - 0.9) / 0.8) * (t > 7.5 ? Math.max(0, (8.3 - t) / 0.8) : 1); drawSil(t, d); } }
+      const wob = Math.min(1, t / 2) * (t < 7 ? 1 : Math.max(0, 8 - t));
       for (const m of BO.curt) { m.position.z = BO.zf + Math.sin(t * 13 + m.userData.s) * 0.035 * wob; m.rotation.y = Math.sin(t * 9 + m.userData.s * 2) * 0.03 * wob; }
       for (const h of BO.hearts) { const k = h.userData.k, c = ((t * 0.45 + k / 7) % 1); h.visible = t > 1; h.position.set(BO.cx + Math.sin(k * 2.4 + t) * 1.1, 2.3 + c * 1.6, BO.zf - 0.6 + Math.cos(k * 1.7) * 0.5); h.material.opacity = 1 - c; const s = 0.22 + c * 0.2; h.scale.set(s, s, 1); }
       sc.sq -= dt; if (sc.sq <= 0 && t > 1 && t < 7.4) { sc.sq = Math.max(0.16, 0.5 - t * 0.05); sc.sqN = (sc.sqN | 0) + 1; beep(sc.sqN % 2 ? 620 : 520, 0.04, 'square', 0.02); }
