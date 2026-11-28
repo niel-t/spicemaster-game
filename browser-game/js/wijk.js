@@ -170,22 +170,46 @@ export function createWijk(deps) {
     // houses. Rows facing south (their fronts to the camera) carry the joints and the shops.
     const jl = deps.joints(key), spots = [];
     const opt = (k) => (W.colors ? { color: W.colors[(k * 7 + W.seed) % W.colors.length], brick: !!W.brick } : {});
-    const row = (x0, x1, zc, facing, seed, shops) => { let x = x0, k = 0; for (const w of deps.spanWidths(x1 - x0, seed)) { const h = { x: x + w / 2, w, k, zc, facing }; x += w; k++;
+    const row = (x0, x1, zc, facing, seed, shops) => {
+      const j = shops && jrow.get(x0 + '|' + zc);
+      if (!j) { run(x0, x1, zc, facing, seed, shops); return; }
+      const JW = j.size.W, slack = x1 - x0 - JW; let r0 = x0 + slack / 2; if (r0 - x0 < 5) r0 = x0; // (a strip too narrow for a house stays an alley)
+      if (r0 - x0 >= 5) run(x0, r0, zc, facing, seed, shops); jointBlock(j, r0, zc, seed); if (x1 - r0 - JW >= 3) run(r0 + JW, x1, zc, facing, seed + 5, shops); };
+    const run = (x0, x1, zc, facing, seed, shops) => { let x = x0, k = 0; for (const w of deps.spanWidths(x1 - x0, seed)) { const h = { x: x + w / 2, w, k, zc, facing }; x += w; k++;
       if (shops && h.k % 4 === 1 && w >= 5) spots.push(h); else place(h, shops && h.k % 4 === 3 ? W.signs[(h.k + seed) % W.signs.length] : null); } };
-    const place = (h, sign, joint) => { const f0 = deps.fadeables.length; deps.house(O.x + h.x, O.z + h.zc, h.w, 9, joint ? 10.5 : 9 + ((h.k + W.seed) % 4) * 1.1, h.facing, h.k + W.seed, sign, opt(h.k)); if (h.facing) for (let i = f0; i < deps.fadeables.length; i++) deps.fadeables[i].userData.cut = true; }; // a row with its back to the camera is cut away where Eddy is
+    const place = (h, sign, joint, o2) => { const f0 = deps.fadeables.length; deps.house(O.x + h.x, O.z + h.zc, h.w, 9, joint ? 10.5 : 9 + ((h.k + W.seed) % 4) * 1.1, h.facing, o2 ? o2.mi : h.k + W.seed, sign, o2 || opt(h.k)); if (h.facing) for (let i = f0; i < deps.fadeables.length; i++) deps.fadeables[i].userData.cut = true; }; // a row with its back to the camera is cut away where Eddy is
     const isPlein = (si, bi) => si === PLEIN[0] && bi === PLEIN[1];
+    // ---- the joints' own buildings (2026-11-28): a raid is fought where the joint stands (lineUp below), so a joint is not one
+    // narrow shop front any more. It gets a building as wide as its interior (the level's W), one colour from end to end, with
+    // its door exactly where the level's front door is. One joint to a row of shops; a joint no row can hold keeps a shop front.
+    const addJoint = (h, j) => { const door = { x: O.x + h.x + (h.w * 0.9 / 2 - 0.72), z: O.z + h.zc + 4.5 + 0.6, j }; t.doors.push(door);
+      deps.addInteract({ pos: () => new THREE.Vector3(door.x, 0, door.z), r: 1.6, enabled: () => T === t && !deps.busy(), label: () => `${j.name} · ${j.owned() && !j.retaken() ? 'your client' : j.open() ? 'raid this joint' : W.gang + ' turf'}`, act: () => knock(t, door) }); };
+    const JCOL = W.jointColors || [0x6a3428, 0x54404e, 0x3e5050, 0x6a5430, 0x4a3a30], jrow = new Map(), loose = [];
+    { const rows = []; segs(X0, X1, GAP).forEach(([a, b]) => rows.push([a, b, SA - HZ]));
+      for (let si = 0; si < SZ.length - 1; si++) BLK.forEach(([a, b], bi) => { if (!isPlein(si, bi)) rows.push([a, b, SZ[si + 1] - HZ]); });
+      rows.sort((p, q) => (p[0] + Math.max(0, p[2]) * 0.9) - (q[0] + Math.max(0, q[2]) * 0.9));
+      const free = rows.slice(rows.length > jl.length ? 1 : 0); // (the first row is right at the afrit: too easy)
+      jl.forEach((j, n) => { j.size = deps.jointSize ? deps.jointSize(j.id) : null; j.n = n;
+        const want = Math.floor(n * free.length / Math.max(1, jl.length)), ok = (r) => r && !r.used && j.size && r[1] - r[0] >= j.size.W;
+        let r = null; for (let d = 0; d < free.length && !r; d++) r = ok(free[want + d]) ? free[want + d] : ok(free[want - d]) ? free[want - d] : null;
+        if (r) { r.used = true; jrow.set(r[0] + '|' + r[2], j); t.fit = (t.fit || 0) + 1; } else loose.push(j); }); }
+    const jointBlock = (j, r0, zc, seed) => { const S = j.size, o2 = { color: JCOL[j.n % JCOL.length], brick: true, mi: j.n + W.seed };
+      let wm = (S.sx + 0.72) / 0.95, left = 0; if (wm > 10 || wm < 5) { wm = 7; left = Math.max(0, S.sx + 0.72 - 0.95 * wm); } // the door house: its door lands on r0 + sx, the level's front door
+      let x = r0, k = 0; const put = (w, sign) => { const h = { x: x + w / 2, w, k: k++, zc, facing: 0 }; place(h, sign, true, o2); x += w; return h; };
+      if (left > 0) for (const w of left < 9 ? [left] : deps.spanWidths(left, seed)) put(w, null);
+      addJoint(put(wm, j.name.toUpperCase()), j);
+      for (const w of deps.spanWidths(r0 + S.W - x, seed + 1)) put(w, null); };
     segs(X0, X1, GAP).forEach(([a, b], i) => { row(a, b, SA - HZ, 0, W.seed + i * 13, true); deps.solid(O.x + a, O.x + b, O.z + SA - HZ - 4.5, O.z + SA - RW - PV); }); // north of the first street, open where a rotonde is
     const trimA = (bi) => (ROT.includes(XS[bi]) ? 3 : 0), trimB = (bi) => (ROT.includes(XS[bi + 1]) ? 3 : 0);
     for (let si = 0; si < SZ.length - 1; si++) BLK.forEach(([a, b], bi) => { if (isPlein(si, bi)) return; row(a + (si === 0 ? trimA(bi) : 0), b - (si === 0 ? trimB(bi) : 0), SZ[si] + HZ, Math.PI, W.seed + a + si * 5, false); row(a, b, SZ[si + 1] - HZ, 0, W.seed + a + 3 + si * 5, true); });
     row(X0, X1, ZN + HZ, Math.PI, W.seed + 9, false); // south of the last street
     // the joints take the shop fronts nearest the afrit first, the rest become ordinary shops
     spots.sort((p, q) => (p.x + Math.max(0, p.zc) * 0.9) - (q.x + Math.max(0, q.zc) * 0.9));
-    const step = Math.max(1, Math.floor((spots.length - 1) / Math.max(1, jl.length)));
+    const step = Math.max(1, Math.floor((spots.length - 1) / Math.max(1, loose.length)));
     t.shops = {}; const shopQ = (W.shops || []).slice(); // De Peperpijp: the customers' shop fronts, every other one from the third on
-    spots.forEach((h, i) => { const j = i >= 1 && (i - 1) % step === 0 ? jl[(i - 1) / step] : null; // (the first shop front is right at the afrit: too easy)
+    spots.forEach((h, i) => { const j = i >= 1 && (i - 1) % step === 0 ? loose[(i - 1) / step] : null; // (the first shop front is right at the afrit: too easy)
       if (!j && shopQ.length && i >= 2 && i % 2 === 0) { const nm = shopQ.shift(); place(h, nm.toUpperCase()); const zs = h.zc + HZ; t.shops[nm] = { door: { x: O.x + h.x + (h.w * 0.9 / 2 - 0.72), z: O.z + h.zc + 4.5 + 0.6 }, kerb: { x: O.x + h.x, z: O.z + zs - RW + 1.1 }, w: h.w }; return; }
-      if (j) { place(h, j.name.toUpperCase(), true); const door = { x: O.x + h.x + (h.w * 0.9 / 2 - 0.72), z: O.z + h.zc + 4.5 + 0.6, j }; t.doors.push(door);
-        deps.addInteract({ pos: () => new THREE.Vector3(door.x, 0, door.z), r: 1.6, enabled: () => T === t && !deps.busy(), label: () => `${j.name} · ${j.owned() && !j.retaken() ? 'your client' : j.open() ? 'raid this joint' : W.gang + ' turf'}`, act: () => knock(t, door) }); }
+      if (j) { place(h, j.name.toUpperCase(), true); addJoint(h, j); }
       else place(h, W.signs[(h.k + i) % W.signs.length]); });
     // the block interiors: gardens behind a wall along the dwarsstraten; the plein is open
     { const K3 = deps.kit(), T3 = deps.kit();
@@ -260,7 +284,7 @@ export function createWijk(deps) {
   function lineUp(t, door, R) {
     if (lined) unline();
     const dx = R.door.x - door.x, dz = R.door.z - (door.z - 0.6), dy = -0.07, bb = new THREE.Box3(), hid = [], sols = [];
-    const cx0 = R.x0 - dx - 0.5, cx1 = R.x1 - dx + 0.5, cz0 = R.z0 - dz - 0.5, cz1 = R.z1 - dz, far = deps.low ? 26 : 55, noSh = []; // the level's footprint, in district coordinates
+    const cx0 = R.x0 - dx + 0.6, cx1 = R.x1 - dx - 0.6, cz0 = R.z0 - dz - 0.5, cz1 = R.z1 - dz, far = deps.low ? 26 : 55, noSh = []; // the level's footprint, in district coordinates
     const hide = (o) => { o.visible = false; hid.push(o); };
     const check = (o, depth) => { if (!o.visible || o.userData.ground) return; bb.setFromObject(o); if (bb.isEmpty()) return;
       if (bb.max.x < cx0 - far || bb.min.x > cx1 + far || bb.max.z < cz0 - far || bb.min.z > cz1 + far) { hide(o); return; } // out of sight from inside: not drawn at all
