@@ -98,7 +98,7 @@ export function createHeists(deps) {
     const extra = Math.min(4, h.susp[t.faction] || 0);
     if (deps.closePC) deps.closePC();
     const kind = t.kind || 'kratten';
-    if (t.ext) { deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day(), lockpick: !!h.tools.lockpick, shoes: !!h.tools.shoes, nv: !!h.tools.nv || !!(state.gear && state.gear.nvg), faction: t.faction, kind: t.kind, docs: t.docs, absent: t.absent, extra: 0, theme: t.theme, to: t.to,
+    if (t.ext) { deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: true, lockpick: !!h.tools.lockpick, shoes: !!h.tools.shoes, nv: !!h.tools.nv || !!(state.gear && state.gear.nvg), faction: t.faction, kind: t.kind, docs: t.docs, absent: t.absent, extra: 0, theme: t.theme, to: t.to,
       onEnd: (res) => { h.runs++; if (!res.loud && (res.docs || []).length) h.clean++; if (t.onEnd) t.onEnd(res); setTimeout(() => { econ.advance('on a Nachtklus'); if (deps.save) deps.save(); }, 4500); if (deps.save) deps.save(); } }); return; }
     deps.go(t.id, { title: t.title, day: day(), cap: cap(), cased: h.plans[t.id] === day() || !!t.tutorial, lockpick: !!h.tools.lockpick, shoes: !!h.tools.shoes, nv: !!h.tools.nv || !!(state.gear && state.gear.nvg), faction: t.faction, safe: !!t.safe, special: t.tutorial ? 'grill' : kind === 'recept' ? 'book' : null, kind, blackout: kind === 'stroom', cashX: (t.daily ? 2 : 1) * (kind === 'stroom' ? 1.5 : 1), extra: kind === 'spook' ? Math.max(2, extra) : extra, onEnd: (res) => ended(t, res) });
   }

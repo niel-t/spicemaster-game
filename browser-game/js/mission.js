@@ -215,6 +215,10 @@ export function initMission(ctx) {
     for (const [name, x0, z0, x1] of def.rooms) if (def.neon[name] !== undefined) neonTube(root, OX + x0 + 0.2, WALL_H - 0.25, OX + x1 + 0.8, WALL_H - 0.25, Z0 + z0 + 0.04, def.neon[name]);
     lights = [];
     for (const [x, z, c, k] of def.lights) { const l = new THREE.PointLight(c, 0, 18, 1.3); l.position.set(OX + x, WALL_H + 0.6, Z0 + z); root.add(l); lights.push([l, k]); }
+    for (const [x, z, r, c, k] of def.sensors || []) { const l = new THREE.PointLight(c, 0, 16, 1.3); l.position.set(OX + x, WALL_H + 0.6, Z0 + z); root.add(l);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.07, r, 40), new THREE.MeshBasicMaterial({ color: 0xcbb8ec, transparent: true, opacity: 0.16, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.set(OX + x, 0.03, Z0 + z); root.add(ring);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff4030 })); eye.position.set(OX + x, WALL_H - 0.1, Z0 + z); root.add(eye);
+      l.userData.sensor = { r, t: 0, ring, eye }; l.userData.off = true; lights.push([l, k]); }
     // the Oofmobiel, parked outside
     const V = def.van; van = ctx.makeVan(); van.position.set(OX + V.park[0], 0, V.park[1]); if (V.rot !== undefined) van.rotation.y = V.rot; root.add(van);
     solid(OX + V.solid[0], OX + V.solid[1], V.solid[2], V.solid[3]);
@@ -699,14 +703,14 @@ export function initMission(ctx) {
     },
     // the Blokaas break-in (2026-11-28): Hans and Conny run the hall day and night. Unarmed; being seen is the danger, not a fight
     hans: {
-      name: 'HANS BLOKAAS', hp: 1, speed: 0.8, dodge: 0, mass: 1.3, score: 0,
+      name: 'HANS BLOKAAS', hp: 1, harmless: true, speed: 0.8, dodge: 0, mass: 1.3, score: 0,
       look: { head: { skin: 0xe8b090, hair: '#8c7a5e', brow: '#6a5a44', hairLine: 84, mouth: 'smile', iris: '#4a6a7a' }, front: '#6a6a5e', shirt: 0x6a6a5e, pants: 0x3a3c44, shoes: 0x3a2a1a },
       alert: ['Inbreker. Om 02:14. Ik noteer het.', 'U bent hier niet geautoriseerd.', 'Dit staat niet in het rooster.', 'Conny. Er is iemand in de hal.'],
       hurt: ['Au. Dat was niet nodig.', 'Ik ga dit melden.'],
       down: ['HANS IS DOWN', 'He will remember the exact time.'],
     },
     conny: {
-      name: 'CONNY BLOKAAS', hp: 1, speed: 0.85, dodge: 0, mass: 1.2, score: 0,
+      name: 'CONNY BLOKAAS', hp: 1, harmless: true, speed: 0.85, dodge: 0, mass: 1.2, score: 0,
       look: { head: { skin: 0xf0c0a4, hair: '#8a5a30', brow: '#6a4422', hairLine: 96, mouth: 'smile', iris: '#5a7a6a', long: true }, front: '#f0c4cc', shirt: 0xf0c4cc, pants: 0x2a2a34, shoes: 0x2a2a2a, skirt: 0x2a2a34 },
       alert: ['HANS! Inbrekers! Waarom overkomt ons dit altijd?!', 'Weet je wel hoe hard wij werken?!', 'Na alles wat wij hebben meegemaakt!', 'Ik bel de politie! En mijn zus!'],
       hurt: ['Mijn rug! Mijn knie!', 'Zie je nou! Slachtoffer!'],
@@ -763,6 +767,7 @@ export function initMission(ctx) {
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.03, 6, 22), shieldRimM); sh.add(rim); sh.position.set(0.05, 1.12, 0.42); p.add(sh); p.userData.foe.shieldM = sh; p.userData.foe.shieldK = true; }
     if (opt && opt.argue) p.userData.foe.argueK = opt.argue;
     if (opt && opt.paraSkip) p.userData.foe.paraSkip = true; // De Gouden Molen: with the Paravim settled, Ras's men keep these away
+    if (type && def.routes && def.routes[type]) p.userData.foe.route = def.routes[type].map(([rx, rz, wait, fa, lines]) => ({ x: OX + rx, z: Z0 + rz, wait: wait || 0, face: fa, say: lines })); // a round to walk while idle (js/levels/blokaashal.js)
     if (opt && opt.reserve) p.userData.foe.reserve = true; // held off-map until the level calls reinforce() (Couscouskade's boats)
     p.position.set(OX + x, 0, Z0 + z); p.rotation.y = rot;
     enemies.push(p);
@@ -776,6 +781,7 @@ export function initMission(ctx) {
   const nearTask = () => { let b = null, bd = 2.5; if (!M.active) return null; for (const t of tasks) if (!t.done) { const d = Math.hypot(player.position.x - t.pos.x, player.position.z - t.pos.z); if (d < bd) { bd = d; b = t; } } return b; };
   function doTask(t) {
     if (!t || t.done) return; t.done = true; if (t.act) t.act();
+    if (t.quiet) { sfx('pick'); hud(); return; }
     R.score += t.score || 750; sfx('thud'); shake(0.35); popup(t.pos, t.doneText || 'SABOTAGED!', '#e8a33d', true);
     const n = tasksLeft(); if (t.optional) { /* a bonus: no banner */ } else if (n) banner(`${n} TO GO`, LV.text.taskHint || '', 1.6);
     else if (!alive().length && !wavePending() && !R.cleared) { R.cleared = true; popup(t.pos, 'FLOOR CLEAR', '#e8a33d', true); setTimeout(results, 1500); }
@@ -1403,7 +1409,7 @@ export function initMission(ctx) {
       if (d < TORCH_R && Math.abs(angDiff(e.rotation.y, Math.atan2(dx, dz))) < TORCH_A && los(e.position, p)) return 1; }
     if (HS.dark) return 0.08;
     let m = 0;
-    for (const [l, k] of lights) { const d = Math.hypot(l.position.x - p.x, l.position.z - p.z); if (d > 7) continue; const v = (k / kMax) * (1 - d / 7); if (v > m) m = v; }
+    for (const [l, k] of lights) { if (l.userData.off) continue; const d = Math.hypot(l.position.x - p.x, l.position.z - p.z); if (d > 7) continue; const v = (k / kMax) * (1 - d / 7); if (v > m) m = v; }
     return Math.min(1, 0.18 + m * 1.05);
   }
   function heistSight(e, f, ang) { // how far this guard sees Eddy right now
@@ -1426,7 +1432,15 @@ export function initMission(ctx) {
     HS.kos++; R.score += 150; P.fireT = 0.5;
     if (HS.fixer === e) HS.fixer = null;
   }
+  let snLast = null;
   function stealthTick(dt) {
+    const snV = snLast ? Math.hypot(player.position.x - snLast.x, player.position.z - snLast.z) / Math.max(dt, 1e-4) : 0; snLast = snLast || new THREE.Vector3(); snLast.copy(player.position);
+    for (const [l, k] of lights) { const sn = l.userData.sensor; if (!sn) continue; // bewegingsmelders: on for a few seconds when somebody walks under them
+      let hit = Math.hypot(l.position.x - player.position.x, l.position.z - player.position.z) < sn.r && snV > 4.5; // walking does not trip it, running does
+      if (hit && sn.t <= 0 && !HS.dark) { popup(player.position, 'KLIK · BEWEGINGSMELDER', '#cbb8ec'); beep(1500, 0.04, 'square', 0.03); }
+      if (!hit) for (const e of enemies) { const f = e.userData.foe; if (e.visible && f.alive && f.down <= 0 && Math.hypot(l.position.x - e.position.x, l.position.z - e.position.z) < sn.r) { hit = true; break; } }
+      if (hit) sn.t = 5; else if (sn.t > 0) sn.t -= dt;
+      const on = sn.t > 0 && !HS.dark; l.userData.off = !on; l.intensity = on ? k : 0; sn.eye.material.color.setHex(on ? 0x6aff7a : 0xff4030); sn.ring.visible = !HS.dark; }
     HS.lit = litAt(player.position);
     for (const t of HS.torches) { const e = t.userData.e, f = e.userData.foe, bulb = t.userData.bulb; const tOn = torchesOn(); f.torch = tOn; t.visible = bulb.visible = tOn && e.visible && f.alive && f.down <= 0 && e.position.distanceTo(player.position) < 28; if (!t.visible) continue;
       const x = e.position.x, z = e.position.z, a0 = e.rotation.y, arr = t.geometry.attributes.position.array, y = 0.06; let px = 0, pz = 0;
@@ -2178,7 +2192,7 @@ export function initMission(ctx) {
     let chase = 0, search = 0, boss = 0, bossE = null;
     for (const e of enemies) { const f = e.userData.foe; if (!f.alive || f.pend || f.res) continue;
       if (f.state === 'chase') chase++; else if (f.state === 'search') search++;
-      if ((f.boss || f.type) && f.seen) { const b = f.phase === 2 ? 2 : 1; if (b >= boss) { boss = b; bossE = e; } } }
+      if ((f.boss || f.type) && f.seen && !(f.type && FOE_TYPES[f.type].harmless)) { const b = f.phase === 2 ? 2 : 1; if (b >= boss) { boss = b; bossE = e; } } }
     const loudHeist = HEIST && HS.loud;
     const s = ARR ? { heist: !!HEIST, chase: 0, search: 0, lowhp: 0, boss: 0, dead: false, done: false }
       : { heist: !!HEIST && !loudHeist, chase, search, lowhp: !P.dead && P.hp <= 1 && P.maxhp > 1 ? 1 : 0, boss, dead: P.dead, done: !!(R.cleared || R.results) };
@@ -2380,7 +2394,7 @@ export function initMission(ctx) {
     if (!see && f.state === 'idle') for (const o of enemies) { const of = o.userData.foe; if (of.alive || of.found || o === e || !o.visible) continue;
       const bd = o.position.distanceTo(e.position); if (bd < EASY.vision * 0.8 && Math.abs(angDiff(e.rotation.y, Math.atan2(o.position.x - e.position.x, o.position.z - e.position.z))) < EASY.cone && los(e.position, o.position)) {
         of.found = true; f.wary = true; f.state = 'search'; f.sx = o.position.x; f.sz = o.position.z; f.searchT = 0; f.path = null; popup(e.position, 'BODY!', '#ffd36b'); sfx('alert'); say(u.bubble, 'Hé! Ze hebben Kees vermoord!', '#ff7a1a'); break; } }
-    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react * (1 + 0.15 * pk('sense')) * (LV.paravim ? PARA.react : 1); f.seen = true; f.argue = null; say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named) { f.named = true; banner(FT.name, (FT.title || 'Mini-boss') + ' · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
+    if (see) { if (f.state !== 'chase') { spot(e); f.state = 'chase'; f.react = (W2.melee ? 0.2 : 0.5 + Math.random() * 0.25) * EASY.react * (1 + 0.15 * pk('sense')) * (LV.paravim ? PARA.react : 1); f.seen = true; f.argue = null; say(u.bubble, FT ? pickLine(FT, 'alert') : (LV.alertLines || ALERT_LINES)[Math.floor(Math.random() * (LV.alertLines || ALERT_LINES).length)], FT ? '#ffd36b' : '#ff7a1a'); if (FT && !f.named && !FT.harmless) { f.named = true; banner(FT.name, (FT.title || 'Mini-boss') + ' · ' + pickLine(FT, 'alert'), 2.2); } popup(e.position, '!', '#e8a33d', true); sfx('alert'); } f.lkx = pp.x; f.lkz = pp.z; f.seeT = 0; }
     else f.seeT += dt;
     if (P.dead && f.state === 'chase') f.state = 'idle';
     let tvx = 0, tvz = 0, face = null;
@@ -2390,6 +2404,13 @@ export function initMission(ctx) {
       case 'idle':
         if (mate) { face = Math.atan2(mate.position.x - e.position.x, mate.position.z - e.position.z); // bickering: face each other, trade lines
           f.turnT -= dt; if (f.turnT <= 0 && f.id < mate.userData.foe.id) { f.turnT = 2.4 + Math.random(); mate.userData.foe.turnT = 99; const L2 = ARGUE_LINES[Math.floor(Math.random() * ARGUE_LINES.length)]; say(u.bubble, L2[0], '#ffb36b'); setTimeout(() => { if (mate.userData.foe.alive && mate.userData.foe.argue) say(mate.userData.bubble, L2[1], '#ffb36b'); }, 1100); }
+          break; }
+        if (f.route) { // on a round: walk to the next stop, stand there a while (looking one way, or about), move on
+          const wp = f.route[f.ri | 0], dd = Math.hypot(wp.x - e.position.x, wp.z - e.position.z);
+          if (dd > 0.7 && goTo(wp.x, wp.z, 1.25 * (FT ? FT.speed : 1))) { f.waitT = 0; break; }
+          if (!f.waitT && wp.say && e.position.distanceTo(player.position) < 16) say(u.bubble, wp.say[Math.floor(Math.random() * wp.say.length)], '#cbb8ec');
+          f.waitT = (f.waitT || 0) + dt; face = wp.face != null ? wp.face + Math.sin(f.waitT * 0.7) * 0.5 : e.rotation.y + dt * 0.8;
+          if (f.waitT > wp.wait) { f.waitT = 0; f.ri = ((f.ri | 0) + 1) % f.route.length; f.path = null; }
           break; }
         f.turnT -= dt; if (f.turnT <= 0) { f.turnT = 1.5 + Math.random() * 2.5; f.ta = e.rotation.y + (Math.random() - 0.5) * 2.6; } face = f.ta; break;
       case 'search': { const dd = Math.hypot(f.sx - e.position.x, f.sz - e.position.z);
@@ -2407,7 +2428,7 @@ export function initMission(ctx) {
               const direct = !isBlock(cellAt(e.position.x + dx / dist * 0.7, e.position.z + dz / dist * 0.7));
               if (direct) { tvx = dx / dist * sp; tvz = dz / dist * sp; } else goTo(pp.x, pp.z, sp);
               if (gunOut() && dist > 2.2 && direct) { const zz = Math.sin(R.time * 5 + f.id * 1.7) * 0.85; tvx += dz / dist * sp * zz; tvz -= dx / dist * sp * zz; } }
-            if (dist < 1.05 && f.wind <= 0 && f.cd <= 0) f.wind = 0.28 * Math.min(EASY.react, 1.6); }
+            if (dist < 1.05 && f.wind <= 0 && f.cd <= 0 && !(FT && FT.harmless)) f.wind = 0.28 * Math.min(EASY.react, 1.6); }
           else { f.aiming = true; f.react -= dt; const want = f.pers === 'rush' ? 3.2 : f.pers === 'careful' ? 6.5 : 4.8;
             if (dist > want + 1.5) { tvx = dx / dist * 2.2; tvz = dz / dist * 2.2; } else if (dist < want - 1.5 && f.pers !== 'rush') { tvx = -dx / dist * 1.8; tvz = -dz / dist * 1.8; }
             f.strT -= dt; if (f.strT <= 0) { f.strT = 0.7 + Math.random() * 0.9; f.strD = Math.random() < 0.5 ? -1 : 1; } if (f.pers === 'rush') { tvx += dz / dist * 1.5 * f.strD; tvz -= dx / dist * 1.5 * f.strD; }

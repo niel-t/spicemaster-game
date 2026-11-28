@@ -241,7 +241,7 @@ export function createBlokaas(d) {
     s.sms.push({ t: m.t, from: m.from, d: day() }); if (s.sms.length > 30) s.sms.splice(0, s.sms.length - 30); s.unread = (s.unread || 0) + 1;
     el.querySelector('img').src = m.from === CONNY ? './assets/face_conny.jpg' : './assets/face_hans.jpg';
     el.querySelector('.bk-f').textContent = `SMS · ${m.from.toUpperCase()}`; el.querySelector('.bk-t').textContent = m.t; el.querySelector('small').textContent = m.from === CONNY ? '(niet voor jou bedoeld?)' : SMS_FOOT;
-    el.style.display = 'flex'; smsShow = 5.5; smsGap = 2; beep(1320, 0.05, 'square', 0.03); setTimeout(() => beep(1320, 0.05, 'square', 0.03), 120);
+    el.style.display = 'flex'; setTimeout(() => { el.style.display = 'none'; }, 5600); /* (its own timer: a raid or a drive must not freeze it on screen) */ smsShow = 5.5; smsGap = 2; beep(1320, 0.05, 'square', 0.03); setTimeout(() => beep(1320, 0.05, 'square', 0.03), 120);
     d.save();
   }
 
