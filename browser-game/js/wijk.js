@@ -29,10 +29,10 @@ export const WIJKEN = {
   air: { name: 'Schiptagat', gang: 'airport', seed: 71, at: 4, custom: true },
   // Almere (2026-11-28): the polder town over the IJmeer, off the A6. No joints: Blokaas Specijeren has its hall here (js/blokaas.js).
   // New, flat and tidy: yellow brick, wide streets, free parking, a woonboulevard and a kringloop.
-  almere: { name: 'Almere', real: 'Almere', gang: 'Blokaas', road: 'A6', seed: 97, at: 6, colors: [0xe8d8a8, 0xd8c8a0, 0xc8b898, 0xe0d0b8, 0xb8a888, 0xd0c4b0], tree: 1, ground: 0x8aa860,
+  almere: { name: 'Almere', real: 'Almere', gang: 'Blokaas', road: 'A6', polder: true, seed: 97, at: 6, colors: [0xe8d8a8, 0xd8c8a0, 0xc8b898, 0xe0d0b8, 0xb8a888, 0xd0c4b0], tree: 1, ground: 0x8aa860,
     shops: ['Blokaas Specijeren'],
     signs: ['KRINGLOOP DE ZUINIGE', 'WOONBOULEVARD XXL', 'GRATIS PARKEREN', 'PANNENKOEKENHUIS DE POLDER', 'BOUWMARKT', 'SNACKBAR FLEVO', 'TUINCENTRUM', 'ALLES VOOR 1 WILDER'],
-    intro: 'Almere: wide streets, yellow brick, free parking everywhere. Blokaas Specijeren is somewhere down this street. The A6 oprit is at the east end.' }, // the airport off the A4: a forecourt, not a grid (buildAir)
+    intro: 'Almere. A bedrijventerrein, two drive-throughs, the A6 humming behind it, and nothing else. Blokaas Specijeren is the blue hall down the road. The A6 oprit is at the east end.' }, // the airport off the A4: a forecourt, not a grid (buildAir)
 };
 // the plan of every district, in its own coordinates: three long streets (z 0, 46, 92) and five dwarsstraten (four on a phone),
 // so twelve blocks; the one in the middle of the first strip is the plein. The afrit is at the west end of the first street,
@@ -111,6 +111,64 @@ export function createWijk(deps) {
     { let k = 3; for (let x = 16; x < 198; x += 2.9) for (const z of [9.5, 20]) { k++; if ((k * 7) % (low ? 9 : 4) !== 0) continue; deps.car(O.x + x, O.z + z, null, k % 2 ? Math.PI / 2 : -Math.PI / 2, false); } }
     t.rect = AIR.rect; t.vanAt = AIR.van; t.oprit = AIR.oprit; t.lines = [{ x0: -4, x1: 214, lanes: AIR.lanes, walks: AIR.walks }];
   }
+  // ---- Almere (Tristan 2026-11-28): "Blokaas's warehouse is in an industrial area with no houses around. Almere is famous for
+  // having nothing around, only the fastfood restaurants and highways". So no canal houses: one wide road through a bedrijventerrein,
+  // red fietspaden, grass lots with KAVEL TE KOOP boards, flat XXL halls, drive-throughs on tall poles, a sloot, the A6 on a viaduct
+  // behind it all. The Blokaas hall stands on its own paved lot (js/blokaas.js draws it through deps.shopBuild).
+  const POL = { rect: { x0: -5.6, x1: 215.6, z0: -44, z1: 24 }, van: { x: 2, z: 1.6 }, oprit: { x: 210, z: 1 }, lanes: [-1.6, 1.8], walks: [-6.4, 6.4], hal: { x: 133, w: 26, zf: -13, zb: -31 } };
+  function buildPolder(t) {
+    const O = t.O, ST = deps.ST, low = deps.low, g = new THREE.Group(), K = deps.kit(), WH = 0xf4f2ec, X0 = -6, X1 = 216;
+    const flat = (x0, x1, z0, z1, m, y) => { const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0), uv = geo.attributes.uv, k = (x1 - x0) / 200; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * k);
+      const pl = new THREE.Mesh(geo, m); pl.rotation.x = -Math.PI / 2; pl.position.set(O.x + (x0 + x1) / 2, y, O.z + (z0 + z1) / 2); pl.receiveShadow = true; g.add(pl); return pl; };
+    const board = (lines, w, h, x, y, z, bg, fg, ry = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), deps.lam({ map: deps.signTex(lines.map(([tx, size]) => ({ t: tx, size })), bg, fg, 512, Math.round(512 * h / w)) })); m.position.set(O.x + x, y, O.z + z); m.rotation.y = ry; g.add(m); return m; };
+    const solid = (x0, x1, z0, z1) => deps.solid(O.x + x0, O.x + x1, O.z + z0, O.z + z1);
+    flat(X0 - 120, X1 + 120, -160, 120, deps.lam({ color: 0x86a25a }), 0); // grass, as far as you can see
+    flat(X0, X1, -4, 4, ST.road, 0.02); flat(X0, X1, -6.2, -4.4, deps.lam({ color: 0xb04a3a }), 0.014); flat(X0, X1, 4.4, 6.2, deps.lam({ color: 0xb04a3a }), 0.014); // red fietspaden both sides
+    for (const z of [-4.2, 4.2]) { const q = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0, 0.16, 0.18), deps.kerbMat); q.position.set(O.x + (X0 + X1) / 2, 0.08, O.z + z); g.add(q); }
+    for (let x = X0 + 2; x < X1; x += 4) K.box(2, 0.01, 0.12, WH, O.x + x, 0.035, O.z);
+    flat(X0, X1, 10, 12.5, deps.lam({ color: 0x3a6a7a }), 0.012); // the sloot along the south side
+    // the Blokaas lot: klinkers from the road to the hall, a fence round the back
+    flat(POL.hal.x - POL.hal.w / 2 - 4, POL.hal.x + POL.hal.w / 2 + 4, POL.hal.zf, -6.2, ST.paveN, 0.013);
+    for (let x = POL.hal.x - POL.hal.w / 2 - 4; x <= POL.hal.x + POL.hal.w / 2 + 4; x += 2.5) K.box(0.06, 1.8, 0.06, 0x5a6a5a, O.x + x, 0.9, O.z + POL.hal.zb - 2);
+    K.box(POL.hal.w + 8, 1.6, 0.03, 0x6a7a6a, O.x + POL.hal.x, 1.0, O.z + POL.hal.zb - 2);
+    for (let x = POL.hal.x - 8; x < POL.hal.x + 4; x += 2.6) K.box(0.08, 0.01, 4.4, WH, O.x + x, 0.03, O.z - 9); // three parking bays, all empty: they come by bike
+    deps.shopBuild && deps.shopBuild(t.key, 'Blokaas Specijeren', { x: O.x + POL.hal.x, w: POL.hal.w, zf: O.z + POL.hal.zf, zb: O.z + POL.hal.zb });
+    t.shops = { 'Blokaas Specijeren': { door: { x: O.x + POL.hal.x + (POL.hal.w * 0.9 / 2 - 0.72), z: O.z + POL.hal.zf + 0.6 }, kerb: { x: O.x + POL.hal.x, z: O.z - 5 }, w: POL.hal.w } };
+    // a flat XXL hall with loading docks
+    const hall = (x, w, d, h, col, name, bg, fg) => { K.box(w, h, d, col, O.x + x, h / 2, O.z - 14 - d / 2); K.box(w + 0.4, 0.4, d + 0.4, 0x6a6e74, O.x + x, h + 0.2, O.z - 14 - d / 2);
+      for (let dx = -w / 2 + 3; dx < w / 2 - 2; dx += 4.5) { K.box(3, 3.4, 0.1, 0xb8bcc0, O.x + x + dx, 1.7, O.z - 13.95); K.box(3.4, 1.2, 1.8, 0x3a3c40, O.x + x + dx, 0.6, O.z - 13.1); }
+      board([[name, 60]], Math.min(14, w * 0.6), 1.8, x, h - 1.4, -13.9, bg, fg); solid(x - w / 2, x + w / 2, -14 - d, -13.2); flat(x - w / 2, x + w / 2, -13.2, -6.2, ST.road, 0.015); };
+    hall(66, 34, 24, 9, 0xd8d8d0, 'XXL DISTRIBUTIE', '#ffffff', '#c8102e');
+    hall(194, 28, 22, 8, 0xc8c0b0, 'WOONBOULEVARD', '#2a4a8a', '#ffffff');
+    // the drive-throughs: a low box, a red roof, the lane round it, and a sign on a pole you can see from the A6
+    const drive = (x, name, col, sub) => { K.box(10, 3.4, 8, 0xf2ece0, O.x + x, 1.7, O.z - 18); K.box(10.6, 0.8, 8.6, col, O.x + x, 3.8, O.z - 18); K.box(6, 1.6, 0.08, 0x4a6a8a, O.x + x - 1, 1.6, O.z - 13.95);
+      flat(x - 9, x + 9, -26, -6.2, ST.road, 0.015); solid(x - 5, x + 5, -22, -14);
+      K.cyl(0.3, 0.3, 14, 0x9a9ea2, O.x + x + 7, 7, O.z - 11, 8); board([[name, 70], [sub, 30]], 5, 3, x + 7, 14.5, -10.85, col === 0xd8202a ? '#d8202a' : '#f2c31a', col === 0xd8202a ? '#ffffff' : '#1a1a1a');
+      board([['DRIVE', 40]], 2.2, 0.8, x - 6, 1.5, -6.6, '#ffffff', '#1a1a1a'); };
+    drive(26, 'POLDERBURGER', 0xd8202a, '24 uur · drive-in');
+    drive(166, 'KIP & GO', 0xf2c31a, 'emmer kip W 9,99');
+    // empty lots: the most Almere thing of all
+    for (const [x, z] of [[100, -16], [40, 18], [118, 18], [178, 18]]) { K.box(0.12, 2.4, 0.12, 0x8a8e94, O.x + x - 1.6, 1.2, O.z + z); K.box(0.12, 2.4, 0.12, 0x8a8e94, O.x + x + 1.6, 1.2, O.z + z);
+      board([['KAVEL TE KOOP', 54], ['bedrijventerrein De Zuinige Vaart · 2.400 m²', 22]], 3.8, 1.6, x, 2.3, z + (z > 0 ? -0.08 : 0.08), '#ffffff', '#1a4a2a', z > 0 ? Math.PI : 0); }
+    // a frituur kiosk and a big billboard on the south side, backs to the sloot
+    K.box(5, 3, 4, 0xf4e8c8, O.x + 80, 1.5, O.z + 9); K.box(5.6, 0.5, 4.6, 0xe8862c, O.x + 80, 3.25, O.z + 9); board([['FRITUUR DE A6', 40]], 4, 0.9, 80, 2.4, 6.92, '#e8862c', '#ffffff', Math.PI); solid(77.5, 82.5, 7, 11);
+    K.box(0.4, 7, 0.4, 0x8a8e94, O.x + 146, 3.5, O.z + 16); board([['ALMERE', 60], ['hier is ruimte', 34]], 9, 3.6, 146, 8, 15.8, '#2a8ac8', '#ffffff', Math.PI);
+    // the A6 on a viaduct behind the estate, and wind turbines on the horizon
+    { const vz = -78; K.box(X1 - X0 + 240, 1.4, 22, 0xb8b4aa, O.x + (X0 + X1) / 2, 9, O.z + vz); K.box(X1 - X0 + 240, 1.0, 0.4, 0x9a968e, O.x + (X0 + X1) / 2, 10.2, O.z + vz + 11); K.box(X1 - X0 + 240, 1.0, 0.4, 0x9a968e, O.x + (X0 + X1) / 2, 10.2, O.z + vz - 11);
+      for (let x = X0 - 100; x < X1 + 120; x += 24) K.cyl(0.9, 0.9, 8.4, 0xaaa69c, O.x + x, 4.2, O.z + vz, 10);
+      for (let x = X0 - 90, i = 0; x < X1 + 110; x += 13 + (i * 7) % 11, i++) K.box(4.2, 1.5, 1.8, [0xc8102e, 0xf4f2ec, 0x2a5a9a, 0x3a3c40, 0xd8b020][i % 5], O.x + x, 10.5, O.z + vz + (i % 2 ? 4 : -4)); // traffic, stuck as always
+      board([['A6', 60], ['Lelystad · Amsterdam', 30]], 6, 2.2, 60, 14, vz + 11.3, '#14499a', '#ffffff'); }
+    for (const tx of [-60, 40, 150, 260]) { K.cyl(0.6, 1.0, 34, 0xf4f4f0, O.x + tx, 17, O.z - 130, 10); K.box(1.2, 1.2, 2.6, 0xf4f4f0, O.x + tx, 34, O.z - 130); for (let a = 0; a < 3; a++) K.box(0.6, 15, 0.2, 0xf4f4f0, O.x + tx + Math.sin(a * 2.09) * 7.5, 34 + Math.cos(a * 2.09) * 7.5, O.z - 128.6, 0, 0, -a * 2.09); }
+    // lamps, a row of young trees that never grew, the oprit
+    for (let x = 4; x < X1; x += 22) deps.lamp(O.x + x, O.z - 6.8, K);
+    for (let x = 8; x < X1; x += 9) if (Math.abs(x - POL.hal.x) > POL.hal.w / 2 + 4 && Math.abs(x - 26) > 10 && Math.abs(x - 166) > 10) deps.tree(O.x + x, O.z + 7.4, 0.55, K);
+    board([['A6  oprit', 74], ['Amsterdam · Kipkruidenkwartier', 30]], 5, 1.9, POL.oprit.x - 2, 3.3, -7.2, '#14499a', '#ffffff'); K.cyl(0.07, 0.07, 3.3, 0x8a8e94, O.x + POL.oprit.x - 2, 1.65, O.z - 7.26, 6);
+    { const ar = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.35, depthWrite: false })); ar.rotation.x = -Math.PI / 2; ar.position.set(O.x + POL.oprit.x, 0.05, O.z + POL.oprit.z); g.add(ar); }
+    for (const [x, z, r] of [[60, -9, 0], [70, -9, 0], [194, -9, Math.PI], [30, -22, 0.4]]) deps.car(O.x + x, O.z + z, null, r, true);
+    { const km = K.build(); if (km) { km.castShadow = !low; g.add(km); } }
+    scene.add(g);
+    t.rect = POL.rect; t.vanAt = POL.van; t.oprit = POL.oprit; t.lines = [{ x0: -4, x1: 214, lanes: POL.lanes, walks: POL.walks }]; t.spins = [];
+  }
   // somebody to fetch or to see off. job: { kind: 'pickup' | 'drop', who, lines: [[speaker, text]...], onAboard(), onHome(res), onDone() }
   function airJob(dt) {
     const J = T.job; if (!J || J.done || deps.busy()) return;
@@ -129,6 +187,7 @@ export function createWijk(deps) {
     const W = WIJKEN[key], O = origin(W), low = deps.low, ST = deps.ST, t = { key, W, O, objs: [], sols: [], houses: [], doors: [], vis: true };
     const n0 = scene.children.length, s0 = deps.solids.length, f0 = deps.fadeables.length;
     const track = () => { for (let i = n0; i < scene.children.length; i++) t.objs.push(scene.children[i]); for (let i = s0; i < deps.solids.length; i++) t.sols.push(deps.solids[i]); for (let i = f0; i < deps.fadeables.length; i++) t.houses.push(deps.fadeables[i]); return (towns[key] = t); };
+    if (W.polder) { buildPolder(t); return track(); }
     if (W.custom) { buildAir(t); return track(); }
     // a district is as long as its joints need: every joint gets a row of shops to itself (three rows a block, less the plein)
     const nB = Math.max(deps.low ? 3 : 4, Math.ceil((deps.joints(key).length + 1) / 3)), XS = Array.from({ length: nB + 1 }, (q, i) => i * 76), BLK = XS.slice(1).map((x, i) => [XS[i] + 6, x - 6]), XE = XS[XS.length - 1];

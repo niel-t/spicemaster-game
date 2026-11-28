@@ -387,7 +387,7 @@ export function createBlokaas(d) {
     box(3.1, 0.55, 0.3, lam({ color: 0xc0c2c4 }), mx - wm * 0.08, 3.55, h.zf + 0.15, g, false); // the roll housing
     box(0.9, 2.1, 0.08, lam({ color: 0x9a9ea2 }), x0 + wm - 0.8, 1.05, h.zf + 0.05, g, false); // side door
     box(0.4, 0.5, 0.3, lam({ color: 0x8a8e92 }), x0 + 0.9, HM + 0.45, zc, g, false); // the vent on the roof
-    { const s = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(3.2, wm * 0.62), 0.9), lam({ map: d.signTex([{ t: 'BLOKAAS', size: 64 }, { t: 'specijeren · groothandel · Almere', size: 22 }], '#ffffff', '#1a3a7a', 512, 144) })); s.position.set(x0 + Math.min(3.2, wm * 0.62) / 2 + 0.3, HM - 1.2, h.zf + 0.07); g.add(s); }
+    { const s = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(6.5, wm * 0.5), 0.9), lam({ map: d.signTex([{ t: 'BLOKAAS', size: 64 }, { t: 'specijeren · groothandel · Almere', size: 22 }], '#ffffff', '#1a3a7a', 512, 144) })); s.position.set(x0 + Math.min(6.5, wm * 0.5) / 2 + 0.3, HM - 1.2, h.zf + 0.07); g.add(s); }
     // the office: white brick, two windows, blue fascia, the glass entrance on the corner
     box(wa, HO, D * 0.7, lam({ color: 0xe4e2dc }), ox, HO / 2, h.zf - D * 0.35, g, true);
     box(wa + 0.1, 0.45, D * 0.7 + 0.1, lam({ color: 0x2a5aa0 }), ox, HO + 0.2, h.zf - D * 0.35, g, false);
