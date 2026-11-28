@@ -312,38 +312,31 @@ export function createVenues(deps) {
     const hT = deps.canvasTex(64, 64, (g) => { g.clearRect(0, 0, 64, 64); g.fillStyle = '#ff5aa8'; g.beginPath(); g.moveTo(32, 54); g.bezierCurveTo(4, 34, 8, 8, 32, 22); g.bezierCurveTo(56, 8, 60, 34, 32, 54); g.fill(); });
     BO.hearts = [0, 1, 2, 3, 4, 5, 6].map((k) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: hT, transparent: true, depthWrite: false })); m.scale.set(0.3, 0.3, 1); m.visible = false; m.userData.k = k; club.add(m); return m; });
   }
-  // --- shadow play on the shut curtain: a lamp behind it throws Eddy on the couch and the dancer on his lap as soft silhouettes
-  // (a canvas redrawn while the curtain phase runs; kissing, a hair toss and Eddy's flailing arm, nothing more)
+  // --- shadow play on the shut curtain: a lamp behind it throws the real Eddy and the real dancer on the cloth as silhouettes.
+  // The two characters are drawn in profile, flat black, into a small render target (only while the curtain phase runs), and that
+  // picture hangs on the curtain over a painted lamp glow. What they do back there is the same lap dance, and a kiss.
   {
-    const cv = document.createElement('canvas'); cv.width = 384; cv.height = 288; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(BO.x1 - BO.x0 - 0.1, 2.4), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 })); m.position.set(BO.cx, 1.25, BO.zf + 0.09); m.visible = false; club.add(m);
-    BO.sil = { cv, g: cv.getContext('2d'), tex, m };
+    const cv = document.createElement('canvas'); cv.width = 192; cv.height = 144; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const w = BO.x1 - BO.x0 - 0.1, glow = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.4), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 })); glow.position.set(BO.cx, 1.25, BO.zf + 0.07); glow.visible = false; club.add(glow);
+    const rt = new THREE.WebGLRenderTarget(448, 336); rt.texture.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.4), new THREE.MeshBasicMaterial({ map: rt.texture, transparent: true, depthWrite: false, opacity: 0 })); m.position.set(BO.cx, 1.25, BO.zf + 0.1); m.visible = false; club.add(m);
+    const sc2 = new THREE.OrthographicCamera(-w / 2, w / 2, 1.2, -1.2, 0.1, 8); sc2.position.set(BO.x0 - 2, 1.25, BO.seatZ + 0.55); sc2.lookAt(BO.cx, 1.25, BO.seatZ + 0.55); sc2.layers.set(7);
+    BO.sil = { cv, g: cv.getContext('2d'), tex, glow, m, rt, cam: sc2, ink: new THREE.MeshBasicMaterial({ color: 0x24000e, fog: false }), col: new THREE.Color() };
   }
-  function drawSil(t, d) {
-    const { g, tex } = BO.sil, INK = 'rgba(34,0,14,.86)'; g.clearRect(0, 0, 384, 288);
-    const gl = g.createRadialGradient(200, 150, 10, 200, 150, 190); gl.addColorStop(0, 'rgba(255,190,130,.5)'); gl.addColorStop(0.6, 'rgba(255,120,110,.16)'); gl.addColorStop(1, 'rgba(255,120,110,0)'); g.fillStyle = gl; g.fillRect(0, 0, 384, 288); // the lamp's glow
-    g.save(); g.shadowColor = INK; g.shadowBlur = 7; g.fillStyle = INK; g.strokeStyle = INK; g.lineCap = 'round'; g.lineJoin = 'round';
-    const dot = (x, y, r, ry) => { g.beginPath(); g.ellipse(x, y, r, ry || r, 0, 0, 7); g.fill(); }, limb = (w, ...p) => { g.lineWidth = w; g.beginPath(); g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.stroke(); };
-    const k = 0.5 + 0.5 * Math.sin(t * 1.5), sw = Math.sin(t * 3.1) * 3, kiss = k > 0.86; // k: 0 = she leans back and tosses her hair, 1 = she leans in for a kiss
-    g.beginPath(); g.roundRect(40, 226, 304, 62, 10); g.fill(); // the couch
-    // Eddy, seated, facing right: round body, curls, glasses, one arm that doesn't know where to go
-    dot(150, 196, 44, 50); dot(160, 118, 25); for (const [cx, cy, r] of [[142, 100, 11], [154, 93, 11], [168, 93, 10], [137, 112, 9], [180, 98, 8]]) dot(cx, cy, r);
-    dot(185, 122, 5); g.fillRect(176, 110, 16, 3); limb(26, 160, 232, 238, 236, 246, 284);
-    const fa = -1.9 + Math.sin(t * 6.5) * 0.5 * (kiss ? 0.2 : 1); limb(13, 138, 160, 138 + Math.cos(fa) * 34, 160 + Math.sin(fa) * 34, 138 + Math.cos(fa) * 34 + Math.cos(fa - 0.7) * 28, 160 + Math.sin(fa) * 34 + Math.sin(fa - 0.7) * 28);
-    // the dancer on his lap, facing him
-    const hx = 232 + sw, hy = 204, sx = hx + 30 - 50 * k, sy = hy - 80, nx = sx - 6 * k + 2, ny = sy - 30, b = d.bust || 1.3;
-    dot(hx + 8, hy + 2, 27, 23); g.lineWidth = 28; g.beginPath(); g.moveTo(hx, hy); g.quadraticCurveTo(hx + 12 - 10 * k, hy - 44, sx, sy); g.stroke(); // hips, the curve of her back
-    dot(sx - 12 + (hx - sx) * 0.3, sy + 26, 8 + 5 * b); // bust
-    limb(21, hx - 4, hy + 6, hx - 52, hy + 14); limb(12, hx - 52, hy + 14, hx - 36, hy + 62, hx - 26, hy + 66); limb(3, hx - 36, hy + 62, hx - 40, hy + 76); // thigh over his lap, shin, a heel
-    limb(9, sx - 2, sy + 6, 176 + 20 * (1 - k), 146 - 6 * k); // her arm round his neck
-    limb(11, sx, sy, nx, ny); dot(nx, ny - 4, 17);
-    const toss = Math.cos(t * 1.5); // hair: each dancer's own shape
-    if (d.hairK === 'pony') { g.lineWidth = 9; g.beginPath(); g.moveTo(nx + 10, ny - 16); g.quadraticCurveTo(nx + 40 + toss * 14, ny - 24, nx + 34 + toss * 22, ny + 34); g.stroke(); dot(nx + 11, ny - 16, 7); }
-    else if (d.hairK === 'bob') { g.beginPath(); g.roundRect(nx - 16, ny - 24, 40, 40, 12); g.fill(); }
-    else { dot(nx + 6, ny - 12, 27); g.lineWidth = 22; g.beginPath(); g.moveTo(nx + 16, ny); g.quadraticCurveTo(nx + 28 + toss * 8, ny + 26, nx + 22 + toss * 12, ny + 52); g.stroke(); }
-    g.restore();
-    if (kiss) { const hy2 = 70 - ((t * 60) % 26); g.fillStyle = 'rgba(255,120,170,.9)'; g.beginPath(); g.moveTo(182, hy2 + 16); g.bezierCurveTo(166, hy2 + 4, 170, hy2 - 10, 182, hy2 - 2); g.bezierCurveTo(194, hy2 - 10, 198, hy2 + 4, 182, hy2 + 16); g.fill(); }
+  function drawSil(t, kiss) { // the lamp's glow, and a heart that floats up at a kiss
+    const { g, tex } = BO.sil; g.clearRect(0, 0, 192, 144);
+    const gl = g.createRadialGradient(100, 75, 5, 100, 75, 95); gl.addColorStop(0, 'rgba(255,190,130,.55)'); gl.addColorStop(0.6, 'rgba(255,120,110,.18)'); gl.addColorStop(1, 'rgba(255,120,110,0)'); g.fillStyle = gl; g.fillRect(0, 0, 192, 144);
+    if (kiss) { const y = 30 - ((t * 30) % 14); g.fillStyle = 'rgba(255,120,170,.9)'; g.beginPath(); g.moveTo(96, y + 8); g.bezierCurveTo(88, y + 2, 90, y - 5, 96, y - 1); g.bezierCurveTo(102, y - 5, 104, y + 2, 96, y + 8); g.fill(); }
     tex.needsUpdate = true;
+  }
+  function renderSil(a, b) { // draw the two of them, flat black, from the side into the curtain's picture
+    const R = deps.renderer, S = BO.sil; if (!R) return;
+    const set = (o, on) => o.traverse((n) => { if (n.isMesh) { if (on) n.layers.enable(7); else n.layers.disable(7); } });
+    set(a, true); set(b, true);
+    const rt0 = R.getRenderTarget(), bg = scene.background, om = scene.overrideMaterial, al = R.getClearAlpha(), au = R.shadowMap.autoUpdate; R.getClearColor(S.col);
+    scene.background = null; scene.overrideMaterial = S.ink; R.shadowMap.autoUpdate = false; R.setRenderTarget(S.rt); R.setClearColor(0x000000, 0); R.clear(); R.render(scene, S.cam);
+    R.setRenderTarget(rt0); R.setClearColor(S.col, al); scene.background = bg; scene.overrideMaterial = om; R.shadowMap.autoUpdate = au;
+    set(a, false); set(b, false);
   }
   function setCurtain(c) { BO.shut = c; const w = BO.x1 - BO.x0; for (const m of BO.curt) { const s = m.userData.s, k = 0.16 + 0.84 * c * 0.5 / 0.5; m.scale.x = (0.16 + (0.5 - 0.16) * c) * w / 1.6; m.position.x = BO.cx + s * (w / 2 - m.scale.x * 0.8); } }
   setCurtain(0);
@@ -419,7 +412,7 @@ export function createVenues(deps) {
     const { p, d, extra } = sc; sc.phase = 'out'; caption('');
     fade(() => {
       const u = player.userData; u.seated = false; u.body.position.y = 0; u.legs.forEach((l) => { l.rotation.x = 0; }); player.position.set(BO.cx, 0, BO.zf + 1.0); player.rotation.y = 0;
-      p.position.set(d.pole.x, 0.5, d.pole.z); d.mvT = 0; setCurtain(0); BO.sil.m.visible = false; clubHi.visible = false; BO.light.intensity = 0; for (const h of BO.hearts) h.visible = false; sc = null; state.inDialogue = false;
+      p.position.set(d.pole.x, 0.5, d.pole.z); d.mvT = 0; setCurtain(0); BO.sil.m.visible = BO.sil.glow.visible = false; clubHi.visible = false; BO.light.intensity = 0; for (const h of BO.hearts) h.visible = false; sc = null; state.inDialogue = false;
       const jos = ['Jossi', pick([`EDDY! You got ${d.name}?! I've been asking for ${d.name} for an HOUR!`, `${d.name}?! Eddy, that's MY ${d.name}! ...Was it nice? Don't tell me. Tell me.`, 'Next one\'s mine. NEXT ONE IS MINE.'])];
       if (extra) showCard(d.name, EXTRA_CARD[d.name] || EXTRA_CARD.Brie, () => dialogue([['Creplach', 'I saw nothing. I heard nothing. That is also what you saw and heard.'], jos]));
       else dialogue([['Eddy Jr.', '(' + d.card + ')'], jos]);
@@ -435,14 +428,19 @@ export function createVenues(deps) {
       p.position.x = BO.cx + Math.sin(t * 1.1) * 0.05; p.position.z += (BO.seatZ + beat[1] - p.position.z) * Math.min(1, dt * 2.5); p.position.y = danceY(st) * 0.93; turnTo(p, beat[2], dt * 3.2);
       player.position.set(BO.cx, 0, BO.seatZ); player.rotation.y = 0;
       if (deps.animate) deps.animate(p, dt);
-      if (t >= sc.dur) { if (sc.extra) { sc.phase = 'curtain'; sc.t = 0; sc.sq = 0; caption(''); st.move = 'sway'; } else endPrive(); }
+      if (t >= sc.dur) { if (sc.extra) { sc.phase = 'curtain'; sc.t = 0; sc.sq = 0; caption(''); } else endPrive(); }
     } else if (sc.phase === 'curtain') { // the extras happen behind the curtain: all you get is the curtain, the hearts and the couch springs
-      const t = sc.t; setCurtain(Math.min(1, t / 0.8)); { const sm = BO.sil.m; sm.visible = t > 0.9 && t < 8.3; if (sm.visible) { sm.material.opacity = Math.min(1, (t - 0.9) / 0.8) * (t > 7.5 ? Math.max(0, (8.3 - t) / 0.8) : 1); drawSil(t, d); } }
+      const t = sc.t, st = d.st; setCurtain(Math.min(1, t / 0.8)); st.t += dt; st.w = Math.min(1, st.w + dt * 2.4);
+      // behind the curtain the lap dance goes on: hip rolls facing him, a lap dance with her back to him, then in close for a kiss
+      const beat = t < 3.3 ? ['roll', 0.66, Math.PI] : t < 5.9 ? ['lap', 0.72, 0] : ['roll', 0.56, Math.PI], kiss = t > 6.6 && t < 8.1;
+      if (st.move !== beat[0]) { st.move = beat[0]; st.t = 0; st.w = 0; }
+      p.position.x = BO.cx; p.position.z += (BO.seatZ + beat[1] - p.position.z) * Math.min(1, dt * 2.5); p.position.y = danceY(st) * 0.93; turnTo(p, beat[2], dt * 3.4); player.position.set(BO.cx, 0, BO.seatZ);
+      if (deps.animate) deps.animate(p, dt);
+      { const S = BO.sil, on = t > 0.9 && t < 8.3, op = on ? Math.min(1, (t - 0.9) / 0.8) * (t > 7.5 ? Math.max(0, (8.3 - t) / 0.8) : 1) : 0; S.m.visible = S.glow.visible = on; S.m.material.opacity = op * 0.9; S.glow.material.opacity = op; if (on) { drawSil(t, kiss); renderSil(p, player); } }
       const wob = Math.min(1, t / 2) * (t < 7 ? 1 : Math.max(0, 8 - t));
       for (const m of BO.curt) { m.position.z = BO.zf + Math.sin(t * 13 + m.userData.s) * 0.035 * wob; m.rotation.y = Math.sin(t * 9 + m.userData.s * 2) * 0.03 * wob; }
       for (const h of BO.hearts) { const k = h.userData.k, c = ((t * 0.45 + k / 7) % 1); h.visible = t > 1; h.position.set(BO.cx + Math.sin(k * 2.4 + t) * 1.1, 2.3 + c * 1.6, BO.zf - 0.6 + Math.cos(k * 1.7) * 0.5); h.material.opacity = 1 - c; const s = 0.22 + c * 0.2; h.scale.set(s, s, 1); }
       sc.sq -= dt; if (sc.sq <= 0 && t > 1 && t < 7.4) { sc.sq = Math.max(0.16, 0.5 - t * 0.05); sc.sqN = (sc.sqN | 0) + 1; beep(sc.sqN % 2 ? 620 : 520, 0.04, 'square', 0.02); }
-      p.position.set(BO.cx, 0, BO.seatZ + 0.7); player.position.set(BO.cx, 0, BO.seatZ);
       if (t >= 8.4) { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.16, 'triangle', 0.04), i * 110)); endPrive(); }
     }
   }

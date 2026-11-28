@@ -3575,7 +3575,7 @@ johan = createJohan({ THREE, scene, state, dialogue, toast, beep, save: () => wr
     else if (t === 'fail') garage.addWear(12);
     else if (t === 'canal') { garage.addWear(8); if (!garage.insured() && state.money >= 75) { addMoney(-75); toast('SLEEPDIENST', 'The tow truck wants W 75 for fishing the Oofmobiel out. Van insurance at Garage Mo covers that.', 3); } }
   } }); }; } // Johan may cut the Oofmobiel off, early game
-venues = createVenues({ THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, dialogue, choice, toast, beep, addMoney, save: () => writeSave(),
+venues = createVenues({ renderer, THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, dialogue, choice, toast, beep, addMoney, save: () => writeSave(),
   day: () => econ.ensure().day, makePerson: (look, scale) => makePerson({ ps2: look, scale }), sit, animate: (p, dt) => animate(p, 0, dt), passerBy: (seed) => passerBy(seed), makeCar: (o) => makeCar(THREE, canvasTex, o) });
 // the production line in the shed: pallets of vaten, the mixer, the packing table (js/productie.js)
 prod = createProductie({ rank: () => rankNow(), goods: () => goederen, THREE, scene, box, cyl, lam, canvasTex, signTex, solid, addInteract, player, state, econ, loods, toast, beep, glyph, save: () => writeSave(),
