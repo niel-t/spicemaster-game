@@ -36,11 +36,11 @@ const C = {
   water: '#a9d3e8', land: '#f3f0ea', street: '#ffffff', park: '#cde8c4', parkInk: '#3b7a3b',
   tint: { start: '#f3f0ea', lampas: '#f6eee8', nosh: '#eef3e6', abd: '#ebf0f3', fin: '#f6efd6' },
   edge: '#b9b2a6', road: '#fde9a4', roadCase: '#e5c46a', ink: '#3c4043', sub: '#70757a', blue: '#1a73e8',
-  st: { open: '#e8710a', own: '#188038', lost: '#d93025', locked: '#80868b', para: '#b4542c', air: '#1a73e8', due: '#e8710a' },
+  st: { open: '#e8710a', own: '#188038', lost: '#d93025', locked: '#80868b', para: '#b4542c', air: '#1a73e8', due: '#e8710a', blk: '#6a4a8a' },
 };
 const STATUS = { own: 'own', lost: 'lost', m1: 'open', m2: 'open', m3: 'open' };
 const statusOf = (k) => STATUS[k] || 'locked';
-const STLABEL = { open: 'Mission open', own: 'Yours', lost: 'Retaken', locked: 'Locked', para: 'Paravim turf', air: 'Airport', due: 'Pick up Pa' };
+const STLABEL = { open: 'Mission open', own: 'Yours', lost: 'Retaken', locked: 'Locked', para: 'Paravim turf', air: 'Airport', due: 'Pick up Pa', blk: 'Rival · Almere' };
 const path = (poly) => 'M' + poly.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L') + 'Z';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 // place icons (screen px around 0,0)
@@ -55,6 +55,21 @@ function icon(kind, st) {
     : (st === 'locked' || st === 'para') ? '<path d="M-2.2,-0.4 V-1.8 a2.2,2.2 0 0 1 4.4,0 V-0.4 M-3,-0.4 H3 V3.2 H-3Z" fill="#fff" stroke="#fff" stroke-width=".7"/>'
     : '<text y="4" text-anchor="middle" font-size="11" font-weight="900" font-family="Arial Black, Arial" fill="#fff">!</text>';
   return `<circle r="${r + 1.5}" fill="#fff"/><circle r="${r}" fill="${c}"/>${g}`;
+}
+// Almere, across the IJmeer (kaasgeo ALMERE): drawn as vectors, the painted city stops at x = W
+function almereSVG() {
+  const A = G.ALMERE, pl = (p) => 'M' + p.map(([x, y]) => `${x},${y}`).join('L');
+  const hw = G.HIGHWAYS.filter((h) => h.pts.some(([x]) => x > W));
+  return `<g class="km-almere"><clipPath id="kmEast"><rect x="${W - 1}" y="-50" width="900" height="${H + 100}"/></clipPath>
+<path d="${path(A.land)}" fill="#e4ecd2" stroke="#b8c49a" stroke-width="2"/>
+${[0, 1, 2, 3, 4].map((i) => `<path d="M${1300 + i * 44},150 L${1300 + i * 44 + 30},500" stroke="#d2dcba" stroke-width="10" opacity=".55"/>`).join('')}
+<ellipse cx="${A.water.cx}" cy="${A.water.cy}" rx="${A.water.rx}" ry="${A.water.ry}" fill="#94c9d7" stroke="#7ab4c4"/>
+<rect x="${A.hal[0] - 30}" y="${A.hal[1] - 16}" width="60" height="32" rx="3" fill="#d8d2c4" stroke="#b0a890"/>${[0, 1, 2].map((i) => `<rect x="${A.hal[0] - 24 + i * 17}" y="${A.hal[1] - 11}" width="13" height="22" fill="#b8b0a0"/>`).join('')}
+${A.roads.map((r) => `<path d="${pl(r)}" fill="none" stroke="#e5c46a" stroke-width="6" stroke-linecap="round"/><path d="${pl(r)}" fill="none" stroke="#fde9a4" stroke-width="4" stroke-linecap="round"/>`).join('')}
+<g clip-path="url(#kmEast)">${hw.map((h) => `<path d="${pl(h.pts)}" fill="none" stroke="#6a2a1e" stroke-width="9.4" stroke-linecap="round"/><path d="${pl(h.pts)}" fill="none" stroke="#e8643a" stroke-width="7.6" stroke-linecap="round"/>`).join('')}</g>
+${hw.filter((h) => h.bridge).map((h) => `<path d="${pl(h.bridge)}" fill="none" stroke="#f6f2e8" stroke-width="2" stroke-dasharray="4 3" transform="translate(5,4)"/>`).join('')}
+${A.names.map(([t, x, y, f]) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="${f}" font-weight="${f > 12 ? 900 : 700}" font-family="Arial, sans-serif" fill="${t === 'IJmeer' ? '#4a7f94' : '#4a5a3a'}" letter-spacing="${f > 12 ? 3 : 0.5}" ${t === 'IJmeer' ? 'font-style="italic"' : ''}>${t}</text>`).join('')}
+</g>`;
 }
 const ICON_DOT = `<circle class="km-halo" r="16" fill="rgba(26,115,232,.18)"/><circle r="7.5" fill="#fff"/><circle r="5.5" fill="${C.blue}"/>`;
 const ICON_SEL = '<path d="M0,0 C-3,-8 -11,-13 -11,-22 A11,11 0 0 1 11,-22 C11,-13 3,-8 0,0Z" fill="#ea4335" stroke="#a52714" stroke-width="1"/><circle cy="-22" r="4" fill="#7a1a0e"/>';
@@ -91,20 +106,22 @@ export function createKaasMap() {
     const terr = o.terr.filter((t) => t.n !== 'Kipkruidenkwartier' && PLACES[t.n]).map((t) => ({ ...t, st: statusOf(t.k), boss: BOSS.includes(t.n), x: PLACES[t.n][0], y: PLACES[t.n][1] }));
     for (const [n, [x, y]] of Object.entries(PARA_PLACES)) { const pk = openAct('para') && o.para && o.para[n]; terr.push(pk ? { n, k: pk, st: statusOf(pk), region: 'para', boss: BOSS.includes(n), x, y } : { n, k: 'para', st: 'para', region: 'para', boss: BOSS.includes(n), x, y, para: true }); }
     if (o.air) terr.push({ n: 'Schiptagat', k: 'air', st: o.air, region: 'start', air: true, x: G.AIRPORT.pin[0], y: G.AIRPORT.pin[1] }); // the airport: a landmark, and where Pa lands
+    if (o.almere && o.almere.known) terr.push({ n: 'Blokaas Specijeren', k: 'blk', st: 'blk', region: 'almere', almere: true, x: G.ALMERE.hal[0], y: G.ALMERE.hal[1] - 2 }); // the rivals' hall (js/blokaas.js)
     cur = { ...o, terr, openAct };
     let s = `<svg class="km-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
 <defs>${ROAD_LABELS.map(([, p], i) => `<path id="kmRd${i}" d="${path(p).slice(0, -1)}"/>`).join('')}${CANALS.map((r, i) => `<path id="kmCn${i}" d="${path(arc(150, 30, r, 3)).slice(0, -1)}"/>`).join('')}<path id="kmRiver" d="M80,268 C300,262 500,286 760,276"/></defs>
 <rect x="-3000" y="-3000" width="${W + 6000}" height="${H + 6000}" fill="#94c9d7"/>
 <image class="km-air" href="${aerialURL || ''}" width="${W}" height="${H}" ${aerialURL ? '' : 'style="opacity:0"'}/>
-<g class="km-locks">${ACTS.filter((a) => !openAct(a.r)).map((a) => (a.r === 'fin' ? `<ellipse cx="${ISLAND.cx}" cy="${ISLAND.cy}" rx="${ISLAND.rx}" ry="${ISLAND.ry}"/>` : `<path d="${path(REGIONS[a.r])}"/>`)).join('')}</g>
+<clipPath id="kmCity"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath><g class="km-locks" clip-path="url(#kmCity)">${ACTS.filter((a) => !openAct(a.r)).map((a) => (a.r === 'fin' ? `<ellipse cx="${ISLAND.cx}" cy="${ISLAND.cy}" rx="${ISLAND.rx}" ry="${ISLAND.ry}"/>` : `<path d="${path(REGIONS[a.r])}"/>`)).join('')}</g>
 <g class="km-snelweg">${G.HIGHWAYS.map((h) => h.shields.map(([x, y]) => `<g transform="translate(${x},${y})"><rect x="-19" y="-10" width="38" height="20" rx="4.5" fill="#c8102e" stroke="#fff" stroke-width="1.8"/><text y="5" text-anchor="middle" font-size="13.5" font-weight="900" font-family="Arial, sans-serif" fill="#fff">${h.id}</text></g>`).join('')).join('')}</g>
 <g class="km-roadnames">${ROAD_LABELS.map(([n], i) => `<text dy="3.4"><textPath href="#kmRd${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
 <g class="km-canalnames">${CANAL_NAMES.map((n, i) => `<text dy="3.4"><textPath href="#kmCn${i}" startOffset="50%" text-anchor="middle">${esc(n)}</textPath></text>`).join('')}</g>
 <text class="km-water"><textPath href="#kmRiver" startOffset="50%" text-anchor="middle">D e   K a a s</textPath></text>
+${o.almere && o.almere.known ? almereSVG() : ''}
 <path class="km-route-case" d="" fill="none"/><path class="km-route" d="" fill="none"/>
 <g class="km-txt">${ACTS.filter((a) => a.r !== 'fin').map((a) => `<g class="km-t km-district km-d-${a.r}" data-x="${ACT_AT[a.r][0]}" data-y="${ACT_AT[a.r][1]}"><text text-anchor="middle">${a.name.toUpperCase()}</text>${openAct(a.r) ? '' : `<text text-anchor="middle" y="14" class="km-dsub">${a.r === 'para' ? 'PARAVIM · RAS AL GARA' : `LOCKED · ${a.tag.toUpperCase()}`}</text>`}</g>`).join('')}<g class="km-t km-district km-d-bay" data-x="1120" data-y="232"><text text-anchor="middle" class="km-bay">Kaasbaai</text></g></g>
 <g class="km-places">`;
-    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" ${t.para ? 'data-para' : 'data-pin'}="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' || t.st === 'due' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.air ? 'air' : t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
+    for (const t of terr) s += `<g class="km-pl km-${t.st}${t.boss ? ' km-boss' : ''}" ${t.para ? 'data-para' : 'data-pin'}="${esc(t.n)}" data-k="${t.k}" data-x="${t.x}" data-y="${t.y}" data-pri="${t.st === 'open' || t.st === 'lost' || t.st === 'due' ? 3 : t.boss ? 2 : t.st === 'own' ? 1 : 0}"><circle r="12" fill="transparent"/>${icon(t.air ? 'air' : t.almere ? 'person' : t.boss ? 'boss' : 'joint', t.st)}<g class="km-lab"><rect x="10" y="-8" height="16" rx="8"/><text x="16" y="4">${esc(t.n)}${t.extra ? ` · ${esc(t.extra)}` : ''}</text></g></g>`;
     for (const w of o.warehouses || []) { const t = terr.find((x) => x.n === w.n); if (t) s += `<g class="km-pl km-wh" data-x="${t.x + 12}" data-y="${t.y - 12}" data-pri="-1"><title>${esc(w.name)}</title>${icon('wh')}</g>`; }
     s += `<g class="km-pl km-home" data-pin="Kipkruidenkwartier" data-k="own" data-x="${HOME[0]}" data-y="${HOME[1]}" data-pri="4"><circle r="14" fill="transparent"/>${ICON_DOT}<g class="km-lab"><rect x="11" y="-8" height="16" rx="8"/><text x="17" y="4">You are here</text></g></g>`;
     s += `<g class="km-selpin" style="display:none">${ICON_SEL}</g></g></svg>`;
@@ -116,8 +133,8 @@ export function createKaasMap() {
       if (a.r === 'para') return `<div class="km-grp"><button class="km-gh km-gh-para" data-frame="para" title="Show on the map"><b>Paravim · De Zandwijk</b><small>${openAct('para') ? `${mine}/${all}` : 'side act'}</small></button><div class="km-pnote">Ras al Gara's desert clan. Always angry, the toughest crew in Kaasland.${openAct('para') ? ' Optional, and hard: three hits each.' : ' Opens once the Noshgey Kariot are beaten.'}</div>${ts.map(row).join('')}</div>`;
       if (!openAct(a.r)) return `<div class="km-grp km-shut" data-frame="${a.r}"><b>${a.tag} · ${esc(a.name)}</b><small>Locked: ${esc(a.need)}</small></div>`;
       return `<div class="km-grp"><button class="km-gh" data-frame="${a.r}" title="Show on the map"><b>${a.tag} · ${esc(a.name)}</b><small>${mine}/${all}</small></button>${ts.map(row).join('')}</div>`;
-    }).join('');
-    const own = terr.filter((t) => t.st === 'own').length + 1, nTerr = terr.filter((t) => !t.para && !t.air).length;
+    }).join('') + terr.filter((t) => t.almere).map((t) => `<div class="km-grp"><button class="km-gh km-gh-blk" data-go="${esc(t.n)}" title="Show on the map"><b>Rivals · Almere</b><small>over the IJmeer</small></button><div class="km-pnote">Gert and Wilma Blokaas, of Blokaas Specijeren. Cheaper than you, and proud of it.</div>${row(t)}</div>`).join(''); // the rivals (js/blokaas.js)
+    const own = terr.filter((t) => t.st === 'own').length + 1, nTerr = terr.filter((t) => !t.para && !t.air && !t.almere).length;
     return `<div class="kmap">
   <div class="km-side">
     <div class="well km-info"><div class="km-ihead"></div><div id="pininfo">${o.van ? 'Where to? Pick a place on the map or in the list.' : 'Click a place on the map or in the list.'}</div></div>
@@ -146,7 +163,8 @@ export function createKaasMap() {
       s0 = Math.max(vw / W, vh / H); // fill the window: no empty bands around the city
       view.z = Math.max(1, Math.min(ZMAX, view.z)); sc = s0 * view.z;
       const bw = vw / sc, bh = vh / sc;
-      view.cx = Math.max(bw / 2, Math.min(W - bw / 2, view.cx)); view.cy = Math.max(bh / 2, Math.min(H - bh / 2, view.cy));
+      const EW = cur && cur.almere && cur.almere.known ? G.ALMERE.east : W; // Almere lies east of the painted city
+      view.cx = Math.max(bw / 2, Math.min(EW - bw / 2, view.cx)); view.cy = Math.max(bh / 2, Math.min(H - bh / 2, view.cy));
       const x0 = view.cx - bw / 2, y0 = view.cy - bh / 2;
       svg.setAttribute('viewBox', `${x0} ${y0} ${bw} ${bh}`);
       const k = 1 / sc;
@@ -190,7 +208,10 @@ export function createKaasMap() {
       for (const g of pls) g.classList.toggle('km-sel', !!sel && (g.dataset.pin || g.dataset.para) === sel);
       root.querySelectorAll('.km-item').forEach((b) => b.classList.toggle('on', b.dataset.go === n));
       const t = sel && cur.terr.find((x) => x.n === sel);
-      if (t) {
+      if (t && t.almere) {
+        ihead.innerHTML = `<b>${esc(t.n)}</b><span class="km-tag km-tag-blk">${STLABEL.blk}</span><small>Rival spice mixer · Almere-Buiten · about 38 min drive (A10, A1, then the A6 over the IJmeer)</small>`;
+        if (cur.van) { const r = route(G.NODES.re.slice(0, 2), 'abd').pts.concat(G.HIGHWAYS.find((h) => h.id === 'A6').pts, [G.ALMERE.hal]); const d = 'M' + r.map((p) => p.map((v) => v.toFixed(1)).join(',')).join('L'); rt.setAttribute('d', d); rtc.setAttribute('d', d); } else drawRoute(null);
+      } else if (t) {
         const r = route([t.x, t.y], t.region);
         ihead.innerHTML = `<b>${esc(t.n)}</b><span class="km-tag km-tag-${t.st}">${STLABEL[t.st]}</span><small>${ACT[t.region].tag} · ${esc(ACT[t.region].name)} · ${Math.max(1, Math.round(r.km * 2.2))} min drive (${r.km.toFixed(1).replace('.', ',')} km${r.via ? ` via ${esc(r.via)}` : ''})${t.st === 'locked' ? `<br>Opens after ${esc(PARENT[t.n] || 'the one before it')}.` : ''}</small>`;
         drawRoute(cur.van ? t : null);

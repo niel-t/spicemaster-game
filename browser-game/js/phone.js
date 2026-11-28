@@ -230,6 +230,7 @@ export function initPhone(d) {
       if (econ.has('prognose')) list.push({ l: 'Henk Cijfer', go: 'henk' });
       if (econ.has('geruchten')) list.push({ l: 'De Fluisteraar', go: 'fluist' });
       if (d.freddyBack && d.freddyBack()) list.push({ l: 'Pa', act: () => { close(); if (d.freddyChat) d.freddyChat(); } }); // Freddy Sr., back from Costa del Kaas (js/freddy.js)
+      if (d.extraContacts) list.push(...d.extraContacts()); // js/blokaas.js: the rivals, once Eddy knows them
       list.push({ l: 'Tante Gerda', go: 'gerda' });
       return { t: 'Contacten', items: list, foot: `W ${state.money.toLocaleString('nl-NL')}` };
     },
@@ -296,6 +297,7 @@ export function initPhone(d) {
       return { t: 'Tante Gerda', items: [{ l: 'Bellen', act: () => say(rnd(['"Eddy! Eet je wel?"', '"Shooki zegt dat je in het buitenland bent. Ik zie je busje, jongen."', '"Kom zondag eten. Neem kipkraud mee."'])) }] };
     },
   };
+  if (d.extraScreens) Object.assign(SCREENS, d.extraScreens({ say: (t) => say(t), close: () => close() }));
   function render() {
     const s = cur = SCREENS[stack.at(-1)]();
     sel = Math.max(0, Math.min(sel, s.items.length - 1));

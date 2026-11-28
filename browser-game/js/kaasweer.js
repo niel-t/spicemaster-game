@@ -313,6 +313,7 @@ export function createKaasweer(deps) {
     if (brw) stories.push({ p: 9, head: brw.how === 'win' ? pk(['Spice trader floors four protesters', `Brawl outside the loods: ${brw.tag} picket flattened`, 'Truncheon ends protest at the Kipkruidenkade']) : brw.how === 'lose' ? pk(['Activists floor the kruidenbaas', `${brw.tag} “collects” from spice trader after scuffle`, 'Megaphone beats truncheon']) : pk(['Spice trader flees his own pavement', `${brw.tag} lay siege to a warehouse door`]), body: `${brw.by === 'them' ? 'Witnesses say the protesters went for him first.' : 'Witnesses say he swung first.'} ${brw.how === 'win' ? (brw.footage ? 'Wijkagent Bakker: “It has been settled on the spot.”' : 'Wijkagent Bakker: “There is no footage. Several phones were found in the gutter.”') : brw.how === 'lose' ? 'A spokesperson: “We regret nothing and we kept the receipt.”' : 'The doorbell is reported to be broken.'}` });
     const prot = y.find((f) => f.kind === 'protest') || (state.activists && state.activists.day === d - 1 && state.activists.seen); // the PRO picket (js/activists.js)
     if (prot) stories.push({ p: 6, head: 'Protesters outside the spice trader', body: 'With banners and a megaphone. A local: "No idea what it was about, but they had good coffee."' });
+    if (deps.stories) stories.push(...deps.stories(y, d, pk)); // js/blokaas.js: the rivals from Almere
     const rep = e.report;
     if (rep && rep.rows && rep.rows.length > 1 && r() < 0.6) stories.push({ p: 4, head: rep.missed ? 'Snackbars complain: "No spice delivered"' : 'Snackbar owners happy with new supplier', body: rep.missed ? `${rep.missed} joint${rep.missed > 1 ? 's' : ''} went without spice yesterday. "Salt it is, then," sighs a grill master.` : '"On time, a fair price, and the knoflook is knoflook again," says a happy grill master.' });
     if (c.holi) stories.push({ p: 5, head: c.holi.name + '!', body: c.holi.line + '.' });
@@ -324,7 +325,7 @@ export function createKaasweer(deps) {
     const f1 = pk(FILLER), f2 = pk(FILLER.filter((x) => x !== f1));
     stories.push({ p: 1, head: f1[0], body: f1[1] }, { p: 0.5, head: f2[0], body: f2[1] });
     stories.sort((a, b) => b.p - a.p);
-    const ads = []; while (ads.length < 3) { const a = pk(SMALL_ADS); if (!ads.includes(a)) ads.push(a); }
+    const ads = []; { const own = deps.smallAd && deps.smallAd(d); if (own) ads.push(own); } while (ads.length < 3) { const a = pk(SMALL_ADS); if (!ads.includes(a)) ads.push(a); }
     return { d, c, w, head: stories[0].head, lead: stories[0], side: stories.slice(1, 4), ads };
   }
   function paperHTML() {

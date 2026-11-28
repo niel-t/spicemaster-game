@@ -20,6 +20,8 @@ export const INGREDIENTS = [
   { id: 'sumak', name: 'Sumak', base: 16, supply: 25, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
   { id: 'zaatar', name: "Za'atar", base: 14, supply: 25, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
   { id: 'harissa', name: 'Harissa', base: 12, supply: 30, from: 'Paravim caravan (De Zandwijk)', gate: 'paravim' },
+  // fenegriek: the Blokaas' "smaakje". On the market once Eddy has worked out their recipe (js/blokaas.js, gate: state.blokaasRecept)
+  { id: 'fenegriek', name: 'Fenegriek', base: 7, supply: 30, from: 'Groothandel De Zuinige Vaart (Almere)', gate: 'blokaasRecept' },
 ];
 export const GRADES = [
   { id: 'lampas', name: 'Lampas', mult: 0.6, stars: 1, note: 'cheap, diluted, smells of flour' },
@@ -34,6 +36,7 @@ export const BLENDS = [
   { id: 'slager', name: 'Slagerskruiden', mix: { knoflook: 3, koriander: 3, paprika: 2, komijn: 2 }, value: 45, note: "Freddy Sr.'s butcher blend, from page 1 of his notebook.", page: 1 },
   { id: 'speciaal', name: 'Shoarma Speciaal', mix: { paprika: 3, komijn: 2, knoflook: 2, kurkuma: 2, kardemom: 1 }, value: 80, note: 'Page 2 of the notebook. Kardemom makes it sing.', page: 2 },
   { id: 'woestijn', name: 'Woestijn Shoarma', mix: { paprika: 3, komijn: 2, raselhanout: 2, sumak: 1, zaatar: 1, harissa: 1 }, value: 95, note: "Ras al Gara's caravan blend. The joints in De Zandwijk want nothing else.", gate: 'paravim' },
+  { id: 'polder', name: 'Polder Shoarma', mix: { paprika: 3, komijn: 2, knoflook: 2, fenegriek: 2, koriander: 1 }, value: 55, note: 'The Blokaas recipe, done honestly: real fenegriek, no Ve-tsin. Smells of curry and Almere.', gate: 'blokaasRecept', hide: true },
   { id: 'gouden', name: 'De Gouden Mix', mix: null, value: 0, note: "The legendary blend. Freddy Sr.'s notebook holds the clues." },
 ];
 // Acts 1-3: every joint Eddy owns there buys DISTRICT_KG of its district's blend a market day (balance 2026-11-15)
@@ -783,7 +786,7 @@ export function createEconomy(deps) {
 
   function buy(id, gradeId, kg, el, express = ensure().express) { // an order: paid now, delivered in 2 days (express 1)
     const e = ensure(), g = INGREDIENTS.find((x) => x.id === id);
-    if (!ingOpen(g, state)) return { ok: false, why: 'Only the Paravim bring this, and they do not trade with you yet.' };
+    if (!ingOpen(g, state)) return { ok: false, why: g.gate === 'blokaasRecept' ? 'Nobody you know sells this yet.' : 'Only the Paravim bring this, and they do not trade with you yet.' };
     kg = Math.min(kg, orderRoom(), g.supply ? e.supply[id] : Infinity);
     if (kg <= 0) return { ok: false, why: orderRoom() <= 0 ? (inboundKg() ? 'The warehouse is full once the orders on their way arrive.' : 'The warehouse is full.') : 'Sold out for today.' };
     const cost = expressCost(price(id, gradeId) * kg, express);
@@ -869,6 +872,7 @@ export function createEconomy(deps) {
     h += `<div style="margin-bottom:6px">Grades: <button class="b95" data-pol="cheap" ${on(e.policy === 'cheap')}>Cheapest first</button> <button class="b95" data-pol="best" ${on(e.policy === 'best')}>Best first</button></div>`;
     h += '<table class="list"><tr><th>Blend</th><th>Per 10 kg</th><th>Can mix now</th><th>Order</th></tr>';
     for (const b of BLENDS) {
+      if (!blendOpen(b) && b.hide) continue; // a secret recipe stays off the list until it is found
       if (!blendOpen(b)) { h += `<tr><td><b>${b.name}</b><br><small>${b.gate ? 'Only the Paravim bring these spices. Settle with Ras al Gara in De Zandwijk first.' : b.mix ? 'Ome Joop by the canal has this page of Dad\'s notebook.' : b.note}</small></td><td>???</td><td>-</td><td><button class="b95" disabled>Locked</button></td></tr>`; continue; }
       let can = dayKg() || perNaknik(); for (const [id, w] of Object.entries(b.mix)) can = Math.min(can, Math.floor(have(id) * 10 / w));
       h += `<tr><td><b>${b.name}</b><br><small>${b.note}</small></td><td><small>${Object.entries(b.mix).map(([id, w]) => `${w} kg ${INGREDIENTS.find((g) => g.id === id).name}${have(id) * 10 / w < 1 ? ' <b style="color:#a00">!</b>' : ''}`).join('<br>')}</small></td><td>${can} kg</td><td>${e.order === b.id ? '<b>Mixing this</b>' : `<button class="b95" data-order="${b.id}">Mix this</button>`}</td></tr>`;

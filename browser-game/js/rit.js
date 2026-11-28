@@ -44,6 +44,7 @@ export const ROUTES = {
   sand: { a: 'A5', afrit: 7, via: 'Haarlemmerkaas', other: ['A8', 'Kaasdam'], gang: 'Paravim', props: 'sand', ground: 0xd8b878 },
   pijp: { a: 'A10', afrit: 'S109', via: 'Kaas-Zuid', other: ['A2', 'Uitkaas'], gang: '', props: 'brick', ground: 0x7a8a5a }, // De Peperpijp, the spoed customers (js/spoed.js)
   air: { a: 'A4', afrit: 2, via: 'Den Kaas', other: ['A9', 'Kaasstelveen'], gang: '', props: 'air', ground: 0x7a9a5a },
+  almere: { a: 'A6', afrit: 5, via: 'Almere', other: ['A1', 'Kaasfoort'], gang: 'Blokaas', props: 'polder', ground: 0x86a25a }, // over the IJmeer to Almere (js/blokaas.js)
 };
 
 // deps: THREE, scene, player, state, kit(), lam, signTex, makeCar(opts), makeVan(), fiets, oof, oofSolid,
@@ -429,12 +430,14 @@ body.touch #ritRant{bottom:calc(196px + env(safe-area-inset-bottom));font-size:1
     // the verge on the right: a sloot, and a row of trees that suits the land
     K.box(EXIT0 + 20, 0.03, 1.5, 0x35606a, X0 + EXIT0 / 2 - 20, 0.02, SEDGE + 3.6); K.box(EXIT0 + 20, 0.02, 0.5, 0x5a7a44, X0 + EXIT0 / 2 - 20, 0.04, SEDGE + 2.7);
     if (T.props !== 'sand' && T.props !== 'docks') for (let x = X0 - 20, i = 0; x < X0 + EXIT0 - 20; x += 13, i++) { if (Math.abs(x - (X0 + 150)) < 30 || Math.abs(x - (X0 + 215)) < 9) continue; const h = 9 + (i % 3) * 1.5, z = SEDGE + 5.6; K.cyl(0.16, 0.24, h * 0.45, 0x5e4a36, x, h * 0.22, z, 7);
-      if (T.props === 'air') K.cyl(0.25, 1.25, h, [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 8); else K.geo(new THREE.SphereGeometry(1, 8, 6), [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 0, i, 0, 2.6, h * 0.36, 2.6); } // poplars by the polder, plane trees in town
+      if (T.props === 'air' || T.props === 'polder') K.cyl(0.25, 1.25, h, [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 8); else K.geo(new THREE.SphereGeometry(1, 8, 6), [0x4f7a34, 0x5f8a3c, 0x46703a][i % 3], x, h * 0.62, z, 0, i, 0, 2.6, h * 0.36, 2.6); } // poplars by the polder, plane trees in town
     // far away: what tells you where you are
     if (T.props === 'brick' || T.props === 'hip') for (let x = X0 - 60, i = 0; x < X0 + LEN + 80; x += 22 + rnd() * 16, i++) { const h = 16 + rnd() * 30, w = 12 + rnd() * 10, z = SEDGE + 78 + rnd() * 24, c = T.props === 'hip' ? [0xe8d8c8, 0xd8c8e0, 0xc8e0d8, 0xf0d8a8][i % 4] : [0x8a7a70, 0x9a8a7a, 0x6a6a72, 0xa89a88][i % 4]; K.box(w, h, 12, c, x, h / 2, z); for (let wy = 3; wy < h - 2; wy += 3.4) K.box(w - 2, 1.3, 0.1, 0xf2e6c0, x, wy, z - 6.03); }
     if (T.props === 'docks') for (let x = X0 + 40; x < X0 + LEN; x += 120) { const z = SEDGE + 70; K.box(1.4, 40, 1.4, 0xf2c31a, x - 7, 20, z); K.box(1.4, 40, 1.4, 0xf2c31a, x + 7, 20, z); K.box(16, 1.6, 2, 0xf2c31a, x, 40, z); K.box(2, 1.6, 46, 0xf2c31a, x, 41.6, z - 12, 0, 0.14, 0); K.box(4, 3, 4, 0xe8e4dc, x, 37.6, z - 8); K.box(60, 14, 16, [0x2a3a5a, 0x5a2a2a, 0x2a4a3a][Math.round(x) % 3], x + 30, 7, z + 26); } // gantry cranes and a ship behind them
     if (T.props === 'sand') { K.cyl(1.6, 2.4, 22, 0xf4f2ec, X0 + EXIT0 - 80, 11, SEDGE + 80, 12); for (const y of [5, 11, 17]) K.cyl(2.0, 2.2, 2.2, 0xc8102e, X0 + EXIT0 - 80, y, SEDGE + 80, 12); K.cyl(1.2, 1.9, 2.6, 0x2a2e34, X0 + EXIT0 - 80, 23.3, SEDGE + 80, 10); } // the vuurtoren of De Zandwijk
-    if (T.props === 'air' || T.props === 'sand' || T.props === 'docks') for (const [tx, tz] of [[X0 + 200, SEDGE + 60], [X0 + 430, SEDGE + 78], [X0 + 640, SEDGE + 64]]) turbine(tx, tz); // wind turbines, turning
+    if (T.props === 'polder') for (let x = X0 + 60, i = 0; x < X0 + LEN; x += 70 + rnd() * 40, i++) { const w = 30 + rnd() * 26, z = SEDGE + 70 + rnd() * 20, c = [0xd8d4ca, 0xc8ccd0, 0xe2dccc, 0xb8c0c4][i % 4]; K.box(w, 7 + rnd() * 3, 22, c, x, 4, z); K.box(w + 0.4, 0.4, 22.4, [0x2a5a9a, 0x8a8e94, 0xc8402a][i % 3], x, 8.3, z); K.box(w * 0.3, 3, 0.1, 0x3a4a5a, x - w * 0.2, 1.5, z - 11.05); } // Almere: flat XXL halls on the bedrijventerreinen, and the IJmeer glinting behind
+    if (T.props === 'polder') K.box(LEN + 200, 0.05, 60, 0x5a8aa0, X0 + LEN / 2, 0.03, SEDGE + 130);
+    if (T.props === 'air' || T.props === 'sand' || T.props === 'docks' || T.props === 'polder') for (const [tx, tz] of [[X0 + 200, SEDGE + 60], [X0 + 430, SEDGE + 78], [X0 + 640, SEDGE + 64]]) turbine(tx, tz); // wind turbines, turning
     // sound barriers behind the far carriageway, and lamp masts in the middenberm
     for (let x = X0 - 40, i = 0; x < X0 + EXIT0 - 12; x += 8, i++) K.box(7.8, 3.6, 0.3, i % 2 ? 0x5a8a6a : 0x4a7a5a, x + 4, 1.8, NEDGE - 13);
     for (let x = X0 + 20; x < X0 + LEN; x += 45) { K.cyl(0.1, 0.18, 12, 0x8a8e94, x, 6, NEDGE - 0.6, 8); for (const s of [1, -1]) { K.box(0.2, 0.12, 3.6, 0x8a8e94, x, 11.9, NEDGE - 0.6 + s * 1.7, 0, s * -0.12, 0); K.box(0.5, 0.12, 0.9, 0xfff4d0, x, 11.95, NEDGE - 0.6 + s * 3.5); } } // double-armed masts, one arm over each carriageway

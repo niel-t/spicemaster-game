@@ -26,7 +26,13 @@ export const WIJKEN = {
     shops: ['Grillroom Zuid', 'Restaurant De Lepel', 'Kapsalon King', 'Snackbar Bij Henk', 'Eetcafé Het Kuipje', 'Toko Sranang', 'Shoarma Ferdinand Bol', 'Nachtwinkel Abdel'],
     signs: ['ALBERT KUIPMARKT', 'BRUIN CAFE DE ZWAAN', 'FIETSENMAKER', 'STROOPWAFELS', 'HARING & ZO', 'BLOEMEN', 'KAPPER', 'SIGARENMAGAZIJN'],
     intro: 'Albert Kuipmarkt, terrasjes, bakfietsen. Your spoed customers have their kitchens here. The A10 oprit is at the east end of this street.' },
-  air: { name: 'Schiptagat', gang: 'airport', seed: 71, at: 4, custom: true }, // the airport off the A4: a forecourt, not a grid (buildAir)
+  air: { name: 'Schiptagat', gang: 'airport', seed: 71, at: 4, custom: true },
+  // Almere (2026-11-28): the polder town over the IJmeer, off the A6. No joints: Blokaas Specijeren has its hall here (js/blokaas.js).
+  // New, flat and tidy: yellow brick, wide streets, free parking, a woonboulevard and a kringloop.
+  almere: { name: 'Almere', real: 'Almere', gang: 'Blokaas', road: 'A6', seed: 97, at: 6, colors: [0xe8d8a8, 0xd8c8a0, 0xc8b898, 0xe0d0b8, 0xb8a888, 0xd0c4b0], tree: 1, ground: 0x8aa860,
+    shops: ['Blokaas Specijeren'],
+    signs: ['KRINGLOOP DE ZUINIGE', 'WOONBOULEVARD XXL', 'GRATIS PARKEREN', 'PANNENKOEKENHUIS DE POLDER', 'BOUWMARKT', 'SNACKBAR FLEVO', 'TUINCENTRUM', 'ALLES VOOR 1 WILDER'],
+    intro: 'Almere: wide streets, yellow brick, free parking everywhere. Blokaas Specijeren is somewhere down this street. The A6 oprit is at the east end.' }, // the airport off the A4: a forecourt, not a grid (buildAir)
 };
 // the plan of every district, in its own coordinates: three long streets (z 0, 46, 92) and five dwarsstraten (four on a phone),
 // so twelve blocks; the one in the middle of the first strip is the plein. The afrit is at the west end of the first street,
@@ -203,9 +209,9 @@ export function createWijk(deps) {
       const km = K3.build(), tm = T3.build(); if (km) { km.castShadow = !low; scene.add(km); } if (tm) { tm.castShadow = !low; scene.add(tm); } }
     // the ends of the district: a wall of houses, the afrit in the west and the oprit in the east
     for (const [x, f] of [[X0 - 4.5, Math.PI / 2], [X1 + 4.5, -Math.PI / 2]]) { let z = SA - HZ - 4.5, k = 0; for (const w of deps.spanWidths(ZN - SA + 2 * HZ + 9, W.seed + 2)) { deps.house(O.x + x, O.z + z + w / 2, w, 9, 9.5 + (k % 3), f, k + W.seed, null, { ...opt(k), simple: true }); z += w; k++; } }
-    { const sg = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.3), deps.lam({ map: deps.signTex([{ t: 'A10  Kipkruidenkwartier', size: 34 }, { t: 'stap in de Oofmobiel', size: 22 }], '#14499a', '#ffffff', 512, 196) })); sg.position.set(O.x + XS[0] + 7.5, 3.2, O.z + SA + RW + 1.2); scene.add(sg);
+    { const sg = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.3), deps.lam({ map: deps.signTex([{ t: `${W.road || 'A10'}  Kipkruidenkwartier`, size: 34 }, { t: 'stap in de Oofmobiel', size: 22 }], '#14499a', '#ffffff', 512, 196) })); sg.position.set(O.x + XS[0] + 7.5, 3.2, O.z + SA + RW + 1.2); scene.add(sg);
       const pole = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.6, 0.12), deps.lam({ color: 0x8a8e94 })); pole.position.set(O.x + XS[0] + 7.5, 1.3, O.z + SA + RW + 1.14); scene.add(pole);
-      const s2 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.5), deps.lam({ map: deps.signTex([{ t: 'A10  oprit', size: 44 }, { t: 'alle richtingen · rij hier de snelweg op', size: 20 }], '#14499a', '#ffffff', 512, 184) })); s2.position.set(O.x + XE - 1, 3.4, O.z + SA - RW - 1.6); scene.add(s2);
+      const s2 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.5), deps.lam({ map: deps.signTex([{ t: `${W.road || 'A10'}  oprit`, size: 44 }, { t: 'alle richtingen · rij hier de snelweg op', size: 20 }], '#14499a', '#ffffff', 512, 184) })); s2.position.set(O.x + XE - 1, 3.4, O.z + SA - RW - 1.6); scene.add(s2);
       const p2 = pole.clone(); p2.position.set(O.x + XE - 1, 1.3, O.z + SA - RW - 1.66); scene.add(p2);
       const ar = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.35, depthWrite: false })); ar.rotation.x = -Math.PI / 2; ar.position.set(O.x + XE, 0.05, O.z + SA + 1); scene.add(ar); }
     // parked cars to borrow, along the north kerbs
@@ -257,7 +263,7 @@ export function createWijk(deps) {
     if (!T || deps.busy()) return;
     const aboard = T.job && T.job.aboard && !T.job.done; // with a passenger from the airport there is one way: home
     const dests = [null, ...(aboard ? [] : Object.keys(WIJKEN).filter((k) => k !== T.key && deps.isOpen(k)))];
-    deps.choice('A10', `From ${T.W.name}. Where to?`, [...dests.map((k) => (k ? `${WIJKEN[k].name} (${WIJKEN[k].gang})`.replace(' (airport)', ' (airport, A4)') : 'Kipkruidenkwartier (home)')), 'Stay here'], (i) => { if (i < dests.length) travel(dests[i]); });
+    deps.choice(T.W.road || 'A10', `From ${T.W.name}. Where to?`, [...dests.map((k) => (k ? `${WIJKEN[k].name} (${WIJKEN[k].gang})`.replace(' (airport)', ' (airport, A4)') : 'Kipkruidenkwartier (home)')), 'Stay here'], (i) => { if (i < dests.length) travel(dests[i]); });
   }
   function travel(dest) { // onto the snelweg in the Oofmobiel: to another district, or home
     if (!T) return; const from = T.W.name, J = T.job && T.job.aboard && !T.job.done ? T.job : null;

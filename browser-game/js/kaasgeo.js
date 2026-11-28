@@ -94,7 +94,20 @@ export const HIGHWAYS = [
   { id: 'A4', pts: [[600, 668], [588, 700], [578, 740], [570, 780], [560, 830]], shields: [[562, 752]] },
   { id: 'A9', pts: [[572, 772], [470, 790], [360, 800], [250, 830]], shields: [[420, 786]] },
   { id: 'A5', pts: [[24, 400], [6, 392], [-30, 380]], shields: [[22, 372]] },
+  // the A6 (2026-11-28): off the A1 just past the city, over De Lange Polderbrug across the IJmeer to Almere (js/blokaas.js)
+  { id: 'A6', pts: [[1214, 506], [1250, 470], [1286, 430], [1318, 392], [1352, 360]], shields: [[1262, 432]], bridge: [[1222, 498], [1300, 414]] },
 ];
+// Almere (2026-11-28): the polder town east of the city, across the IJmeer, where Blokaas Specijeren has its hall. Off the
+// painted picture (that ends at x 1200; beyond it the map is water), so kaasmap.js draws it as vectors when it is known.
+// Straight polder roads, the Weerwater, and the bedrijventerrein De Zuinige Vaart.
+export const ALMERE = {
+  land: [[1296, 150], [1520, 120], [1560, 260], [1540, 470], [1420, 520], [1318, 470], [1302, 380], [1290, 260]],
+  water: { cx: 1404, cy: 330, rx: 34, ry: 18 }, // het Weerwater
+  roads: [[[1352, 360], [1430, 360], [1500, 300]], [[1340, 200], [1340, 460]], [[1430, 170], [1430, 500]], [[1300, 270], [1530, 270]], [[1330, 430], [1520, 430]], [[1430, 360], [1470, 470]]],
+  hal: [1490, 410], // Blokaas Specijeren, Bedrijventerrein De Zuinige Vaart
+  names: [['ALMERE', 1412, 222, 15], ['Almere-Haven', 1360, 486, 9], ['Almere-Stad', 1386, 300, 9], ['Almere-Buiten', 1488, 190, 9], ['De Zuinige Vaart', 1478, 452, 8.5], ['IJmeer', 1252, 300, 11]],
+  east: 1580, // how far east the map may pan once Almere is known
+};
 export function inPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 export const regionOf = (x, y) => (inPoly(x, y, RIVER) ? 'water' : Object.keys(REGIONS).find((r) => inPoly(x, y, REGIONS[r])) || 'start');
 export function bboxOf(r) {
