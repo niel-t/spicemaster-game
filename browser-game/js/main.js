@@ -2211,8 +2211,8 @@ function showPrompt(it) {
 }
 ui.prompt.addEventListener('click', (e) => { e.stopPropagation(); if (current && !state.inDialogue && !state.inPC && !choiceOpen && !(fiets && fiets.riding())) current.act(); });
 // in a car the camera looks where it is going: up to 9 m ahead at speed
-let driveZoom = 1, chaseH = Math.PI, chaseLow = 0;
-const driveFocus = () => { const p = player.position.clone(), v = fiets && fiets.current; if (v && v.kind === 'car') { const sp = Math.min(17, Math.abs(v.B.v) * 0.42) * Math.sign(v.B.v || 1); p.x += Math.sin(v.B.h) * sp; p.z += Math.cos(v.B.h) * sp; p.y = v.obj.position.y || 0; } return p; }; // (y: up on a snelweg viaduct, js/rit.js)
+let driveZoom = 1, chaseH = Math.PI, chaseLow = 0, polderCam = false;
+const driveFocus = () => { const p = player.position.clone(), v = fiets && fiets.current; if (polderCam && !(v && v.kind === 'car')) { p.z -= 5.5; p.y += 2.2; } /* Almere: look up the road, the A6 on the horizon */ if (v && v.kind === 'car') { const sp = Math.min(17, Math.abs(v.B.v) * 0.42) * Math.sign(v.B.v || 1); p.x += Math.sin(v.B.h) * sp; p.z += Math.cos(v.B.h) * sp; p.y = v.obj.position.y || 0; } return p; }; // (y: up on a snelweg viaduct, js/rit.js)
 const roomCam = () => (woning && woning.inside() ? woning : winkels && winkels.inside() ? winkels : pahuis && pahuis.inside() ? pahuis : null); // rooms frame the camera themselves
 function skipHiddenMatrices() {
   for (const c of scene.children) {
@@ -3443,6 +3443,11 @@ function tick() {
     const hh = fiets.current.B.h; chaseH += Math.atan2(Math.sin(hh - chaseH), Math.cos(hh - chaseH)) * Math.min(1, dt * 2.6);
     chaseLow += ((BOUNDS.cur ? 1 : 0) - chaseLow) * Math.min(1, dt * 1.5); // on the snelweg the camera drops behind the van: the road runs to the horizon and the blue signs can be read
     const zk = zoom * (1 + (driveZoom - 1) * (1 - 0.7 * chaseLow)), d = (7.5 + 6.5 * chaseLow) * zk; off.set(-Math.sin(chaseH) * d, (11.5 - 6.3 * chaseLow) * zk, -Math.cos(chaseH) * d);
+  } else if ((polderCam = !!(wijk && wijk.town && wijk.town.W.polder && !mOn))) { // Almere (js/wijk.js buildPolder): the snelweg camera, low with the horizon in view (Tristan 2026-11-28)
+    const v = fiets && fiets.current;
+    if (v && v.kind === 'car') { const hh = v.B.h; chaseH += Math.atan2(Math.sin(hh - chaseH), Math.cos(hh - chaseH)) * Math.min(1, dt * 2.6); chaseLow += (1 - chaseLow) * Math.min(1, dt * 1.5);
+      const zk = zoom * (1 + (driveZoom - 1) * 0.3), d = 14 * zk; off.set(-Math.sin(chaseH) * d, 5.2 * zk, -Math.cos(chaseH) * d); }
+    else { chaseH = Math.PI; chaseLow = 0; off.set(0, 5.6 * zoom, 17 * zoom); } // on foot: dropped low behind Eddy, looking up the road at the halls and the A6
   } else { chaseH = Math.PI; chaseLow = 0; }
   if (mOn || BOUNDS.cur || state.step === 'title') { camFlip = false; flipA = 0; } else if (!camFlip && player.position.z > CZ + 1.2) camFlip = true; else if (camFlip && player.position.z < CZ - 1.2) camFlip = false;
   flipA += ((camFlip ? Math.PI : 0) - flipA) * Math.min(1, dt * 2.2);
