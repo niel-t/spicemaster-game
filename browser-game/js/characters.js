@@ -138,22 +138,123 @@ function grain(cv) {
   if (!NOISE) { const n = 96; NOISE = document.createElement('canvas'); NOISE.width = NOISE.height = n; const x = NOISE.getContext('2d'), im = x.createImageData(n, n); for (let i = 0; i < n * n; i++) { const v = 128 + (Math.random() - 0.5) * 120; im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; } x.putImageData(im, 0, 0); }
   const x = cv.getContext('2d'); x.save(); x.globalCompositeOperation = 'soft-light'; x.globalAlpha = 0.35; x.fillStyle = x.createPattern(NOISE, 'repeat'); x.fillRect(0, 0, cv.width, 400); x.fillRect(0, 440, cv.width, cv.height - 440); x.restore();
 }
-function charMaterial(map, cloth) {
-  const mat = new THREE.MeshToonMaterial({ map, gradientMap: gradTex() });
-  if (cloth && !LITE) { mat.normalMap = weaveTex(); mat.normalScale.set(0.35, 0.35); }
+let GRAD3 = null, CLAY = null;
+function grad3() { if (GRAD3) return GRAD3; const d = new Uint8Array([84, 84, 84, 255, 168, 168, 168, 255, 226, 226, 226, 255]); GRAD3 = new THREE.DataTexture(d, 3, 1, THREE.RGBAFormat); GRAD3.minFilter = GRAD3.magFilter = THREE.NearestFilter; GRAD3.generateMipmaps = false; GRAD3.needsUpdate = true; return GRAD3; }
+function clayTex() { // soft lumpy modelling marks as a normal map (clay style), shared and tiled
+  if (CLAY) return CLAY;
+  const n = 128, c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'), im = x.createImageData(n, n), D = im.data, r = rnd('clay'), bumps = [];
+  for (let i = 0; i < 40; i++) bumps.push([r() * n, r() * n, 10 + r() * 18, (r() - 0.5) * 2]);
+  const H = new Float32Array(n * n);
+  for (const [bx, by, br, a] of bumps) for (let j = Math.floor(by - br); j <= by + br; j++) for (let i = Math.floor(bx - br); i <= bx + br; i++) { const d2 = ((i - bx) ** 2 + (j - by) ** 2) / (br * br); if (d2 < 1) H[((j + n) % n) * n + (i + n) % n] += a * (1 - d2) * (1 - d2); }
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const dx = H[j * n + (i + 1) % n] - H[j * n + (i + n - 1) % n], dy = H[((j + 1) % n) * n + i] - H[((j + n - 1) % n) * n + i], k = 0.9, l = Math.hypot(dx * k, dy * k, 1), o = (j * n + i) * 4; D[o] = (0.5 - dx * k / l * 0.5) * 255; D[o + 1] = (0.5 - dy * k / l * 0.5) * 255; D[o + 2] = (0.5 + 0.5 / l) * 255; D[o + 3] = 255; }
+  x.putImageData(im, 0, 0); CLAY = new THREE.CanvasTexture(c); CLAY.wrapS = CLAY.wrapT = THREE.RepeatWrapping; CLAY.repeat.set(3, 3); CLAY.colorSpace = THREE.NoColorSpace; return CLAY;
+}
+function skinGrain(cv, a) { // pores / clay grain on the head sheet below the swatch strip
+  grain(document.createElement('canvas')); const x = cv.getContext('2d'); x.save(); x.globalCompositeOperation = 'soft-light'; x.globalAlpha = a; x.fillStyle = x.createPattern(NOISE, 'repeat'); x.fillRect(0, 16, cv.width, cv.height - 16); x.restore();
+}
+function charMaterial(map, cloth, mode) {
+  const head = !cloth;
+  const mat = mode === 'latex' && head ? new THREE.MeshPhongMaterial({ map, shininess: 34, specular: new THREE.Color(0x4a3c36) })
+    : mode === 'clay' ? new THREE.MeshLambertMaterial({ map })
+    : new THREE.MeshToonMaterial({ map, gradientMap: gradTex() });
+  if (mode === 'clay' && !LITE) { mat.normalMap = clayTex(); mat.normalScale.set(0.3, 0.3); }
+  else if (cloth && !LITE) { const k = mode === 'latex' ? 0.5 : 0.35; mat.normalMap = weaveTex(); mat.normalScale.set(k, k); }
+
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uRim = U_RIM; sh.uniforms.uRimK = U_RIMK; sh.uniforms.uFill = U_FILL;
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim; uniform float uRimK; uniform float uFill;')
       .replace('#include <opaque_fragment>', `{ vec3 vd = normalize(vViewPosition); float f = 1.0 - clamp(dot(normal, vd), 0.0, 1.0);
         float up = clamp(dot(normal, (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz) * 0.5 + 0.5, 0.0, 1.0);
-        outgoingLight += diffuseColor.rgb * (uFill + uRim * (pow(f, 4.0) * uRimK * 2.2 * (0.3 + 0.7 * up))); /* rim tinted by the surface: a navy suit stays navy */ }
+        outgoingLight += diffuseColor.rgb * (uFill + uRim * (pow(f, 4.0) * uRimK * 2.2 * (0.3 + 0.7 * up))); /* rim tinted by the surface: a navy suit stays navy */
+        ${mode === 'print' ? `/* spotprent: pen hatching in the shadow band, an ink contour and a newsprint tint */
+        float lit = dot(outgoingLight, vec3(0.333)) / max(dot(diffuseColor.rgb, vec3(0.333)), 0.02);
+        float hx = step(0.55, fract((gl_FragCoord.x - gl_FragCoord.y) * 0.21)), hy = step(0.6, fract((gl_FragCoord.x + gl_FragCoord.y) * 0.21));
+        float sh = (1.0 - smoothstep(0.5, 0.62, lit)) * hx + (1.0 - smoothstep(0.3, 0.4, lit)) * hy;
+        outgoingLight *= 1.0 - 0.38 * clamp(sh, 0.0, 1.0);
+        outgoingLight = mix(outgoingLight, vec3(0.16, 0.09, 0.06), smoothstep(0.7, 0.86, f) * 0.85);
+        float g = dot(outgoingLight, vec3(0.3, 0.55, 0.15)); outgoingLight = mix(vec3(g), outgoingLight, 0.8) * vec3(1.04, 1.0, 0.92);` : ''}
+        ${mode === 'clay' ? 'outgoingLight = mix(outgoingLight, outgoingLight * vec3(1.06, 0.98, 0.9), 0.6);' : ''}
+        ${mode === 'latex' ? 'outgoingLight += diffuseColor.rgb * vec3(0.10, 0.03, 0.02) * (1.0 - clamp(dot(normal, vd), 0.0, 1.0));' : ''} }
       #include <opaque_fragment>`);
   };
-  mat.customProgramCacheKey = () => 'smeChar' + (mat.normalMap ? 'N' : '');
+  mat.customProgramCacheKey = () => 'smeChar' + (mode || '') + (head ? 'H' : '') + (mat.normalMap ? 'N' : '');
   return mat;
+}
+
+/* ---------- character style: persiflage options (dev: ?charstyle=spotprent|rubber|klei; game: localStorage spiceMasterEddy.charStyle) ----------
+   The toon cast is the default. A persiflage style is a satirical caricature: a bigger head with a sculpted nose, ears, jowls
+   and brow (ps2c.js buildHead B.px), a face painted over in that style (pxFace) and its own surface (charMaterial mode).
+   Each person gets their own exaggeration from their look (older, heavier, balder people get more of it). */
+export const CHAR_STYLE = (() => { try { return new URLSearchParams(location.search).get('charstyle') || localStorage.getItem('spiceMasterEddy.charStyle') || 'toon'; } catch (e) { return 'toon'; } })();
+const rnd = (seed) => { let h = 2166136261; for (const ch of seed) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; };
+const INKC = 'rgba(40,22,16,';
+function softF(y) { return (cx, cy, rx, ry, col) => { const g = y.createRadialGradient(cx, cy, 0, cx, cy, 1); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); y.save(); y.translate(cx, cy); y.scale(rx, ry); y.fillStyle = g; y.fillRect(-1, -1, 2, 2); y.restore(); }; }
+function faceSpotprent(y, F) { // newspaper caricature: pen lines and cross-hatching (the Dutch spotprent)
+  const { C, V, L } = F, r = rnd(JSON.stringify(L.skin) + L.hs), old = L.pxOld, ey = V(1.705);
+  const line = (a, w, pts) => { y.strokeStyle = INKC + a + ')'; y.lineWidth = w; y.beginPath(); y.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 4) y.quadraticCurveTo(pts[i], pts[i + 1], pts[i + 2], pts[i + 3]); y.stroke(); };
+  for (const s of [1, -1]) {
+    line(0.75, 1.1, [C + s * 8, V(1.668), C + s * 14, V(1.652), C + s * 13, V(1.628)]); // nasolabial fold
+    line(0.5, 0.8, [C + s * 7, ey + 5, C + s * 12, ey + 8.5, C + s * 18, ey + 5]); // eye bag
+    if (old) line(0.4, 0.7, [C + s * 8, ey + 8, C + s * 13, ey + 11.5, C + s * 19, ey + 8]);
+    for (let k = 0; k < 3; k++) line(0.45, 0.6, [C + s * 20, ey - 1 + k * 2.6, C + s * 23, ey - 1.5 + k * 3.2, C + s * 25.5, ey - 2 + k * 4]); // crow's feet
+    for (let k = 0; k < 6; k++) { const x0 = C + s * (17 + k * 2.1); line(0.24, 0.55, [x0 + s * 3, V(1.67), x0 + s * 1.5, V(1.652), x0 - s * 1, V(1.636) + k * 0.8]); } // hatching under the cheekbone
+    for (let k = 0; k < 5; k++) { const x0 = C + s * (5 + k * 1.6); line(0.28, 0.5, [x0, ey - 13 - k * 0.4, x0 + s * 1, ey - 16, x0 + s * 2, ey - 19]); } // brow shading
+  }
+  const nf = old ? 4 : 2; for (let k = 0; k < nf; k++) { const yy = V(1.752) - k * 4.2; line(0.4, 0.75, [C - 15, yy + r() * 1.5, C - 5, yy - 1.8, C, yy, C + 6, yy + 1.4, C + 15, yy - r() * 1.5]); } // forehead lines
+  line(0.55, 0.9, [C - 5, V(1.618), C, V(1.612), C + 5, V(1.618)]); // chin crease
+}
+function faceRubber(y, F) { // latex satire puppet: airbrushed blotches, deep sculpted creases, ruddy cheeks, a sheen
+  const { C, V, L, SKIN, rgb } = F, r = rnd(JSON.stringify(L.skin) + 'r'), ey = V(1.705), soft = softF(y);
+  const dk = SKIN.map((v) => v * 0.5), lt = SKIN.map((v) => Math.min(255, v * 1.2 + 14));
+  for (let i = 0; i < 26; i++) soft(C + (r() - 0.5) * 60, V(1.74) + r() * 70, 3 + r() * 6, 2 + r() * 5, `rgba(${170 + r() * 50 | 0},${60 + r() * 30 | 0},${70 + r() * 30 | 0},${0.1 + r() * 0.14})`);
+  for (const s of [1, -1]) {
+    soft(C + s * 12, ey, 14, 10, rgb(dk, 0.3)); // deep sockets
+    soft(C + s * 21, V(1.662), 12, 9, 'rgba(214,70,70,.38)'); // ruddy cheeks
+    y.strokeStyle = 'rgba(190,50,60,.22)'; y.lineWidth = 0.45; for (let k = 0; k < 3; k++) { const vx = C + s * (16 + r() * 8), vy = V(1.67) + r() * 6; y.beginPath(); y.moveTo(vx, vy); y.lineTo(vx + s * (1.5 + r() * 2), vy + 1 + r() * 2); y.stroke(); } // broken veins
+    for (const [w, a, c, o] of [[3.4, 0.38, dk, 0], [1.0, 0.22, lt, 1.6]]) { y.strokeStyle = rgb(c, a); y.lineWidth = w; y.beginPath(); y.moveTo(C + s * 9, V(1.672)); y.quadraticCurveTo(C + s * 16, V(1.652), C + s * (14 + o), V(1.622)); y.stroke(); } // sculpted fold
+    soft(C + s * 20, V(1.69), 6, 3, rgb(lt, 0.55)); // cheekbone sheen
+    soft(C + s * 12, ey + 7, 9, 3.2, rgb(dk, 0.3)); // bags
+  }
+  for (let k = 0; k < 3; k++) { const yy = V(1.756) - k * 5; y.strokeStyle = rgb(dk, 0.3); y.lineWidth = 2.2; y.beginPath(); y.moveTo(C - 17, yy + 1); y.quadraticCurveTo(C, yy - 2.5, C + 17, yy + 1); y.stroke(); y.strokeStyle = rgb(lt, 0.4); y.lineWidth = 1; y.beginPath(); y.moveTo(C - 16, yy + 2.6); y.quadraticCurveTo(C, yy - 0.8, C + 16, yy + 2.6); y.stroke(); }
+  soft(C - 4, V(1.775), 12, 6, 'rgba(255,250,240,.35)'); // forehead sheen
+  soft(C, V(1.612), 9, 4, rgb(dk, 0.28));
+}
+function faceKlei(y, F) { // stop-motion clay: thumb smudges and modelling marks, soft and matte
+  const { C, V, L, SKIN, rgb } = F, r = rnd(JSON.stringify(L.skin) + 'k'), ey = V(1.705), soft = softF(y);
+  const dk = SKIN.map((v) => v * 0.62), lt = SKIN.map((v) => Math.min(255, v * 1.12 + 8));
+  for (let i = 0; i < 18; i++) { const cx = C + (r() - 0.5) * 64, cy = V(1.79) + r() * 80, a = r() * 3, c = r() > 0.5 ? lt : dk; y.save(); y.translate(cx, cy); y.rotate(a); y.strokeStyle = rgb(c, 0.22); y.lineWidth = 0.7; for (let k = 0; k < 3; k++) { y.beginPath(); y.arc(0, 0, 2 + k * 1.6, 0.3, 2.6); y.stroke(); } y.restore(); } // thumbprints
+  for (const s of [1, -1]) {
+    soft(C + s * 10, V(1.66), 4, 9, rgb(dk, 0.32)); soft(C + s * 12, V(1.64), 3, 8, rgb(dk, 0.22)); // pressed-in folds
+    soft(C + s * 12, ey + 6, 8, 2.6, rgb(dk, 0.2));
+    soft(C + s * 20, V(1.68), 8, 6, rgb(lt, 0.3));
+  }
+  soft(C, V(1.765), 18, 7, rgb(lt, 0.28));
+}
+const STYLES = {
+  toon: null,
+  spotprent: { head: 1.3, hand: 1.15, foot: 1.12, mat: 'print', px: { nose: 1.5, ear: 1.12, jaw: 0.006, brow: 2, chin: 1.5 }, L: { eyeK: 0.82, irisK: 0.7, pxFace: faceSpotprent } },
+  rubber: { head: 1.42, hand: 1.25, foot: 1.1, mat: 'latex', px: { nose: 1.9, ear: 1.22, jaw: 0.012, brow: 2.6, chin: 1.9, chinOut: 0.004 }, L: { eyeK: 0.95, lidK: 0.82, irisK: 0.8, pxFace: faceRubber, rednose: 1 } },
+  klei: { head: 1.2, hand: 1.22, foot: 1.18, mat: 'clay', px: { nose: 1.35, ear: 1.08, jaw: 0.004, brow: 1.6, chin: 1.2 }, L: { eyeK: 1.08, irisK: 1.05, pxFace: faceKlei } },
+};
+const STY = STYLES[CHAR_STYLE] || null;
+const q1 = (v) => Math.round(v * 10) / 10; // quantised so heads still share geometry
+// the persiflage look for one person: the style's base caricature bent by who they are
+function styleLook(look) {
+  if (!STY || look.toon === false || look.noPx || look.pxMat) return look;
+  const r = rnd(JSON.stringify([look.skin, look.hair, look.hs, look.body, look.shirt])), hair = look.hair, old = !!(hair && hair[0] > 0.6 && Math.abs(hair[0] - hair[2]) < 0.16);
+  const heavy = look.body === 'fat' ? 1.6 : look.body === 'stocky' || look.body === 'big' ? 1.25 : 1, k = look.pxK || {};
+  const px = { ...STY.px, nose: q1(STY.px.nose * (0.85 + r() * 0.4) * (old ? 1.12 : 1) * (k.nose || 1)), droop: q1((old ? 0.006 : r() * 0.004) * 1000) / 1000, hook: r() > 0.7 ? 1 : 0,
+    noseW: q1(0.9 + r() * 0.3), ear: q1(STY.px.ear * (0.9 + r() * 0.25) * (look.hs ? 1 : 1.12) * (k.ear || 1)), jaw: Math.round(STY.px.jaw * heavy * (old ? 1.3 : 1) * (k.jaw || 1) * 1000) / 1000 };
+  if (look.fem) { px.nose = q1(px.nose * 0.7); px.jaw *= 0.3; px.brow *= 0.5; px.ear = q1(px.ear * 0.85); }
+  const L = { ...look, ...STY.L, noNose: true, pxOld: old, headScale: look.headScale ?? STY.head, handScale: STY.hand, footScale: STY.foot, pxMat: STY.mat };
+  if (STY.L.rednose) L.noseC = [Math.min(1, look.skin[0] * 1.03 + 0.03), look.skin[1] * 0.86, look.skin[2] * 0.84];
+  else L.noseC = look.skin.map((v) => v * 0.96);
+  L.B = { ...(look.B || {}), px };
+  return L;
 }
 const SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 2.2); // covers standing and lying poses
 export function prepModel(look) {
+  look = styleLook(look);
   const cfg = P.lookCfg(look, look.body);
   cfg.B.nowatch = !look.watch; // Neon Vice gives everyone a gold watch; here only looks that ask for one
   Object.assign(cfg.B, look.B || {});
@@ -178,8 +279,9 @@ export function finishModel(md) {
   let geos = geoCache.get(key);
   if (!geos) { geos = [geometry(P.buildBody(cfg.B)), geometry(P.buildHead(cfg.B))]; geoCache.set(key, geos); }
   grain(bc);
+  if (look.pxMat === 'clay' || look.pxMat === 'latex') skinGrain(hc, look.pxMat === 'clay' ? 0.12 : 0.1);
   [shrink(bc), shrink(hc)].forEach((cv, i) => {
-    const mat = charMaterial(canvasTex(cv), i === 0);
+    const mat = charMaterial(canvasTex(cv), i === 0, look.pxMat);
     const m = new THREE.SkinnedMesh(geos[i], mat);
     m.bind(md.skeleton, new THREE.Matrix4());
     m.boundingSphere = SPHERE.clone(); // fixed sphere: no per-vertex skinning pass to compute one
@@ -227,7 +329,7 @@ export function makePS2Person(look, opts = {}) {
   // arm proxies are real groups that ride the hands: props parented at the old hand spot (0, -0.68, 0.05) land in the fist
   const arms = [0, 1].map(() => { const g = new THREE.Group(); g.matrixAutoUpdate = false; body.add(g); return g; }), legs = [proxy(), proxy()];
   const head = new THREE.Group(); head.matrixAutoUpdate = false; body.add(head);
-  root.userData = { legs, arms, head, body, phase: 0, ps2: { md, look, seed: Math.random() * 100, moving: false, last: [0, 0, 0, 0, 0, 0], gait: md.cfg.gait } };
+  root.userData = { legs, arms, head, body, phase: 0, ps2: { md, look: md.look, seed: Math.random() * 100, moving: false, last: [0, 0, 0, 0, 0, 0], gait: md.cfg.gait } };
   root.userData.ps2.away = 0;
   live.add(root); root.addEventListener('added', () => live.add(root));
   if (opts.scene) opts.scene.add(root);
@@ -259,6 +361,7 @@ export function ps2Animate(p, speed, dt) {
 
 const HEAD_K = 1.1, hsCache = new Map();
 function headScaleM(k) { let m = hsCache.get(k); if (!m) { const pv = P.BONES[P.BI.head][2]; m = P.M4.mul(P.M4.T(pv[0], pv[1], pv[2]), P.M4.mul([k, 0, 0, 0, 0, k, 0, 0, 0, 0, k, 0, 0, 0, 0, 1], P.M4.T(-pv[0], -pv[1], -pv[2]))); hsCache.set(k, m); } return m; }
+function boneScaleM(b, k) { const key = b + k; let m = hsCache.get(key); if (!m) { const pv = P.BONES[P.BI[b]][2]; m = P.M4.mul(P.M4.T(pv[0], pv[1], pv[2]), P.M4.mul([k, 0, 0, 0, 0, k, 0, 0, 0, 0, k, 0, 0, 0, 0, 1], P.M4.T(-pv[0], -pv[1], -pv[2]))); hsCache.set(key, m); } return m; }
 function poseOf(p, now) {
   const u = p.userData, q = u.ps2;
   const walk = q.moving && !u.seated;
@@ -312,6 +415,8 @@ function poseOf(p, now) {
   // toon proportions: a slightly bigger head (scaled about the neck pivot) so faces read from the game camera; hats and props ride along
   const hk = q.look.headScale ?? (q.look.toon === false ? 1 : HEAD_K);
   if (hk !== 1) W[P.BI.head] = P.M4.mul(W[P.BI.head], headScaleM(hk));
+  if (q.look.handScale) for (const b of ['handL', 'handR']) W[P.BI[b]] = P.M4.mul(W[P.BI[b]], boneScaleM(b, q.look.handScale));
+  if (q.look.footScale) for (const b of ['footL', 'footR']) W[P.BI[b]] = P.M4.mul(W[P.BI[b]], boneScaleM(b, q.look.footScale));
   for (const grp of cut) {
     const b0 = P.BI[grp[0]], pv = P.M4.ap(W[b0], P.BONES[b0][2]);
     const z = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, pv[0], pv[1], pv[2], 1];

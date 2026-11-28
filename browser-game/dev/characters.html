@@ -12,7 +12,7 @@ const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
-const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2633);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(q.get('bg') ? parseInt(q.get('bg'), 16) : 0x2a2633);
 installCharacters(scene);
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100);
 scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x3a2a20, 1.1));
@@ -40,7 +40,7 @@ SETS.cast = [
   { front: '#f2efe6a', shirt: 0xf2efe6, pants: 0x3a3a40, rolled: true, stache: true, head: { skin: 0xf0b898, bald: true, brow: '#8a5a3a', mouth: 'smile', iris: '#3a2a1a' }, belly: 1.4, scale: 1.12, skin: 0xf0b898 },
   { ps2: 'naknik' }, { ps2: 'johan' }, { reg: 0 }, { reg: 1 }, { reg: 5 },
 ];
-const set = SETS[q.get('set')];
+const set0 = SETS[q.get('set')], set = set0 && q.get('pick') ? q.get('pick').split(',').map((i) => set0[+i]) : set0; // ?pick=0,2,1 picks and orders set members
 const names = set ? set.map((_, i) => 'set' + i) : (q.get('looks') || Object.keys(LOOKS).join(',')).split(',');
 if (set) set.forEach((o, i) => { LOOKS['set' + i] = o.ps2 ? LOOKS[o.ps2] : o.reg != null ? REG_CAST[o.reg].look : lookFromPerson(o, HEADS); });
 const people = names.map((n, i) => { const p = makePS2Person(LOOKS[n], { scene }); p.position.x = (i - (names.length - 1) / 2) * 1.1; p.userData.inPlace = true; return p; });
@@ -48,7 +48,7 @@ const people = names.map((n, i) => { const p = makePS2Person(LOOKS[n], { scene }
 const SPEED = { walk: 1.4, jog: 4.2, run: 7.5, aimrun: 4.2 };
 const seats = people.map((p) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.47, 0.45), new THREE.MeshStandardMaterial({ color: 0x6a4428 })); b.position.set(p.position.x, 0.235, -0.12); b.visible = false; scene.add(b); return b; });
 // a pistol where mission.js puts handGun (old arm space), to check props land in the fist
-for (const p of people) { const g = new THREE.Group(); g.position.set(0, -0.68, 0.05); const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.2), new THREE.MeshStandardMaterial({ color: 0x222222 })); m.position.z = 0.06; g.add(m); p.userData.arms[0].add(g); }
+if (q.get('gun') !== '0') for (const p of people) { const g = new THREE.Group(); g.position.set(0, -0.68, 0.05); const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.2), new THREE.MeshStandardMaterial({ color: 0x222222 })); m.position.z = 0.06; g.add(m); p.userData.arms[0].add(g); }
 let mode = q.get('mode') || 'idle', spin = q.get('spin') !== '0', angle = +(q.get('angle') || 0), view = q.get('view') || 'front';
 const ui = document.getElementById('ui'); if (q.get('ui') === '0') ui.style.display = 'none';
 for (const [k, v] of [['mode', 'idle'], ['mode', 'walk'], ['mode', 'jog'], ['mode', 'run'], ['mode', 'sit'], ['mode', 'aim'], ['view', 'front'], ['view', 'top']]) { const b = document.createElement('button'); b.textContent = v; b.onclick = () => { if (k === 'mode') mode = v; else view = v; }; ui.appendChild(b); }
@@ -73,8 +73,9 @@ function tick() {
   const w = Math.max(2.4, names.length * 1.2);
   if (view === 'top') { camera.position.set(0, 9, 4.5); camera.lookAt(0, 0.6, 0); }
   else if (view === 'face') { const fi = +(q.get('i') || 0), fx = people[fi] ? people[fi].position.x : 0, fy = people[fi] ? 1.7 * people[fi].userData.body.scale.y : 1.7; camera.position.set(fx, fy + 0.02, +(q.get('dist') || 0.85)); camera.lookAt(fx, fy - 0.01, 0); }
+  else if (view === 'face3') { /* 3/4 close-up of person i, framed on the (possibly scaled-up) head */ const fi = +(q.get('i') || 0), pp = people[fi], fx = pp ? pp.position.x : 0, hk = pp && pp.userData.ps2.look.headScale || 1.1, fy = (1.6 + 0.12 * hk) * (pp ? pp.userData.body.scale.y : 1), a = angle - 0.45, d = +(q.get('dist') || 1.1) * hk; camera.position.set(fx + Math.sin(a) * d, fy + 0.04, Math.cos(a) * d); camera.lookAt(fx, fy - 0.01, 0); }
   else if (view === 'side') { camera.position.set(w * 1.9, 1.1, 0); camera.lookAt(0, 0.85, 0); }
-  else { camera.position.set(0, 1.25, w * 1.9); camera.lookAt(0, 0.95, 0); }
+  else { const z = +(q.get('zoom') || 1); camera.position.set(0, 1.25, w * 1.9 / z); camera.lookAt(0, 0.95, 0); }
   renderer.render(scene, camera); requestAnimationFrame(tick);
 }
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
