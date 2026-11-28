@@ -14,6 +14,7 @@ const bg = (id, tint) => `
   <pattern id="velv${id}" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#3a2a22"/><path d="M2 10 q4 -8 8 0 q4 8 8 0" stroke="#7a5a44" stroke-width="2" fill="none"/></pattern>
   <pattern id="gingham${id}" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#f2f4f8"/><rect width="5" height="10" fill="#3a5a9a" opacity=".55"/><rect width="10" height="5" fill="#3a5a9a" opacity=".55"/></pattern>
   <pattern id="polka${id}" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="12" height="12" fill="#f4ece8"/><circle cx="6" cy="6" r="3.4" fill="#3a1a1a"/></pattern>
+  <pattern id="pinkflor${id}" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#f6e2e2"/><path d="M4 6 q4 -4 8 0 q-4 4 -8 0z M14 16 q4 -4 8 0 q-4 4 -8 0z" fill="#e8a8b4"/><path d="M16 4 l3 3 M3 17 l3 3" stroke="#a8a0b8" stroke-width="1.5"/></pattern>
   <pattern id="knit${id}" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#b86a4a"/><path d="M0 5 l5 -3 l5 3" stroke="#e8c47a" stroke-width="2" fill="none"/><rect y="8" width="10" height="2" fill="#5a7a5a"/></pattern>
 </defs>
 <rect width="256" height="320" fill="url(#bg${id})"/>
@@ -215,13 +216,31 @@ Object.assign(CAST, {
 });
 Object.assign(CLOTHES, {
   hansJacket: (o) => `<path d="${BODY}" fill="#6a6a5e" ${ST} stroke-width="4"/><path d="M98 246 l30 38 l30 -38 q-30 10 -60 0z" fill="#e8eef6" ${ST} stroke-width="3"/><path d="M98 246 l30 74 l30 -74" fill="url(#gingham${o.id})" ${ST} stroke-width="3"/><path d="M98 246 l-6 74 M158 246 l6 74" ${ST} stroke-width="3" fill="none"/><path d="M106 248 l18 62 M150 248 l-18 62" stroke="#3ab0c0" stroke-width="5" fill="none"/><rect x="118" y="304" width="20" height="16" rx="2" fill="#6abf4a" ${ST} stroke-width="2"/>`,
-  connyTop: (o) => `<path d="${BODY}" fill="url(#flor${o.id})" ${ST} stroke-width="4"/><path d="M10 320 q6 -48 52 -64 l10 64z M246 320 q-6 -48 -52 -64 l-10 64z" fill="url(#polka${o.id})" ${ST} stroke-width="3"/><path d="M96 246 q32 40 64 0" fill="none" stroke="#c8ccd2" stroke-width="5"/><path d="M96 246 q32 40 64 0" fill="none" stroke="#8a8e94" stroke-width="2" stroke-dasharray="3 3"/>`,
+  connyTop: (o) => `<path d="${BODY}" fill="url(#pinkflor${o.id})" ${ST} stroke-width="4"/><path d="M10 320 q6 -48 52 -64 l10 64z M246 320 q-6 -48 -52 -64 l-10 64z" fill="url(#polka${o.id})" ${ST} stroke-width="3"/>`,
+});
+// Hans's swept-back side parting and Conny's big brown waves (from Tristan's photos, 2026-11-28)
+Object.assign(HAIR, {
+  swept: { front: (c) => `<path d="M46 156 q-10 -40 2 -66 q10 -30 34 -46 q26 -16 56 -14 q40 2 60 24 q22 26 18 102 q-6 -30 -14 -44 q-6 -14 -16 -22 q-20 -10 -48 -8 q-30 2 -50 14 q-18 10 -26 26 q-8 14 -16 34z" fill="${c}" ${ST} stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M64 106 q20 -46 82 -58 M80 94 q32 -38 100 -36 M100 86 q40 -26 98 -6 M150 34 q36 8 52 36" stroke="#3a2e22" stroke-width="2.5" opacity=".45" fill="none" stroke-linecap="round"/>
+<path d="M96 48 q34 -14 70 -4" stroke="#fff" stroke-width="4" opacity=".3" fill="none" stroke-linecap="round"/>
+<path d="M50 146 q-4 -26 6 -46 M206 148 q6 -26 -4 -48" stroke="#cfc8ba" stroke-width="7" opacity=".8" fill="none" stroke-linecap="round"/>` },
+  waves: { back: (c) => { let s = `<path d="M128 40 q74 0 96 62 q12 40 6 78 q12 30 2 58 q6 24 -16 38 l-176 0 q-22 -14 -16 -38 q-10 -28 2 -58 q-6 -38 6 -78 q22 -62 96 -62z" fill="${c}" ${ST} stroke-width="4" stroke-linejoin="round"/>`;
+      for (const [x, y, r] of [[32, 140, 22], [24, 182, 25], [30, 224, 25], [52, 256, 23], [224, 140, 22], [232, 182, 25], [226, 224, 25], [204, 256, 23]]) s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" ${ST} stroke-width="3.5"/><path d="M${x - r * 0.5} ${y + 2} q${r * 0.5} ${-r * 0.6} ${r} 0" stroke="#4a2c14" stroke-width="2.5" opacity=".5" fill="none"/>`;
+      return s; },
+    front: (c) => `<path d="M40 170 q-16 -64 8 -102 q30 -44 88 -40 q62 4 82 50 q14 34 4 84 q-6 -34 -20 -54 q-8 -14 -22 -22 q-24 34 -76 40 q-28 4 -42 18 q-12 12 -22 26z" fill="${c}" ${ST} stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M176 78 q-26 44 -84 54 q-20 4 -32 14 M196 94 q-6 -22 -24 -34" stroke="#4a2c14" stroke-width="3" opacity=".5" fill="none" stroke-linecap="round"/>
+<path d="M150 44 q-44 4 -74 32 q-14 12 -22 32" stroke="#4a2c14" stroke-width="2.5" opacity=".4" fill="none" stroke-linecap="round"/>
+<path d="M88 54 q44 -20 90 2" stroke="#fff" stroke-width="4.5" opacity=".3" fill="none" stroke-linecap="round"/>` },
+});
+Object.assign(EXTRA, {
+  rosy: `<ellipse cx="80" cy="192" rx="22" ry="13" fill="#e8605a" opacity=".32"/><ellipse cx="178" cy="194" rx="22" ry="13" fill="#e8605a" opacity=".32"/>`,
+  chain: `<path d="M92 246 q36 46 72 0" fill="none" stroke="#c8ccd2" stroke-width="6"/><path d="M92 246 q36 46 72 0" fill="none" stroke="#7a7e84" stroke-width="2.5" stroke-dasharray="4 4"/>`,
 });
 // ---- the rivals (2026-11-28): Hans & Conny Blokaas of Blokaas Specijeren, Almere (js/blokaas.js). Lilac backdrop, the rival colour on the map
 const RIVAL = ['#e6d8f4', '#a888d0', '#3a2458'];
 Object.assign(CAST, {
-  hans: { skin: '#eaa88a', shade: '#c8866c', w: 1.04, hair: 'short', hc: '#8c7a5e', brows: 'raised', bc: '#7a6a50', eyes: 'narrow', iris: '#5a7a8a', mouth: 'smirk', clothes: 'hansJacket', extras: ['wrinkles', 'binoculars'], tint: RIVAL }, // Tristan's photo 2026-11-28: swept brown-grey hair, broad face, checked shirt, grey jacket, lanyard
-  conny: { skin: '#f2bca0', shade: '#d49a80', w: 0.98, hair: 'bob', hc: '#8a5a30', brows: 'happy', bc: '#6a4422', eyes: 'normal', iris: '#5a7a6a', mouth: 'grin', clothes: 'connyTop', extras: ['tin'], tint: RIVAL }, // Tristan's photo: wavy brown hair with a side fringe, big smile, pink floral top, silver chain
+  hans: { skin: '#e6a486', shade: '#c4826a', w: 0.98, hair: 'swept', hc: '#8a7658', brows: 'sly', bc: '#7a6a50', eyes: 'narrow', iris: '#5a7a8a', mouth: 'smirk', clothes: 'hansJacket', extras: ['wrinkles', 'rosy', 'binoculars'], tint: RIVAL }, // Tristan's photo 2026-11-28: swept-back brown-grey hair with grey temples, broad ruddy face, checked shirt, grey jacket, lanyard
+  conny: { skin: '#f2b89c', shade: '#d4967e', w: 1.05, hair: 'waves', hc: '#8e5c30', brows: 'happy', bc: '#6a4422', eyes: 'normal', iris: '#6a8a7a', mouth: 'grin', clothes: 'connyTop', extras: ['rosy', 'chain'], tint: RIVAL }, // Tristan's photo: big wavy brown hair with a side fringe, wide smile, rosy cheeks, pink floral top, silver chain
 });
 
 function cast(key, m, blink) {
